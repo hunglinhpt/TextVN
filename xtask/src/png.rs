@@ -448,9 +448,9 @@ fn fixed_tables() -> (HuffTable, HuffTable) {
     )
 }
 
-/// Giải nén raw DEFLATE stream (RFC 1951 — hỗ trợ Stored, Fixed, Dynamic Huffman).
-pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
-    const MAX_OUT: usize = 256 * 1024 * 1024;
+/// Giải nén raw DEFLATE stream (RFC 1951 — hỗ trợ Stored, Fixed, Dynamic Huffman)
+/// với trần kích thước đầu ra `max_out` để chặn zip-bomb trước khi cấp phát bộ nhớ lớn.
+pub(crate) fn inflate_raw_bounded(src: &[u8], max_out: usize) -> Result<Vec<u8>, String> {
     let mut br = BitReader::new(src);
     let mut out = Vec::new();
     loop {
@@ -465,7 +465,7 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
                     return Err("DEFLATE: stored block LEN != !NLEN".into());
                 }
                 let n = len as usize;
-                if out.len() + n > MAX_OUT {
+                if out.len().saturating_add(n) > max_out {
                     return Err("DEFLATE: kích thước giải nén vượt giới hạn an toàn".into());
                 }
                 out.reserve(n);
@@ -480,7 +480,8 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
                     let hlit = br.read_bits(5)? as usize + 257;
                     let hdist = br.read_bits(5)? as usize + 1;
                     let hclen = br.read_bits(4)? as usize + 4;
-                    if hlit > 286 || hdist > 30 {
+                    // RFC 1951 §3.2.7: HLIT <= 286, HDIST có thể tới 32 (mã 30..31 không dùng sẽ bị chặn khi decode).
+                    if hlit > 286 || hdist > 32 {
                         return Err(format!("DEFLATE: HLIT={hlit}/HDIST={hdist} vượt chuẩn"));
                     }
                     let mut cl_lens = [0u8; 19];
@@ -520,6 +521,9 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
                             _ => return Err(format!("DEFLATE: mã code-length lạ {sym}")),
                         }
                     }
+                    if lens[256] == 0 {
+                        return Err("DEFLATE: bảng dynamic thiếu mã kết thúc block (256)".into());
+                    }
                     (
                         HuffTable::from_lengths(&lens[..hlit])?,
                         HuffTable::from_lengths(&lens[hlit..])?,
@@ -528,7 +532,7 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
                 loop {
                     let sym = ll_tbl.decode(&mut br)?;
                     if sym < 256 {
-                        if out.len() >= MAX_OUT {
+                        if out.len() >= max_out {
                             return Err("DEFLATE: kích thước giải nén vượt giới hạn an toàn".into());
                         }
                         out.push(sym as u8);
@@ -553,7 +557,7 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
                                 out.len()
                             ));
                         }
-                        if out.len() + mlen > MAX_OUT {
+                        if out.len().saturating_add(mlen) > max_out {
                             return Err("DEFLATE: kích thước giải nén vượt giới hạn an toàn".into());
                         }
                         out.reserve(mlen);
@@ -571,6 +575,11 @@ pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+pub(crate) fn inflate_raw(src: &[u8]) -> Result<Vec<u8>, String> {
+    inflate_raw_bounded(src, 256 * 1024 * 1024)
 }
 
 #[cfg(test)]
@@ -1273,5 +1282,41 @@ mod tests {
         assert_eq!(off1 as usize, 38);
         assert_eq!(&ico[38..38 + f1.len()], &f1[..]);
         assert_eq!(&ico[38 + f1.len()..], &f2[..]);
+    }
+
+    #[test]
+    fn inflate_raw_bounded_chan_zip_bomb_va_dynamic_hdist32_eob() {
+        let data = vec![b'A'; 1024];
+        let comp = deflate_fixed(&data);
+        assert_eq!(inflate_raw_bounded(&comp, 1024).unwrap(), data);
+        let err = inflate_raw_bounded(&comp, 100).unwrap_err();
+        assert!(err.contains("vượt giới hạn"), "lỗi bất ngờ: {err}");
+
+        // Dynamic Huffman block với HDIST=32 (RFC 1951 §3.2.7) nhưng thiếu EOB (256):
+        // dùng BitWriter dựng header: BFINAL=1, BTYPE=2, HLIT=0 (257), HDIST=31 (32), HCLEN=14 (18).
+        // CL_ORDER[0..18] có idx 16 (code-len 18) và idx 3 (code-len 0); ta cấp bit-len=1 cho sym 18
+        // để đẩy toàn bộ 257+32=289 chiều dài = 0 (nên lens[256] == 0).
+        let mut bw = BitWriter::new(32);
+        bw.write_bits_lsb(1, 1); // BFINAL=1
+        bw.write_bits_lsb(2, 2); // BTYPE=2 (Dynamic)
+        bw.write_bits_lsb(0, 5); // HLIT = 257
+        bw.write_bits_lsb(31, 5); // HDIST = 32 (vượt 30 nhưng hợp lệ theo RFC 1951 §3.2.7)
+        bw.write_bits_lsb(15, 4); // HCLEN = 19
+                                  // CL_ORDER = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]
+                                  // Gán độ dài mã 1 bit cho sym 18 (vị trí 2 trong CL_ORDER), tất cả còn lại = 0.
+        for i in 0..19 {
+            bw.write_bits_lsb(if i == 2 { 1 } else { 0 }, 3);
+        }
+        // Sym 18 có mã 1 bit là '0'; phát 3 lần (138 + 138 + 13 = 289 số 0).
+        for rep in [138u32, 138, 13] {
+            bw.write_bits_lsb(0, 1); // sym 18
+            bw.write_bits_lsb(rep - 11, 7);
+        }
+        let no_eob = bw.finish();
+        let err = inflate_raw_bounded(&no_eob, 64).unwrap_err();
+        assert!(
+            err.contains("256"),
+            "phải vượt qua kiểm tra HDIST=32 và chặn bảng dynamic thiếu EOB(256), được: {err}"
+        );
     }
 }

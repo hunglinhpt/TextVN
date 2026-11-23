@@ -1075,14 +1075,15 @@ fn tone_inject_cli(args: &[String]) -> i32 {
         if cases.len() >= max {
             break;
         }
-        let l = line.trim();
-        if l.is_empty() || l.starts_with('#') {
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
             continue;
         }
-        let sent = l
+        // Tách cột trên `line` chưa trim để dòng bắt đầu bằng `\tlabel` không biến label thành câu.
+        let sent = line
             .split('\t')
             .next()
             .unwrap_or("")
+            .trim()
             .trim_start_matches('~')
             .trim();
         if sent.is_empty() {

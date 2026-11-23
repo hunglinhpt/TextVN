@@ -601,19 +601,56 @@ fn is_python_path(rel: &str) -> bool {
         .is_some_and(|e| PYTHON_EXTS.contains(&e.as_str()))
 }
 
+fn is_python_interpreter(token: &str) -> bool {
+    let base = token
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let base = base.strip_suffix(".exe").unwrap_or(&base);
+    if matches!(base, "python" | "pypy") {
+        return true;
+    }
+    for prefix in ["python", "pypy"] {
+        if let Some(rest) = base.strip_prefix(prefix) {
+            if rest.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn has_python_shebang(head: &[u8]) -> bool {
-    if head.contains(&0) || !head.starts_with(b"#!") {
+    if head.contains(&0) || !head.starts_with(b"#!") || head.starts_with(b"#![") {
         return false;
     }
     let first_line = head.split(|&b| b == b'\n').next().unwrap_or(&[]);
-    let line = String::from_utf8_lossy(first_line).to_ascii_lowercase();
-    line.contains("python")
+    let line = String::from_utf8_lossy(first_line);
+    let body = line.trim_start_matches("#!").trim();
+    let mut parts = body.split_ascii_whitespace();
+    let Some(first) = parts.next() else {
+        return false;
+    };
+    if is_python_interpreter(first) {
+        return true;
+    }
+    let first_base = first.rsplit(['/', '\\']).next().unwrap_or("");
+    if first_base.eq_ignore_ascii_case("env") {
+        for tok in parts {
+            if tok.starts_with('-') || tok.contains('=') {
+                continue;
+            }
+            return is_python_interpreter(tok);
+        }
+    }
+    false
 }
 
 /// E59: repo KHÔNG được chứa file Python (policy ngôn ngữ AGENTS.md — chỉ Rust +
 /// C/C++/Swift native). Quét cả file track lẫn file mới chưa track (không bị
 /// gitignore), không phân biệt hoa/thường (.py/.pyw/.pyi/.ipynb) và kiểm
-/// shebang `#!/...python` ở script không đuôi.
+/// shebang `#!/...python` trên MỌI file văn bản (kể cả `.sh` / không đuôi).
 pub fn no_python() -> Result<(), String> {
     let root = repo_root();
     let mut hits = Vec::new();
@@ -622,7 +659,7 @@ pub fn no_python() -> Result<(), String> {
             hits.push(rel);
             continue;
         }
-        if rel.starts_with("graphify-out/") || Path::new(&rel).extension().is_some() {
+        if rel.starts_with("graphify-out/") {
             continue;
         }
         let full = root.join(&rel);
@@ -800,7 +837,11 @@ mod tests {
         assert!(is_python_path("nb/demo.ipynb"));
         assert!(!is_python_path("a.rs"));
         assert!(has_python_shebang(b"#!/usr/bin/env python3\nprint(1)\n"));
+        assert!(has_python_shebang(b"#!/usr/bin/env -S python3.12 -u\n"));
         assert!(has_python_shebang(b"#!/usr/bin/python\n"));
+        assert!(has_python_shebang(b"#!/usr/bin/env pypy3\n"));
+        assert!(!has_python_shebang(b"#![doc = \"no python\"]\n"));
+        assert!(!has_python_shebang(b"#!/usr/bin/env bash # no python\n"));
         assert!(!has_python_shebang(b"#!/usr/bin/env bash\necho python\n"));
         assert!(!has_python_shebang(b"#!/usr/bin/env python3\x00bin"));
     }

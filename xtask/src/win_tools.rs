@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
-use crate::png::{crc32, inflate_raw};
+use crate::png::{crc32, inflate_raw_bounded};
 
 // ---------------------------------------------------------------------------
 // check-pe-imports — port tools/win/check-pe-imports.py
@@ -173,6 +173,11 @@ pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
         let delay_rva = u32_at(d, dd + 13 * 8)? as usize;
         let delay_size = u32_at(d, dd + 13 * 8 + 4)? as usize;
         if delay_rva != 0 && delay_size != 0 {
+            let pe32_image_base = if magic == 0x10B {
+                u32_at(d, opt.checked_add(28).ok_or("PE: tràn ImageBase")?)? as usize
+            } else {
+                0
+            };
             let mut off = rva_to_off(delay_rva)?;
             loop {
                 let attrs = u32_at(d, off)?;
@@ -185,9 +190,18 @@ pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
                 if name_rva == 0 {
                     return Err("PE: delay-load descriptor có Name RVA = 0".into());
                 }
-                if (attrs & 1) != 0 {
-                    names.push(read_cstr(name_rva as usize)?);
-                }
+                let resolved_rva = if (attrs & 1) != 0 {
+                    name_rva as usize
+                } else if magic == 0x10B {
+                    (name_rva as usize)
+                        .checked_sub(pe32_image_base)
+                        .ok_or("PE: delay-load VA nhỏ hơn ImageBase")?
+                } else {
+                    return Err(
+                        "PE: PE32+ delay-load descriptor thiếu cờ RVA (grAttrs & 1 == 0)".into(),
+                    );
+                };
+                names.push(read_cstr(resolved_rva)?);
                 off = off.checked_add(32).ok_or("PE: tràn offset delay table")?;
             }
         }
@@ -446,13 +460,13 @@ fn decode_entities(s: &str) -> Result<String, String> {
             _ if ent.starts_with('#') => {
                 let num = &ent[1..];
                 let cp = if let Some(hex) = num.strip_prefix('x') {
-                    if hex.is_empty() {
-                        return Err(format!("XML: thực thể số rỗng '&{ent};'"));
+                    if hex.is_empty() || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+                        return Err(format!("XML: thực thể số không hợp lệ '&{ent};'"));
                     }
                     u32::from_str_radix(hex, 16)
                 } else {
-                    if num.is_empty() {
-                        return Err(format!("XML: thực thể số rỗng '&{ent};'"));
+                    if num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+                        return Err(format!("XML: thực thể số không hợp lệ '&{ent};'"));
                     }
                     num.parse::<u32>()
                 }
@@ -720,6 +734,11 @@ pub(crate) fn parse_xml(src: &str) -> Result<Xml, String> {
             if key == "xmlns" {
                 ns_frame.insert(String::new(), val);
             } else if let Some(pref) = key.strip_prefix("xmlns:") {
+                if val.is_empty() {
+                    return Err(format!(
+                        "XML: không được gán namespace rỗng cho prefix '{pref}'"
+                    ));
+                }
                 ns_frame.insert(pref.to_string(), val);
             } else {
                 raw_attrs.push((key.to_string(), val));
@@ -873,27 +892,38 @@ fn parse_zip64_extra(
         }
         i += data_size;
     }
+    if need_uncomp || need_comp || need_local {
+        return Err("MSIX/ZIP64: thiếu hoặc cắt cụt ZIP64 extra field (0x0001)".into());
+    }
     Ok((None, None, None))
 }
 
 fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
+    const MAX_ARCHIVE_UNCOMP: usize = 512 * 1024 * 1024;
     let eocd_off = find_eocd(data)?;
     let mut cd_entries = u16_at(data, eocd_off + 10)? as u64;
     let mut cd_size = u32_at(data, eocd_off + 12)? as u64;
     let mut cd_offset = u32_at(data, eocd_off + 16)? as u64;
 
     // Hỗ trợ ZIP64 EOCD Locator (`PK\x06\x07`, 20 bytes ngay trước EOCD).
-    if (cd_entries == 0xFFFF || cd_size == 0xFFFF_FFFF || cd_offset == 0xFFFF_FFFF)
-        && eocd_off >= 20
-        && &data[eocd_off - 20..eocd_off - 16] == b"PK\x06\x07"
-    {
-        let z64_off = u64_at(data, eocd_off - 12)? as usize;
-        if data.get(z64_off..z64_off.saturating_add(4)) != Some(b"PK\x06\x06") {
-            return Err("MSIX/ZIP64: thiếu chữ ký ZIP64 EOCD (PK\\x06\\x06)".into());
+    let need_z64_cd = cd_size == 0xFFFF_FFFF || cd_offset == 0xFFFF_FFFF;
+    if cd_entries == 0xFFFF || need_z64_cd {
+        if eocd_off >= 20 && &data[eocd_off - 20..eocd_off - 16] == b"PK\x06\x07" {
+            let z64_off = usize::try_from(u64_at(data, eocd_off - 12)?)
+                .map_err(|_| "MSIX/ZIP64: tràn offset ZIP64 EOCD")?;
+            if z64_off.checked_add(56).is_none_or(|end| end > data.len())
+                || &data[z64_off..z64_off + 4] != b"PK\x06\x06"
+            {
+                return Err("MSIX/ZIP64: thiếu hoặc cắt cụt ZIP64 EOCD (PK\\x06\\x06)".into());
+            }
+            cd_entries = u64_at(data, z64_off + 32)?;
+            cd_size = u64_at(data, z64_off + 40)?;
+            cd_offset = u64_at(data, z64_off + 48)?;
+        } else if need_z64_cd {
+            return Err(
+                "MSIX/ZIP64: EOCD báo sentinel 0xFFFFFFFF nhưng thiếu ZIP64 Locator".into(),
+            );
         }
-        cd_entries = u64_at(data, z64_off + 32)?;
-        cd_size = u64_at(data, z64_off + 40)?;
-        cd_offset = u64_at(data, z64_off + 48)?;
     }
 
     let cd_start = usize::try_from(cd_offset).map_err(|_| "ZIP: tràn cd_offset")?;
@@ -905,6 +935,7 @@ fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
 
     let mut entries = BTreeMap::new();
     let mut exact_names = BTreeSet::new();
+    let mut total_uncomp: usize = 0;
     let mut pos = cd_start;
     for _ in 0..cd_entries {
         if pos + 46 > cd_end || &data[pos..pos + 4] != b"PK\x01\x02" {
@@ -934,6 +965,12 @@ fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
         if raw_name.ends_with('/') {
             continue;
         }
+        let lower = raw_name.to_lowercase();
+        if entries.contains_key(&lower) {
+            return Err(format!(
+                "MSIX/ZIP: trùng entry (không phân biệt hoa/thường): '{raw_name}'"
+            ));
+        }
         let (z_uncomp, z_comp, z_local) =
             if uncomp32 == 0xFFFF_FFFF || comp32 == 0xFFFF_FFFF || local32 == 0xFFFF_FFFF {
                 parse_zip64_extra(
@@ -951,6 +988,10 @@ fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
             .map_err(|_| "ZIP: tràn uncomp_size")?;
         let local_off = usize::try_from(z_local.unwrap_or(local32 as u64))
             .map_err(|_| "ZIP: tràn local_off")?;
+        total_uncomp = total_uncomp
+            .checked_add(uncomp_size)
+            .filter(|&t| t <= MAX_ARCHIVE_UNCOMP)
+            .ok_or("MSIX/ZIP: tổng kích thước giải nén vượt giới hạn an toàn")?;
 
         if local_off.checked_add(30).is_none_or(|e| e > data.len())
             || &data[local_off..local_off + 4] != b"PK\x03\x04"
@@ -981,7 +1022,7 @@ fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
                 }
                 comp_bytes.to_vec()
             }
-            8 => inflate_raw(comp_bytes)
+            8 => inflate_raw_bounded(comp_bytes, uncomp_size)
                 .map_err(|e| format!("MSIX/ZIP: lỗi giải nén '{raw_name}': {e}"))?,
             other => {
                 return Err(format!(
@@ -1001,8 +1042,8 @@ fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
                 "MSIX/ZIP: '{raw_name}' sai CRC-32 (got 0x{got_crc:08X} != want 0x{expected_crc:08X})"
             ));
         }
-        exact_names.insert(raw_name.clone());
-        entries.insert(raw_name.to_lowercase(), payload);
+        exact_names.insert(raw_name);
+        entries.insert(lower, payload);
     }
 
     if entries.is_empty() {
@@ -1477,6 +1518,33 @@ mod tests {
         let sec_off = 0x80 + 24 + 112 + 16 * 8;
         bss[sec_off + 16..sec_off + 20].copy_from_slice(&0u32.to_le_bytes());
         assert!(pe_imports_bytes(&bss).is_err());
+
+        // PE32 delay-load import dạng VA (grAttrs=0, MSVC x86 cũ): rva = va - ImageBase.
+        let mut pe32_va = build_synthetic_pe(false, &[]);
+        let opt_off = 0x80 + 24;
+        let image_base: u32 = 0x0040_0000;
+        pe32_va[opt_off + 28..opt_off + 32].copy_from_slice(&image_base.to_le_bytes());
+        let va_base: u32 = 0x1000;
+        let raw_off = 0x400usize;
+        let mut sec = vec![0u8; 64]; // 2 descriptor * 32 bytes (1 thật + 1 kết thúc toàn 0)
+        let name_rva = va_base + sec.len() as u32;
+        sec.extend_from_slice(b"VCRUNTIME140.dll\0");
+        // grAttrs=0 (VA), szName = image_base + name_rva
+        sec[0..4].copy_from_slice(&0u32.to_le_bytes());
+        sec[4..8].copy_from_slice(&(image_base + name_rva).to_le_bytes());
+        let dd_off = opt_off + 96;
+        // DataDirectory[13] = Delay Import Descriptor
+        pe32_va[dd_off + 13 * 8..dd_off + 13 * 8 + 4].copy_from_slice(&va_base.to_le_bytes());
+        pe32_va[dd_off + 13 * 8 + 4..dd_off + 13 * 8 + 8].copy_from_slice(&64u32.to_le_bytes());
+        let sec_off32 = opt_off + 96 + 16 * 8;
+        pe32_va[sec_off32 + 8..sec_off32 + 12].copy_from_slice(&(sec.len() as u32).to_le_bytes());
+        pe32_va[sec_off32 + 16..sec_off32 + 20].copy_from_slice(&(sec.len() as u32).to_le_bytes());
+        pe32_va.resize(raw_off + sec.len(), 0);
+        pe32_va[raw_off..raw_off + sec.len()].copy_from_slice(&sec);
+        assert_eq!(
+            pe_imports_bytes(&pe32_va).unwrap(),
+            vec!["VCRUNTIME140.dll"]
+        );
     }
 
     #[test]
@@ -1751,10 +1819,51 @@ mod tests {
             "<a>bare &amp and &</a>",
             "<a></a foo=\"1\">",
             "<a xmlns:f=\"u1\" xmlns:g=\"u1\"><f:X></g:X></a>",
+            "<a xmlns:p=\"\"><p:X/></a>",
+            "<a>&#+65;</a>",
+            "<a>&#x+41;</a>",
             "<!garbage><a/>",
         ] {
             assert!(parse_xml(bad).is_err(), "phải báo lỗi XML hỏng: {bad}");
         }
+    }
+
+    #[test]
+    fn zip_tu_choi_trung_entry_khong_phan_biet_hoa_thuong() {
+        let dup = build_zip(&[
+            ("AppxManifest.xml", b"<Package/>", false),
+            ("appxmanifest.xml", b"<Package/>", true),
+        ]);
+        let err = read_msix_bytes(&dup).err().expect("phải chặn entry trùng");
+        assert!(err.contains("trùng entry"), "lỗi bất ngờ: {err}");
+    }
+
+    #[test]
+    fn zip_chan_zip64_thieu_extra_va_zip_bomb_bounded_inflate() {
+        // 1) ZIP64 sentinel 0xFFFFFFFF trong CD nhưng không có extra field 0x0001 → phải Err.
+        let mut z = build_zip(&[("a.txt", b"hello", false)]);
+        let cd_pos = z
+            .windows(4)
+            .position(|w| w == b"PK\x01\x02")
+            .expect("cd header");
+        z[cd_pos + 24..cd_pos + 28].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        let err = read_msix_bytes(&z)
+            .err()
+            .expect("phải chặn thiếu ZIP64 extra");
+        assert!(err.contains("ZIP64"), "lỗi bất ngờ: {err}");
+
+        // 2) Deflate payload lớn hơn uncomp_size khai báo trong CD → inflate_raw_bounded dừng sớm.
+        let payload = vec![b'X'; 4096];
+        let mut zb = build_zip(&[("bomb.bin", &payload, true)]);
+        let cd_pos2 = zb
+            .windows(4)
+            .position(|w| w == b"PK\x01\x02")
+            .expect("cd header");
+        zb[cd_pos2 + 24..cd_pos2 + 28].copy_from_slice(&32u32.to_le_bytes());
+        let err2 = read_msix_bytes(&zb)
+            .err()
+            .expect("phải chặn zip-bomb vượt uncomp_size");
+        assert!(err2.contains("vượt giới hạn"), "lỗi bất ngờ: {err2}");
     }
 
     #[test]

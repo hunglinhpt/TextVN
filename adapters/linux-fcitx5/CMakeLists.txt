@@ -79,8 +79,16 @@ add_test(NAME test_fcitx5_surrounding_match COMMAND test_fcitx5_surrounding_matc
 # Kiểm thử đầu-cuối với fcitx5 thật — chạy qua scripts/e2e-linux.sh (E59:
 # bản C thay e2e_fcitx5.py — client libdbus-1 vào portal org.fcitx.Fcitx).
 # KHÔNG add_test: cần dbus-run-session + fcitx5 thật (scripts/e2e-linux.sh).
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(DBUS REQUIRED IMPORTED_TARGET dbus-1)
-add_executable(e2e_fcitx5 tests/e2e_fcitx5.c)
-target_compile_options(e2e_fcitx5 PRIVATE ${TEXTVN_FCITX5_WARN})
-target_link_libraries(e2e_fcitx5 PRIVATE PkgConfig::DBUS)
+# Tùy chọn theo dbus-1 để debian/rules và scripts/install_linux.sh không fail
+# khi chỉ build plugin Fcitx5 (scripts/e2e-linux.sh vẫn fail nếu thiếu binary).
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(DBUS IMPORTED_TARGET dbus-1)
+endif()
+if(DBUS_FOUND)
+    add_executable(e2e_fcitx5 tests/e2e_fcitx5.c)
+    target_compile_options(e2e_fcitx5 PRIVATE ${TEXTVN_FCITX5_WARN})
+    target_link_libraries(e2e_fcitx5 PRIVATE PkgConfig::DBUS)
+else()
+    message(STATUS "dbus-1 not found — skipping e2e_fcitx5 (only needed by scripts/e2e-linux.sh)")
+endif()
