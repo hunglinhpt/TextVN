@@ -115,7 +115,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
   -IdentityName "<Package/Identity/Name>" -RequireStoreIdentity
 #   (lựa chọn B: thêm  -DisplayName "<tên đã reserve>")
-cargo run --manifest-path tools\win\..\..\Cargo.toml -q -p xtask -- verify-msix dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
+cargo xtask verify-msix dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
 ```
 
 **Version:** Partner Center từ chối Identity Version có phần đầu bằng 0 → gói map

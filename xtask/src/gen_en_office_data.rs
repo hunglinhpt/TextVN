@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// == GENERATED FILE — KHÔNG SỬA TAY ==
-// Nguồn: E59 port `scripts/gen_en_office_phrases.py` (đã xoá khỏi repo theo
-// policy không-Python). Dump dữ liệu 1 lần vào module này; thuật toán sinh
-// TSV nằm trong `xtask/src/en_office.rs`. Muốn mở rộng: sửa các const bên dưới
-// (định dạng entry giữ nguyên).
+// Dữ liệu nguồn (E59 port từ `scripts/gen_en_office_phrases.py` đã xoá theo
+// policy không-Python). Thuật toán sinh `data/en_office_phrases.tsv` nằm trong
+// `xtask/src/en_office.rs`. Muốn mở rộng: sửa trực tiếp các const bên dưới rồi
+// chạy `cargo xtask gen-en-office` (định dạng entry giữ nguyên).
 
 /// Câu thật (category, sentence) — đã tích tổ hợp template từ bản Python.
 pub const SENTENCES: &[(&str, &str)] = &[

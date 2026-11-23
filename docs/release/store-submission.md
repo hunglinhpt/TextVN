@@ -30,7 +30,7 @@
 | S9 | Privacy policy URL = `PRIVACY_POLICY.txt` (raw/blob); Support URL = issues | ✔ | repo |
 | S10 | Publisher display name trong Partner Center = `LinhBH.CoM` (khớp ARP) | ✔ | Bước 2 của validation đối chiếu tự động |
 | S11 | Sau khi Submit: theo dõi Package validation — mọi mục đỏ phải được đưa thành mã lỗi (B*/E*) TRƯỚC khi nộp lại | ✔ | quy tắc B4⑤ |
-| S12 | Gói MSIX (đường Store CHÍNH) build với `Package/Identity/Name` thật (repo variable `MSIX_IDENTITY_NAME` → `-RequireStoreIdentity`), `verify-msix.py` + sideload test xanh | ✔ | [`msix-submission.md`](msix-submission.md) §0/§3 |
+| S12 | Gói MSIX (đường Store CHÍNH) build với `Package/Identity/Name` thật (repo variable `MSIX_IDENTITY_NAME` → `-RequireStoreIdentity`), `cargo xtask verify-msix` + sideload test xanh | ✔ | [`msix-submission.md`](msix-submission.md) §0/§3 |
 
 Vì sao bắt buộc cứng: lần nộp 0.2.16 đã đỏ 3 mục validation vì bộ cài đòi
 admin trong sandbox (B13) — từ 0.2.17 mọi bước ở S2 chạy tự động trong CI mỗi

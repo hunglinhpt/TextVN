@@ -12,89 +12,187 @@
 //!   thước, payload đủ.
 //!
 //! Điểm gọi: ci-windows.yml, release.yml, tools/release/verify-store-package.sh
-//! (chạy trên ubuntu LẪN Windows). MSIX = ZIP: giải nén bằng `bsdtar`
-//! (Windows có sẵn C:\Windows\System32\tar.exe đọc được zip; macOS/Linux bsdtar)
-//! hoặc `unzip` (Linux runner có sẵn) — không dùng runtime Python.
+//! (chạy trên ubuntu LẪN Windows). MSIX = ZIP: đọc trực tiếp trong bộ nhớ bằng
+//! parser ZIP + RFC 1951 Inflate thuần std (không phụ thuộc `tar`/`bsdtar`/`unzip`,
+//! không tạo thư mục tạm).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
+
+use crate::png::{crc32, inflate_raw};
 
 // ---------------------------------------------------------------------------
 // check-pe-imports — port tools/win/check-pe-imports.py
 // ---------------------------------------------------------------------------
 
 fn u16_at(d: &[u8], off: usize) -> Result<u16, String> {
-    d.get(off..off + 2)
+    let end = off
+        .checked_add(2)
+        .ok_or_else(|| format!("PE: tràn offset tại 0x{off:X}"))?;
+    d.get(off..end)
         .map(|s| u16::from_le_bytes([s[0], s[1]]))
         .ok_or_else(|| format!("PE: thiếu byte tại 0x{off:X}"))
 }
 
 fn u32_at(d: &[u8], off: usize) -> Result<u32, String> {
-    d.get(off..off + 4)
+    let end = off
+        .checked_add(4)
+        .ok_or_else(|| format!("PE: tràn offset tại 0x{off:X}"))?;
+    d.get(off..end)
         .map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
         .ok_or_else(|| format!("PE: thiếu byte tại 0x{off:X}"))
 }
 
-/// Đọc bảng import của một PE (Portable Executable) — parser thuần byte như
-/// bản Python cũ: KHÔNG cần dumpbin/Visual Studio.
+fn u64_at(d: &[u8], off: usize) -> Result<u64, String> {
+    let end = off
+        .checked_add(8)
+        .ok_or_else(|| format!("ZIP: tràn offset tại 0x{off:X}"))?;
+    d.get(off..end)
+        .map(|s| u64::from_le_bytes([s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]]))
+        .ok_or_else(|| format!("ZIP: thiếu byte tại 0x{off:X}"))
+}
+
+/// Đọc bảng import (và delay-load import nếu có) của một PE (Portable Executable)
+/// — parser thuần byte với kiểm tra biên/tràn đầy đủ, KHÔNG cần dumpbin/Visual Studio.
 pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
     if d.len() < 0x40 || &d[..2] != b"MZ" {
         return Err("không phải PE (thiếu MZ)".into());
     }
     let pe = u32_at(d, 0x3C)? as usize;
-    if d.get(pe..pe + 4) != Some(b"PE\0\0") {
+    let pe_sig_end = pe
+        .checked_add(4)
+        .ok_or_else(|| "PE: tràn offset chữ ký PE".to_string())?;
+    if d.get(pe..pe_sig_end) != Some(b"PE\0\0") {
         return Err("không phải PE (thiếu chữ ký PE)".into());
     }
-    let nsec = u16_at(d, pe + 6)? as usize;
-    let opt_size = u16_at(d, pe + 20)? as usize;
-    let opt = pe + 24;
+    let nsec = u16_at(d, pe.checked_add(6).ok_or("PE: tràn nsec")?)? as usize;
+    let opt_size = u16_at(d, pe.checked_add(20).ok_or("PE: tràn opt_size")?)? as usize;
+    let opt = pe.checked_add(24).ok_or("PE: tràn optional header")?;
     let magic = u16_at(d, opt)?;
-    let dd = match magic {
-        0x10B => opt + 96,  // PE32
-        0x20B => opt + 112, // PE32+
+    let dd_rel: usize = match magic {
+        0x10B => 96,  // PE32
+        0x20B => 112, // PE32+
         other => return Err(format!("PE: magic lạ 0x{other:X}")),
     };
-    let imp_rva = u32_at(d, dd + 8)? as usize;
+    let dd = opt.checked_add(dd_rel).ok_or("PE: tràn data directory")?;
+    let sec = opt.checked_add(opt_size).ok_or("PE: tràn section table")?;
+    let sec_bytes = nsec
+        .checked_mul(40)
+        .and_then(|n| sec.checked_add(n))
+        .ok_or("PE: tràn bảng section")?;
+    if sec_bytes > d.len() {
+        return Err("PE: bảng section vượt quá kích thước file".into());
+    }
     let mut sections: Vec<(usize, usize, usize)> = Vec::with_capacity(nsec);
-    let sec = opt + opt_size;
     for i in 0..nsec {
         let off = sec + 40 * i;
         let vsize = u32_at(d, off + 8)? as usize;
         let va = u32_at(d, off + 12)? as usize;
         let rawsize = u32_at(d, off + 16)? as usize;
         let rawptr = u32_at(d, off + 20)? as usize;
-        sections.push((va, vsize.max(rawsize), rawptr));
+        // Chỉ ánh xạ vùng thực sự có trong file (bỏ qua .bss rawsize == 0 và phần đuôi ảo).
+        if rawsize == 0 {
+            continue;
+        }
+        let span = if vsize == 0 {
+            rawsize
+        } else {
+            vsize.min(rawsize)
+        };
+        sections.push((va, span, rawptr));
     }
-    if imp_rva == 0 {
+
+    // Nếu OptionalHeader nhỏ hơn NumberOfRvaAndSizes hoặc không có DataDirectory[1] → 0 import.
+    if opt_size < dd_rel {
         return Ok(Vec::new());
     }
+    let num_dd = u32_at(d, dd - 4)? as usize;
+    if num_dd <= 1 || opt_size < dd_rel + 16 {
+        return Ok(Vec::new());
+    }
+    let imp_rva = u32_at(d, dd + 8)? as usize;
+    let imp_size = u32_at(d, dd + 12)? as usize;
+
     let rva_to_off = |rva: usize| -> Result<usize, String> {
-        for (va, size, raw) in &sections {
-            if *va <= rva && rva < va + size {
-                return Ok(raw + (rva - va));
+        for &(va, span, raw) in &sections {
+            if rva >= va {
+                let delta = rva - va;
+                if delta < span {
+                    let file_off = raw
+                        .checked_add(delta)
+                        .ok_or_else(|| format!("PE: tràn file offset từ RVA 0x{rva:X}"))?;
+                    if file_off < d.len() {
+                        return Ok(file_off);
+                    }
+                    return Err(format!(
+                        "PE: file offset 0x{file_off:X} vượt quá kích thước file"
+                    ));
+                }
             }
         }
-        Err(format!("RVA 0x{rva:X} ngoài mọi section"))
+        Err(format!("RVA 0x{rva:X} ngoài mọi section có dữ liệu"))
     };
-    let mut names = Vec::new();
-    let mut off = rva_to_off(imp_rva)?;
-    loop {
-        let orig = u32_at(d, off)?;
-        let name_rva = u32_at(d, off + 12)?;
-        let first = u32_at(d, off + 16)?;
-        if orig == 0 && name_rva == 0 && first == 0 {
-            break;
-        }
-        let noff = rva_to_off(name_rva as usize)?;
-        let end = d[noff..]
+
+    let read_cstr = |rva: usize| -> Result<String, String> {
+        let noff = rva_to_off(rva)?;
+        let tail = d
+            .get(noff..)
+            .ok_or_else(|| format!("PE: offset tên DLL 0x{noff:X} ngoài file"))?;
+        let end = tail
             .iter()
             .position(|b| *b == 0)
             .ok_or_else(|| "PE: tên DLL không kết thúc bằng \\0".to_string())?;
-        names.push(String::from_utf8_lossy(&d[noff..noff + end]).into_owned());
-        off += 20;
+        Ok(String::from_utf8_lossy(&tail[..end]).into_owned())
+    };
+
+    let mut names = Vec::new();
+    if imp_rva != 0 && imp_size != 0 {
+        let mut off = rva_to_off(imp_rva)?;
+        loop {
+            let orig = u32_at(d, off)?;
+            let ts = u32_at(d, off.checked_add(4).ok_or("PE: tràn descriptor")?)?;
+            let fwd = u32_at(d, off.checked_add(8).ok_or("PE: tràn descriptor")?)?;
+            let name_rva = u32_at(d, off.checked_add(12).ok_or("PE: tràn descriptor")?)?;
+            let first = u32_at(d, off.checked_add(16).ok_or("PE: tràn descriptor")?)?;
+            if (orig == 0 && ts == 0 && fwd == 0 && name_rva == 0 && first == 0)
+                || (orig == 0 && name_rva == 0 && first == 0)
+            {
+                break;
+            }
+            if name_rva == 0 {
+                return Err("PE: import descriptor có Name RVA = 0".into());
+            }
+            names.push(read_cstr(name_rva as usize)?);
+            off = off.checked_add(20).ok_or("PE: tràn offset import table")?;
+        }
     }
+
+    // Kiểm thêm Delay-Load Import Directory (DataDirectory[13]) để chặn `/DELAYLOAD:vcruntime*.dll`.
+    if num_dd > 13 && opt_size >= dd_rel + 14 * 8 {
+        let delay_rva = u32_at(d, dd + 13 * 8)? as usize;
+        let delay_size = u32_at(d, dd + 13 * 8 + 4)? as usize;
+        if delay_rva != 0 && delay_size != 0 {
+            let mut off = rva_to_off(delay_rva)?;
+            loop {
+                let attrs = u32_at(d, off)?;
+                let name_rva = u32_at(d, off.checked_add(4).ok_or("PE: tràn delay descriptor")?)?;
+                let iat = u32_at(d, off.checked_add(12).ok_or("PE: tràn delay descriptor")?)?;
+                let int = u32_at(d, off.checked_add(16).ok_or("PE: tràn delay descriptor")?)?;
+                if name_rva == 0 && iat == 0 && int == 0 {
+                    break;
+                }
+                if name_rva == 0 {
+                    return Err("PE: delay-load descriptor có Name RVA = 0".into());
+                }
+                if (attrs & 1) != 0 {
+                    names.push(read_cstr(name_rva as usize)?);
+                }
+                off = off.checked_add(32).ok_or("PE: tràn offset delay table")?;
+            }
+        }
+    }
+
     Ok(names)
 }
 
@@ -170,6 +268,11 @@ pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
 // verify-msix — port tools/win/verify-msix.py
 // ---------------------------------------------------------------------------
 
+const NS_FOUNDATION: &str = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+const NS_UAP: &str = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+const NS_RESCAP: &str =
+    "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities";
+
 const PLACEHOLDER_NAME: &str = "LinhBH.CoM.TextVN";
 const EXPECTED_PUBLISHER: &str = "CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545";
 const EXPECTED_DISPLAY_NAME: &str = "TextVN";
@@ -177,7 +280,7 @@ const EXPECTED_PUBLISHER_DISPLAY: &str = "LinhBH.CoM";
 const STORE_LOGO_SIZE: (u32, u32) = (50, 50);
 const SPLASH_SIZE: (u32, u32) = (620, 300);
 
-/// Thuộc tính VisualElements → kích thước bắt buộc (scale-100).
+/// Thuộc tính VisualElements / DefaultTile → kích thước bắt buộc (scale-100).
 fn asset_size(attr: &str) -> Option<(u32, u32)> {
     match attr {
         "Square150x150Logo" => Some((150, 150)),
@@ -216,9 +319,9 @@ fn map_version(product: &str) -> Result<String, String> {
     Ok(format!("{}.{}.{}.0", a + 1, b, c))
 }
 
-/// Header PNG: width/height IHDR big-endian tại byte 16..24.
+/// Header PNG: signature 8 byte + chunk đầu phải là `IHDR` + width/height BE tại byte 16..24.
 fn png_size(data: &[u8]) -> Option<(u32, u32)> {
-    if data.len() < 24 || &data[..8] != b"\x89PNG\r\n\x1a\n" {
+    if data.len() < 24 || &data[..8] != b"\x89PNG\r\n\x1a\n" || &data[12..16] != b"IHDR" {
         return None;
     }
     Some((
@@ -227,20 +330,23 @@ fn png_size(data: &[u8]) -> Option<(u32, u32)> {
     ))
 }
 
-// ---- XML tối tiểu nhưng STRICT — đủ cho AppxManifest.xml do build sinh ----
-//
-// Chỉ đọc những gì verify cần: Identity (con trực tiếp của gốc), Properties
-// (con trực tiếp), Capability/Application/VisualElements/SplashScreen (bất kỳ
-// độ sâu, so khớp bằng LOCAL name — namespace của các thẻ cần đọc luôn khác
-// localname trong manifest này). Parser bắt được XML sai well-formed mà
-// plutil/CFPropertyList nuốt được (mục đích của check).
+// ---------------------------------------------------------------------------
+// XML 1.0 strict + namespace-aware parser (dùng chung cho verify-msix & linux_tools)
+// ---------------------------------------------------------------------------
 
 pub(crate) struct Xml {
-    /// local name sau dấu ':' (không cần bàn tới namespace).
+    /// Local name sau dấu ':' (ví dụ `Identity`, `Capability`, `exec`).
     pub(crate) name: String,
+    /// Namespace URI đã giải (rỗng nếu không có default xmlns và không có prefix).
+    pub(crate) ns: String,
+    /// Qualified name gốc (để khớp chính xác thẻ đóng).
+    qname: String,
+    /// Thuộc tính không phải `xmlns`/`xmlns:*`, giữ nguyên qname (thuộc tính
+    /// không có prefix không kế thừa default xmlns theo chuẩn XML Namespaces).
     pub(crate) attrs: Vec<(String, String)>,
     pub(crate) children: Vec<Xml>,
-    /// Text ghép trực tiếp (như `findtext` của ElementTree).
+    /// Toàn bộ nội dung text trực tiếp của phần tử (KHÔNG `.trim()` để giữ kiểm
+    /// khoảng trắng đầu/cuối R2-95 như `ElementTree.findtext`).
     pub(crate) text: String,
 }
 
@@ -248,11 +354,14 @@ impl Xml {
     fn attr(&self, name: &str) -> Option<&str> {
         self.attrs
             .iter()
-            .find(|(k, _)| k.split(':').next_back() == Some(name))
+            .find(|(k, _)| k == name)
             .map(|(_, v)| v.as_str())
     }
     pub(crate) fn child(&self, name: &str) -> Option<&Xml> {
         self.children.iter().find(|c| c.name == name)
+    }
+    fn child_ns(&self, ns: &str, name: &str) -> Option<&Xml> {
+        self.children.iter().find(|c| c.ns == ns && c.name == name)
     }
     pub(crate) fn descendants<'a>(&'a self, out: &mut Vec<&'a Xml>) {
         for c in &self.children {
@@ -263,213 +372,400 @@ impl Xml {
 }
 
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(0);
+    }
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
-pub(crate) fn local_name(tag: &str) -> String {
-    tag.split(':').next_back().unwrap_or(tag).to_string()
+fn is_xml_name_start(c: char) -> bool {
+    c.is_ascii_alphabetic() || c == '_' || !c.is_ascii()
 }
 
+fn is_xml_name_char(c: char) -> bool {
+    is_xml_name_start(c) || c.is_ascii_digit() || matches!(c, '-' | '.' | ':')
+}
+
+/// Kiểm tra QName XML 1.0 hợp lệ (tối đa 1 dấu `:`, không mở/đóng bằng `:`,
+/// không bắt đầu bằng chữ số/`-`/`.`).
 fn valid_xml_name(tag: &str) -> bool {
-    !tag.is_empty()
-        && !tag.starts_with('-')
-        && !tag.starts_with('.')
-        && tag
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b':'))
+    if tag.is_empty() {
+        return false;
+    }
+    let mut parts = tag.split(':');
+    let first = parts.next().unwrap_or("");
+    let second = parts.next();
+    if parts.next().is_some() {
+        return false; // > 1 dấu ':'
+    }
+    let valid_ncname = |s: &str| -> bool {
+        let mut chars = s.chars();
+        let Some(c0) = chars.next() else {
+            return false;
+        };
+        is_xml_name_start(c0) && chars.all(|c| is_xml_name_char(c) && c != ':')
+    };
+    match second {
+        None => valid_ncname(first),
+        Some(local) => valid_ncname(first) && valid_ncname(local),
+    }
 }
 
-// NOTE: build-msix.ps1 sinh manifest chỉ chứa 5 thực thể chuẩn dưới đây.
-fn decode_entities(s: &str) -> String {
-    // NOTE: build-msix.ps1 sinh manifest chi dung 5 thuc the chuan. Thu tu
-    // `&amp;` dung dau de khong bi thuc the khac an truoc.
-    let known = [
-        ("&amp;", "&"),
-        ("&lt;", "<"),
-        ("&gt;", ">"),
-        ("&quot;", "\""),
-        ("&apos;", "'"),
-    ];
+fn split_qname(qname: &str) -> (Option<&str>, &str) {
+    match qname.split_once(':') {
+        Some((pref, local)) => (Some(pref), local),
+        None => (None, qname),
+    }
+}
+
+fn is_valid_xml_char(cp: u32) -> bool {
+    matches!(
+        cp,
+        0x9 | 0xA | 0xD | 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x10000..=0x10FFFF
+    )
+}
+
+/// Giải mã 5 thực thể chuẩn XML + numeric char reference (`&#N;` / `&#xH;`).
+/// Trả `Err` với `&` trần hoặc thực thể không hợp lệ (đảm bảo well-formed XML 1.0).
+fn decode_entities(s: &str) -> Result<String, String> {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(pos) = rest.find('&') {
         out.push_str(&rest[..pos]);
-        let tail = &rest[pos..];
-        match known
-            .iter()
-            .find_map(|(ent, val)| tail.strip_prefix(ent).map(|stripped| (*val, stripped)))
-        {
-            Some((val, stripped)) => {
-                out.push_str(val);
-                rest = stripped;
+        let tail = &rest[pos + 1..];
+        let Some(semi) = tail.find(';') else {
+            return Err("XML: ký tự '&' không kết thúc bằng ';'".into());
+        };
+        let ent = &tail[..semi];
+        match ent {
+            "amp" => out.push('&'),
+            "lt" => out.push('<'),
+            "gt" => out.push('>'),
+            "quot" => out.push('"'),
+            "apos" => out.push('\''),
+            _ if ent.starts_with('#') => {
+                let num = &ent[1..];
+                let cp = if let Some(hex) = num.strip_prefix('x') {
+                    if hex.is_empty() {
+                        return Err(format!("XML: thực thể số rỗng '&{ent};'"));
+                    }
+                    u32::from_str_radix(hex, 16)
+                } else {
+                    if num.is_empty() {
+                        return Err(format!("XML: thực thể số rỗng '&{ent};'"));
+                    }
+                    num.parse::<u32>()
+                }
+                .map_err(|_| format!("XML: thực thể số không hợp lệ '&{ent};'"))?;
+                if !is_valid_xml_char(cp) {
+                    return Err(format!("XML: codepoint không hợp lệ XML 1.0 '&{ent};'"));
+                }
+                let ch = char::from_u32(cp)
+                    .ok_or_else(|| format!("XML: codepoint không hợp lệ '&{ent};'"))?;
+                out.push(ch);
             }
-            None => {
-                // thuc the la hoac ky tu & tho — giu nguyen.
-                out.push('&');
-                rest = &tail[1..];
-            }
+            _ => return Err(format!("XML: thực thể không xác định '&{ent};'")),
         }
+        rest = &tail[semi + 1..];
     }
     out.push_str(rest);
-    out
+    Ok(out)
+}
+
+/// Tìm dấu `>` đóng thẻ có tính đến chuỗi trích dẫn `'...'` / `"..."` (XML 1.0 cho phép `>` trong attr).
+fn find_tag_end(bytes: &[u8], start: usize) -> Result<usize, String> {
+    let mut i = start + 1;
+    let mut quote: Option<u8> = None;
+    while i < bytes.len() {
+        let b = bytes[i];
+        match quote {
+            Some(q) => {
+                if b == q {
+                    quote = None;
+                } else if b == b'<' {
+                    return Err("XML: ký tự '<' không được phép trong giá trị thuộc tính".into());
+                }
+            }
+            None => {
+                if b == b'"' || b == b'\'' {
+                    quote = Some(b);
+                } else if b == b'>' {
+                    return Ok(i);
+                } else if b == b'<' {
+                    return Err("XML: gặp '<' bên trong thẻ chưa đóng".into());
+                }
+            }
+        }
+        i += 1;
+    }
+    Err("XML: thẻ không có '>'".into())
+}
+
+fn resolve_ns(
+    ns_stack: &[BTreeMap<String, String>],
+    prefix: Option<&str>,
+) -> Result<String, String> {
+    let key = prefix.unwrap_or("");
+    for frame in ns_stack.iter().rev() {
+        if let Some(uri) = frame.get(key) {
+            return Ok(uri.clone());
+        }
+    }
+    match prefix {
+        None => Ok(String::new()),
+        Some(p) => Err(format!("XML: namespace prefix '{p}' chưa được khai báo")),
+    }
 }
 
 pub(crate) fn parse_xml(src: &str) -> Result<Xml, String> {
-    let src = src.trim_start_matches(char::from_u32(0xFEFF).unwrap());
+    let src = src.trim_start_matches('\u{FEFF}');
     let bytes = src.as_bytes();
     let mut i = 0usize;
 
-    // Bỏ qua khoảng trắng / XML decl `<?...?>` / comment `<!--...-->`.
-    // Nghiêm ngặt hơn plutil: comment chứa "--" là XML sai well-formed → Err
-    // (plutil/CFPropertyList nuốt được; parser strict phải bắt — R3 F3-11).
-    fn skip_misc(bytes: &[u8], i: &mut usize) -> Result<(), String> {
-        loop {
-            while *i < bytes.len() && (bytes[*i] as char).is_ascii_whitespace() {
-                *i += 1;
-            }
-            if bytes[*i..].starts_with(b"<?") {
-                if let Some(k) = find(&bytes[*i..], b"?>") {
-                    // `?>` bắt đầu tại i+k và dài 2 → vượt qua hết decl.
-                    *i += k + 2;
-                    continue;
-                }
-                return Err("XML: `<?` không có `?>`".into());
-            }
-            if bytes[*i..].starts_with(b"<!--") {
-                let body = &bytes[*i + 4..];
-                if let Some(k) = find(body, b"-->") {
-                    if body[..k].windows(2).any(|w| w == b"--") {
-                        return Err("XML: comment chứa \"--\" (không well-formed)".into());
-                    }
-                    // "<!--" (4) + thân k + "-->" (3)
-                    *i += k + 7;
-                    continue;
-                }
-                return Err("XML: comment không có \"-->\"".into());
-            }
-            return Ok(());
-        }
-    }
+    let mut base_ns = BTreeMap::new();
+    base_ns.insert(
+        "xml".to_string(),
+        "http://www.w3.org/XML/1998/namespace".to_string(),
+    );
+    let mut ns_stack: Vec<BTreeMap<String, String>> = vec![base_ns];
 
-    // root ảo đỡ stack; con đầu tiên của nó là phần tử gốc thật.
+    // Root ảo đỡ stack; sau khi parse xong phải có ĐÚNG 1 phần tử gốc.
     let mut stack: Vec<Xml> = vec![Xml {
         name: String::new(),
+        ns: String::new(),
+        qname: String::new(),
         attrs: Vec::new(),
         children: Vec::new(),
         text: String::new(),
     }];
-    loop {
-        skip_misc(bytes, &mut i)?;
-        if i >= bytes.len() {
-            break;
-        }
+
+    while i < bytes.len() {
         if bytes[i] != b'<' {
+            let start_text = i;
+            while i < bytes.len() && bytes[i] != b'<' {
+                i += 1;
+            }
+            let chunk = &src[start_text..i];
+            if chunk.contains("]]>") {
+                return Err("XML: chuỗi ']]>' không được phép ngoài CDATA".into());
+            }
+            if stack.len() == 1 {
+                if !chunk.chars().all(|c| c.is_ascii_whitespace()) {
+                    return Err(format!(
+                        "XML: kỳ vọng '<' tại offset {start_text} — text nằm ngoài thẻ"
+                    ));
+                }
+            } else {
+                let decoded = decode_entities(chunk)?;
+                stack.last_mut().expect("non-empty").text.push_str(&decoded);
+            }
+            continue;
+        }
+
+        // Processing instruction / XML declaration `<?...?>`
+        if bytes[i..].starts_with(b"<?") {
+            let Some(k) = find(&bytes[i + 2..], b"?>") else {
+                return Err("XML: `<?` không có `?>`".into());
+            };
+            let target_body = src[i + 2..i + 2 + k].trim();
+            if target_body.is_empty() {
+                return Err("XML: processing instruction rỗng `<??>`".into());
+            }
+            i += 2 + k + 2;
+            continue;
+        }
+
+        // Comment `<!--...-->` (cấm `--` và `-` ngay trước `-->` theo XML 1.0 §2.5)
+        if bytes[i..].starts_with(b"<!--") {
+            let body = &bytes[i + 4..];
+            let Some(k) = find(body, b"-->") else {
+                return Err("XML: comment không có \"-->\"".into());
+            };
+            if body[..k].windows(2).any(|w| w == b"--") || body[..k].ends_with(b"-") {
+                return Err("XML: comment chứa \"--\" (không well-formed)".into());
+            }
+            i += 4 + k + 3;
+            continue;
+        }
+
+        // CDATA `<![CDATA[...]]>` — chỉ hợp lệ bên trong thẻ mở.
+        if bytes[i..].starts_with(b"<![CDATA[") {
+            if stack.len() == 1 {
+                return Err("XML: CDATA nằm ngoài phần tử gốc".into());
+            }
+            let body = &bytes[i + 9..];
+            let Some(k) = find(body, b"]]>") else {
+                return Err("XML: CDATA không có \"]]>\" đóng".into());
+            };
+            stack
+                .last_mut()
+                .expect("non-empty")
+                .text
+                .push_str(&src[i + 9..i + 9 + k]);
+            i += 9 + k + 3;
+            continue;
+        }
+
+        // Các cấu trúc `<!...>` khác (DOCTYPE / rác) không được phép trong manifest/component.
+        if bytes[i..].starts_with(b"<!") {
             return Err(format!(
-                "XML: kỳ vọng '<' tại offset {i} — text nằm ngoài thẻ"
+                "XML: cấu trúc `<!...>` không được hỗ trợ tại offset {i}"
             ));
         }
-        let close = find(&bytes[i..], b">")
-            .map(|k| i + k)
-            .ok_or("XML: thẻ không có '>'")?;
-        let inner_raw = String::from_utf8_lossy(&bytes[i + 1..close]).into_owned();
-        let self_closing = inner_raw.ends_with('/');
-        let inner = inner_raw
-            .strip_suffix('/')
-            .unwrap_or(inner_raw.as_str())
-            .trim();
-        let (name_raw, attr_src) = inner.split_once(char::is_whitespace).unwrap_or((inner, ""));
-        if let Some(closing) = name_raw.strip_prefix('/') {
-            let name = local_name(closing);
-            let Some(opened) = stack.pop() else {
-                return Err(format!("XML: đóng </{name}> thừa"));
-            };
-            if opened.name != name {
+
+        let close = find_tag_end(bytes, i)?;
+        let raw_inner = &src[i + 1..close];
+        i = close + 1;
+
+        // Thẻ đóng `</QName>`
+        if let Some(after_slash) = raw_inner.strip_prefix('/') {
+            let qname = after_slash.trim_end_matches(|c: char| c.is_ascii_whitespace());
+            if qname.is_empty()
+                || qname.chars().any(|c| c.is_ascii_whitespace())
+                || qname.ends_with('/')
+                || !valid_xml_name(qname)
+            {
+                return Err(format!("XML: thẻ đóng không hợp lệ '</{after_slash}>'"));
+            }
+            if stack.len() <= 1 {
+                return Err(format!("XML: đóng </{qname}> thừa"));
+            }
+            let opened = stack.pop().expect("checked len");
+            ns_stack.pop();
+            if opened.qname != qname {
                 return Err(format!(
-                    "XML: đóng </{name}> nhưng đang mở <{}>",
-                    opened.name
+                    "XML: đóng </{qname}> nhưng đang mở <{}>",
+                    opened.qname
                 ));
             }
-            // text nội dung đã hứng ở vòng push bên dưới
-            let Some(parent) = stack.last_mut() else {
-                return Err(format!("XML: đóng </{name}> thừa"));
-            };
-            parent.children.push(opened);
-            i = close + 1;
+            stack.last_mut().expect("root ảo").children.push(opened);
             continue;
         }
-        if name_raw.starts_with('?') || name_raw.starts_with('!') {
-            // `<?...?>` đã bị skip_misc ăn; `<!...>` (DOCTYPE/CDATA) → để
-            // valid_xml_name bắt lỗi vì manifest không dùng.
-            i = close + 1;
-            continue;
+
+        // Thẻ mở `<QName ...>` hoặc tự đóng `<QName .../>`
+        let (self_closing, body) = match raw_inner.strip_suffix('/') {
+            Some(b) => (true, b),
+            None => (false, raw_inner),
+        };
+        if body.is_empty() || body.as_bytes()[0].is_ascii_whitespace() {
+            return Err("XML: tên thẻ mở rỗng hoặc có khoảng trắng đầu".into());
         }
-        if !valid_xml_name(name_raw) {
-            return Err(format!("XML: tên thẻ lạ '{name_raw}'"));
+        let name_end = body
+            .find(|c: char| c.is_ascii_whitespace())
+            .unwrap_or(body.len());
+        let qname = &body[..name_end];
+        if !valid_xml_name(qname) {
+            return Err(format!("XML: tên thẻ lạ '{qname}'"));
         }
-        // thuộc tính key="value"
-        let mut attrs = Vec::new();
-        let mut p = 0usize;
+
+        // Parse thuộc tính: bắt buộc có khoảng trắng giữa các thuộc tính, cho phép S? '=' S?.
+        let attr_src = &body[name_end..];
         let ab = attr_src.as_bytes();
+        let mut p = 0usize;
+        let mut seen_keys = BTreeSet::new();
+        let mut raw_attrs: Vec<(String, String)> = Vec::new();
+        let mut ns_frame = BTreeMap::new();
+
         while p < ab.len() {
-            while p < ab.len() && (ab[p] as char).is_ascii_whitespace() {
+            let ws_start = p;
+            while p < ab.len() && ab[p].is_ascii_whitespace() {
                 p += 1;
             }
             if p >= ab.len() {
                 break;
             }
-            let eq = attr_src[p..]
-                .find('=')
-                .map(|k| p + k)
-                .ok_or(format!("XML: thuộc tính thiếu '=' gần '{attr_src}'"))?;
-            let key = attr_src[p..eq].trim().to_string();
-            let quote = *ab
-                .get(eq + 1)
-                .ok_or(format!("XML: thuộc tính {key} thiếu nháy giá trị"))?;
-            if quote != b'"' && quote != b'\'' {
+            if p == ws_start {
                 return Err(format!(
-                    "XML: giá trị thuộc tính {key} không nằm trong nháy"
+                    "XML: thiếu khoảng trắng giữa các thuộc tính gần '{}'",
+                    &attr_src[p..]
                 ));
             }
-            let vpos = eq + 2;
-            let vend = attr_src[vpos..]
-                .find(quote as char)
-                .map(|k| vpos + k)
-                .ok_or(format!("XML: thuộc tính {key} không đóng nháy"))?;
-            attrs.push((local_name(&key), decode_entities(&attr_src[vpos..vend])));
-            p = vend + 1;
+            let kstart = p;
+            while p < ab.len() && !ab[p].is_ascii_whitespace() && ab[p] != b'=' {
+                p += 1;
+            }
+            let key = &attr_src[kstart..p];
+            if !valid_xml_name(key) {
+                return Err(format!("XML: tên thuộc tính không hợp lệ '{key}'"));
+            }
+            if !seen_keys.insert(key.to_string()) {
+                return Err(format!("XML: trùng thuộc tính '{key}' trên <{qname}>"));
+            }
+            while p < ab.len() && ab[p].is_ascii_whitespace() {
+                p += 1;
+            }
+            if ab.get(p) != Some(&b'=') {
+                return Err(format!("XML: thuộc tính '{key}' thiếu '='"));
+            }
+            p += 1;
+            while p < ab.len() && ab[p].is_ascii_whitespace() {
+                p += 1;
+            }
+            let Some(&quote) = ab.get(p) else {
+                return Err(format!("XML: thuộc tính '{key}' thiếu giá trị"));
+            };
+            if quote != b'"' && quote != b'\'' {
+                return Err(format!(
+                    "XML: giá trị thuộc tính '{key}' không nằm trong nháy"
+                ));
+            }
+            p += 1;
+            let vstart = p;
+            let Some(vrel) = attr_src[vstart..].find(quote as char) else {
+                return Err(format!("XML: thuộc tính '{key}' không đóng nháy"));
+            };
+            let val = decode_entities(&attr_src[vstart..vstart + vrel])?;
+            p = vstart + vrel + 1;
+
+            if key == "xmlns" {
+                ns_frame.insert(String::new(), val);
+            } else if let Some(pref) = key.strip_prefix("xmlns:") {
+                ns_frame.insert(pref.to_string(), val);
+            } else {
+                raw_attrs.push((key.to_string(), val));
+            }
         }
-        let mut node = Xml {
-            name: local_name(name_raw),
-            attrs,
+
+        ns_stack.push(ns_frame);
+        let (pref, local) = split_qname(qname);
+        let ns = resolve_ns(&ns_stack, pref)?;
+        // Kiểm tra prefix của thuộc tính có prefix (nếu có) đều đã được khai báo.
+        for (k, _) in &raw_attrs {
+            if let (Some(ap), _) = split_qname(k) {
+                let _ = resolve_ns(&ns_stack, Some(ap))?;
+            }
+        }
+
+        let node = Xml {
+            name: local.to_string(),
+            ns,
+            qname: qname.to_string(),
+            attrs: raw_attrs,
             children: Vec::new(),
             text: String::new(),
         };
-        i = close + 1;
         if self_closing {
+            ns_stack.pop();
             stack.last_mut().expect("root ảo").children.push(node);
         } else {
-            // hứng text tới '<' kế tiếp làm nội dung — như itertext chỉ 1 mức.
-            let start_text = i;
-            while i < bytes.len() && bytes[i] != b'<' {
-                i += 1;
-            }
-            let raw_text = String::from_utf8_lossy(&bytes[start_text..i])
-                .trim()
-                .to_string();
-            node.text = decode_entities(&raw_text);
             stack.push(node);
         }
     }
+
     if stack.len() != 1 {
         return Err(format!("XML: {} thẻ chưa đóng", stack.len() - 1));
     }
-    stack
-        .pop()
-        .expect("checked len")
-        .children
-        .into_iter()
-        .next()
-        .ok_or_else(|| "XML: không có phần tử gốc".to_string())
+    let mut roots = stack.pop().expect("checked len").children;
+    if roots.is_empty() {
+        return Err("XML: không có phần tử gốc".into());
+    }
+    if roots.len() > 1 {
+        return Err(format!(
+            "XML: nhiều hơn 1 phần tử gốc ({} phần tử)",
+            roots.len()
+        ));
+    }
+    Ok(roots.remove(0))
 }
 
 /// Manifest có chuỗi mojibake (UTF-8 bị mã hoá 2 lần — bug 0.2.27)?
@@ -497,121 +793,249 @@ fn contains_vietnamese(text: &str) -> bool {
     })
 }
 
-/// Nội dung MSIX đã giải nén — index theo path lowercase, đổi `\` → `/`.
-struct MsixDir {
-    root: PathBuf,
-    index: BTreeMap<String, String>,
+// ---------------------------------------------------------------------------
+// Trình đọc ZIP/MSIX thuần std trong bộ nhớ (Stored + Deflate + ZIP64 + Data Descriptor)
+// ---------------------------------------------------------------------------
+
+struct MsixArchive {
+    /// Key = path lowercase chuẩn hoá `/` → dữ liệu đã giải nén.
+    entries: BTreeMap<String, Vec<u8>>,
+    /// Tên entry giữ nguyên hoa/thường (chuẩn hoá `\` → `/`) để kiểm chính xác `AppxManifest.xml`.
+    exact_names: BTreeSet<String>,
 }
 
-impl MsixDir {
-    fn member(&self, rel: &str) -> Option<&String> {
-        self.index.get(&rel.replace('\\', "/").to_lowercase())
+impl MsixArchive {
+    fn has_exact(&self, exact: &str) -> bool {
+        self.exact_names.contains(exact)
     }
-    fn read(&self, rel: &str) -> std::io::Result<Vec<u8>> {
-        fs::read(self.root.join(rel))
-    }
-}
-
-fn walk_index(base: &Path, dir: &Path, index: &mut BTreeMap<String, String>) {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            walk_index(base, &p, index);
-        } else if let Ok(rel) = p.strip_prefix(base) {
-            let rel = rel.to_string_lossy().replace('\\', "/");
-            index.insert(rel.to_lowercase(), rel);
-        }
+    fn get(&self, rel: &str) -> Option<&[u8]> {
+        self.entries
+            .get(&rel.replace('\\', "/").to_lowercase())
+            .map(Vec::as_slice)
     }
 }
 
-/// MSIX là ZIP. Thứ tự thử: `tar` (Windows System32 = bsdtar libarchive đọc
-/// zip; macOS mặc định bsdtar) → `bsdtar` (Linux cài libarchive-tools) →
-/// `unzip` (ubuntu runner có sẵn). Không dùng runtime Python.
-fn extract_msix(msix: &Path) -> Result<MsixDir, String> {
-    let dest = std::env::temp_dir().join("textvn-verify-msix");
-    if dest.exists() {
-        fs::remove_dir_all(&dest).map_err(|e| format!("dọn {}: {e}", dest.display()))?;
+fn find_eocd(data: &[u8]) -> Result<usize, String> {
+    if data.len() < 22 {
+        return Err("MSIX/ZIP: file quá nhỏ (< 22 bytes)".into());
     }
-    fs::create_dir_all(&dest).map_err(|e| format!("tạo {}: {e}", dest.display()))?;
-    let msix_abs = msix
-        .canonicalize()
-        .map_err(|e| format!("không thấy {}: {e}", msix.display()))?;
-
-    let mut errs: Vec<String> = Vec::new();
-    let mut extracted = false;
-    // (chương trình, đôi số build args): để đối số theo đúng trình tự.
-    type Extractor = (&'static str, &'static [&'static str]);
-    let attempts: &[Extractor] = if std::env::consts::OS == "windows" {
-        &[
-            ("tar", &["-xf"]),
-            ("bsdtar", &["-xf"]),
-            ("unzip", &["-q", "-o", "-d"]),
-        ]
-    } else {
-        &[
-            ("bsdtar", &["-xf"]),
-            ("tar", &["-xf"]),
-            ("unzip", &["-q", "-o", "-d"]),
-        ]
-    };
-    for &(prog, lead) in attempts {
-        let mut cmd = Command::new(prog);
-        cmd.args(lead).arg(&msix_abs);
-        if prog == "unzip" {
-            cmd.arg(&dest);
-        } else {
-            cmd.arg("-C").arg(&dest);
-        }
-        match cmd.output() {
-            Ok(o) if o.status.success() => {
-                extracted = true;
-                break;
+    let min_off = data.len().saturating_sub(22 + 65_535);
+    let mut pos = data.len() - 22;
+    loop {
+        if &data[pos..pos + 4] == b"PK\x05\x06" {
+            let comment_len = u16::from_le_bytes([data[pos + 20], data[pos + 21]]) as usize;
+            if pos + 22 + comment_len == data.len() {
+                return Ok(pos);
             }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                errs.push(format!("{prog}: không có trên máy"));
-            }
-            Ok(o) => errs.push(format!(
-                "{prog} exit {}: {}",
-                o.status.code().unwrap_or(-1),
-                String::from_utf8_lossy(&o.stderr)
-            )),
-            Err(e) => errs.push(format!("{prog}: {e}")),
         }
+        if pos == min_off {
+            break;
+        }
+        pos -= 1;
     }
-    if !extracted {
-        return Err(format!(
-            "giải nén MSIX không thành công — {} (cần bsdtar/tar hoặc unzip)",
-            errs.join("; ")
-        ));
-    }
-    let mut index = BTreeMap::new();
-    walk_index(&dest, &dest, &mut index);
-    if index.is_empty() {
-        return Err("giải nén ra 0 file — không phải MSIX?".into());
-    }
-    Ok(MsixDir { root: dest, index })
+    Err("MSIX/ZIP: không tìm thấy End of Central Directory (PK\\x05\\x06)".into())
 }
 
-/// Toàn bộ luật Store + payload — port `check()` của verify-msix.py.
+type Zip64Sizes = (Option<u64>, Option<u64>, Option<u64>);
+
+fn parse_zip64_extra(
+    extra: &[u8],
+    need_uncomp: bool,
+    need_comp: bool,
+    need_local: bool,
+) -> Result<Zip64Sizes, String> {
+    let mut i = 0usize;
+    while i + 4 <= extra.len() {
+        let header_id = u16::from_le_bytes([extra[i], extra[i + 1]]);
+        let data_size = u16::from_le_bytes([extra[i + 2], extra[i + 3]]) as usize;
+        i += 4;
+        if i + data_size > extra.len() {
+            break;
+        }
+        if header_id == 0x0001 {
+            let block = &extra[i..i + data_size];
+            let mut off = 0usize;
+            let mut uncomp = None;
+            let mut comp = None;
+            let mut local = None;
+            if need_uncomp {
+                uncomp = Some(u64_at(block, off)?);
+                off += 8;
+            }
+            if need_comp {
+                comp = Some(u64_at(block, off)?);
+                off += 8;
+            }
+            if need_local {
+                local = Some(u64_at(block, off)?);
+            }
+            return Ok((uncomp, comp, local));
+        }
+        i += data_size;
+    }
+    Ok((None, None, None))
+}
+
+fn read_msix_bytes(data: &[u8]) -> Result<MsixArchive, String> {
+    let eocd_off = find_eocd(data)?;
+    let mut cd_entries = u16_at(data, eocd_off + 10)? as u64;
+    let mut cd_size = u32_at(data, eocd_off + 12)? as u64;
+    let mut cd_offset = u32_at(data, eocd_off + 16)? as u64;
+
+    // Hỗ trợ ZIP64 EOCD Locator (`PK\x06\x07`, 20 bytes ngay trước EOCD).
+    if (cd_entries == 0xFFFF || cd_size == 0xFFFF_FFFF || cd_offset == 0xFFFF_FFFF)
+        && eocd_off >= 20
+        && &data[eocd_off - 20..eocd_off - 16] == b"PK\x06\x07"
+    {
+        let z64_off = u64_at(data, eocd_off - 12)? as usize;
+        if data.get(z64_off..z64_off.saturating_add(4)) != Some(b"PK\x06\x06") {
+            return Err("MSIX/ZIP64: thiếu chữ ký ZIP64 EOCD (PK\\x06\\x06)".into());
+        }
+        cd_entries = u64_at(data, z64_off + 32)?;
+        cd_size = u64_at(data, z64_off + 40)?;
+        cd_offset = u64_at(data, z64_off + 48)?;
+    }
+
+    let cd_start = usize::try_from(cd_offset).map_err(|_| "ZIP: tràn cd_offset")?;
+    let cd_len = usize::try_from(cd_size).map_err(|_| "ZIP: tràn cd_size")?;
+    let cd_end = cd_start
+        .checked_add(cd_len)
+        .filter(|&end| end <= data.len())
+        .ok_or("MSIX/ZIP: Central Directory vượt quá kích thước file")?;
+
+    let mut entries = BTreeMap::new();
+    let mut exact_names = BTreeSet::new();
+    let mut pos = cd_start;
+    for _ in 0..cd_entries {
+        if pos + 46 > cd_end || &data[pos..pos + 4] != b"PK\x01\x02" {
+            return Err(format!(
+                "MSIX/ZIP: Central Directory header lỗi tại offset 0x{pos:X}"
+            ));
+        }
+        let method = u16_at(data, pos + 10)?;
+        let expected_crc = u32_at(data, pos + 16)?;
+        let comp32 = u32_at(data, pos + 20)?;
+        let uncomp32 = u32_at(data, pos + 24)?;
+        let name_len = u16_at(data, pos + 28)? as usize;
+        let extra_len = u16_at(data, pos + 30)? as usize;
+        let comment_len = u16_at(data, pos + 32)? as usize;
+        let local32 = u32_at(data, pos + 42)?;
+
+        let name_start = pos + 46;
+        let extra_start = name_start + name_len;
+        let next_pos = extra_start + extra_len + comment_len;
+        if next_pos > cd_end {
+            return Err("MSIX/ZIP: entry Central Directory bị cắt cụt".into());
+        }
+        let raw_name = String::from_utf8_lossy(&data[name_start..extra_start]).replace('\\', "/");
+        let extra = &data[extra_start..extra_start + extra_len];
+        pos = next_pos;
+
+        if raw_name.ends_with('/') {
+            continue;
+        }
+        let (z_uncomp, z_comp, z_local) =
+            if uncomp32 == 0xFFFF_FFFF || comp32 == 0xFFFF_FFFF || local32 == 0xFFFF_FFFF {
+                parse_zip64_extra(
+                    extra,
+                    uncomp32 == 0xFFFF_FFFF,
+                    comp32 == 0xFFFF_FFFF,
+                    local32 == 0xFFFF_FFFF,
+                )?
+            } else {
+                (None, None, None)
+            };
+        let comp_size =
+            usize::try_from(z_comp.unwrap_or(comp32 as u64)).map_err(|_| "ZIP: tràn comp_size")?;
+        let uncomp_size = usize::try_from(z_uncomp.unwrap_or(uncomp32 as u64))
+            .map_err(|_| "ZIP: tràn uncomp_size")?;
+        let local_off = usize::try_from(z_local.unwrap_or(local32 as u64))
+            .map_err(|_| "ZIP: tràn local_off")?;
+
+        if local_off.checked_add(30).is_none_or(|e| e > data.len())
+            || &data[local_off..local_off + 4] != b"PK\x03\x04"
+        {
+            return Err(format!(
+                "MSIX/ZIP: thiếu Local File Header cho '{raw_name}' tại 0x{local_off:X}"
+            ));
+        }
+        let lh_name_len = u16_at(data, local_off + 26)? as usize;
+        let lh_extra_len = u16_at(data, local_off + 28)? as usize;
+        let data_start = local_off
+            .checked_add(30)
+            .and_then(|o| o.checked_add(lh_name_len))
+            .and_then(|o| o.checked_add(lh_extra_len))
+            .ok_or("ZIP: tràn data_start")?;
+        let data_end = data_start
+            .checked_add(comp_size)
+            .filter(|&e| e <= data.len())
+            .ok_or_else(|| format!("MSIX/ZIP: dữ liệu '{raw_name}' vượt cuối file"))?;
+        let comp_bytes = &data[data_start..data_end];
+
+        let payload = match method {
+            0 => {
+                if comp_size != uncomp_size {
+                    return Err(format!(
+                        "MSIX/ZIP: '{raw_name}' Stored nhưng comp({comp_size}) != uncomp({uncomp_size})"
+                    ));
+                }
+                comp_bytes.to_vec()
+            }
+            8 => inflate_raw(comp_bytes)
+                .map_err(|e| format!("MSIX/ZIP: lỗi giải nén '{raw_name}': {e}"))?,
+            other => {
+                return Err(format!(
+                    "MSIX/ZIP: '{raw_name}' dùng phương thức nén {other} không hỗ trợ (chỉ 0=Stored, 8=Deflate)"
+                ));
+            }
+        };
+        if payload.len() != uncomp_size {
+            return Err(format!(
+                "MSIX/ZIP: '{raw_name}' giải nén ra {} bytes, kỳ vọng {uncomp_size}",
+                payload.len()
+            ));
+        }
+        let got_crc = crc32(&payload);
+        if got_crc != expected_crc {
+            return Err(format!(
+                "MSIX/ZIP: '{raw_name}' sai CRC-32 (got 0x{got_crc:08X} != want 0x{expected_crc:08X})"
+            ));
+        }
+        exact_names.insert(raw_name.clone());
+        entries.insert(raw_name.to_lowercase(), payload);
+    }
+
+    if entries.is_empty() {
+        return Err("MSIX/ZIP: gói rỗng (0 file)".into());
+    }
+    Ok(MsixArchive {
+        entries,
+        exact_names,
+    })
+}
+
+fn read_msix_file(msix: &Path) -> Result<MsixArchive, String> {
+    let data = fs::read(msix).map_err(|e| format!("không đọc được {}: {e}", msix.display()))?;
+    read_msix_bytes(&data)
+}
+
+/// Toàn bộ luật Store + payload — port 1:1 `check()` của verify-msix.py.
 fn verify_full(
-    dir: &MsixDir,
+    dir: &MsixArchive,
     want_ver: Option<&str>,
     require_identity: bool,
     expect_display: &str,
     expect_name: Option<&str>,
 ) -> Vec<String> {
     let mut fails = Vec::new();
-    let Some(manifest) = dir.member("AppxManifest.xml") else {
+    // Khớp chính xác hoa/thường "AppxManifest.xml" (giống `if "AppxManifest.xml" not in names`).
+    if !dir.has_exact("AppxManifest.xml") {
+        return vec!["thiếu AppxManifest.xml".into()];
+    }
+    let Some(raw) = dir.get("AppxManifest.xml") else {
         return vec!["thiếu AppxManifest.xml".into()];
     };
-    let raw = match dir.read(manifest) {
-        Ok(r) => r,
-        Err(e) => return vec![format!("không đọc được AppxManifest.xml: {e}")],
-    };
-    let text = match String::from_utf8(raw) {
+    let text = match String::from_utf8(raw.to_vec()) {
         Ok(t) => t,
         Err(_) => return vec!["AppxManifest.xml không phải UTF-8".into()],
     };
@@ -619,8 +1043,8 @@ fn verify_full(
         Ok(r) => r,
         Err(e) => return vec![format!("AppxManifest.xml XML lỗi: {e}")],
     };
-    let Some(ident) = root.child("Identity") else {
-        return vec!["thiếu <Identity>".into()];
+    let Some(ident) = root.child_ns(NS_FOUNDATION, "Identity") else {
+        return vec!["thiếu <Identity> (namespace foundation/windows10)".into()];
     };
     let name = ident.attr("Name").unwrap_or("");
     let publisher = ident.attr("Publisher").unwrap_or("");
@@ -652,13 +1076,20 @@ fn verify_full(
             "Identity/Publisher '{publisher}' ≠ Partner Center '{EXPECTED_PUBLISHER}'"
         ));
     }
+
+    // 4 phần thuần chữ số 0..=65535 (từ chối dấu '+' như "+1.2.85.0").
     let parts: Vec<&str> = version.split('.').collect();
-    // 4 phần, mỗi phần là số 0..=65535 (Validate `Identity/Version`).
     let ns: Option<Vec<u64>> = (parts.len() == 4)
         .then(|| {
             parts
                 .iter()
-                .map(|p| p.parse::<u64>().ok().filter(|n| *n <= 65535))
+                .map(|p| {
+                    if p.is_empty() || !p.bytes().all(|b| b.is_ascii_digit()) {
+                        None
+                    } else {
+                        p.parse::<u64>().ok().filter(|n| *n <= 65535)
+                    }
+                })
                 .collect::<Option<Vec<u64>>>()
         })
         .flatten();
@@ -677,37 +1108,32 @@ fn verify_full(
                     "Identity/Version '{version}': phần thứ 4 Store dành riêng, phải = 0"
                 ));
             }
-            if let Some(want) = want_ver {
-                match map_version(want) {
-                    Ok(mapped) if version != mapped => fails.push(format!(
-                        "Identity/Version '{version}' ≠ '{mapped}' (map từ {want})"
-                    )),
-                    Ok(_) => {}
-                    Err(e) => fails.push(e),
-                }
-            }
+        }
+    }
+    if let Some(want) = want_ver {
+        match map_version(want) {
+            Ok(mapped) if version != mapped => fails.push(format!(
+                "Identity/Version '{version}' ≠ '{mapped}' (map từ {want})"
+            )),
+            Ok(_) => {}
+            Err(e) => fails.push(e),
         }
     }
     if ident.attr("ProcessorArchitecture") != Some("x64") {
         fails.push("Identity/ProcessorArchitecture phải là x64".into());
     }
 
-    let props = root.child("Properties");
+    let props = root.child_ns(NS_FOUNDATION, "Properties");
     let text_of = |tag: &str| -> String {
         props
-            .and_then(|p| p.child(tag))
+            .and_then(|p| p.child_ns(NS_FOUNDATION, tag))
             .map(|n| n.text.clone())
             .unwrap_or_default()
     };
     let disp = text_of("DisplayName");
     let pub_disp = text_of("PublisherDisplayName");
     let desc = text_of("Description");
-    // <f:Logo>Assets\storelogo.png</f:Logo> — là phần tử TEXT (giống findtext
-    // của ElementTree), không phải thuộc tính.
-    let logo = props
-        .and_then(|p| p.child("Logo"))
-        .map(|n| n.text.clone())
-        .unwrap_or_default();
+    let logo = text_of("Logo");
 
     if disp != expect_display {
         fails.push(format!(
@@ -730,14 +1156,13 @@ fn verify_full(
 
     let mut all = Vec::new();
     root.descendants(&mut all);
-    if !all
-        .iter()
-        .any(|n| n.name == "Capability" && n.attr("Name") == Some("runFullTrust"))
-    {
+    if !all.iter().any(|n| {
+        n.ns == NS_RESCAP && n.name == "Capability" && n.attr("Name") == Some("runFullTrust")
+    }) {
         fails.push("thiếu rescap:Capability runFullTrust".into());
     }
 
-    // Ảnh: mọi thuộc tính *Logo / SplashScreen tham chiếu phải tồn tại + đúng cỡ.
+    // Ảnh: mọi thuộc tính *Logo / uap:SplashScreen tham chiếu phải tồn tại + đúng cỡ.
     type LogoRef = (String, String, Option<(u32, u32)>);
     let mut refs: Vec<LogoRef> = vec![("Logo".into(), logo, Some(STORE_LOGO_SIZE))];
     for node in &all {
@@ -746,7 +1171,7 @@ fn verify_full(
                 refs.push((k.clone(), v.clone(), Some(size)));
             }
         }
-        if node.name == "SplashScreen" {
+        if node.ns == NS_UAP && node.name == "SplashScreen" {
             refs.push((
                 "SplashScreen".into(),
                 node.attr("Image").map(String::from).unwrap_or_default(),
@@ -755,12 +1180,11 @@ fn verify_full(
         }
     }
     for (attr, rel, size) in refs {
-        let Some(member) = dir.member(&rel) else {
+        let Some(data) = dir.get(&rel) else {
             fails.push(format!("{attr} trỏ '{rel}' không có trong gói"));
             continue;
         };
-        let data = dir.read(member).unwrap_or_default();
-        match png_size(&data) {
+        match png_size(data) {
             None => fails.push(format!("{attr} '{rel}' không phải PNG")),
             Some((w, h)) => {
                 if let Some((ew, eh)) = size {
@@ -772,20 +1196,23 @@ fn verify_full(
         }
     }
 
-    for app in all.iter().filter(|n| n.name == "Application") {
+    for app in all
+        .iter()
+        .filter(|n| n.ns == NS_FOUNDATION && n.name == "Application")
+    {
         let exe = app.attr("Executable").map(String::from).unwrap_or_default();
-        if dir.member(&exe).is_none() {
+        if dir.get(&exe).is_none() {
             fails.push(format!("Application Executable '{exe}' không có trong gói"));
         }
     }
 
     for rel in REQUIRED_PAYLOAD {
-        if dir.member(rel).is_none() {
+        if dir.get(rel).is_none() {
             fails.push(format!("payload thiếu {rel}"));
         }
     }
     if !dir
-        .index
+        .entries
         .keys()
         .any(|k| k.starts_with("data/tables/") && k.ends_with(".toml"))
     {
@@ -794,33 +1221,89 @@ fn verify_full(
     fails
 }
 
-/// CLI: `xtask verify-msix <msix> [flags]` — Err khi có lỗi, mỗi lỗi một dòng
-/// `FAIL ...` như bản Python.
-pub fn verify_msix_cli(args: &[String]) -> Result<(), String> {
+struct VerifyMsixOpts {
+    msix: String,
+    want_ver: Option<String>,
+    require_identity: bool,
+    display_name: Option<String>,
+    expect_name: Option<String>,
+}
+
+fn parse_verify_msix_args(args: &[String]) -> Result<VerifyMsixOpts, String> {
     if args.is_empty() {
         return Err("cách dùng: cargo xtask verify-msix <file.msix> [--expect-version A.B.C] [--require-store-identity] [--display-name N] [--expect-name NAME]".into());
     }
-    let mut it = args.iter();
-    let Some(msix) = it.next() else {
-        return Err("chưa truyền file .msix".into());
-    };
+    let mut msix: Option<String> = None;
     let mut want_ver: Option<String> = None;
     let mut require_identity = false;
     let mut display_name: Option<String> = None;
     let mut expect_name: Option<String> = None;
-    while let Some(flag) = it.next() {
-        match flag.as_str() {
-            "--expect-version" => want_ver = it.next().cloned(),
-            "--require-store-identity" => require_identity = true,
-            "--display-name" => display_name = it.next().cloned(),
-            "--expect-name" => expect_name = it.next().cloned(),
-            other => return Err(format!("đối số lạ '{other}'")),
+
+    let take_val = |flag: &str,
+                    inline: Option<&str>,
+                    it: &mut std::slice::Iter<'_, String>|
+     -> Result<String, String> {
+        if let Some(v) = inline {
+            return Ok(v.to_string());
+        }
+        let next = it
+            .next()
+            .ok_or_else(|| format!("thiếu giá trị sau `{flag}`"))?;
+        if matches!(
+            next.as_str(),
+            "--expect-version" | "--require-store-identity" | "--display-name" | "--expect-name"
+        ) || next.starts_with("--expect-version=")
+            || next.starts_with("--display-name=")
+            || next.starts_with("--expect-name=")
+        {
+            return Err(format!("thiếu giá trị sau `{flag}` (gặp cờ `{next}`)"));
+        }
+        Ok(next.clone())
+    };
+
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        if arg == "--require-store-identity" {
+            require_identity = true;
+        } else if arg == "--expect-version" {
+            want_ver = Some(take_val("--expect-version", None, &mut it)?);
+        } else if let Some(v) = arg.strip_prefix("--expect-version=") {
+            want_ver = Some(take_val("--expect-version", Some(v), &mut it)?);
+        } else if arg == "--display-name" {
+            display_name = Some(take_val("--display-name", None, &mut it)?);
+        } else if let Some(v) = arg.strip_prefix("--display-name=") {
+            display_name = Some(take_val("--display-name", Some(v), &mut it)?);
+        } else if arg == "--expect-name" {
+            expect_name = Some(take_val("--expect-name", None, &mut it)?);
+        } else if let Some(v) = arg.strip_prefix("--expect-name=") {
+            expect_name = Some(take_val("--expect-name", Some(v), &mut it)?);
+        } else if arg.starts_with('-') {
+            return Err(format!("đối số lạ '{arg}'"));
+        } else if msix.is_none() {
+            msix = Some(arg.clone());
+        } else {
+            return Err(format!("thừa đối số vị trí '{arg}'"));
         }
     }
-    // R2-95: cắt khoảng trắng và rỗng → mặc định, ĐÚNG như build-msix.ps1 —
-    // repo variable dán kèm dấu cách từng làm verify báo lệch tên với gói
-    // vừa build.
-    let display = display_name
+    let Some(msix) = msix else {
+        return Err("chưa truyền file .msix".into());
+    };
+    Ok(VerifyMsixOpts {
+        msix,
+        want_ver,
+        require_identity,
+        display_name,
+        expect_name,
+    })
+}
+
+/// CLI: `xtask verify-msix <msix> [flags]` — Err khi có lỗi, mỗi lỗi một dòng
+/// `FAIL ...` như bản Python.
+pub fn verify_msix_cli(args: &[String]) -> Result<(), String> {
+    let opts = parse_verify_msix_args(args)?;
+    // R2-95: cắt khoảng trắng và rỗng → mặc định, ĐÚNG như build-msix.ps1.
+    let display = opts
+        .display_name
         .map(|d| d.trim().to_string())
         .filter(|d| !d.is_empty())
         .or_else(|| {
@@ -830,30 +1313,171 @@ pub fn verify_msix_cli(args: &[String]) -> Result<(), String> {
                 .filter(|v| !v.is_empty())
         })
         .unwrap_or_else(|| EXPECTED_DISPLAY_NAME.to_string());
-    let dir = extract_msix(Path::new(msix))?;
+    let expect_name = opts
+        .expect_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let dir = read_msix_file(Path::new(&opts.msix))?;
     let fails = verify_full(
         &dir,
-        want_ver.as_deref(),
-        require_identity,
+        opts.want_ver.as_deref(),
+        opts.require_identity,
         &display,
-        expect_name.as_deref().map(str::trim),
+        expect_name,
     );
     if fails.is_empty() {
-        println!("OK   {msix}: identity/version/tên hiển thị/encoding/ảnh/payload đạt luật Store");
+        println!(
+            "OK   {}: identity/version/tên hiển thị/encoding/ảnh/payload đạt luật Store",
+            opts.msix
+        );
         Ok(())
     } else {
-        let mut msg = String::new();
         for f in &fails {
-            msg.push_str(&format!("FAIL {f}\n"));
             println!("FAIL {f}");
         }
-        Err(msg)
+        Err(format!("{} lỗi kiểm tra MSIX ({})", fails.len(), opts.msix))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::png::deflate_fixed;
+
+    /// Dựng file ZIP hợp lệ (hỗ trợ cả method 0=Stored và 8=Deflate) trong bộ nhớ để test.
+    fn build_zip(files: &[(&str, &[u8], bool)]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let mut cd = Vec::new();
+        for &(name, data, use_deflate) in files {
+            let local_off = buf.len() as u32;
+            let crc = crc32(data);
+            let (method, payload): (u16, Vec<u8>) = if use_deflate {
+                (8, deflate_fixed(data))
+            } else {
+                (0, data.to_vec())
+            };
+            let name_b = name.as_bytes();
+            // Local file header
+            buf.extend_from_slice(b"PK\x03\x04");
+            buf.extend_from_slice(&20u16.to_le_bytes()); // version needed
+            buf.extend_from_slice(&0u16.to_le_bytes()); // flags
+            buf.extend_from_slice(&method.to_le_bytes());
+            buf.extend_from_slice(&0u16.to_le_bytes()); // time
+            buf.extend_from_slice(&0u16.to_le_bytes()); // date
+            buf.extend_from_slice(&crc.to_le_bytes());
+            buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+            buf.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            buf.extend_from_slice(&(name_b.len() as u16).to_le_bytes());
+            buf.extend_from_slice(&0u16.to_le_bytes()); // extra len
+            buf.extend_from_slice(name_b);
+            buf.extend_from_slice(&payload);
+
+            // Central directory header
+            cd.extend_from_slice(b"PK\x01\x02");
+            cd.extend_from_slice(&20u16.to_le_bytes());
+            cd.extend_from_slice(&20u16.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&method.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&crc.to_le_bytes());
+            cd.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+            cd.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            cd.extend_from_slice(&(name_b.len() as u16).to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&0u16.to_le_bytes());
+            cd.extend_from_slice(&0u32.to_le_bytes());
+            cd.extend_from_slice(&local_off.to_le_bytes());
+            cd.extend_from_slice(name_b);
+        }
+        let cd_off = buf.len() as u32;
+        buf.extend_from_slice(&cd);
+        // EOCD
+        buf.extend_from_slice(b"PK\x05\x06");
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(files.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(files.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(cd.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&cd_off.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf
+    }
+
+    /// Dựng PE32 hoặc PE32+ tối giản có bảng import thật để kiểm `pe_imports_bytes`.
+    fn build_synthetic_pe(pe32_plus: bool, dlls: &[&str]) -> Vec<u8> {
+        let pe_off = 0x80usize;
+        let opt_off = pe_off + 24;
+        let dd_rel = if pe32_plus { 112 } else { 96 };
+        let opt_size = dd_rel + 16 * 8;
+        let sec_off = opt_off + opt_size;
+        let raw_off = 0x400usize;
+        let va_base = 0x1000usize;
+
+        let mut sec_data = Vec::new();
+        let desc_table_len = (dlls.len() + 1) * 20;
+        sec_data.resize(desc_table_len, 0);
+        for (idx, dll) in dlls.iter().enumerate() {
+            let name_rva = (va_base + sec_data.len()) as u32;
+            sec_data.extend_from_slice(dll.as_bytes());
+            sec_data.push(0);
+            let d_off = idx * 20;
+            sec_data[d_off + 12..d_off + 16].copy_from_slice(&name_rva.to_le_bytes());
+            sec_data[d_off + 16..d_off + 20].copy_from_slice(&1u32.to_le_bytes());
+        }
+
+        let mut pe = vec![0u8; raw_off + sec_data.len()];
+        pe[0..2].copy_from_slice(b"MZ");
+        pe[0x3C..0x40].copy_from_slice(&(pe_off as u32).to_le_bytes());
+        pe[pe_off..pe_off + 4].copy_from_slice(b"PE\0\0");
+        pe[pe_off + 6..pe_off + 8].copy_from_slice(&1u16.to_le_bytes()); // nsec=1
+        pe[pe_off + 20..pe_off + 22].copy_from_slice(&(opt_size as u16).to_le_bytes());
+        let magic: u16 = if pe32_plus { 0x20B } else { 0x10B };
+        pe[opt_off..opt_off + 2].copy_from_slice(&magic.to_le_bytes());
+        let dd_off = opt_off + dd_rel;
+        pe[dd_off - 4..dd_off].copy_from_slice(&16u32.to_le_bytes()); // NumberOfRvaAndSizes
+        if !dlls.is_empty() {
+            pe[dd_off + 8..dd_off + 12].copy_from_slice(&(va_base as u32).to_le_bytes());
+            pe[dd_off + 12..dd_off + 16].copy_from_slice(&(desc_table_len as u32).to_le_bytes());
+        }
+        // Section header
+        pe[sec_off..sec_off + 6].copy_from_slice(b".rdata");
+        pe[sec_off + 8..sec_off + 12].copy_from_slice(&(sec_data.len() as u32).to_le_bytes());
+        pe[sec_off + 12..sec_off + 16].copy_from_slice(&(va_base as u32).to_le_bytes());
+        pe[sec_off + 16..sec_off + 20].copy_from_slice(&(sec_data.len() as u32).to_le_bytes());
+        pe[sec_off + 20..sec_off + 24].copy_from_slice(&(raw_off as u32).to_le_bytes());
+        pe[raw_off..raw_off + sec_data.len()].copy_from_slice(&sec_data);
+        pe
+    }
+
+    #[test]
+    fn pe_parser_pe32_pe32plus_empty_and_malformed() {
+        let pe64 = build_synthetic_pe(true, &["KERNEL32.dll", "USER32.dll"]);
+        assert_eq!(
+            pe_imports_bytes(&pe64).unwrap(),
+            vec!["KERNEL32.dll", "USER32.dll"]
+        );
+        let pe32 = build_synthetic_pe(false, &["VCRUNTIME140.dll"]);
+        let imps = pe_imports_bytes(&pe32).unwrap();
+        assert_eq!(imps, vec!["VCRUNTIME140.dll"]);
+        assert!(is_crt_runtime_dll(&imps[0]));
+        let empty = build_synthetic_pe(true, &[]);
+        assert!(pe_imports_bytes(&empty).unwrap().is_empty());
+
+        // File bị cắt cụt (RVA trỏ vượt EOF) phải trả Err chứ KHÔNG panic `d[noff..]`.
+        let mut trunc = build_synthetic_pe(true, &["KERNEL32.dll"]);
+        trunc.truncate(0x418);
+        assert!(pe_imports_bytes(&trunc).is_err());
+
+        // Section có rawsize=0 (.bss) không được ánh xạ.
+        let mut bss = build_synthetic_pe(true, &["KERNEL32.dll"]);
+        let sec_off = 0x80 + 24 + 112 + 16 * 8;
+        bss[sec_off + 16..sec_off + 20].copy_from_slice(&0u32.to_le_bytes());
+        assert!(pe_imports_bytes(&bss).is_err());
+    }
 
     #[test]
     fn crt_runtime_dll_tung_nhom() {
@@ -864,7 +1488,7 @@ mod tests {
         assert!(is_crt_runtime_dll("api-ms-win-crt-stdio-l1-1-0.dll"));
         assert!(!is_crt_runtime_dll("USER32.dll"));
         assert!(!is_crt_runtime_dll("KERNEL32"));
-        assert!(!is_crt_runtime_dll("vcruntime.dll")); // thiếu chữ số
+        assert!(!is_crt_runtime_dll("vcruntime.dll"));
         assert!(!is_crt_runtime_dll("api-ms-win-security.dll"));
     }
 
@@ -880,10 +1504,14 @@ mod tests {
     #[test]
     fn png_kich_thuoc_tu_header() {
         let mut png = vec![0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'];
-        png.extend_from_slice(&[0u8; 16]); // tới offset 24
-        png[16..20].copy_from_slice(&310u32.to_be_bytes());
-        png[20..24].copy_from_slice(&150u32.to_be_bytes());
+        png.extend_from_slice(&[0, 0, 0, 13, b'I', b'H', b'D', b'R']);
+        png.extend_from_slice(&310u32.to_be_bytes());
+        png.extend_from_slice(&150u32.to_be_bytes());
         assert_eq!(png_size(&png), Some((310, 150)));
+        // Sai chunk đầu (không phải IHDR) → None.
+        let mut bad_chunk = png.clone();
+        bad_chunk[12..16].copy_from_slice(b"FAKE");
+        assert_eq!(png_size(&bad_chunk), None);
         assert_eq!(png_size(&png[..20]), None);
         assert_eq!(png_size(b"khong phai png"), None);
     }
@@ -891,97 +1519,130 @@ mod tests {
     fn mini_manifest(version: &str, desc: &str) -> String {
         let xml = String::new()
             + r#"<?xml version="1.0" encoding="utf-8"?>
-<Pkg xmlns:f="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
-  <f:Identity Name="23651Linhi.TextVN" Publisher="CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545" Version="VVV" ProcessorArchitecture="x64"/>
-  <f:Properties>
-    <f:DisplayName>TextVN</f:DisplayName>
-    <f:PublisherDisplayName>LinhBH.CoM</f:PublisherDisplayName>
-    <f:Logo>Assets\storelogo.png</f:Logo>
-    <f:Description>DDD</f:Description>
-  </f:Properties>
-  <f:Applications>
-    <f:Application Id="TextVN" Executable="TextVN.exe">
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+  <Identity Name="23651Linhi.TextVN" Publisher="CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545" Version="VVV" ProcessorArchitecture="x64"/>
+  <Properties>
+    <DisplayName>TextVN</DisplayName>
+    <PublisherDisplayName>LinhBH.CoM</PublisherDisplayName>
+    <Logo>Assets\storelogo.png</Logo>
+    <Description>DDD</Description>
+  </Properties>
+  <Applications>
+    <Application Id="TextVN" Executable="TextVN.exe">
       <uap:VisualElements Square150x150Logo="Assets\s150.png" Square44x44Logo="Assets\s44.png" Wide310x150Logo="Assets\w310.png" Square71x71Logo="Assets\s71.png"/>
-    </f:Application>
-  </f:Applications>
-  <f:Capabilities>
+    </Application>
+  </Applications>
+  <Capabilities>
     <rescap:Capability Name="runFullTrust"/>
-  </f:Capabilities>
-</Pkg>
+  </Capabilities>
+</Package>
 "#;
         xml.replace("VVV", version).replace("DDD", desc)
     }
 
     fn fake_png(w: u32, h: u32) -> Vec<u8> {
         let mut png = vec![0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'];
-        png.extend_from_slice(&[0u8; 16]);
-        png[16..20].copy_from_slice(&w.to_be_bytes());
-        png[20..24].copy_from_slice(&h.to_be_bytes());
+        png.extend_from_slice(&[0, 0, 0, 13, b'I', b'H', b'D', b'R']);
+        png.extend_from_slice(&w.to_be_bytes());
+        png.extend_from_slice(&h.to_be_bytes());
         png
     }
 
-    /// Dựng một "gói MSIX đã giải nén" trong tempdir để test verify_full.
-    fn fake_msix_dir(manifest: String) -> MsixDir {
-        static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let n = std::sync::atomic::AtomicUsize::fetch_add(
-            &SEQ,
-            1,
-            std::sync::atomic::Ordering::Relaxed,
-        );
-        let root = std::env::temp_dir().join(format!("textvn-verify-msix-test-{n}"));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("Assets")).expect("mkdir assets");
-        fs::write(root.join("AppxManifest.xml"), manifest).expect("ghi manifest");
-        for (name, w, h) in [
-            ("storelogo.png", 50, 50),
-            ("s150.png", 150, 150),
-            ("s44.png", 44, 44),
-            ("w310.png", 310, 150),
-            ("s71.png", 71, 71),
-        ] {
-            fs::write(root.join("Assets").join(name), fake_png(w, h)).expect("ghi png");
-        }
-        for rel in [
-            "TextVN.exe",
-            "textvn-cli.exe",
-            "textvn-tsf.dll",
-            "textvn-tsf-x86.dll",
-        ] {
-            fs::write(root.join(rel), b"MZ").expect("ghi payload");
-        }
-        fs::create_dir_all(root.join("resources")).expect("mkdir resources");
-        for rel in ["textvn.ico", "textvn_v.ico", "textvn_e.ico"] {
-            fs::write(root.join("resources").join(rel), b"icon").expect("ghi ico");
-        }
-        fs::create_dir_all(root.join("data")).expect("mkdir data");
-        fs::write(root.join("data/appdb.default.json"), b"{}").expect("ghi appdb");
-        fs::create_dir_all(root.join("data/tables")).expect("mkdir tables");
-        fs::write(root.join("data/tables/vowels.toml"), b"[a]").expect("ghi toml");
-        let mut index = BTreeMap::new();
-        walk_index(&root, &root, &mut index);
-        MsixDir { root, index }
+    fn fake_msix_zip_bytes(manifest_name: &str, manifest: &str) -> Vec<u8> {
+        let p50 = fake_png(50, 50);
+        let p150 = fake_png(150, 150);
+        let p44 = fake_png(44, 44);
+        let p310 = fake_png(310, 150);
+        let p71 = fake_png(71, 71);
+        build_zip(&[
+            (manifest_name, manifest.as_bytes(), true),
+            ("Assets/storelogo.png", &p50, false),
+            ("Assets/s150.png", &p150, true),
+            ("Assets/s44.png", &p44, false),
+            ("Assets/w310.png", &p310, true),
+            ("Assets/s71.png", &p71, false),
+            ("TextVN.exe", b"MZ", false),
+            ("textvn-cli.exe", b"MZ", true),
+            ("textvn-tsf.dll", b"MZ", false),
+            ("textvn-tsf-x86.dll", b"MZ", true),
+            ("resources/textvn.ico", b"icon", false),
+            ("resources/textvn_v.ico", b"icon", true),
+            ("resources/textvn_e.ico", b"icon", false),
+            ("data/appdb.default.json", b"{}", true),
+            ("data/tables/vowels.toml", b"[a]", false),
+        ])
+    }
+
+    fn fake_msix_archive(manifest: &str) -> MsixArchive {
+        read_msix_bytes(&fake_msix_zip_bytes("AppxManifest.xml", manifest)).expect("zip")
     }
 
     #[test]
-    fn verify_msix_full_happy_path() {
+    fn verify_msix_full_happy_path_and_cli_e2e() {
         let men = mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn");
-        let dir = fake_msix_dir(men);
+        let zip = fake_msix_zip_bytes("AppxManifest.xml", &men);
+        let dir = read_msix_bytes(&zip).expect("read zip");
         let fails = verify_full(&dir, Some("0.2.85"), false, "TextVN", None);
         assert!(fails.is_empty(), "kỳ vọng không lỗi, được: {fails:?}");
+
+        // E2E qua file thật + verify_msix_cli (hỗ trợ cả --flag=value và --expect-name rỗng).
+        let tmp =
+            std::env::temp_dir().join(format!("textvn-verify-e2e-{}.msix", std::process::id()));
+        fs::write(&tmp, &zip).expect("ghi msix");
+        let res = verify_msix_cli(&[
+            "--expect-version=0.2.85".into(),
+            tmp.to_string_lossy().into_owned(),
+            "--expect-name".into(),
+            "   ".into(),
+        ]);
+        let _ = fs::remove_file(&tmp);
+        assert!(res.is_ok(), "verify_msix_cli phải pass: {res:?}");
     }
 
     #[test]
     fn verify_msix_bat_loi_tung_luat() {
         // Version sai mapping
         let men = mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn");
-        let dir = fake_msix_dir(men);
+        let dir = fake_msix_archive(&men);
         let fails = verify_full(&dir, Some("0.2.99"), false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("map từ 0.2.99")));
 
+        // AppxManifest.xml sai hoa/thường phải bị chặn (exact-case).
+        let lc_dir = read_msix_bytes(&fake_msix_zip_bytes("appxmanifest.xml", &men)).expect("zip");
+        let fails = verify_full(&lc_dir, None, false, "TextVN", None);
+        assert!(fails.iter().any(|f| f.contains("thiếu AppxManifest.xml")));
+
+        // R2-95: DisplayName có khoảng trắng đầu/cuối KHÔNG được bị parse_xml `.trim()` nuốt.
+        let padded = men.replace(
+            "<DisplayName>TextVN</DisplayName>",
+            "<DisplayName> TextVN </DisplayName>",
+        );
+        let fails = verify_full(&fake_msix_archive(&padded), None, false, "TextVN", None);
+        assert!(fails.iter().any(|f| f.contains("DisplayName ' TextVN '")));
+
+        // Capability sai namespace (không phải rescap) phải bị bắt.
+        let wrong_ns = men.replace(
+            "<rescap:Capability Name=\"runFullTrust\"/>",
+            "<Capability Name=\"runFullTrust\"/>",
+        );
+        let fails = verify_full(&fake_msix_archive(&wrong_ns), None, false, "TextVN", None);
+        assert!(fails.iter().any(|f| f.contains("rescap:Capability")));
+
+        // Version có dấu '+' đầu ("+1.2.85.0") phải bị từ chối VÀ vẫn báo lỗi mismatch want_ver.
+        let plus_ver = mini_manifest("+1.2.85.0", "Trình gõ tiếng Việt an toàn");
+        let fails = verify_full(
+            &fake_msix_archive(&plus_ver),
+            Some("0.2.85"),
+            false,
+            "TextVN",
+            None,
+        );
+        assert!(fails.iter().any(|f| f.contains("4 số 0..65535")));
+        assert!(fails.iter().any(|f| f.contains("map từ 0.2.85")));
+
         // thiếu dấu tiếng Việt trong Description
         let men = mini_manifest("1.2.85.0", "may go tieng viet");
-        let dir = fake_msix_dir(men);
-        let fails = verify_full(&dir, None, false, "TextVN", None);
+        let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("không còn dấu tiếng Việt")));
 
         // mojibake
@@ -989,59 +1650,111 @@ mod tests {
             "1.2.85.0",
             "Tr\u{00C3}\u{00A9}nh g\u{00C3}\u{00B5} mojibake",
         );
-        let dir = fake_msix_dir(men);
-        let fails = verify_full(&dir, None, false, "TextVN", None);
+        let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("mojibake")));
 
         // phiên bản 4 số sai: đầu = 0
         let men = mini_manifest("0.2.85.0", "Trình gõ tiếng Việt an toàn");
-        let dir = fake_msix_dir(men);
-        let fails = verify_full(&dir, None, false, "TextVN", None);
+        let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("từ chối phần đầu = 0")));
 
         // Arch sai
         let men =
             mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn").replace("x64\"", "arm64\"");
-        let dir = fake_msix_dir(men);
-        let fails = verify_full(&dir, None, false, "TextVN", None);
+        let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("ProcessorArchitecture")));
 
         // expect-name sai
         let men = mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn");
-        let dir = fake_msix_dir(men);
-        let fails = verify_full(&dir, None, false, "TextVN", Some("Khac.Name"));
+        let fails = verify_full(
+            &fake_msix_archive(&men),
+            None,
+            false,
+            "TextVN",
+            Some("Khac.Name"),
+        );
         assert!(fails.iter().any(|f| f.contains("Khac.Name")));
     }
 
     #[test]
-    fn xml_parser_manifest_that() {
+    fn verify_msix_cli_args_strict() {
+        assert!(parse_verify_msix_args(&["a.msix".into(), "--expect-version".into()]).is_err());
+        assert!(parse_verify_msix_args(&[
+            "a.msix".into(),
+            "--expect-version".into(),
+            "--require-store-identity".into()
+        ])
+        .is_err());
+        assert!(parse_verify_msix_args(&["a.msix".into(), "b.msix".into()]).is_err());
+        let ok = parse_verify_msix_args(&[
+            "--require-store-identity".into(),
+            "--display-name=TextVN".into(),
+            "a.msix".into(),
+        ])
+        .unwrap();
+        assert_eq!(ok.msix, "a.msix");
+        assert!(ok.require_identity);
+        assert_eq!(ok.display_name.as_deref(), Some("TextVN"));
+    }
+
+    #[test]
+    fn xml_parser_manifest_that_va_edge_cases() {
         let xml = parse_xml(&mini_manifest("1.2.85.0", "Trình gõ tiếng Việt")).expect("parse");
-        let ident = xml.child("Identity").expect("Identity");
+        let ident = xml.child_ns(NS_FOUNDATION, "Identity").expect("Identity");
         assert_eq!(ident.attr("Name"), Some("23651Linhi.TextVN"));
         assert_eq!(ident.attr("Version"), Some("1.2.85.0"));
-        let props = xml.child("Properties").expect("Properties");
-        assert_eq!(props.child("DisplayName").unwrap().text, "TextVN");
+        let props = xml
+            .child_ns(NS_FOUNDATION, "Properties")
+            .expect("Properties");
         assert_eq!(
-            props.child("Description").unwrap().text,
+            props.child_ns(NS_FOUNDATION, "DisplayName").unwrap().text,
+            "TextVN"
+        );
+        assert_eq!(
+            props.child_ns(NS_FOUNDATION, "Description").unwrap().text,
             "Trình gõ tiếng Việt"
         );
         let mut all = Vec::new();
         xml.descendants(&mut all);
-        assert!(all
-            .iter()
-            .any(|n| n.name == "Capability" && n.attr("Name") == Some("runFullTrust")));
-        // Visual elements chứa đủ 4 thuộc tính Logo
+        assert!(all.iter().any(|n| n.ns == NS_RESCAP
+            && n.name == "Capability"
+            && n.attr("Name") == Some("runFullTrust")));
         let ve = all.iter().find(|n| n.name == "VisualElements").expect("VE");
         assert_eq!(ve.attrs.len(), 4);
+
+        // Text xen comment, CDATA, `>` trong attr, whitespace quanh `=`, numeric entities.
+        let rich = parse_xml(
+            r#"<root a = "1 > 0" b="&#65;&#x42;"><!-- note -->Xin <![CDATA[chào & <VN>]]></root>"#,
+        )
+        .expect("rich xml");
+        assert_eq!(rich.attr("a"), Some("1 > 0"));
+        assert_eq!(rich.attr("b"), Some("AB"));
+        assert_eq!(rich.text, "Xin chào & <VN>");
     }
 
     #[test]
     fn xml_parser_bat_xml_sai_well_formed() {
-        assert!(parse_xml("<a><b></b>").is_err()); // chưa đóng
-        assert!(parse_xml("<a></b></a>").is_err()); // đóng sai cặp
-        assert!(parse_xml("<a attr=b></a>").is_err()); // attr không nháy
-        assert!(parse_xml("van ban tu do").is_err()); // không có thẻ
-        assert!(parse_xml("<a><!-- co -- ben trong --></a>").is_err()); // "--" trong comment
+        for bad in [
+            "<a><b></b>",
+            "<a></b></a>",
+            "<a attr=b></a>",
+            "van ban tu do",
+            "<a><!-- co -- ben trong --></a>",
+            "<a><!-- duoi gach ---></a>",
+            "<?><a/>",
+            "<a/><b/>",
+            "<123/>",
+            "<a:b:c/>",
+            "<a x=\"1\"y=\"2\"/>",
+            "<a x=\"1\" x=\"2\"/>",
+            "<a>&unknown;</a>",
+            "<a>bare &amp and &</a>",
+            "<a></a foo=\"1\">",
+            "<a xmlns:f=\"u1\" xmlns:g=\"u1\"><f:X></g:X></a>",
+            "<!garbage><a/>",
+        ] {
+            assert!(parse_xml(bad).is_err(), "phải báo lỗi XML hỏng: {bad}");
+        }
     }
 
     #[test]

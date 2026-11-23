@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! E59: port `scripts/gen_en_office_phrases.py` — sinh `data/en_office_phrases.tsv`
 //! (P6, vòng 59): bảng ngữ cảnh câu tiếng Anh văn phòng + bilingual Việt-Anh.
 //!
@@ -47,7 +48,7 @@ fn sentence_rows(cat: &str, sentence: &str) -> Vec<(String, String, u32)> {
 /// Python `key.islower()` sau `.lower()`: hợp lệ khi có ÍT NHẤT 1 chữ thường
 /// và 0 chữ hoa (từ-khóa/cụm toàn số hoặc ký hiệu bị loại).
 fn is_lowercased_word(s: &str) -> bool {
-    s.chars().any(|c| c.is_lowercase())
+    s.chars().any(|c| c.is_lowercase()) && !s.chars().any(|c| c.is_uppercase())
 }
 
 fn add(rows: &mut BTreeMap<(String, String), u32>, key: &str, pred: &str, weight: u32) {
@@ -120,6 +121,7 @@ pub fn run(write: bool) -> Result<(), String> {
         ));
     }
     let rel = "data/en_office_phrases.tsv";
+    let path = crate::assist_tools::repo_root().join(rel);
     let content = render(&rows);
     // stdout UTF-8 portable; đổi header dòng 4 so bản python — body giữ nguyên.
     let mut cats: BTreeMap<&str, usize> = BTreeMap::new();
@@ -132,7 +134,7 @@ pub fn run(write: bool) -> Result<(), String> {
     top.truncate(8);
     let top_s: Vec<String> = top.iter().map(|(k, n)| format!("{k}:{n}")).collect();
     if write {
-        std::fs::write(rel, &content).map_err(|e| format!("ghi `{rel}`: {e}"))?;
+        std::fs::write(&path, &content).map_err(|e| format!("ghi `{rel}`: {e}"))?;
         println!(
             "  gen  {rel} ({} hàng, {} câu + {} standalone + {} bilingual)",
             rows.len(),
@@ -143,7 +145,7 @@ pub fn run(write: bool) -> Result<(), String> {
         println!("  top opener keys: {}", top_s.join(", "));
         Ok(())
     } else {
-        let cur = std::fs::read_to_string(rel)
+        let cur = std::fs::read_to_string(&path)
             .map(|s| s.replace("\r\n", "\n"))
             .map_err(|e| {
                 format!("không đọc được `{rel}` để so: {e} (chạy `cargo xtask gen-en-office`)")

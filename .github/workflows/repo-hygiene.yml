@@ -3,7 +3,7 @@
 # KHÁC ci-shared.yml (agent core/FFI): ci-shared = build/test Rust
 # (fmt/clippy/test 3 OS/deny/reuse/fuzz…); file này chỉ lo "sạch" — doc link,
 # secret, file tạm, quy ước .ps1, conflict marker, file quá lớn, API inject
-# (Farch-3). Không chạy cargo.
+# (Farch-3), cấm file Python (E59). Từ E59 chạy các gate bằng `cargo xtask`.
 name: repo-hygiene
 
 on:
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   hygiene:
-    name: repo hygiene (8 checks)
+    name: repo hygiene (11 checks)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,7 +32,8 @@ jobs:
 
       # Gate từ v0.2.86+ đều là `cargo xtask <cmd>` (bản Rust thay
       # .github/scripts/*.py — E59 policy không-Python) — cần toolchain.
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: 1. conflict marker còn sót
         run: |

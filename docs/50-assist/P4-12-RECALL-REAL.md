@@ -191,16 +191,13 @@ Tập lỗi **có chủ đích** chứa **toàn bộ** 28 câu engine bắt đư
 ## 6. Tái lập
 
 ```powershell
-# 1. Build đúng binary sẽ đo (dùng -j 2 vì máy hết paging file khi build song song)
-cargo build -p textvn-cli -j 2
-
-# 2. Sinh lại 2 corpus (tất định; --verify đối chiếu từng dòng với engine)
+# 1. Sinh lại 2 corpus (tất định; --verify đối chiếu từng dòng với engine in-process)
 cargo xtask assist-build-candidates --verify
 #    errors: 49 cau (28 engine bat dung, 21 engine bo sot)
 #    clean : 981 cau (mau 1000/5092, loai 3 cau khong chac + 5 ngoai pham vi)
 #    verify: OK
 
-# 3. Đo recall theo loại + FPR
+# 2. Đo recall theo loại + FPR (gọi engine in-process — không cần build textvn-cli trước)
 cargo xtask assist-score
 ```
 
@@ -261,7 +258,7 @@ diacritic_typo: 19/40 = 47.5%
 | **Fassist-112** | major | `duplicate_word` báo oan **12 câu** từ láy/tăng nghĩa ("mãi mãi", "năm năm", "nhẹ nhẹ", "tê tê", "đần đần", "ve ve", "đi đi", "có có") | Đề xuất: mở `INTENTIONAL_REPEATS` + whitelist từ láy; thêm ca vào `vi_real_clean.ass` (đã có `~`) |
 | **Fassist-113** | major | `sentence_repeat` báo oan **4/4 ca** khi lặp **đại từ** ở ranh giới câu; `diacritic_typo` báo oan "quyến rũ"/"gái điếm" do bảng TYPOS quá rộng | Đề xuất: loại đại từ khỏi L9; bỏ `quyến`, `điếm` khỏi TYPOS (đúng như Fassist-96 đã làm với "trường"/"yêu") |
 | **Fassist-114** | major | Giả định "300–600 câu lỗi trong 1.500 câu Tatoeba" **không đúng**: cả 5.092 câu chỉ có ~1,1 % lỗi objective; engine gắn cờ 50 câu (1,0 %) | Ghi nhận; muốn ≥ 300 lỗi phải có **nguồn khác** (văn bản người dùng thật, bài viết có lỗi) — xem §8 |
-| **Fassist-115** | minor | `assist score` coi câu sạch có `~` là "ứng viên", **không** tính FPR; còn `assist-score` tính FPR ⇒ hai công cụ lệch nhau | Ghi nhận; `score_real.py` là công cụ đúng cho FPR văn bản thật (doc này), `assist score` giữ nguyên cho corpus tổng hợp |
+| **Fassist-115** | minor | `assist score` coi câu sạch có `~` là "ứng viên", **không** tính FPR; còn `assist-score` tính FPR ⇒ hai công cụ lệch nhau | Ghi nhận; `cargo xtask assist-score` (E59 thay `score_real.py`) là công cụ đúng cho FPR văn bản thật (doc này), `assist score` giữ nguyên cho corpus tổng hợp |
 | **Fassist-116** | minor | Binary `release` cũ và `debug` mới cho kết quả khác nhau trên cùng câu (`mãi mãi`) | Ghi nhận; luôn `cargo build` trước khi đo và ghim `--cli`; không dùng binary cũ để so sánh |
 
 ---

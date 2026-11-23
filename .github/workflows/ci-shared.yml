@@ -93,6 +93,8 @@ jobs:
         with:
           components: rustfmt
       - run: cargo run -q -p xtask -- check-tables
+      # E59: đảm bảo data/en_office_phrases.tsv khớp generator Rust (thay gen_en_office_phrases.py).
+      - run: cargo run -q -p xtask -- check-en-office
       # tools/mac/targets/*.json (MAC-061) là nguồn sự thật của harness AX — gate
       # preset/role/locator chạy được trên mọi OS, không cần máy Mac.
       - run: cargo run -q -p xtask -- check-mac-targets

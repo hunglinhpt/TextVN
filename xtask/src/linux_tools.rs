@@ -63,7 +63,13 @@ fn sh_split(line: &str) -> Result<Vec<String>, String> {
                 match b[j] {
                     b'"' => break,
                     b'\\' if j + 1 < b.len() => {
-                        cur.push(b[j + 1]);
+                        let next = b[j + 1];
+                        if matches!(next, b'$' | b'`' | b'"' | b'\\' | b'\n') {
+                            cur.push(next);
+                        } else {
+                            cur.push(b'\\');
+                            cur.push(next);
+                        }
                         j += 2;
                     }
                     x => {
@@ -211,6 +217,7 @@ mod tests {
         );
         // sai base → phải fail
         assert!(check_ibus_component(&[f.to_string_lossy().to_string(), "/khac".into()]).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -258,6 +265,7 @@ mod tests {
             let f = dir.join("c.xml");
             std::fs::write(&f, &xml).expect("ghi");
             let r = check_ibus_component(&[f.to_string_lossy().to_string(), base.to_string()]);
+            let _ = std::fs::remove_dir_all(&dir);
             assert!(r.is_ok(), "base {base:?} phải pass: {r:?}");
         }
     }

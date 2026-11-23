@@ -74,7 +74,7 @@ Trích phản hồi (Package validation — Technical requirement policies):
 - **MSIX**: exe trong gói chỉ chép payload ra `%USERPROFILE%\.textvn\msix-staging` →
   `%LOCALAPPDATA%\Programs\TextVN-Store\<V>`, đăng ký HKCU, guard ở mỗi lần đăng nhập
   dọn sạch sau khi gói bị gỡ — CI cài thử thật (`installer/windows/tests/test-msix-sideload.ps1`).
-  Manifest kiểm bằng `tools/win/verify-msix.py`; Version map `A.B.C` → `(A+1).B.C.0`
+  Manifest kiểm bằng `cargo xtask verify-msix` (E59); Version map `A.B.C` → `(A+1).B.C.0`
   (0.2.27 → 1.2.27.0). Gói trên Release là placeholder cho tới khi có
   `MSIX_IDENTITY_NAME` (`msix-submission.md` §3).
 - Script ký: `build-release.ps1` (gốc repo) — `-SigningCertificateThumbprint` (signtool,

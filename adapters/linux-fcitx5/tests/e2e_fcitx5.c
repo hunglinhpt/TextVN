@@ -44,7 +44,6 @@
 #define CTRL_IFACE "org.fcitx.Fcitx.Controller1"
 #define IM_PATH "/org/freedesktop/portal/inputmethod"
 #define CTRL_PATH "/controller"
-#define PROPS_IFACE "org.freedesktop.DBus.Properties"
 #define CALL_TIMEOUT_MS 5000
 
 /* ---- Bộ đệm chuỗi nhỏ (thay GString — không kéo GLib vào client) ---- */
@@ -152,8 +151,9 @@ static DBusHandlerResult on_signal(DBusConnection *c, DBusMessage *m,
             if (text)
                 sb_append(&doc, text);
         } else {
-            fprintf(stderr, "CommitString signature lạ: %s\n",
-                    dbus_message_iter_get_signature(&iter));
+            char *sig = dbus_message_iter_get_signature(&iter);
+            fprintf(stderr, "CommitString signature lạ: %s\n", sig ? sig : "?");
+            dbus_free(sig);
         }
         return DBUS_HANDLER_RESULT_HANDLED;
     }
@@ -258,48 +258,21 @@ static void ctrl_set_current_im(const char *name) {
         dbus_message_unref(reply);
 }
 
-/* Property CurrentInputMethod (s) qua org.freedesktop.DBus.Properties.Get.
- * Best-effort (E59 hotfix 5): một số chế độ chạy fcitx5 không export property
- * Controller1 → KHÔNG die; verify IM đang active bằng chính kiểm Telex đầu
- * tiên (check "telex dduocj+space") — đúng nghĩa e2e hơn property probe. */
+/* Gọi method CurrentInputMethod() trên org.fcitx.Fcitx.Controller1 (1:1 bản Python:
+ * `controller.CurrentInputMethod()`). Đây là DBus method trả (s), KHÔNG phải Properties.Get. */
 static char *ctrl_current_im(void) {
-    const char *iface = CTRL_IFACE;
-    const char *prop = "CurrentInputMethod";
-    DBusError err;
-    dbus_error_init(&err);
-    DBusMessage *msg =
-        dbus_message_new_method_call(FCITX_NAME, CTRL_PATH, PROPS_IFACE, "Get");
-    if (!msg)
-        die("Get", "không tạo được method call (OOM?)");
-    DBusMessageIter args;
-    dbus_message_iter_init_append(msg, &args);
-    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &iface);
-    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &prop);
-    DBusMessage *reply = dbus_connection_send_with_reply_and_block(
-        conn, msg, CALL_TIMEOUT_MS, &err);
-    dbus_message_unref(msg);
+    DBusMessage *reply =
+        method_call(CTRL_PATH, CTRL_IFACE, "CurrentInputMethod", DBUS_TYPE_INVALID);
     static char cur[128];
     cur[0] = '\0';
-    if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "e2e_fcitx5: CurrentInputMethod non-read (%s) — dựa kiểm Telex\n",
-                err.message);
-        dbus_error_free(&err);
-        return cur;
-    }
-    if (!reply)
-        return cur;
-    DBusMessageIter iter;
-    if (dbus_message_iter_init(reply, &iter) &&
-        dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_VARIANT) {
-        DBusMessageIter var;
-        dbus_message_iter_recurse(&iter, &var);
-        if (dbus_message_iter_get_arg_type(&var) == DBUS_TYPE_STRING) {
-            const char *s = NULL;
-            dbus_message_iter_get_basic(&var, &s);
-            if (s)
-                snprintf(cur, sizeof cur, "%s", s);
-        }
-    }
+    const char *s = NULL;
+    DBusError err;
+    dbus_error_init(&err);
+    if (!dbus_message_get_args(reply, &err, DBUS_TYPE_STRING, &s,
+                               DBUS_TYPE_INVALID))
+        die_dbus("CurrentInputMethod", &err);
+    if (s)
+        snprintf(cur, sizeof cur, "%s", s);
     dbus_message_unref(reply);
     return cur;
 }
@@ -384,15 +357,18 @@ static void keysym_of(const char *utf8p, dbus_uint32_t *out_keysym,
         else if ((c0 & 0xF0) == 0xE0) { cp = c0 & 0x0F; n = 2; }
         else if ((c0 & 0xF8) == 0xF0) { cp = c0 & 0x07; n = 3; }
         else { cp = '?'; n = 0; }
+        int consumed = 1;
         for (int i = 1; i <= n; i++) {
             unsigned char ci = (unsigned char)utf8p[i];
-            if ((ci & 0xC0) == 0x80)
+            if ((ci & 0xC0) == 0x80) {
                 cp = (cp << 6) | (ci & 0x3F);
-            else
+                consumed++;
+            } else {
                 break;
+            }
         }
         *out_keysym = cp;
-        *next = utf8p + n + 1;
+        *next = utf8p + consumed;
     }
 }
 
@@ -441,6 +417,24 @@ static void type_string(const char *s) {
 /* ---- Tệp cấu hình/state — như bảng cài đặt: tmp → rename ---- */
 static char config_dir[512];
 
+static void mkdir_p(const char *dir) {
+    char tmp[512];
+    snprintf(tmp, sizeof tmp, "%s", dir);
+    size_t len = strlen(tmp);
+    while (len > 1 && tmp[len - 1] == '/')
+        tmp[--len] = '\0';
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0755) != 0 && errno != EEXIST)
+                die("mkdir_p", strerror(errno));
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0755) != 0 && errno != EEXIST)
+        die("mkdir_p", strerror(errno));
+}
+
 static void build_config_dir(void) {
     const char *xdg = getenv("XDG_CONFIG_HOME");
     if (xdg && xdg[0])
@@ -451,16 +445,13 @@ static void build_config_dir(void) {
             die("config", "không có XDG_CONFIG_HOME/HOME");
         snprintf(config_dir, sizeof config_dir, "%s/.config/TextVN", home);
     }
-    mkdir(config_dir, 0755); /* đã có thì bỏ qua lỗi EEXIST */
+    mkdir_p(config_dir);
 }
 
 static void write_textvn_file(const char *name, const char *json) {
-    static struct timespec last;
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    if (now.tv_sec == last.tv_sec && now.tv_nsec == last.tv_nsec)
-        usleep(20000); /* mtime chắc chắn khác lần trước */
-    last = now;
+    mkdir_p(config_dir);
+    /* Chờ cố định 20ms giống Python time.sleep(0.02) để mtime coarse-tick Linux chắc chắn đổi. */
+    usleep(20000);
     char tmp[600], dst[600];
     snprintf(tmp, sizeof tmp, "%s/.%s.e2e.tmp", config_dir, name);
     snprintf(dst, sizeof dst, "%s/%s", config_dir, name);
@@ -570,14 +561,9 @@ int main(void) {
     ctrl_set_current_im("textvn");
     pump(0.3);
     const char *cur = ctrl_current_im();
-    if (cur[0] != '\0' && strcmp(cur, "textvn") != 0) {
+    if (strcmp(cur, "textvn") != 0) {
         fprintf(stderr, "e2e_fcitx5: không kích hoạt được IM textvn: %s\n", cur);
         return 1;
-    }
-    if (cur[0] == '\0') {
-        fprintf(stderr,
-                "e2e_fcitx5: property CurrentInputMethod không đọc được — "
-                "verify IM textvn bằng kiểm Telex ngay dưới đây\n");
     }
 
     /* ---- Telex cơ bản + preedit + Enter + Backspace ---- */

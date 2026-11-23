@@ -15,7 +15,7 @@
 #   3. Sigstore: chứng thư phải là của ĐÚNG workflow release.yml chạy trên ĐÚNG tag v<version>
 #      của repo này (gói của tag khác, nhánh khác hay repo khác đều bị từ chối). Bắt buộc
 #      trong CI; chạy tay mà không có cosign thì bỏ qua kèm cảnh báo;
-#   4. tools/win/verify-msix.py --require-store-identity: luật Partner Center, Version
+#   4. cargo xtask verify-msix --require-store-identity (E59 thay verify-msix.py): luật Partner Center, Version
 #      (A+1).B.C.0 map từ <version>, và Identity/Name = <identity-name> nếu có truyền.
 # Dòng cuối stdout: "sha256=<hex>" (store-publish.yml chuyển sang job nộp để kiểm lại).
 set -euo pipefail

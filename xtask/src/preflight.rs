@@ -153,6 +153,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "check-en-office",
+        guards: "data/en_office_phrases.tsv khớp generator Rust (E59)",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-en-office"],
+        optional: false,
+    },
+    Step {
         name: "check-win-corpus",
         guards: "corpus win sinh ra khớp danh sách case",
         argv: &[

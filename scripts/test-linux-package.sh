@@ -20,7 +20,12 @@ E2E_IBUS="$BUILD/ibus/e2e_ibus"
 [[ -x "$E2E_IBUS" ]] || { echo "thiếu $E2E_IBUS — chạy scripts/e2e-linux.sh trước" >&2; exit 1; }
 E2E_FCITX5="$BUILD/fcitx5/e2e_fcitx5"
 [[ -x "$E2E_FCITX5" ]] || { echo "thiếu $E2E_FCITX5 — chạy scripts/e2e-linux.sh trước (E59: client C thay .py)" >&2; exit 1; }
-XTASK=(cargo run -q --manifest-path "$ROOT/Cargo.toml" -p xtask --)
+# Build xtask một lần và export hàm (bash không export được mảng vào `bash -c`).
+cargo build -q --manifest-path "$ROOT/Cargo.toml" -p xtask
+run_xtask() {
+    cargo run -q --manifest-path "$ROOT/Cargo.toml" -p xtask -- "$@"
+}
+export -f run_xtask
 export ROOT TARBALL BUILD E2E_IBUS E2E_FCITX5
 
 # Môi trường HOME tạm như một người dùng mới; gsettings giả để kiểm tra bước "thêm bộ gõ".
@@ -358,7 +363,7 @@ unit_ibus_component() {
                 "$t/"'$HOME/`x`#y'; do
         tv_ibus_component "$t" "$base/lib/textvn/textvn-ibus-engine" "$base/bin/textvn-settings" \
             > "$t/out.xml"
-        "${XTASK[@]}" check-ibus-component "$t/out.xml" "$base" \
+        run_xtask check-ibus-component "$t/out.xml" "$base" \
             || fail "component IBus sai với đường dẫn: $base"
     done
     # Đường dẫn thường: component GIỮ NGUYÊN dạng không trích dẫn như trước.

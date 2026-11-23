@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! E59: port 3 script sinh icon/art (đã xoá theo policy không-Python):
 //! - `scripts/generate_app_icons.py`  → `cargo xtask gen-app-icons`
 //! - `scripts/generate_store_art.py`  → `cargo xtask gen-store-art`
@@ -9,13 +10,13 @@
 //!    như nhau trên mọi máy; hình dáng chữ đậm tương đương, KHÔNG pixel-đúng
 //!    bản cũ (raster font ≠ polygon). Assets đã commit KHÔNG tự regenerate —
 //!    công cụ chỉ chạy khi cần sinh lại thủ công.
-//! 2. PNG xuất qua PNG-encoder stored-zlib thuần std (xem `png.rs`) — file lớn
-//!    hơn bản Pillow optimize nhưng hợp chuẩn, đọc được bởi mọi tool.
+//! 2. PNG xuất qua PNG-encoder nén LZ77 Fixed-Huffman + lọc Sub thuần std
+//!    (xem `png.rs`) — giữ mọi PNG (kể cả 1024px/2160px) dưới ngưỡng 1,5 MB.
 //! 3. Downsample /2 = box-mean premultiplied (LANCZOS của PIL không port —
 //!    sai lệch texture của bản cũ chấp nhận cho art).
 //! 4. Preview-sheet (TEMP) của bản tray bỏ (dev nicety, không trong CI).
 //!
-//! Không unsafe, không crate ngoài, RBGA canvas xem [`crate::png`].
+//! Không unsafe, không crate ngoài, RGBA canvas xem [`crate::png`].
 
 use crate::png::{encode_ico, encode_rgba, star_points, Canvas, Rgba};
 
@@ -35,19 +36,31 @@ fn save(out_root: &std::path::Path, rel: String, canvas: &Canvas) -> Result<(), 
 }
 
 /// `--out-dir <path>`: ghi vào thư mục khác (mặc định = repo). Cho phép sinh thử
-/// mà KHÔNG đè assets đã commit.
+/// mà KHÔNG đè assets đã commit. Từ chối mọi cờ lạ để tránh typo đè nhầm repo.
 fn out_dir(args: &[String]) -> Result<std::path::PathBuf, String> {
+    let mut dir: Option<std::path::PathBuf> = None;
     let mut i = 0;
     while i < args.len() {
         if args[i] == "--out-dir" {
-            return args
+            let val = args
                 .get(i + 1)
-                .map(std::path::PathBuf::from)
-                .ok_or_else(|| "--out-dir cần đường dẫn".to_string());
+                .ok_or_else(|| "--out-dir cần đường dẫn".to_string())?;
+            dir = Some(std::path::PathBuf::from(val));
+            i += 2;
+        } else if let Some(val) = args[i].strip_prefix("--out-dir=") {
+            if val.is_empty() {
+                return Err("--out-dir cần đường dẫn".into());
+            }
+            dir = Some(std::path::PathBuf::from(val));
+            i += 1;
+        } else {
+            return Err(format!(
+                "tham số lạ `{}` (chỉ hỗ trợ `--out-dir <path>`)",
+                args[i]
+            ));
         }
-        i += 1;
     }
-    Ok(repo_root())
+    Ok(dir.unwrap_or_else(repo_root))
 }
 
 // ---------------------------------------------------------------------------
@@ -99,22 +112,20 @@ fn draw_glyph(
     stroke: Option<(Rgba, f64)>,
 ) {
     let base = if letter == 'V' { glyph_v() } else { glyph_e() };
-    let to = |pts: &[(f64, f64)], grow: f64| -> Vec<(f64, f64)> {
-        // phóng hộp 100 → w×h quanh tâm; grow nở outline theo trục.
+    let to = |pts: &[(f64, f64)], dx: f64, dy: f64| -> Vec<(f64, f64)> {
         pts.iter()
-            .map(|(gx, gy)| {
-                (
-                    x + w * 0.5 + ((gx - 50.0) / 100.0) * (w + grow),
-                    y + h * 0.5 + ((gy - 50.0) / 100.0) * (h + grow),
-                )
-            })
+            .map(|(gx, gy)| (x + (gx / 100.0) * w + dx, y + (gy / 100.0) * h + dy))
             .collect()
     };
     if let Some((sc, sw)) = stroke {
-        let g = sw * 2.0; // nở tương đối theo cả 2 trục
-        canvas.polygon(&to(&base, g), sc);
+        // Nở hình thái theo 12 hướng tròn (giữ đúng viền trong của chữ không lồi như E/V).
+        let steps = 12usize;
+        for k in 0..steps {
+            let ang = 2.0 * std::f64::consts::PI * (k as f64) / (steps as f64);
+            canvas.polygon(&to(&base, sw * ang.cos(), sw * ang.sin()), sc);
+        }
     }
-    canvas.polygon(&to(&base, 0.0), fill);
+    canvas.polygon(&to(&base, 0.0, 0.0), fill);
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +157,8 @@ fn render_app_badge(
     let blurred = silhouette.blur_alpha(3.0 * s);
     let mut shadow = Canvas::new(size, size, Rgba(0, 0, 0, 0));
     shadow.paste_with_mask(
-        &Canvas::new(size, size, Rgba(stroke.0, stroke.1, stroke.2, 255)),
+        // 0x40 (~25% opacity) khớp `stroke + "40"` (generate_app_icons.py) và SVG flood-opacity="0.25".
+        &Canvas::new(size, size, Rgba(stroke.0, stroke.1, stroke.2, 0x40)),
         &blurred,
         (2.0 * s).round() as isize,
     );
@@ -171,7 +183,7 @@ fn render_app_badge(
         grad.gradient_bg(Rgba(255, 255, 255, 255), grad_bottom);
         for y in 0..h {
             for x in 0..w {
-                let a = mask.px[(y * w + x) * 4];
+                let a = mask.px[(y * w + x) * 4 + 3];
                 if a > 0 {
                     let g = grad.get_pixel(x, y);
                     inner.set_pixel(x, y, Rgba(g.0, g.1, g.2, a));
@@ -180,14 +192,14 @@ fn render_app_badge(
         }
     }
     out.composite(&inner, 0);
-    // Glyph: baseline y=93_anchor ms → hộp chữ cao 82*s từ y≈11 → 93.
+    // Glyph cap-height ~60*s căn giữa trong khung trong [12..116]*s (không đụng viền ngoài 4..12*s).
     draw_glyph(
         &mut out,
         letter,
-        29.0 * s,
-        11.0 * s,
-        70.0 * s,
-        82.0 * s,
+        32.0 * s,
+        34.0 * s,
+        64.0 * s,
+        60.0 * s,
         text_color,
         None,
     );
@@ -241,19 +253,18 @@ fn compose_art(w: usize, h: usize, star_r: f64, star_cy: f64, v_size: f64, v_cy:
     let mut canvas = Canvas::new(w, h, FLAG_RED);
     canvas.gradient_bg(FLAG_RED, RED_DARK);
     let cx = w as f64 / 2.0;
-    // Chữ V + bóng đổ (tỉ lệ vàng 0.38197 như bản python).
+    // Chữ V + bóng đổ lệch (+off, +off) giống generate_store_art.py (tỉ lệ vàng 0.38197).
     let off = (4.0f64).max(v_size / 60.0);
     draw_glyph(
         &mut canvas,
         'V',
-        cx - v_size / 2.0,
-        v_cy - v_size * 0.62 / 2.0,
+        cx - v_size / 2.0 + off,
+        v_cy - v_size * 0.62 / 2.0 + off,
         v_size,
         v_size * 0.62,
         ART_SHADOW,
         None,
     );
-    let _ = off; // bóng đã vẽ trong lệnh trên (off scale với v_size/60 — giữ cho docs trung thực)
     draw_glyph(
         &mut canvas,
         'V',
@@ -272,8 +283,6 @@ pub fn gen_store_art_cli(args: &[String]) -> Result<(), String> {
     let root = out_dir(args)?;
     let out = root.join("store/art");
     std::fs::create_dir_all(&out).map_err(|e| format!("mkdir: {e}"))?;
-    // Lưu ý: compose_art vẽ V-đủ rồi shadow bỏ (bản python có offset_shadow) —
-    // shadow bài vẽ-lưới-đè chính; port giữ hình đọc được gần đúng.
     // 1:1 — 2160 (nguồn) + 1080.
     let box_art = compose_art(2160, 2160, 380.0, 760.0, 980.0, 1530.0);
     save(&root, "store/art/box-art-2160.png".into(), &box_art)?;
@@ -517,18 +526,87 @@ mod tests {
     }
 
     #[test]
-    fn art_compose_layout() {
+    fn badge_shadow_aa_and_glyph_margin() {
+        let c = render_app_badge(
+            'V',
+            Rgba::from_hex(APP_V.0),
+            Rgba::from_hex(APP_V.1),
+            Rgba::from_hex(APP_V.2),
+            128,
+        );
+        // Dưới mép dưới (y=126) phải có bóng đổ mờ 0 < alpha <= 64 (trước đây đọc kênh Red = 0).
+        let sh = c.get_pixel(64, 126);
+        assert!(sh.3 > 0 && sh.3 <= 64, "bóng đổ dưới mép badge: {sh:?}");
+        // Vùng đệm trên bên trong (y=16, x=40) phải là nền sáng, KHÔNG bị glyph đè lên viền.
+        let top_pad = c.get_pixel(40, 16);
+        assert!(
+            top_pad.0 > 220 && top_pad.1 > 210,
+            "glyph không được đè lề trên: {top_pad:?}"
+        );
+        // Góc bo của tray_vn phải có pixel AA trung gian (0 < alpha < 255).
+        let tv = tray_vn(64);
+        let has_aa = (0..20)
+            .flat_map(|y| (0..20).map(move |x| (x, y)))
+            .any(|(x, y)| {
+                let a = tv.get_pixel(x, y).3;
+                a > 0 && a < 255
+            });
+        assert!(has_aa, "góc bo tray icon phải có anti-aliasing");
+    }
+
+    #[test]
+    fn out_dir_tu_choi_co_la() {
+        assert!(out_dir(&["--outdir".into(), "/tmp/x".into()]).is_err());
+        assert_eq!(
+            out_dir(&["--out-dir=/tmp/x".into()]).unwrap(),
+            std::path::PathBuf::from("/tmp/x")
+        );
+    }
+
+    #[test]
+    fn art_compose_layout_and_png_size_under_hygiene_limit() {
         let c = compose_art(1440, 2160, 300.0, 620.0, 760.0, 1400.0);
         // Góc (0,0) ≈ FLAG_RED; góc (w-1,h-1) ≈ RED_DARK (gradient chéo).
         let tl = c.get_pixel(0, 0);
         let br = c.get_pixel(1439, 2159);
-        assert!((tl.0 - 218) < 4 && (tl.1 - 37) < 4, "TL phải đỏ cờ: {tl:?}");
+        assert!(
+            tl.0.abs_diff(218) < 4 && tl.1.abs_diff(37) < 4,
+            "TL phải đỏ cờ: {tl:?}"
+        );
         assert!(br.0 < 165 && br.1 < 40, "BR phải đỏ tối: {br:?}");
         // Sao vàng trên nền đỏ: điểm gần (cx, star_cy) phải VÀNG (255,221,0).
         let star = c.get_pixel(720, 620);
         assert!(
             star.0 > 200 && star.1 > 190 && star.2 < 40,
             "sao vàng: {star:?}"
+        );
+        // Bóng đổ chữ V phải lộ pixel tối ART_SHADOW ở vùng lệch (+off, +off) dưới đáy chữ V.
+        let bottom_y = (1400.0 + 760.0 * 0.62 / 2.0) as usize;
+        let cref = &c;
+        let has_shadow = (bottom_y + 1..bottom_y + 14)
+            .flat_map(|y| (700..750).map(move |x| cref.get_pixel(x, y)))
+            .any(|p| p.0 < 110 && p.1 < 25 && p.2 < 25);
+        assert!(has_shadow, "Store art phải có bóng đổ lệch phía dưới chữ V");
+
+        // Cả TextVN-1024 và poster 1440×2160 nén PNG phải < 1,5 MB (gate repo-hygiene).
+        let big_icon = render_app_badge(
+            'V',
+            Rgba::from_hex(APP_V.0),
+            Rgba::from_hex(APP_V.1),
+            Rgba::from_hex(APP_V.2),
+            1024,
+        );
+        let icon_png = encode_rgba(&big_icon);
+        assert!(
+            icon_png.len() < 1_500_000,
+            "TextVN-1024.png quá lớn ({} bytes >= 1.5 MB)",
+            icon_png.len()
+        );
+        let poster_png = encode_rgba(&c);
+        assert!(
+            poster_png.len() < 1_500_000,
+            "poster-art-1440x2160.png quá lớn ({} bytes >= 1.5 MB)",
+            poster_png.len()
         );
     }
 }

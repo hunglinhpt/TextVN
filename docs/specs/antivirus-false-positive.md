@@ -102,7 +102,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 
 ### 8.2. Regression guard (Farch-3)
 
-- `.github/scripts/check_no_injection_apis.py` — chạy ở `repo-hygiene` **check #8** mỗi push/PR (`docs/00-WORKFLOW.md` §12.2); local: `python .github/scripts/check_no_injection_apis.py`.
+- `cargo xtask hygiene-apis` (`xtask/src/hygiene.rs`, E59 thay `.github/scripts/check_no_injection_apis.py`) — chạy ở `repo-hygiene` **check #8** mỗi push/PR (`docs/00-WORKFLOW.md` §12.2); local: `cargo xtask hygiene-apis`.
 - Quét file code theo git (tracked + untracked chưa ignore; `*.rs *.c *.h *.cpp *.py *.ps1 *.sh *.iss`): tên API cấm (§8.3) + hook non-LL (`WH_KEYBOARD`/`WH_MOUSE` không phải `*_LL`) + `SetWindowsHookEx` không ghi rõ LL trên cùng dòng.
 - Miễn trừ: file của chính guard này + `spikes/` (mã nháp probe không phát hành — WIN-005 `hook-spike`: khai báo P/Invoke và `SetWindowsHookExW(13, …)` = `WH_KEYBOARD_LL` dạng số). Copy nội dung từ `spikes/` sang `adapters/` vẫn bị chặn tại đích.
 - Selftest 2026-09-28: guard PASS trên repo (129 file code) + 8 case dương/âm (LL được phép, `WH_KEYBOARD,`/`WH_CBT`/`CreateRemoteThread`/`PTRACE_ATTACH` bị chặn).

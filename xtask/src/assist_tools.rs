@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! E59: port `tools/assist/*.py` sang xtask — policy repo: không Python.
 //!
-//! Bản đồ chuyển đổi (giữ tên lệnh gần bản cũ để docs dễ来找):
+//! Bản đồ chuyển đổi (giữ tên lệnh gần bản cũ để docs dễ tra cứu):
 //! - `kappa.py`                → `cargo xtask assist-kappa <a.tsv> <b.tsv> | --self-test`
 //! - `score_real.py`           → `cargo xtask assist-score [--mode check|sentence|both]
 //!                               [--verify] [--json] [--dic F] [--no-dict] [--errors F] [--clean F]`
-//! - `tone_inject.py`          → `cargo xtask assist-tone-inject [--seed N] [--max N] [--no-dict]`
+//! - `tone_inject.py`          → `cargo xtask assist-tone-inject [--seed N] [--max N] [--no-dict] [--corpus F]`
 //! - `build_real_corpus.py`    → `cargo xtask assist-build-candidates [--pool F] [--seed N]
 //!                               [--sample N] [--scan-all] [--verify]`
 //! - `gen_corpus_tatoeba.py`   → `cargo xtask assist-gen-vi-tatoeba [--out F] [--count N]`
@@ -13,17 +14,17 @@
 //! Khác biệt cố ý so với bản Python (ghi vào docs khi sweep E59):
 //! - Engine gọi **in-process** qua crate `textvn-assist` — đúng source-of-truth engine,
 //!   loại bỏ hẳn lớp lỗi "binary CLI cũ hơn source" (Fassist-120) của bản subprocess.
-//! - PRNG = mulberry32 (seed cố định) thay Mersenne Twister của python: vẫn tái lập
-//!   100% cho cùng seed, nhưng chuỗi khác bản Python — corpus đã commit trong repo nên
-//!   không tuỳ thuộc chuỗi này nữa.
+//! - PRNG = SplitMix64 (full 64-bit seed, song ánh, deterministic) thay Mersenne Twister
+//!   của Python: vẫn tái lập 100% cho cùng seed; corpus đã commit trong repo.
 //! - Cache tải Tatoeba + thư mục ứng viên: `target/assist-out/` (gitignored mặc định),
-//!   thay `tools/assist/.cache|.out` (thư mục Python bị xoá). Tải qua `curl` ngoài
-//!   (không HTTP client trong std) — trừ đó mọi logic thuần std.
+//!   thay `tools/assist/.cache|.out` (thư mục Python bị xoá). Hai lệnh tải Tatoeba
+//!   dùng `curl` và `bzip2` trong PATH — mọi logic xử lý còn lại thuần std.
 //!
-//!Không unsafe, 0 dep ngoài `textvn-assist`/`textvn-dict` (path, cùng workspace).
+//! Không unsafe, 0 dep ngoài `textvn-assist`/`textvn-dict` (path, cùng workspace).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
 use textvn_assist::dict::{Dictionary, NoDictionary};
@@ -60,23 +61,23 @@ pub(crate) fn repo_root() -> PathBuf {
 }
 
 // ---------------------------------------------------------------------------
-//=== PRNG mulberry32 (deterministic, std-thuần) =============================
+//=== PRNG SplitMix64 (deterministic, full 64-bit seed, std-thuần) ===========
 // ---------------------------------------------------------------------------
 struct Rng(u64);
 
 impl Rng {
     fn new(seed: u64) -> Self {
-        Rng(seed as u32 as u64 | 1)
+        Rng(seed)
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
     }
     fn next_u32(&mut self) -> u32 {
-        // mulberry32 (bryc) — nhỏ, đã kiểm chu kỳ tốt cho mục đích lấy mẫu.
-        self.0 = self.0.wrapping_add(0x6D2B79F5);
-        let mut t = self.0 as u32;
-        t = t.wrapping_mul(t.wrapping_add(0x6D2B79F5) ^ t);
-        t ^= t >> 15;
-        t = t.wrapping_mul((t | 1).wrapping_add(0x9E3779B9));
-        t ^= t >> 12;
-        t
+        (self.next_u64() >> 32) as u32
     }
     /// Fisher-Yates ngược trong mảng indices [0..n) — lấy `k` mẫu KHÔNG lặp.
     fn sample_indices(&mut self, n: usize, k: usize) -> Vec<usize> {
@@ -148,7 +149,11 @@ fn read_tsv_labelled(path: &Path) -> Result<Vec<(String, BTreeSet<String>)>, Str
 }
 
 fn kappa_cli(args: &[String]) -> i32 {
-    if args.first().map(String::as_str) == Some("--self-test") {
+    if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
+        println!("dùng: cargo xtask assist-kappa <ann_a.tsv> <ann_b.tsv> | --self-test");
+        return 0;
+    }
+    if args.len() == 1 && args[0] == "--self-test" {
         return kappa_self_test();
     }
     if args.len() != 2 {
@@ -331,7 +336,10 @@ fn load_dic_paths(paths: &[String]) -> Result<Box<ArcDict>, String> {
         }
     }
     let bytes = builder.to_bytes();
-    let tmp = std::env::temp_dir().join(format!("xtask-dic-{}.fst", std::process::id()));
+    // E44: gắn số thứ tự AtomicUsize để tránh ghi đè file đang mmap giữa nhiều lần gọi trong cùng process.
+    static SEQ: AtomicUsize = AtomicUsize::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    let tmp = std::env::temp_dir().join(format!("xtask-dic-{}-{seq}.fst", std::process::id()));
     std::fs::write(&tmp, &bytes).map_err(|e| format!("ghi FST tạm thất bại: {e}"))?;
     let d = textvn_dict::load(&tmp).map_err(|e| format!("nạp FST tạm thất bại: {e}"));
     let _ = std::fs::remove_file(&tmp); // Windows không xoá được khi còn map;
@@ -376,6 +384,7 @@ fn wilson(succ: usize, total: usize) -> (f64, f64) {
     if total == 0 {
         return (0.0, 0.0);
     }
+    let succ = succ.min(total);
     let z = 1.959964;
     let p = succ as f64 / total as f64;
     let denom = 1.0 + z * z / total as f64;
@@ -600,6 +609,10 @@ fn score_cli(args: &[String]) -> i32 {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!("dùng: cargo xtask assist-score [--mode check|sentence|both] [--verify] [--json] [--dic F] [--no-dict] [--errors F] [--clean F]");
+                return 0;
+            }
             "--mode" => {
                 i += 1;
                 match args.get(i).map(String::as_str) {
@@ -880,12 +893,20 @@ fn with_tone(word: &str, tone: usize) -> Option<String> {
     }
     let j = *idx.last().expect("idx rỗng đã chặn");
     let row = row_for(chars[j])?;
-    let new_char = row
-        .chars()
-        .nth(tone)
-        .unwrap_or(row.chars().next().unwrap_or('a'));
+    let new_char = row.chars().nth(tone)?;
     chars[j] = new_char;
     Some(chars.into_iter().collect())
+}
+
+fn is_combining_mark(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0300}'..='\u{036F}'
+            | '\u{1AB0}'..='\u{1AFF}'
+            | '\u{1DC0}'..='\u{1DFF}'
+            | '\u{20D0}'..='\u{20FF}'
+            | '\u{FE20}'..='\u{FE2F}'
+    )
 }
 
 fn load_valid_syllables(path: &Path) -> Result<BTreeSet<(String, usize)>, String> {
@@ -905,74 +926,76 @@ fn load_valid_syllables(path: &Path) -> Result<BTreeSet<(String, usize)>, String
     Ok(out)
 }
 
-/// Đổi dấu 1 từ trong câu thành dấu KHÔNG hợp lệ → (câu lỗi, start, end).
-/// Port `tone_inject.py inject()`: chọn từ ≥3 ký tự, toàn thường, có nguyên âm
-/// trong bảng, và khóa là âm tiết hợp lệ nào đó.
+/// Đổi dấu 1 từ trong câu thành dấu KHÔNG hợp lệ → (câu lỗi, char_start, char_end).
+/// Port `tone_inject.py inject()`: chọn từ ≥3 ký tự, toàn thường, NFC (bỏ qua từ
+/// chứa dấu kết hợp NFD), có nguyên âm trong bảng, và khóa là âm tiết hợp lệ nào đó.
 fn tone_inject_one(
     sentence: &str,
     valid: &BTreeSet<(String, usize)>,
     rng: &mut Rng,
 ) -> Option<(String, usize, usize)> {
-    let mut pick = || -> Option<(String, usize, usize)> {
-        let (base_map, _) = tone_tables();
-        let mut words: Vec<(usize, &str)> = Vec::new();
-        let mut start = 0usize;
-        for part in sentence.split(|c: char| !c.is_alphabetic()) {
-            if !part.is_empty() {
-                words.push((start, part));
+    let (base_map, _) = tone_tables();
+    // Quét span gồm cả chữ cái lẫn combining marks để không tách đứt từ NFD rồi làm hỏng nó.
+    let mut words: Vec<(usize, usize, usize, bool)> = Vec::new(); // (byte_start, byte_end, char_start, has_comb)
+    let mut cur: Option<(usize, usize, bool)> = None;
+    for (char_idx, (bidx, ch)) in sentence.char_indices().enumerate() {
+        let is_comb = is_combining_mark(ch);
+        if ch.is_alphabetic() || is_comb {
+            match &mut cur {
+                Some((_, _, has_c)) => *has_c |= is_comb,
+                None => cur = Some((bidx, char_idx, is_comb)),
             }
-            start += part.chars().count() + 1; // +1 cho ký tự phân tách (ASCII \u2248 byte)
+        } else if let Some((bs, cs, has_c)) = cur.take() {
+            words.push((bs, bidx, cs, has_c));
         }
-        rng.shuffle(&mut words);
-        for (start, w) in words {
-            if w.chars().count() < 3 || w != w.to_lowercase() {
-                continue;
-            }
-            // Corpus đã precomposed (NFC); từ decomposed sẽ không có BASE char ->
-            // tự rơi vào nhánh "không có nguyên âm" bên dưới — tương đương filter NFC python.
-            let (key, tone, _marks) = strip_tone(w);
-            let has_base = key.chars().any(|c| base_map.contains_key(&c));
-            if !has_base {
-                continue;
-            }
-            let any_valid = (0..6).any(|t| valid.contains(&(key.clone(), t)));
-            if !any_valid {
-                continue; // khóa lạ (không có trong dữ liệu) -> không có lỗi "dấu thanh" rõ ràng
-            }
-            let mut bad: Vec<usize> = (0..6)
-                .filter(|t| *t != tone && !valid.contains(&(key.clone(), *t)))
-                .collect();
-            bad.retain(|t| with_tone(&key, *t).is_some());
-            let Some(t) = rng.choose(&bad).copied() else {
-                continue;
-            };
-            let Some(wrong) = with_tone(&key, t) else {
-                continue;
-            };
-            if wrong == w {
-                continue;
-            }
-            let wrong_len = wrong.len();
-            let byte_start = sentence
-                .char_indices()
-                .nth(start)
-                .map(|(b, _)| b)
-                .unwrap_or(sentence.len());
-            let byte_end = byte_start + w.len();
-            return Some((
-                format!(
-                    "{}{}{}",
-                    &sentence[..byte_start],
-                    wrong,
-                    &sentence[byte_end..]
-                ),
-                byte_start,
-                byte_start + wrong_len,
-            ));
+    }
+    if let Some((bs, cs, has_c)) = cur.take() {
+        words.push((bs, sentence.len(), cs, has_c));
+    }
+
+    rng.shuffle(&mut words);
+    for (byte_start, byte_end, char_start, has_comb) in words {
+        if has_comb {
+            continue; // Bỏ qua từ NFD (tương đương filter `unicodedata.normalize("NFC", w) != w`).
         }
-        None
-    };
-    pick()
+        let w = &sentence[byte_start..byte_end];
+        if w.chars().count() < 3 || w != w.to_lowercase() {
+            continue;
+        }
+        let (key, tone, _marks) = strip_tone(w);
+        if !key.chars().any(|c| base_map.contains_key(&c)) {
+            continue;
+        }
+        let any_valid = (0..6).any(|t| valid.contains(&(key.clone(), t)));
+        if !any_valid {
+            continue;
+        }
+        let mut bad: Vec<usize> = (0..6)
+            .filter(|t| *t != tone && !valid.contains(&(key.clone(), *t)))
+            .collect();
+        bad.retain(|t| with_tone(&key, *t).is_some());
+        let Some(t) = rng.choose(&bad).copied() else {
+            continue;
+        };
+        let Some(wrong) = with_tone(&key, t) else {
+            continue;
+        };
+        if wrong == w {
+            continue;
+        }
+        let wrong_chars = wrong.chars().count();
+        return Some((
+            format!(
+                "{}{}{}",
+                &sentence[..byte_start],
+                wrong,
+                &sentence[byte_end..]
+            ),
+            char_start,
+            char_start + wrong_chars,
+        ));
+    }
+    None
 }
 
 fn tone_inject_cli(args: &[String]) -> i32 {
@@ -983,6 +1006,12 @@ fn tone_inject_cli(args: &[String]) -> i32 {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!(
+                    "dùng: cargo xtask assist-tone-inject [--seed N] [--max N] [--no-dict] [--corpus F]"
+                );
+                return 0;
+            }
             "--seed" => {
                 i += 1;
                 match args.get(i).and_then(|v| v.parse().ok()) {
@@ -1016,6 +1045,9 @@ fn tone_inject_cli(args: &[String]) -> i32 {
             }
             other => {
                 eprintln!("error: cờ lạ `{other}`");
+                eprintln!(
+                    "dùng: cargo xtask assist-tone-inject [--seed N] [--max N] [--no-dict] [--corpus F]"
+                );
                 return 2;
             }
         }
@@ -1040,6 +1072,9 @@ fn tone_inject_cli(args: &[String]) -> i32 {
     let mut rng = Rng::new(seed);
     let mut cases: Vec<String> = Vec::new();
     for line in text.lines() {
+        if cases.len() >= max {
+            break;
+        }
         let l = line.trim();
         if l.is_empty() || l.starts_with('#') {
             continue;
@@ -1055,9 +1090,6 @@ fn tone_inject_cli(args: &[String]) -> i32 {
         }
         if let Some((bad_sent, _, _)) = tone_inject_one(sent, &valid, &mut rng) {
             cases.push(bad_sent);
-        }
-        if cases.len() >= max {
-            break;
         }
     }
     let total = cases.len();
@@ -1080,7 +1112,7 @@ fn tone_inject_cli(args: &[String]) -> i32 {
     } else {
         "từ điển dựng sẵn"
     };
-    println!("câu tổng hợp: {total}  | câu hình: {mode}  | seed {seed}");
+    println!("câu tổng hợp: {total}  | cấu hình: {mode}  | seed {seed}");
     println!(
         "phát hiện (spelling|diacritic_typo): {hit}/{total} = {:.1} %",
         100.0 * hit as f64 / total.max(1) as f64
@@ -1093,9 +1125,11 @@ fn tone_inject_cli(args: &[String]) -> i32 {
 // ---------------------------------------------------------------------------
 fn fetch_cache_bytes(url: &str, cache: &Path, timeout_sec: u32) -> Result<Vec<u8>, String> {
     if !cache.is_file() {
-        if let Some(parent) = cache.parent() {
+        if let Some(parent) = cache.parent().filter(|p| !p.as_os_str().is_empty()) {
             std::fs::create_dir_all(parent).map_err(|e| format!("mkdir cache: {e}"))?;
         }
+        // Tải vào file tạm `.part.<pid>` rồi rename atomic để không đầu độc cache khi lỗi/hủy giữa chừng.
+        let part = cache.with_extension(format!("bz2.part.{}", std::process::id()));
         let st = std::process::Command::new("curl")
             .args([
                 "-fsSL",
@@ -1105,21 +1139,33 @@ fn fetch_cache_bytes(url: &str, cache: &Path, timeout_sec: u32) -> Result<Vec<u8
                 "textvn-audit/1.0",
                 "-o",
             ])
-            .arg(cache)
+            .arg(&part)
             .arg(url)
             .status()
             .map_err(|e| {
+                let _ = std::fs::remove_file(&part);
                 format!("curl (tải Tatoeba) không chạy được: {e} — cần curl trong PATH")
             })?;
         if !st.success() {
-            return Err(format!("tải {url} thất bại (需 curl trong PATH)"));
+            let _ = std::fs::remove_file(&part);
+            return Err(format!(
+                "tải {url} thất bại (cần curl trong PATH và kết nối mạng)"
+            ));
         }
+        std::fs::rename(&part, cache).map_err(|e| {
+            let _ = std::fs::remove_file(&part);
+            format!("đổi tên cache Tatoeba thất bại: {e}")
+        })?;
     }
     let out = std::process::Command::new("bzip2")
         .arg("-dc")
         .arg(cache)
         .output()
-        .map_err(|e| format!("bzip2 -dc (giải nén Tatoeba) không chạy được: {e}"))?;
+        .map_err(|e| {
+            format!(
+                "bzip2 -dc (giải nén Tatoeba) không chạy được: {e} — cần `bzip2` trong PATH (Git for Windows có sẵn trong usr\\bin)"
+            )
+        })?;
     if !out.status.success() {
         return Err(format!(
             "bzip2 -dc thất bại: {}",
@@ -1145,7 +1191,7 @@ fn snapshot_date(cache: &Path) -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
-/// Chuyển ngày自从 epoch days (UTC) — Howard Hinnant civil_from_days.
+/// Chuyển ngày từ epoch days (UTC) — Howard Hinnant civil_from_days.
 fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let z = z + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
@@ -1180,7 +1226,13 @@ fn vi_clean_sentence(text: &str) -> Option<&str> {
     if !(VI_MIN_LEN..=VI_MAX_LEN).contains(&len) {
         return None;
     }
-    if text.contains("http") || text.contains('<') || text.contains('>') || text.contains('|') {
+    if text.contains('\t')
+        || text.contains('\n')
+        || text.contains("http")
+        || text.contains('<')
+        || text.contains('>')
+        || text.contains('|')
+    {
         return None;
     }
     if !text.matches('"').count().is_multiple_of(2) {
@@ -1200,7 +1252,7 @@ fn vi_pool_from_tatoeba(root: &Path) -> Result<Vec<String>, String> {
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut pool: Vec<String> = Vec::new();
     for line in text.lines() {
-        let mut parts = line.splitn(3, '\t');
+        let mut parts = line.split('\t');
         let _id = parts.next();
         if let (Some(_), Some(text)) = (parts.next(), parts.next()) {
             match vi_clean_sentence(text) {
@@ -1223,11 +1275,11 @@ fn pool_from_local_ass(path: &Path) -> Result<Vec<String>, String> {
     let mut seen = BTreeSet::new();
     let mut pool: Vec<String> = Vec::new();
     for raw in text.lines() {
-        let l = raw.trim();
-        if l.is_empty() || l.starts_with('#') {
+        if raw.trim().is_empty() || raw.trim_start().starts_with('#') {
             continue;
         }
-        let mut sent = l.split('\t').next().unwrap_or("").trim().to_string();
+        // Tách cột trên `raw` chưa trim để dòng bắt đầu bằng `\tlabel` không bị ghép thành câu.
+        let mut sent = raw.split('\t').next().unwrap_or("").trim().to_string();
         if let Some(stripped) = sent.strip_prefix("~ ") {
             sent = stripped.trim().to_string();
         }
@@ -1248,6 +1300,10 @@ fn build_candidates_cli(args: &[String]) -> i32 {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!("dùng: cargo xtask assist-build-candidates [--pool F] [--seed N] [--sample N] [--scan-all] [--verify]");
+                return 0;
+            }
             "--pool" => {
                 i += 1;
                 match args.get(i) {
@@ -1321,7 +1377,7 @@ fn build_candidates_cli(args: &[String]) -> i32 {
     println!("pool: {} câu", pool.len());
     let mut rng = Rng::new(seed);
     let sample_idx = rng.sample_indices(pool.len(), sample_n.min(pool.len()));
-    let sample: Vec<String> = sample_idx.into_iter().map(|i| pool[i].clone()).collect();
+    let sample: Vec<String> = sample_idx.iter().map(|&i| pool[i].clone()).collect();
     println!("mẫu: {} câu (seed={seed})", sample.len());
 
     let header = [
@@ -1340,10 +1396,9 @@ fn build_candidates_cli(args: &[String]) -> i32 {
                 flagged.insert(i);
             }
         }
-        for s in &sample {
-            let idx = pool.iter().position(|p| p == s).unwrap_or(usize::MAX);
+        for &idx in &sample_idx {
             if !flagged.contains(&idx) {
-                clean_lines.push(format!("{s}\t"));
+                clean_lines.push(format!("{}\t", pool[idx]));
             }
         }
     } else {
@@ -1357,13 +1412,13 @@ fn build_candidates_cli(args: &[String]) -> i32 {
         }
     }
     let out_dir = root.join("target/assist-out");
-    if std::fs::create_dir_all(&out_dir).is_err() {
-        eprintln!("ERROR: không tạo được {}", out_dir.display());
+    if let Err(e) = std::fs::create_dir_all(&out_dir) {
+        eprintln!("ERROR: không tạo được {}: {e}", out_dir.display());
         return 1;
     }
     let err_path = out_dir.join("vi_real_errors.candidates.ass");
     let clean_path = out_dir.join("vi_real_clean.candidates.ass");
-    let _ = std::fs::write(
+    if let Err(e) = std::fs::write(
         &err_path,
         format!(
             "{}\n",
@@ -1374,8 +1429,11 @@ fn build_candidates_cli(args: &[String]) -> i32 {
                 .collect::<Vec<_>>()
                 .join("\n")
         ),
-    );
-    let _ = std::fs::write(
+    ) {
+        eprintln!("ERROR: không ghi được {}: {e}", err_path.display());
+        return 1;
+    }
+    if let Err(e) = std::fs::write(
         &clean_path,
         format!(
             "{}\n",
@@ -1386,7 +1444,10 @@ fn build_candidates_cli(args: &[String]) -> i32 {
                 .collect::<Vec<_>>()
                 .join("\n")
         ),
-    );
+    ) {
+        eprintln!("ERROR: không ghi được {}: {e}", clean_path.display());
+        return 1;
+    }
     println!(
         "ứng viên có lỗi  -> {} ({} câu)",
         err_path.display(),
@@ -1417,6 +1478,10 @@ fn gen_vi_tatoeba_cli(args: &[String]) -> i32 {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!("dùng: cargo xtask assist-gen-vi-tatoeba [--out F] [--count N]");
+                return 0;
+            }
             "--out" => {
                 i += 1;
                 match args.get(i) {
@@ -1453,7 +1518,7 @@ fn gen_vi_tatoeba_cli(args: &[String]) -> i32 {
             return 1;
         }
     };
-    let sentences: Vec<String> = pool.into_iter().take(count.min(VI_MAX_SENTENCES)).collect();
+    let sentences: Vec<String> = pool.into_iter().take(count).collect();
     let header = [
         "# corpus/assist/vi_tatoeba_clean.ass - câu SẠCH từ Tatoeba (văn bản thật)".to_string(),
         "# Nguồn: Tatoeba per_language export vie_sentences.tsv.bz2".to_string(),
@@ -1469,8 +1534,11 @@ fn gen_vi_tatoeba_cli(args: &[String]) -> i32 {
         "#   chúng vào mẫu số của FPR và báo riêng số câu bị gán có (ứng viên).".to_string(),
     ];
     let body: Vec<String> = sentences.iter().map(|s| format!("~ {s}\t")).collect();
-    if let Some(parent) = out.parent() {
-        let _ = std::fs::create_dir_all(parent);
+    if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("ERROR: không tạo được {}: {e}", parent.display());
+            return 1;
+        }
     }
     let content = format!(
         "{}\n",
@@ -1481,8 +1549,8 @@ fn gen_vi_tatoeba_cli(args: &[String]) -> i32 {
             .collect::<Vec<_>>()
             .join("\n")
     );
-    if std::fs::write(&out, content).is_err() {
-        eprintln!("ERROR: không ghi được {}", out.display());
+    if let Err(e) = std::fs::write(&out, content) {
+        eprintln!("ERROR: không ghi được {}: {e}", out.display());
         return 1;
     }
     println!("wrote {} sentences -> {}", sentences.len(), out.display());
@@ -1558,59 +1626,65 @@ fn en_lone_i(text: &str) -> bool {
     false
 }
 
-/// Bản `(?i)` của `_ABBREV_TRAP`: viết tắt tạo tách câu "bấp" (chính sách v2).
+/// Viết tắt tạo tách câu "bấp" (chính sách v2):
+/// (a) `\b(?:[A-Za-z]\.){2,}` (a.m., i.e., U.S.A.)
+/// (b) `\b[A-Z]{2,}\.` (cố ý phân biệt chữ hoa, khắc phục bug `(?i)` cũ của regex Python)
+/// (c) `\b(?:Mr|Mrs|Ms|Dr|St|Jr|Sr|vs|etc|approx|Inc|Ltd|Prof|No)\.` (bắt buộc có dấu `.` sau)
 fn en_abbrev_trap(text: &str) -> bool {
-    // (a) chuỗi `(x.){2,}` — a.m. / i.e. / U.S.A. ; theo word-boundary thật thì
-    //     đủ chính xác cho corpus: tìm đoạn [giới hạn từ].[chấm] lặp.
-    // (b) `[A-Z]{2,}\.` ; (c) từ viết tắt chuẩn Mr. / etc.
-    let words: Vec<&str> = text
-        .split(|c: char| !c.is_alphanumeric() && c != '.' && c != '\'')
-        .collect();
-    for w in &words {
-        let lower = w.to_lowercase();
-        if matches!(
-            lower.trim_end_matches('.'),
-            "mr" | "mrs"
-                | "ms"
-                | "dr"
-                | "st"
-                | "jr"
-                | "sr"
-                | "vs"
-                | "etc"
-                | "approx"
-                | "inc"
-                | "ltd"
-                | "prof"
-                | "no"
-        ) {
-            return true;
+    let chars: Vec<char> = text.chars().collect();
+    let is_word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let n = chars.len();
+    for i in 0..n {
+        if i > 0 && is_word(chars[i - 1]) {
+            continue;
         }
-    }
-    // (a): quét substring dạng `x.y.` (alpha.chấm.alpha.chấm) — tương đương
-    // `\b(?:[a-z]\.){2,}` cho corpus tự nhiên (a.m. / i.e. / u.s.a.).
-    let bytes = text.as_bytes();
-    for i in 0..bytes.len().saturating_sub(3) {
-        if bytes[i].is_ascii_alphabetic()
-            && bytes[i + 1] == b'.'
-            && bytes[i + 2].is_ascii_alphabetic()
-            && bytes[i + 3] == b'.'
+        // (a) `\b(?:[A-Za-z]\.){2,}`
+        if i + 3 < n
+            && chars[i].is_ascii_alphabetic()
+            && chars[i + 1] == '.'
+            && chars[i + 2].is_ascii_alphabetic()
+            && chars[i + 3] == '.'
         {
             return true;
         }
-    }
-    // (b): [A-Z]{2,}\. kèm optional space+lowercase
-    let mut upper_run = 0usize;
-    for (idx, c) in text.char_indices() {
-        if c.is_ascii_uppercase() {
-            upper_run += 1;
-        } else {
-            if upper_run >= 2 && c == '.' {
+        // (b) `\b[A-Z]{2,}\.`
+        if chars[i].is_ascii_uppercase() {
+            let mut j = i;
+            while j < n && chars[j].is_ascii_uppercase() {
+                j += 1;
+            }
+            if j - i >= 2 && j < n && chars[j] == '.' {
                 return true;
             }
-            upper_run = 0;
         }
-        let _ = idx;
+        // (c) `\b(?:Mr|...|No)\.` — BẮT BUỘC có dấu `.` liền sau.
+        if chars[i].is_ascii_alphabetic() {
+            let mut j = i;
+            while j < n && chars[j].is_ascii_alphabetic() {
+                j += 1;
+            }
+            if j < n && chars[j] == '.' {
+                let word: String = chars[i..j].iter().map(|c| c.to_ascii_lowercase()).collect();
+                if matches!(
+                    word.as_str(),
+                    "mr" | "mrs"
+                        | "ms"
+                        | "dr"
+                        | "st"
+                        | "jr"
+                        | "sr"
+                        | "vs"
+                        | "etc"
+                        | "approx"
+                        | "inc"
+                        | "ltd"
+                        | "prof"
+                        | "no"
+                ) {
+                    return true;
+                }
+            }
+        }
     }
     false
 }
@@ -1663,7 +1737,7 @@ fn en_clean_sentence(text: &str) -> Option<&str> {
     }
     let letters = len;
     let ascii = text.chars().filter(|c| c.is_ascii()).count();
-    if (ascii as f64) < 0.9 * letters as f64 {
+    if ascii * 10 < letters * 9 {
         return None;
     }
     if en_abbrev_trap(text) {
@@ -1685,6 +1759,12 @@ fn gen_en_tatoeba_cli(args: &[String]) -> i32 {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                println!(
+                    "dùng: cargo xtask assist-gen-en-tatoeba [--out F] [--count N] [--seed N]"
+                );
+                return 0;
+            }
             "--out" => {
                 i += 1;
                 match args.get(i) {
@@ -1738,7 +1818,7 @@ fn gen_en_tatoeba_cli(args: &[String]) -> i32 {
     let mut seen = BTreeSet::new();
     let mut pool: Vec<(u64, String)> = Vec::new();
     for line in text.lines() {
-        let mut parts = line.splitn(3, '\t');
+        let mut parts = line.split('\t');
         let id = match parts.next().and_then(|s| s.parse::<u64>().ok()) {
             Some(v) => v,
             None => continue,
@@ -1753,7 +1833,7 @@ fn gen_en_tatoeba_cli(args: &[String]) -> i32 {
             _ => {}
         }
     }
-    // Lấy mẫu trên TOÀN pool (kể cả ID sẽ bị loại) để mẫu ON ĐỊNH khi EXCLUDE_IDS tăng.
+    // Lấy mẫu trên TOÀN pool (kể cả ID sẽ bị loại) để mẫu ỔN ĐỊNH khi EXCLUDE_IDS tăng.
     let mut rng = Rng::new(seed);
     let idx = rng.sample_indices(pool.len(), count.min(pool.len()));
     let sample: Vec<(u64, String)> = idx
@@ -1768,8 +1848,7 @@ fn gen_en_tatoeba_cli(args: &[String]) -> i32 {
         "# License dữ liệu: CC BY 2.0 FR (Tatoeba) - attribution BẮT BUỘC:".to_string(),
         "#   docs/compliance/tatoeba-attribution.md + REUSE.toml (LicenseRef-Tatoeba).".to_string(),
         format!(
-            "# Sinh lặp: cargo xtask assist-gen-en-tatoeba
-#   (seed={seed}, {}/{} câu, snapshot {})",
+            "# Sinh lặp: cargo xtask assist-gen-en-tatoeba (seed={seed}, {}/{} câu, snapshot {})",
             sample.len(),
             pool.len(),
             snapshot_date(&cache)
@@ -1782,18 +1861,22 @@ fn gen_en_tatoeba_cli(args: &[String]) -> i32 {
         "# Định dạng: <câu>\\t (cột kinds rỗng = sạch, DÒNG CỨNG -> CI assert 0 lỗi).".to_string(),
         "# '~ ' = đã ra soát là sạch nhưng engine ĐANG BÁO NHẦM (FPR thật) -".to_string(),
         "#   thêm khi engine EN có mặt và phát hiện FP trên file này.".to_string(),
+        "# Chỉ dùng để đo FPR (P4-12 EN); không phải engine tự kiểm tra.".to_string(),
     ];
     let body: Vec<String> = sample.iter().map(|(_, s)| format!("{s}\t")).collect();
-    if let Some(parent) = out.parent() {
-        let _ = std::fs::create_dir_all(parent);
+    if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("ERROR: không tạo được {}: {e}", parent.display());
+            return 1;
+        }
     }
     let mut content = String::new();
     for line in header.iter().chain(body.iter()) {
         content.push_str(line);
         content.push('\n');
     }
-    if std::fs::write(&out, content).is_err() {
-        eprintln!("ERROR: không ghi được {}", out.display());
+    if let Err(e) = std::fs::write(&out, content) {
+        eprintln!("ERROR: không ghi được {}: {e}", out.display());
         return 1;
     }
     println!(
@@ -2007,7 +2090,7 @@ mod tests {
     #[test]
     fn read_labelled_soft_parses() {
         let dir = std::env::temp_dir();
-        let f = dir.join("xtask-assist-t.ass");
+        let f = dir.join(format!("xtask-assist-t-{}.ass", std::process::id()));
         std::fs::write(
             &f,
             "# comment\ncau sai\tspelling\n~ cau mem\t\ncau sach\t\n",
@@ -2021,5 +2104,49 @@ mod tests {
         assert_eq!(rows[1].sentence, "cau mem");
         assert_eq!(rows[2].kinds, Vec::<String>::new());
         let _ = std::fs::remove_file(&f);
+    }
+
+    #[test]
+    fn en_abbrev_trap_khong_loai_cau_chua_no_va_co_ranh_gioi_tu() {
+        assert!(!en_abbrev_trap("I have no idea what happened."));
+        assert!(!en_abbrev_trap("No, thank you very much!"));
+        assert!(!en_abbrev_trap("She uses iOS. It works well."));
+        assert!(!en_abbrev_trap("Version 1a.b. is not a word boundary."));
+        assert!(en_abbrev_trap("Mr. Smith is here today."));
+        assert!(en_abbrev_trap("He said 'Mr. Smith' arrived."));
+        assert!(en_abbrev_trap("Item No. 5 is missing."));
+        assert!(en_abbrev_trap("The U.S.A. is large."));
+        assert!(en_abbrev_trap("Meet at 8 a.m. tomorrow."));
+        assert!(en_abbrev_trap("Call the FBI. Now."));
+    }
+
+    #[test]
+    fn rng_splitmix64_khong_trung_seed_chan_le_va_64bit() {
+        assert_ne!(Rng::new(0).next_u32(), Rng::new(1).next_u32());
+        assert_ne!(Rng::new(20261022).next_u32(), Rng::new(20261023).next_u32());
+        assert_ne!(
+            Rng::new(1).next_u32(),
+            Rng::new(1 | (1u64 << 40)).next_u32()
+        );
+    }
+
+    #[test]
+    fn tone_inject_bo_qua_tu_nfd_va_with_tone_chan_out_of_range() {
+        assert!(with_tone("ban", 6).is_none());
+        let mut valid = BTreeSet::new();
+        valid.insert(("thu".to_string(), 0));
+        valid.insert(("thu".to_string(), 2));
+        let mut rng = Rng::new(42);
+        // Từ NFD "thu\u{0323}c" phải bị bỏ qua, không bị tách thành "thu" rồi gắn thêm dấu.
+        assert!(tone_inject_one("thu\u{0323}c", &valid, &mut rng).is_none());
+    }
+
+    #[test]
+    fn pool_from_local_ass_bo_dong_bat_dau_bang_tab() {
+        let f = std::env::temp_dir().join(format!("xtask-pool-{}.ass", std::process::id()));
+        std::fs::write(&f, "\tlabel_only\nCâu bình thường.\t\n~ Câu mềm.\t\n").unwrap();
+        let pool = pool_from_local_ass(&f).unwrap();
+        let _ = std::fs::remove_file(&f);
+        assert_eq!(pool, vec!["Câu bình thường.", "Câu mềm."]);
     }
 }

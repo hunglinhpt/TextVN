@@ -340,7 +340,7 @@ pub const EN_PHRASES_DATA: &str = include_str!("../../../data/en_phrases.tsv");
 /// Bảng ngữ cảnh câu/cụm **văn phòng** tiếng Anh (vòng 59 — ≥ 10.000 hàng):
 /// upward reporting / downward management / tech / business / everyday glue /
 /// bilingual Viet-Eng code-switch (key Việt-Eng trộn → prediction tiếng Anh).
-/// Sinh bởi `scripts/gen_en_office_phrases.py` — KHÔNG sửa tay.
+/// Sinh bởi `cargo xtask gen-en-office` (E59) — KHÔNG sửa tay.
 pub const EN_OFFICE_PHRASES_DATA: &str = include_str!("../../../data/en_office_phrases.tsv");
 
 /// Ứng viên prefix với thông tin xếp hạng — giữ `&'static str` (vòng 52: không

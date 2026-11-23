@@ -12,7 +12,8 @@
 //! chuyển: hành vi từng gate giữ nguyên để lịch sử CI sóng đôi được.
 
 use std::collections::BTreeSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -24,17 +25,22 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// `git ls-files --cached --others --exclude-standard [pattern]` — quét CẢ
-/// file mới chưa track (không bị .gitignore), port nguyên tắc R2-112: gate
-/// local phải thấy file secret/key vừa tạo chưa `git add`.
-fn git_list(pattern: Option<&str>) -> Result<Vec<String>, String> {
+/// `git ls-files -z --cached --others --exclude-standard [-- patterns...]` —
+/// quét CẢ file mới chưa track (không bị .gitignore), port nguyên tắc R2-112.
+/// Dùng `-z` để vô hiệu hoá `core.quotepath` (tránh bọc ngoặc/octal với tên
+/// file tiếng Việt / có khoảng trắng) và khử trùng lặp qua `BTreeSet`.
+fn git_list(patterns: &[&str]) -> Result<Vec<String>, String> {
     let mut cmd = Command::new("git");
     cmd.arg("ls-files")
+        .arg("-z")
         .arg("--cached")
         .arg("--others")
         .arg("--exclude-standard");
-    if let Some(p) = pattern {
-        cmd.arg(p);
+    if !patterns.is_empty() {
+        cmd.arg("--");
+        for p in patterns {
+            cmd.arg(p);
+        }
     }
     let out = cmd
         .current_dir(repo_root())
@@ -47,11 +53,12 @@ fn git_list(pattern: Option<&str>) -> Result<Vec<String>, String> {
             String::from_utf8_lossy(&out.stderr)
         ));
     }
-    Ok(String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(|l| l.trim().to_string())
-        .filter(|l| !l.is_empty())
-        .collect())
+    let unique: BTreeSet<String> = String::from_utf8_lossy(&out.stdout)
+        .split('\0')
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+    Ok(unique.into_iter().collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -59,8 +66,8 @@ fn git_list(pattern: Option<&str>) -> Result<Vec<String>, String> {
 // ---------------------------------------------------------------------------
 
 /// Link markdown nội bộ dạng `](target)` — thay regex `\]\(([^)\s]+)\)`:
-/// sau `](` lấy tối đa các ký tự không phải `)` và không phải khoảng trắng.
-/// Regex gốc yêu cầu ≥ 1 ký tự nên `]()` không tính.
+/// sau `](` lấy tối đa các ký tự không phải `)` và không phải khoảng trắng,
+/// và BẮT BUỘC kết thúc ngay bằng `)` (khớp 1:1 regex Python).
 fn doc_link_targets(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let bytes = text.as_bytes();
@@ -69,12 +76,16 @@ fn doc_link_targets(text: &str) -> Vec<String> {
         if bytes[i] == b']' && bytes[i + 1] == b'(' {
             let start = i + 2;
             let mut end = start;
-            while end < bytes.len() && bytes[end] != b')' && !bytes[end].is_ascii_whitespace() {
-                end += 1;
+            for (rel, ch) in text[start..].char_indices() {
+                if ch == ')' || ch.is_whitespace() || ch == '\x0B' {
+                    end = start + rel;
+                    break;
+                }
+                end = start + rel + ch.len_utf8();
             }
-            if end > start {
+            if end > start && bytes.get(end) == Some(&b')') {
                 out.push(text[start..end].to_string());
-                i = end;
+                i = end + 1;
                 continue;
             }
         }
@@ -84,17 +95,20 @@ fn doc_link_targets(text: &str) -> Vec<String> {
 }
 
 /// Gom mọi file `docs/**/*.md` (đệ quy, có cả `docs/a.md` như `**` của
-/// pathlib) — sắp xếp theo đường dẫn như `sorted()` của Python.
+/// pathlib) — không đi theo symlink thư mục (tránh vòng lặp vô hạn).
 fn collect_md(root: &Path) -> Vec<PathBuf> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = fs::read_dir(dir) else {
             return;
         };
         for entry in entries.flatten() {
+            let Ok(ft) = entry.file_type() else {
+                continue;
+            };
             let p = entry.path();
-            if p.is_dir() {
+            if ft.is_dir() {
                 walk(&p, out);
-            } else if p.extension().is_some_and(|e| e == "md") {
+            } else if ft.is_file() && p.extension().is_some_and(|e| e == "md") {
                 out.push(p);
             }
         }
@@ -118,7 +132,8 @@ pub fn docs_links() -> Result<(), String> {
             continue;
         }
         scanned += 1;
-        let text = fs::read_to_string(&md).unwrap_or_else(|_| String::new());
+        let bytes = fs::read(&md).map_err(|e| format!("không đọc được `{}`: {e}", md.display()))?;
+        let text = String::from_utf8_lossy(&bytes);
         for target in doc_link_targets(&text) {
             if target.starts_with("http://")
                 || target.starts_with("https://")
@@ -178,7 +193,8 @@ const SECRET_NAME_PREFIXES: &[&str] = &[".env", "id_rsa", "id_ed25519", "textvn_
 /// (các ký tự đó cũng thuộc class) rồi backtracking — ở đây tìm trong toàn
 /// dải class một vị trí "PRIVATE KEY" (+ tuỳ chọn " BLOCK") theo sau là
 /// `-----`: tồn tại bất kỳ đâu trong dải là hit (đủ cho gate exist/not-exist).
-fn find_private_key_header(text: &str) -> Option<String> {
+fn find_private_key_headers(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
     let bytes = text.as_bytes();
     const BEGIN: &[u8] = b"-----BEGIN ";
     let mut i = 0;
@@ -190,66 +206,72 @@ fn find_private_key_header(text: &str) -> Option<String> {
         {
             j += 1;
         }
-        // backtracking: dừng dần ở mỗi vị trí class xem có "PRIVATE KEY..." không
-        let run = &text[run_start..j];
+        let mut matched_end = None;
         let mut search_pos = run_start;
-        while let Some(off) = text[search_pos..j]
-            .find("PRIVATE KEY")
-            .map(|p| search_pos + p)
-        {
+        while search_pos < j {
+            let Some(off) = text[search_pos..j]
+                .find("PRIVATE KEY")
+                .map(|p| search_pos + p)
+            else {
+                break;
+            };
             let mut end = off + "PRIVATE KEY".len();
             if text[end..].starts_with(" BLOCK") {
                 end += " BLOCK".len();
             }
             if text[end..].starts_with("-----") {
-                return Some(text[pos..end + 5].to_string());
-            }
-            search_pos = off + 1;
-            if run.is_empty() || search_pos >= j {
+                out.push(text[pos..end + 5].to_string());
+                matched_end = Some(end + 5);
                 break;
             }
+            search_pos = off + 1;
         }
-        i = pos + BEGIN.len();
+        i = matched_end.unwrap_or(pos + BEGIN.len());
     }
-    None
+    out
 }
 
 /// Token GitHub: `(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}` hoặc
 /// `github_pat_[A-Za-z0-9_]{30,}`.
-fn find_github_token(text: &str) -> Option<String> {
+fn find_github_tokens(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = text.as_bytes();
     for prefix in ["ghp_", "gho_", "ghu_", "ghs_", "ghr_"] {
         let mut i = 0;
         while let Some(pos) = text[i..].find(prefix).map(|p| i + p) {
             let start = pos + prefix.len();
             let mut end = start;
-            let bytes = text.as_bytes();
             while end < bytes.len() && bytes[end].is_ascii_alphanumeric() {
                 end += 1;
             }
             if end - start >= 30 {
-                return Some(text[pos..end].to_string());
+                out.push(text[pos..end].to_string());
+                i = end;
+            } else {
+                i = pos + 1;
             }
-            i = pos + 1;
         }
     }
     let mut i = 0;
     while let Some(pos) = text[i..].find("github_pat_").map(|p| i + p) {
         let start = pos + "github_pat_".len();
         let mut end = start;
-        let bytes = text.as_bytes();
         while end < bytes.len() && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_') {
             end += 1;
         }
         if end - start >= 30 {
-            return Some(text[pos..end].to_string());
+            out.push(text[pos..end].to_string());
+            i = end;
+        } else {
+            i = pos + 1;
         }
-        i = pos + 1;
     }
-    None
+    out
 }
 
 /// AWS Access Key: `\bAKIA[0-9A-Z]{16}\b` — ranh giới từ hai bên.
-fn find_aws_key(text: &str) -> Option<String> {
+fn find_aws_keys(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
     let bytes = text.as_bytes();
     const W: fn(u8) -> bool = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
     let mut i = 0;
@@ -263,18 +285,38 @@ fn find_aws_key(text: &str) -> Option<String> {
                 .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit());
         let after_ok = end >= bytes.len() || !W(bytes[end]);
         if before_ok && run_ok && after_ok {
-            return Some(text[pos..end].to_string());
+            out.push(text[pos..end].to_string());
+            i = end;
+        } else {
+            i = pos + 1;
         }
-        i = pos + 1;
     }
-    None
+    out
+}
+
+/// Đọc tối đa 1KB đầu để lọc file nhị phân (chứa byte NUL) mà không nạp cả file
+/// lớn vào RAM; chỉ đọc phần còn lại nếu là file văn bản.
+fn read_text_file_if_non_binary(full: &Path) -> Result<Option<Vec<u8>>, String> {
+    let mut f = File::open(full).map_err(|e| format!("không mở được `{}`: {e}", full.display()))?;
+    let mut head = [0u8; 1024];
+    let n = f
+        .read(&mut head)
+        .map_err(|e| format!("không đọc được `{}`: {e}", full.display()))?;
+    if head[..n].contains(&0) {
+        return Ok(None);
+    }
+    let mut bytes = Vec::with_capacity(n);
+    bytes.extend_from_slice(&head[..n]);
+    f.read_to_end(&mut bytes)
+        .map_err(|e| format!("không đọc được `{}`: {e}", full.display()))?;
+    Ok(Some(bytes))
 }
 
 /// Gate: secret / token / private key không được commit (R2-112: quét cả file
 /// chưa track; bỏ qua `graphify-out/` là cache graph đã kiểm soát).
 pub fn no_secrets() -> Result<(), String> {
     let root = repo_root();
-    let tracked: BTreeSet<String> = git_list(None)?
+    let tracked: Vec<String> = git_list(&[])?
         .into_iter()
         .filter(|f| !f.starts_with("graphify-out/"))
         .collect();
@@ -305,32 +347,26 @@ pub fn no_secrets() -> Result<(), String> {
             errors.push(format!("File mang ten nhay cam bi track vao git: {rel}"));
             continue;
         }
-        let full = root.join(p);
+        let full = root.join(&p);
         if !full.is_file() {
             continue;
         }
-        // Đọc 1 lần: byte NUL trong 1KB đầu = file nhị phân → bỏ quét nội dung.
-        let Ok(bytes) = fs::read(&full) else {
+        let Some(bytes) = read_text_file_if_non_binary(&full)? else {
             continue;
         };
-        let head = &bytes[..bytes.len().min(1024)];
-        if head.contains(&0) {
-            continue;
-        }
         scanned += 1;
         // Port đọc nội dung lossy, giống `errors="replace"` của bản Python.
-        let content = String::from_utf8_lossy(&bytes).into_owned();
-        // Chính file chứa các detector (literal pattern) và workflow khai báo
-        // chúng phải miễn nhiễm — như bản Python cũ tự loại trừ chính nó.
-        if rel == "xtask/src/hygiene.rs" || rel == ".github/workflows/repo-hygiene.yml" {
+        let content = String::from_utf8_lossy(&bytes);
+        // Chỉ miễn trừ chính file định nghĩa detector & unit-test mẫu.
+        if rel == "xtask/src/hygiene.rs" {
             continue;
         }
-        for (rule, hit) in [
-            ("Private Key Header", find_private_key_header(&content)),
-            ("GitHub Token", find_github_token(&content)),
-            ("AWS Access Key", find_aws_key(&content)),
+        for (rule, hits) in [
+            ("Private Key Header", find_private_key_headers(&content)),
+            ("GitHub Token", find_github_tokens(&content)),
+            ("AWS Access Key", find_aws_keys(&content)),
         ] {
-            if let Some(text) = hit {
+            for text in hits {
                 let head15: String = text.chars().take(15).collect();
                 errors.push(format!("{rel}: Phat hien {rule} (doan khop: {head15}...)"));
             }
@@ -414,30 +450,36 @@ fn contains_set_hook_call(line: &str) -> bool {
     false
 }
 
+fn scan_injection_line(rel: &str, lineno: usize, line: &str, violations: &mut Vec<String>) {
+    for name in BANNED_APIS {
+        if line.contains(name) {
+            violations.push(format!("{rel}:{lineno}: {name}"));
+        }
+    }
+    let non_ll_hook = contains_word(line, "WH_KEYBOARD") || contains_word(line, "WH_MOUSE");
+    let ll_ok = contains_word(line, "WH_KEYBOARD_LL") || contains_word(line, "WH_MOUSE_LL");
+    if non_ll_hook {
+        violations.push(format!(
+            "{rel}:{lineno}: hook non-LL (chi WH_KEYBOARD_LL/WH_MOUSE_LL duoc phep)"
+        ));
+    } else if contains_set_hook_call(line) && !ll_ok {
+        violations.push(format!(
+            "{rel}:{lineno}: SetWindowsHookEx khong ghi ro LL hook tren cung dong"
+        ));
+    }
+}
+
 /// Gate: API inject/giống malware bị cấm (antivirus-false-positive.md §8).
 /// `spikes/` = probe không phát hành (hook-spike, WIN-005) — guard áp cho
 /// code phát hành, copy vào `adapters/` vẫn bị chặn tại đó.
 pub fn no_injection_apis() -> Result<(), String> {
     let root = repo_root();
-    let out = Command::new("git")
-        .arg("ls-files")
-        .arg("-z")
-        .arg("--cached")
-        .arg("--others")
-        .arg("--exclude-standard")
-        .current_dir(&root)
-        .output()
-        .map_err(|e| format!("chạy `git ls-files`: {e}"))?;
-    let listed = String::from_utf8_lossy(&out.stdout);
+    let files = git_list(&[])?;
 
     let mut violations = Vec::new();
     let mut scanned = 0usize;
-    for rel in listed.split('\0') {
-        let rel = rel.trim();
-        if rel.is_empty() || rel == "xtask/src/hygiene.rs" {
-            continue;
-        }
-        if rel.starts_with("spikes/") {
+    for rel in &files {
+        if rel == "xtask/src/hygiene.rs" || rel.starts_with("spikes/") {
             continue;
         }
         let ext = Path::new(rel)
@@ -452,25 +494,11 @@ pub fn no_injection_apis() -> Result<(), String> {
             continue;
         }
         scanned += 1;
-        let text = fs::read_to_string(&path).unwrap_or_default();
+        // Đọc byte thô + lossy UTF-8 (khớp `errors="replace"` của Python) — không bỏ qua file non-UTF-8.
+        let bytes = fs::read(&path).map_err(|e| format!("không đọc được `{rel}`: {e}"))?;
+        let text = String::from_utf8_lossy(&bytes);
         for (lineno, line) in text.lines().enumerate() {
-            let lineno = lineno + 1;
-            for name in BANNED_APIS {
-                if line.contains(name) {
-                    violations.push(format!("{rel}:{lineno}: {name}"));
-                }
-            }
-            let non_ll_hook = contains_word(line, "WH_KEYBOARD") || contains_word(line, "WH_MOUSE");
-            let ll_ok = line.contains("WH_KEYBOARD_LL") || line.contains("WH_MOUSE_LL");
-            if non_ll_hook {
-                violations.push(format!(
-                    "{rel}:{lineno}: hook non-LL (chi WH_KEYBOARD_LL/WH_MOUSE_LL duoc phep)"
-                ));
-            } else if contains_set_hook_call(line) && !ll_ok {
-                violations.push(format!(
-                    "{rel}:{lineno}: SetWindowsHookEx khong ghi ro LL hook tren cung dong"
-                ));
-            }
+            scan_injection_line(rel, lineno + 1, line, &mut violations);
         }
     }
     if violations.is_empty() {
@@ -490,25 +518,35 @@ pub fn no_injection_apis() -> Result<(), String> {
 // iss-tabs — port check_iss_tabs.py (B12/B13)
 // ---------------------------------------------------------------------------
 
+fn find_tab_lines(bytes: &[u8]) -> Vec<usize> {
+    bytes
+        .split(|&b| b == b'\n')
+        .enumerate()
+        .filter_map(|(idx, line)| line.contains(&b'\t').then_some(idx + 1))
+        .collect()
+}
+
 /// Gate: `.iss` không chứa TAB — escape `\t` từng bị ghi thành TAB thật phá
 /// pattern/đường dẫn `{app}\textvn-tsf.dll` trong [UninstallDelete]; ISCC
 /// compile vẫn XANH nên gate này là lớp duy nhất bắt được.
 pub fn iss_tabs() -> Result<(), String> {
-    let files = git_list(Some("*.iss"))?;
+    let root = repo_root();
+    let files = git_list(&["*.iss"])?;
     let mut bad = Vec::new();
+    let mut scanned = 0usize;
     for path in &files {
-        let text = fs::read_to_string(path).unwrap_or_default();
-        for (lineno, line) in text.lines().enumerate() {
-            if line.contains('\t') {
-                bad.push(format!("{path}:{}", lineno + 1));
-            }
+        let full = root.join(path);
+        if !full.is_file() {
+            continue;
+        }
+        scanned += 1;
+        let bytes = fs::read(&full).map_err(|e| format!("không đọc được `{path}`: {e}"))?;
+        for lineno in find_tab_lines(&bytes) {
+            bad.push(format!("{path}:{lineno}"));
         }
     }
     if bad.is_empty() {
-        println!(
-            "check_iss_tabs: OK ({} file .iss khong co TAB)",
-            files.len()
-        );
+        println!("check_iss_tabs: OK ({scanned} file .iss khong co TAB)");
         Ok(())
     } else {
         let mut msg = String::from(".iss chua ky tu TAB (escape \\t bi ghi sai):");
@@ -527,18 +565,23 @@ pub fn iss_tabs() -> Result<(), String> {
 /// codepage của máy, ký tự ngoài ASCII bị mojibake và có thể phá cú pháp
 /// (sự cố 2026-10-03: comment tiếng Việt trong test-portable.ps1).
 pub fn ascii_ps1() -> Result<(), String> {
-    let files = git_list(Some("*.ps1"))?;
+    let root = repo_root();
+    let files = git_list(&["*.ps1"])?;
     let mut bad = Vec::new();
+    let mut scanned = 0usize;
     for path in &files {
-        let Ok(data) = fs::read(path) else {
+        let full = root.join(path);
+        if !full.is_file() {
             continue;
-        };
+        }
+        scanned += 1;
+        let data = fs::read(&full).map_err(|e| format!("không đọc được `{path}`: {e}"))?;
         if data.iter().any(|b| *b > 0x7F) {
             bad.push(path.clone());
         }
     }
     if bad.is_empty() {
-        println!("check_ps1_ascii: OK ({} file .ps1 ASCII-only)", files.len());
+        println!("check_ps1_ascii: OK ({scanned} file .ps1 ASCII-only)");
         Ok(())
     } else {
         let mut msg = String::from(".ps1 phải ASCII-only (G7/A5):");
@@ -549,22 +592,62 @@ pub fn ascii_ps1() -> Result<(), String> {
     }
 }
 
+const PYTHON_EXTS: &[&str] = &["py", "pyw", "pyi", "ipynb"];
+
+fn is_python_path(rel: &str) -> bool {
+    Path::new(rel)
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .is_some_and(|e| PYTHON_EXTS.contains(&e.as_str()))
+}
+
+fn has_python_shebang(head: &[u8]) -> bool {
+    if head.contains(&0) || !head.starts_with(b"#!") {
+        return false;
+    }
+    let first_line = head.split(|&b| b == b'\n').next().unwrap_or(&[]);
+    let line = String::from_utf8_lossy(first_line).to_ascii_lowercase();
+    line.contains("python")
+}
+
 /// E59: repo KHÔNG được chứa file Python (policy ngôn ngữ AGENTS.md — chỉ Rust +
 /// C/C++/Swift native). Quét cả file track lẫn file mới chưa track (không bị
-/// gitignore) — chặn tái diễn việc agent thêm .py như 18 file lịch sử (E59).
-/// Fixture/exception: KHÔNG có — mọi nhu cầu đo lường/sinh dữ liệu đã port
-/// sang `cargo xtask` (assist-*, gen-*, check-*).
+/// gitignore), không phân biệt hoa/thường (.py/.pyw/.pyi/.ipynb) và kiểm
+/// shebang `#!/...python` ở script không đuôi.
 pub fn no_python() -> Result<(), String> {
-    let files = git_list(Some("*.py"))?;
-    if files.is_empty() {
-        println!("check_no_python: OK (không file .py nào trong repo)");
+    let root = repo_root();
+    let mut hits = Vec::new();
+    for rel in git_list(&[])? {
+        if is_python_path(&rel) {
+            hits.push(rel);
+            continue;
+        }
+        if rel.starts_with("graphify-out/") || Path::new(&rel).extension().is_some() {
+            continue;
+        }
+        let full = root.join(&rel);
+        if !full.is_file() {
+            continue;
+        }
+        let Ok(mut f) = File::open(&full) else {
+            continue;
+        };
+        let mut head = [0u8; 256];
+        if let Ok(n) = f.read(&mut head) {
+            if has_python_shebang(&head[..n]) {
+                hits.push(format!("{rel} (shebang python)"));
+            }
+        }
+    }
+    if hits.is_empty() {
+        println!("check_no_python: OK (không file Python nào trong repo)");
         Ok(())
     } else {
         let mut msg = String::from(
             "E59: repo không được chứa file Python (AGENTS.md language policy). \
              Port sang cargo xtask (xem ledger E59 - docs/specs/project-common-errors.md):",
         );
-        for p in &files {
+        for p in &hits {
             msg.push_str(&format!("\n  {p}"));
         }
         Err(msg)
@@ -593,40 +676,61 @@ mod tests {
     }
 
     #[test]
+    fn doc_links_yeu_cau_dong_ngoac_va_bo_khoang_trang() {
+        assert!(doc_link_targets("[note](see section 2)").is_empty());
+        assert!(doc_link_targets("arr[0](x, y)").is_empty());
+        assert!(doc_link_targets("[a](unclosed").is_empty());
+        assert!(doc_link_targets("[a](foo\u{00A0}bar)").is_empty());
+        assert_eq!(
+            doc_link_targets("[a](foo [b](bar.md))"),
+            vec!["bar.md".to_string()]
+        );
+    }
+
+    #[test]
     fn private_key_bat_du_phien_ban() {
         for header in ["RSA", "OPENSSH", "EC", ""] {
             let text = format!("-----BEGIN {header} PRIVATE KEY-----\nabc");
             assert!(
-                find_private_key_header(&text).is_some(),
+                !find_private_key_headers(&text).is_empty(),
                 "phải bắt '-----BEGIN {header} PRIVATE KEY-----'"
             );
         }
-        assert!(find_private_key_header("-----BEGIN OPENSSH PRIVATE KEY BLOCK-----\nx").is_some());
-        assert!(find_private_key_header("-----BEGIN CERTIFICATE-----").is_none());
-        assert!(find_private_key_header("khong co gi").is_none());
+        assert!(
+            !find_private_key_headers("-----BEGIN OPENSSH PRIVATE KEY BLOCK-----\nx").is_empty()
+        );
+        assert!(find_private_key_headers("-----BEGIN CERTIFICATE-----").is_empty());
+        assert!(find_private_key_headers("khong co gi").is_empty());
+        let two = "-----BEGIN RSA PRIVATE KEY-----\n-----BEGIN EC PRIVATE KEY-----";
+        assert_eq!(find_private_key_headers(two).len(), 2);
     }
 
     #[test]
     fn github_token_do_dai_30() {
         let tok = format!("ghp_{}1", "a".repeat(30));
-        assert!(find_github_token(&format!("token = {tok}")).is_some());
-        assert!(find_github_token("ghp_too_short").is_none());
+        assert_eq!(find_github_tokens(&format!("token = {tok}")).len(), 1);
+        assert!(find_github_tokens("ghp_too_short").is_empty());
         let pat = format!("github_pat_{}x", "a".repeat(31));
-        assert!(find_github_token(&pat).is_some());
-        assert!(find_github_token("github_pat_ngan").is_none());
+        assert_eq!(find_github_tokens(&pat).len(), 1);
+        assert!(find_github_tokens("github_pat_ngan").is_empty());
+        assert_eq!(find_github_tokens(&format!("{tok} {pat}")).len(), 2);
     }
 
     #[test]
     fn aws_key_ranh_gioi_tu() {
-        assert!(find_aws_key("AKIAABCDEFGHIJKL0123").is_some());
+        assert_eq!(find_aws_keys("AKIAABCDEFGHIJKL0123").len(), 1);
         // quá ngắn
-        assert!(find_aws_key("AKIAABCDEFGHIJKL012").is_none());
+        assert!(find_aws_keys("AKIAABCDEFGHIJKL012").is_empty());
         // dính ký tự từ → vi phạm \b
-        assert!(find_aws_key("xAKIAABCDEFGHIJKL0123").is_none());
-        assert!(find_aws_key("AKIAABCDEFGHIJKL0123z").is_none());
+        assert!(find_aws_keys("xAKIAABCDEFGHIJKL0123").is_empty());
+        assert!(find_aws_keys("AKIAABCDEFGHIJKL0123z").is_empty());
         // \b hai bên: dấu chấm là non-word
-        assert!(find_aws_key("AKIAABCDEFGHIJKL0123.").is_some());
-        assert!(find_aws_key(".AKIAABCDEFGHIJKL0123").is_some());
+        assert_eq!(find_aws_keys("AKIAABCDEFGHIJKL0123.").len(), 1);
+        assert_eq!(find_aws_keys(".AKIAABCDEFGHIJKL0123").len(), 1);
+        assert_eq!(
+            find_aws_keys("AKIAABCDEFGHIJKL0123 AKIA0123456789ABCDEF").len(),
+            2
+        );
     }
 
     #[test]
@@ -652,5 +756,52 @@ mod tests {
         assert!(!contains_set_hook_call("SetWindowsHookExA"));
         // không gọi hàm — chỉ định nghĩa chuỗi
         assert!(!contains_set_hook_call("// SetWindowsHookExKalice"));
+    }
+
+    #[test]
+    fn injection_ll_boundary_va_non_utf8() {
+        let mut v = Vec::new();
+        scan_injection_line(
+            "a.rs",
+            1,
+            "SetWindowsHookExW(id, cb, h, 0) // FAKE_WH_KEYBOARD_LL_2",
+            &mut v,
+        );
+        assert_eq!(v.len(), 1, "FAKE_WH_KEYBOARD_LL_2 không được miễn trừ");
+        v.clear();
+        scan_injection_line(
+            "a.rs",
+            2,
+            "SetWindowsHookExW(WH_KEYBOARD_LL, cb, h, 0)",
+            &mut v,
+        );
+        assert!(v.is_empty());
+        // Byte không hợp lệ UTF-8 kèm CreateRemoteThread vẫn phải bị bắt qua lossy decode.
+        let raw = b"// \xff comment\nCreateRemoteThread(h);\n";
+        let lossy = String::from_utf8_lossy(raw);
+        for (i, ln) in lossy.lines().enumerate() {
+            scan_injection_line("b.c", i + 1, ln, &mut v);
+        }
+        assert_eq!(v.len(), 1);
+    }
+
+    #[test]
+    fn iss_tabs_bat_ca_non_utf8() {
+        let raw = b"; \xff ansi comment\nName: \"{app}\tfoo\"\n";
+        assert_eq!(find_tab_lines(raw), vec![2]);
+    }
+
+    #[test]
+    fn no_python_bat_hoa_thuong_va_shebang() {
+        assert!(is_python_path("a.py"));
+        assert!(is_python_path("A.PY"));
+        assert!(is_python_path("tools/x.pyw"));
+        assert!(is_python_path("stubs/a.pyi"));
+        assert!(is_python_path("nb/demo.ipynb"));
+        assert!(!is_python_path("a.rs"));
+        assert!(has_python_shebang(b"#!/usr/bin/env python3\nprint(1)\n"));
+        assert!(has_python_shebang(b"#!/usr/bin/python\n"));
+        assert!(!has_python_shebang(b"#!/usr/bin/env bash\necho python\n"));
+        assert!(!has_python_shebang(b"#!/usr/bin/env python3\x00bin"));
     }
 }

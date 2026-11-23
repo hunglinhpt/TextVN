@@ -133,29 +133,35 @@ fn main() -> ExitCode {
 fn usage() -> &'static str {
     "xtask — công cụ build của TextVN (P0-1 §3)\n\n\
      Usage:\n  \
-     cargo xtask gen-tables       # data/tables/*.toml → core (ghi file)\n  \
-     cargo xtask check-tables     # kiểm tra file đã sinh có khớp nguồn (exit 1 nếu lệch)\n  \
-     cargo xtask gen-win-corpus   # sinh corpus/win/*.keys (WIN-006)\n  \
-     cargo xtask check-win-corpus # kiểm tra corpus/win/*.keys có khớp chuẩn\n  \
-     cargo xtask gen-mac-corpus   # sinh corpus/mac/*.keys (MAC-006)\n  \
-     cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
-     cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
+     cargo xtask gen-tables         # data/tables/*.toml → core (ghi file)\n  \
+     cargo xtask check-tables       # kiểm tra file đã sinh có khớp nguồn (exit 1 nếu lệch)\n  \
+     cargo xtask gen-en-office      # sinh data/en_office_phrases.tsv (E59)\n  \
+     cargo xtask check-en-office    # kiểm tra data/en_office_phrases.tsv khớp nguồn (E59)\n  \
+     cargo xtask gen-app-icons      # sinh PNG icon ứng dụng & macOS (E59)\n  \
+     cargo xtask gen-store-art      # sinh PNG box/poster Microsoft Store (E59)\n  \
+     cargo xtask gen-tray-icons     # sinh ICO khay hệ thống & installer Windows (E59)\n  \
+     cargo xtask gen-win-corpus     # sinh corpus/win/*.keys (WIN-006)\n  \
+     cargo xtask check-win-corpus   # kiểm tra corpus/win/*.keys có khớp chuẩn\n  \
+     cargo xtask gen-mac-corpus     # sinh corpus/mac/*.keys (MAC-006)\n  \
+     cargo xtask check-mac-corpus   # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
+     cargo xtask check-mac-targets  # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
-     cargo xtask hygiene-docs     # link markdown noi bo khong hong
-     cargo xtask hygiene-secrets  # secret/token/private key khong duoc commit
-     cargo xtask hygiene-apis     # API inject/giong malware bi cam (Farch-3)
-     cargo xtask iss-tabs         # .iss khong chua TAB (B12/B13)
-     cargo xtask ascii-ps1        # .ps1 ASCII-only (G7/A5)
-     cargo xtask no-python       # E59: khong duoc them file .py vao repo
-     cargo xtask check-pe-imports <file...> # PE khong phu thuoc VC++ runtime (R2-18)
-     cargo xtask verify-msix <file.msix> [flags] # luat Partner Center + payload (R2-09)
-     cargo xtask assist-kappa <a.tsv> <b.tsv>   # Cohen's kappa 2 nguoi gan nhan (E59)
-     cargo xtask assist-score [--verify] [--json] # recall/FPR corpus assist (E59)
-     cargo xtask assist-tone-inject             # loi tong hop do luat dau thanh (E59)
-     cargo xtask assist-build-candidates        # sinh ung vien corpus assist (E59)
-     cargo xtask assist-gen-vi-tatoeba          # sinh corpus VI tu Tatoeba (E59)
-     cargo xtask assist-gen-en-tatoeba          # sinh corpus EN tu Tatoeba (E59)
-     cargo xtask preflight        # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
+     cargo xtask check-ibus-component <xml> <base> # kiểm tra component IBus (E59)\n  \
+     cargo xtask hygiene-docs       # link markdown nội bộ không hỏng\n  \
+     cargo xtask hygiene-secrets    # secret/token/private key không được commit\n  \
+     cargo xtask hygiene-apis       # API inject/giống malware bị cấm (Farch-3)\n  \
+     cargo xtask iss-tabs           # .iss không chứa TAB (B12/B13)\n  \
+     cargo xtask ascii-ps1          # .ps1 ASCII-only (G7/A5)\n  \
+     cargo xtask no-python          # E59: không được thêm file Python vào repo\n  \
+     cargo xtask check-pe-imports <file...> # PE không phụ thuộc VC++ runtime (R2-18)\n  \
+     cargo xtask verify-msix <file.msix> [flags] # luật Partner Center + payload (R2-09)\n  \
+     cargo xtask assist-kappa <a.tsv> <b.tsv>     # Cohen's kappa 2 người gán nhãn (E59)\n  \
+     cargo xtask assist-score [--verify] [--json] # recall/FPR corpus assist (E59)\n  \
+     cargo xtask assist-tone-inject               # lỗi tổng hợp đo luật dấu thanh (E59)\n  \
+     cargo xtask assist-build-candidates          # sinh ứng viên corpus assist (E59)\n  \
+     cargo xtask assist-gen-vi-tatoeba            # sinh corpus VI từ Tatoeba (E59)\n  \
+     cargo xtask assist-gen-en-tatoeba            # sinh corpus EN từ Tatoeba (E59)\n  \
+     cargo xtask preflight          # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
      cargo xtask help\n"
 }
 
