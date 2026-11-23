@@ -666,14 +666,17 @@ pub fn no_python() -> Result<(), String> {
         if !full.is_file() {
             continue;
         }
-        let Ok(mut f) = File::open(&full) else {
-            continue;
+        let mut f = match File::open(&full) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(format!("no-python: không mở được {rel}: {e}")),
         };
         let mut head = [0u8; 256];
-        if let Ok(n) = f.read(&mut head) {
-            if has_python_shebang(&head[..n]) {
-                hits.push(format!("{rel} (shebang python)"));
-            }
+        let n = f
+            .read(&mut head)
+            .map_err(|e| format!("no-python: không đọc được {rel}: {e}"))?;
+        if has_python_shebang(&head[..n]) {
+            hits.push(format!("{rel} (shebang python)"));
         }
     }
     if hits.is_empty() {

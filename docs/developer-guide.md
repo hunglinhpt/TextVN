@@ -125,7 +125,7 @@ thay `URL` vì `Foundation` không khả dụng trong `PackageDescription` scope
 
 ```bash
 sudo apt install cmake pkg-config g++ libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev \
-    fcitx5-modules-dev libgtk-4-dev ibus fcitx5 python3-dbus python3-gi
+    fcitx5-modules-dev fcitx5-modules libgtk-4-dev ibus fcitx5 dbus libdbus-1-dev
 scripts/e2e-linux.sh            # build adapter + ctest + e2e IBus/Fcitx5 thật
 scripts/install_linux.sh        # build từ nguồn rồi cài per-user (install.sh của gói)
 scripts/build-linux.sh          # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha256)
@@ -164,7 +164,8 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 - `ci-shared` (mỗi PR + push `main` không chỉ đổi docs): fmt; clippy Linux; clippy cross-check
   target Windows (gồm hook); `cargo test` trên 3 OS; replay corpus × 4 adapter (headless,
   tsf, mac, linux) trên 3 OS; `textvn-cli verify` + `sizes`; xtask `check-tables`,
-  `check-mac-targets`, `check-version-sync`, `check-win-corpus`, `check-mac-corpus`;
+  `check-en-office`, `check-mac-targets`, `check-version-sync`, `check-win-corpus`,
+  `check-mac-corpus`, `no-python`;
   `linux-common` với ASan + UBSan; e2e IBus/Fcitx5 + gói Linux; fuzz smoke 60 s/target;
   `cargo-deny`; REUSE; perf A/B so merge-base (`continue-on-error`); job *Windows package*
   (portable + bộ cài gõ thật, Store validation, MSIX build + `verify-msix` + sideload).

@@ -2,7 +2,7 @@
 # Nguon: Tatoeba per_language export eng_sentences.tsv.bz2 (CC BY 2.0 FR)
 # License du lieu: CC BY 2.0 FR (Tatoeba) - attribution BAT BUOC:
 #   docs/compliance/tatoeba-attribution.md + REUSE.toml (LicenseRef-Tatoeba).
-# Sinh lap: python tools/assist/gen_corpus_en_tatoeba.py (seed=20261023, 295/234292 cau, snapshot 2026-10-24)
+# Sinh lap: cargo xtask assist-gen-en-tatoeba (seed=20261023, 295/234292 cau, snapshot 2026-10-24)
 # Tinh tai lap: cung snapshot (cache tools/assist/.cache/) + seed +
 # EXCLUDE_IDS trong script => file giong het; snapshot moi (hang tuan) =>
 # pool khac - dung snapshot da ghi o tren de tai lap file nay.

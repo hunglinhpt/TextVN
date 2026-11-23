@@ -1,10 +1,10 @@
 # corpus/assist/vi_real_errors.ass - cau tieng Viet CO LOI THAT (van ban that) + nhan
 # Nguon: Tatoeba vie_sentences.tsv.bz2 (CC BY 2.0 FR - attribution bat buoc)
-# Sinh lap: python tools/assist/build_real_corpus.py  (nhan do nguoi/agent doc tung cau)
+# Sinh lap: cargo xtask assist-build-candidates  (nhan do nguoi/agent doc tung cau)
 # Dinh dang: <cau>\t<kind1[,kind2]>  ·  '~ ' = dong MEM (engine BO SOT loi nay)
 #   - Dong KHONG co '~': nhan tay = dung output engine -> test corpus assert cung
 #   - Dong co '~ '   : loi that nhung engine khong phat hien -> test bo qua,
-#                      `textvn-cli assist score` / tools/assist/score_real.py van tinh recall
+#                      `textvn-cli assist score` / `cargo xtask assist-score` van tinh recall
 # P4-12 RECALL-REAL: tap nay la BO NHO de do recall, khong phai "engine tu kiem tra".
 
 Anh đi đường anh , tôi đi đường tôi.	space_before_punct

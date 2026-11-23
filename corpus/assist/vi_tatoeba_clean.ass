@@ -1,7 +1,7 @@
 # corpus/assist/vi_tatoeba_clean.ass - cau SACH tu Tatoeba (van ban that)
 # Nguon: Tatoeba per-language export vie_sentences.tsv.bz2
 # License du lieu: CC BY 2.0 FR (Tatoeba) - attribution bat buoc (xem docs/compliance/)
-# Sinh lap: python tools/assist/gen_corpus_tatoeba.py (1500 cau)
+# Sinh lap: cargo xtask assist-gen-vi-tatoeba (1500 cau)
 # Dung de do FPR tren cau ngan tu nhien (Fassist-80).
 # Tien to '~ ' = cau SACH *co the chua loi that* (van ban nguoi that) ->
 #   test KHONG assert 'khong loi' cho cac cau nay; `assist score` van dem

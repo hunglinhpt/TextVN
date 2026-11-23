@@ -976,7 +976,7 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
  * commit client preedit TRƯỚC khi gọi engine — engine chỉ xóa panel (nếu để nguyên,
  * Reset kế tiếp core commit lần nữa = chữ lặp) và quên từ. Client có cờ đó tự commit.
  * Reset / đổi bộ gõ: core không commit → engine commit (không mất chữ — B2).
- * Cả hai nhánh kiểm chứng bằng tests/e2e_fcitx5.py với fcitx5 thật. */
+ * Cả hai nhánh kiểm chứng bằng tests/e2e_fcitx5.c với fcitx5 thật. */
 void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &event) {
     if (!st) return;
     clearAssistUI(st);

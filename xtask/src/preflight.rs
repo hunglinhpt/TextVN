@@ -188,7 +188,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "version-sync",
-        guards: "14 chỗ ghi version khớp Cargo.toml",
+        guards: "15 chỗ ghi version khớp Cargo.toml",
         argv: &[
             "cargo",
             "run",

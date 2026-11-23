@@ -276,8 +276,9 @@ fn read_labelled_soft(path: &Path) -> Result<Vec<Row>, String> {
             Some((s, l)) => (s.to_string(), l),
             None => (raw.to_string(), ""),
         };
-        let soft = sentence.starts_with('~');
-        sentence = sentence.trim_start_matches('~').trim().to_string();
+        let trimmed = sentence.trim_start();
+        let soft = trimmed.starts_with('~');
+        sentence = trimmed.trim_start_matches('~').trim().to_string();
         let kinds: Vec<String> = label
             .split(',')
             .map(str::trim)

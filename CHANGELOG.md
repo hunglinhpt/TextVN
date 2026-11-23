@@ -7,6 +7,102 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.86] — 2026-11-23
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Thay đổi & Sửa lỗi / Changed & Fixed
+
+- **E59 — Loại bỏ hoàn toàn Python khỏi repo (100% Rust + C/C++/Swift native)** theo chính sách
+  ngôn ngữ `AGENTS.md`: port toàn bộ 18 script Python (hygiene, kiểm PE/MSIX, sinh icon/art Store,
+  sinh bảng câu EN văn phòng, công cụ đánh giá trợ lý `tools/assist/*`, E2E Fcitx5) sang
+  `cargo xtask` không phụ thuộc crate ngoài (`xtask/src/{hygiene,win_tools,linux_tools,assist_tools,png,art_icons,en_office,gen_en_office_data}.rs`)
+  và C/libdbus (`adapters/linux-fcitx5/tests/e2e_fcitx5.c`). Thêm gate vĩnh viễn
+  `cargo xtask no-python` (cấm mọi file `.py/.pyw/.pyi/.ipynb` và Python shebang) +
+  `cargo xtask check-en-office` vào `preflight`, `repo-hygiene.yml` và `ci-shared.yml`.
+- **Audit cuốn chiếu 3 lượt (Pass 1 → Pass 2 → Pass 3: `ZERO_DEFECTS_CONVERGED`)** trên toàn bộ
+  phần chuyển đổi E59:
+  - **Linux E2E & Đóng gói** (`scripts/test-linux-package.sh`, `adapters/linux-fcitx5/tests/e2e_fcitx5.c`,
+    `adapters/linux-fcitx5/CMakeLists.txt`): sửa lỗi `check-ibus-component: command not found`
+    bằng `export -f run_xtask`; gọi trực tiếp DBus method `CurrentInputMethod()` và kiểm chặt
+    `textvn`; thêm `mkdir_p()`, `dbus_free()`, kiểm NULL `msg`/`reply`; đặt target `e2e_fcitx5`
+    có điều kiện theo `PkgConfig`/`dbus-1` để build đóng gói tối thiểu (`.deb`/AUR/`install_linux.sh`)
+    không cần `libdbus-1-dev` vẫn build xanh.
+  - **Pure-std DEFLATE/PNG & ZIP/ZIP64/XML/PE** (`xtask/src/png.rs`, `xtask/src/win_tools.rs`,
+    `xtask/src/art_icons.rs`): thay shell-out `tar`/`unzip` bằng bộ đọc ZIP/ZIP64 trong bộ nhớ;
+    cài LZ77 Fixed-Huffman + PNG Sub filter nén ảnh Store nhỏ hơn ngưỡng 1.5 MB; bổ sung
+    `inflate_raw_bounded(src, max_out)` chống zip-bomb (trần 512 MiB/archive), hỗ trợ `HDIST <= 32`
+    (RFC 1951 §3.2.7), bắt buộc EOB (`256`), chặn trùng entry ZIP không phân biệt hoa/thường và
+    thiếu ZIP64 extra/locator; nâng cấp `parse_xml` lên XML 1.0 kiểm namespace chặt chẽ (chặn
+    `xmlns:p=""`, `&#+65;`, giữ khoảng trắng R2-95); gia cố `pe_imports_bytes` hỗ trợ cả delay-load
+    `DataDirectory[13]` (RVA & PE32 VA `grAttrs == 0`) và bỏ `.bss` (`rawsize == 0`).
+  - **Hygiene, Assist & Docs** (`xtask/src/hygiene.rs`, `xtask/src/assist_tools.rs`,
+    `docs/developer-guide.md`, `docs/release/signing.md`, `docs/release/release-process.md`,
+    `LICENSES/LicenseRef-Tatoeba.txt`, `corpus/assist/*.ass`): quét Python shebang trên mọi file
+    repo (bỏ qua `#![...]` Rust), sửa P0 `en_abbrev_trap`, thay RNG bằng SplitMix64, tải cache
+    nguyên tử, tách TSV chưa trim trong `tone_inject_cli`, dọn sạch tham chiếu `.py` cũ và
+    `scripts/__pycache__/`.
+
+### Kiểm thử / Testing
+
+- `cargo xtask preflight` và toàn bộ workspace test pass 100% (trong đó `xtask` **91/91 pass**,
+  `textvn-math` **927 pass, 0 ignored**).
+- `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` và
+  cross-check `--target x86_64-unknown-linux-gnu` sạch 0 warning; `cargo xtask check-version-sync`
+  ok (15/15 = 0.2.86); REUSE 3.3 pass 100%; `cargo xtask no-python` OK.
+- CI xanh 100% trên toàn bộ 7 workflow: `repo-hygiene`, `ci-shared`, `ci-windows`, `ci-linux`,
+  `ci-macos`, `ci-deb`, `ci-aur` (xem `docs/release/build-release-report.md` mục 0.2.86).
+
+---
+
+**English** — 0.2.86:
+
+### Changed & Fixed
+
+- **E59 — Zero-Python native repository migration (100% Rust + C/C++/Swift)** per `AGENTS.md`
+  language policy: ported all 18 Python scripts (hygiene gates, Windows PE/MSIX verification, Store
+  icon/art generation, English workplace phrase generation, `tools/assist/*` evaluation tools, and
+  Linux Fcitx5 E2E harness) into zero-dependency Rust (`xtask/src/{hygiene,win_tools,linux_tools,assist_tools,png,art_icons,en_office,gen_en_office_data}.rs`)
+  and C/libdbus (`adapters/linux-fcitx5/tests/e2e_fcitx5.c`). Permanently enforced via
+  `cargo xtask no-python` (blocking `.py/.pyw/.pyi/.ipynb` files and Python shebangs) and
+  `cargo xtask check-en-office` in `preflight`, `repo-hygiene.yml`, and `ci-shared.yml`.
+- **3-pass rolling audit (Pass 1 → Pass 2 → Pass 3: `ZERO_DEFECTS_CONVERGED`)** across the entire
+  E59 migration:
+  - **Linux E2E & Packaging** (`scripts/test-linux-package.sh`, `adapters/linux-fcitx5/tests/e2e_fcitx5.c`,
+    `adapters/linux-fcitx5/CMakeLists.txt`): fixed `check-ibus-component: command not found` via
+    `export -f run_xtask`; switched `ctrl_current_im()` to a direct `CurrentInputMethod()` D-Bus
+    method call with strict `textvn` verification; added `mkdir_p()`, `dbus_free()`, and NULL
+    checks on `msg`/`reply`; gated `e2e_fcitx5` behind `PkgConfig`/`dbus-1` so minimal packaging
+    builds (`.deb`/AUR/`install_linux.sh`) succeed without `libdbus-1-dev`.
+  - **Pure-std DEFLATE/PNG & ZIP/ZIP64/XML/PE** (`xtask/src/png.rs`, `xtask/src/win_tools.rs`,
+    `xtask/src/art_icons.rs`): replaced external `tar`/`unzip` shell-outs with an in-memory
+    pure-std ZIP/ZIP64 reader; implemented LZ77 Fixed-Huffman + PNG Sub filtering keeping Store
+    images under the 1.5 MB hygiene cap; added `inflate_raw_bounded(src, max_out)` with a 512 MiB
+    archive cap, RFC 1951 §3.2.7 `HDIST <= 32`, mandatory dynamic EOB (`256`), case-insensitive
+    duplicate ZIP entry rejection, and strict ZIP64 extra/locator validation; upgraded `parse_xml`
+    to strict namespace-aware XML 1.0 (rejecting `xmlns:p=""` and `&#+65;`, preserving R2-95
+    whitespace); hardened `pe_imports_bytes` for `DataDirectory[13]` delay-load imports (RVA and
+    legacy PE32 VA `grAttrs == 0`) and zero-raw-size `.bss` sections.
+  - **Hygiene, Assist & Docs** (`xtask/src/hygiene.rs`, `xtask/src/assist_tools.rs`,
+    `docs/developer-guide.md`, `docs/release/signing.md`, `docs/release/release-process.md`,
+    `LICENSES/LicenseRef-Tatoeba.txt`, `corpus/assist/*.ass`): expanded Python shebang scanning to
+    all repo files (ignoring Rust `#![...]`), fixed P0 `en_abbrev_trap`, replaced PRNG with
+    SplitMix64, added atomic cache downloads, fixed untrimmed TSV splitting in `tone_inject_cli`,
+    and cleaned up stale `.py` references and `scripts/__pycache__/`.
+
+### Testing
+
+- `cargo xtask preflight` and all workspace test suites pass 100% (`xtask` **91/91 pass**,
+  `textvn-math` **927 pass, 0 ignored**).
+- `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` and
+  `--target x86_64-unknown-linux-gnu` clean with 0 warnings; `cargo xtask check-version-sync` ok
+  (15/15 = 0.2.86); REUSE 3.3 100% compliant; `cargo xtask no-python` OK.
+- CI 100% green across all 7 workflows: `repo-hygiene`, `ci-shared`, `ci-windows`, `ci-linux`,
+  `ci-macos`, `ci-deb`, `ci-aur` (see `docs/release/build-release-report.md` §0.2.86).
+
+---
+
 ## [0.2.85] — 2026-11-22
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3417,7 +3513,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...HEAD
+[0.2.86]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...v0.2.86
 [0.2.85]: https://github.com/hunglinhpt/TextVN/compare/v0.2.84...v0.2.85
 [0.2.84]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...v0.2.84
 [0.2.83]: https://github.com/hunglinhpt/TextVN/compare/v0.2.82...v0.2.83

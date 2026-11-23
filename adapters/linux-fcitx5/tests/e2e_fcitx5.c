@@ -519,6 +519,8 @@ int main(void) {
     DBusMessage *msg =
         dbus_message_new_method_call(FCITX_NAME, IM_PATH, IM_IFACE,
                                      "CreateInputContext");
+    if (!msg)
+        die("CreateInputContext", "OOM dbus_message_new_method_call");
     {
         DBusMessageIter iter, arr;
         dbus_message_iter_init_append(msg, &iter);
@@ -542,6 +544,8 @@ int main(void) {
     dbus_message_unref(msg);
     if (dbus_error_is_set(&err))
         die_dbus("CreateInputContext", &err);
+    if (!reply)
+        die("CreateInputContext", "reply NULL");
     {
         const char *path = NULL;
         if (!dbus_message_get_args(reply, &err, DBUS_TYPE_OBJECT_PATH, &path,

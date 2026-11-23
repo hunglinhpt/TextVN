@@ -28,7 +28,7 @@
 
 ### A0. `cargo xtask preflight` — BẮT BUỘC exit 0 (thay cho chạy tay từng lệnh)
 
-Một lệnh chạy đủ 22 bước (mảng `STEPS` trong `xtask/src/preflight.rs`) theo đúng thứ tự CI, fail-fast, exit code thật
+Một lệnh chạy đủ 25 bước (mảng `STEPS` trong `xtask/src/preflight.rs`) theo đúng thứ tự CI, fail-fast, exit code thật
 (không bao giờ pipe `| tail` che exit code — sự cố 2 lần 2026-10-02: clippy
 `unused-mut` đẩy code rồi mới phát hiện). Preflight xanh = CI thấy đúng cây
 đang test ⇒ khả năng đỏ chỉ còn nhiễu runner (perf, typing smoke — rerun).
@@ -42,10 +42,11 @@ Chi tiết từng bước + điều nó chặn: `xtask/src/preflight.rs` (mảng
 | test --workspace | 349+ unit/integration | break behavior corpus (dedupe layout, EN-detect) |
 | verify-abi + sizes | ABI header C + struct 20/532 | lệch FFI khi đổi struct |
 | replay × 4 adapter (win, tsf, mac, linux) | hành vi gõ thật mọi nền tảng | regression 5269ae1/fecf245: raw typing sau đổi layout |
-| check-tables/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus quên regenerate |
+| check-tables/en-office/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus / bảng câu EN văn phòng quên regenerate |
 | version-sync | 15 chỗ version | bump sót chỗ |
 | perf | hồi quy so baseline | baseline chết theo runner → phải re-record từ CI (7f069f0) |
-| hygiene-apis / hygiene-docs | API giống-malware, link hỏng | — |
+| hygiene-apis / hygiene-docs / hygiene-secrets | API giống-malware, link hỏng, rò rỉ secret | — |
+| no-python | cấm file `.py` / Python shebang trong repo (E59) | kéo runtime Python ngược lại vào repo |
 | store-validate | 3 bước manual package validation của Microsoft trên `dist/TextVN-setup-*.exe` (SKIP nếu máy dev đang cài TextVN) | B13 (Store đỏ 3 mục) |
 | iss-tabs / ascii-ps1 | `.iss` không chứa TAB; `.ps1` ASCII-only | B12/B13; G7/A5 |
 | homebrew | `ruby -c` cask (chỉ cú pháp — **không** kiểm sha256 khớp release, xem B7b) | formula sai hash 0.2.5–0.2.7 và 0.2.23–0.2.26 |
@@ -154,7 +155,7 @@ blockers chưa được chứng minh).
 | Job `perf regression` đỏ | `continue-on-error: true` theo thiết kế — nhiễu runner 2 vCPU; gate cứng chạy self-hosted (RW5) | Không chặn release; đo local nếu muốn số sạch |
 | Run CI của commit code bị `cancelled` | Push docs/graphify sau commit code (concurrency) | Kể từ 2026-10-01: ci-shared không còn cancel-in-progress trên main + bỏ qua push chỉ-docs; nếu vẫn dính, push commit rỗng `git commit --allow-empty -m "chore: retrigger CI"` là cách cuối |
 | Publish fail lúc upload asset | Mạng/quota runner | Rerun workflow — release ở trạng thái draft được phép upload tiếp (`--clobber`); chỉ release đã public mới bị chặn ghi đè |
-| `check-version-sync` fail | Bump thiếu chỗ (14 chỗ ghi tay) | Sửa đúng file báo lỗi; nguyên tắc: Cargo.toml trước, xtask báo tên từng file |
+| `check-version-sync` fail | Bump thiếu chỗ (15 chỗ ghi tay) | Sửa đúng file báo lỗi; nguyên tắc: Cargo.toml trước, xtask báo tên từng file |
 | `source_tree_clean=false` bị publish job chặn | Đã tag khi tree dirty | Tag lại: xóa tag (`git push origin :vN.N.N` + `git tag -d`), commit sạch, tag lại |
 | Release run fail ở job macos: `library 'textvn_ffi' not found` | `swift test` chạy trước `scripts/build-macos.sh` — test của macos-app link `libtextvn_ffi` từ `adapters/macos-imk/lib` do build-macos.sh dựng | Thứ tự bắt buộc job macos của release.yml: **build-macos.sh → swift test → package-macos-pkg.sh** (test vẫn trước package) |
 

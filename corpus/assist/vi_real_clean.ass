@@ -1,6 +1,6 @@
 # corpus/assist/vi_real_clean.ass - cau SACH da ra soat (van ban that)
 # Nguon: Tatoeba vie_sentences.tsv.bz2 (CC BY 2.0 FR - attribution bat buoc)
-# Sinh lap: python tools/assist/build_real_corpus.py
+# Sinh lap: cargo xtask assist-build-candidates
 # Mau ngau nhien tat dinh: seed 20261021, 1000/5092 cau, bo cau co loi.
 # Dinh dang: <cau>\t (cot kinds rong = sach) · '~ ' = sach nhung engine BAO NHAM
 #   - Dong KHONG co '~': test corpus assert "khong loi" -> chan hoi quy FP

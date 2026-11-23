@@ -31,8 +31,8 @@ Source of the data
 - Project home : https://tatoeba.org/
 - Export used  : per-language export, Vietnamese
                  https://downloads.tatoeba.org/exports/per_language/vie/vie_sentences.tsv.bz2
-                 (used by tools/assist/gen_corpus_tatoeba.py and
-                 tools/assist/build_real_corpus.py).
+                 (used by `cargo xtask assist-gen-vi-tatoeba` and
+                 `cargo xtask assist-build-candidates` in `xtask/src/assist_tools.rs`).
 - Downloaded / last accessed : 2026-10-21 (weekly export; the three corpus
                  files above were generated from that snapshot).
 - Licence      : Creative Commons Attribution 2.0 France (CC BY 2.0 FR),

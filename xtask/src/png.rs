@@ -653,7 +653,6 @@ pub struct Canvas {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[allow(dead_code)]
 pub struct Rgba(pub u8, pub u8, pub u8, pub u8);
 
 impl Rgba {

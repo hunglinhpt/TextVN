@@ -49,8 +49,8 @@ SignPath / CA) hoặc **MSIX do Store tự ký**.
   `--armor` (ASCII)**: `gpg --batch --armor --export-secret-keys <FPR>`. Ví
   dụ 2026-10-07 (R5): export thiếu `--armor` → 298 byte nhị phân chứa 6 byte
   NUL → runner không materialize được env → **workflow `startup_failure` không
-  log**; kiểm bằng `python -c "b=open(f,'rb').read(); print(b.count(b'\\x00'))"`
-  (phải = 0) trước khi `gh secret set`. Không passphrase (bảo vệ bởi encryption
+  log**; kiểm bằng `LC_ALL=C grep -qPa '\x00' "$f" && echo "HAS NUL"`
+  (không được khớp byte NUL nào) trước khi `gh secret set`. Không passphrase (bảo vệ bởi encryption
   của GitHub Actions secrets).
 - **Chứng thư thu hồi**: do lệnh sinh key in ra tại
   `~/.gnupg/openpgp-revocs.d/3921595A….rev` — chủ repo LƯU Ý giữ file này ở

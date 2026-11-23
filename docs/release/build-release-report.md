@@ -4,7 +4,7 @@
 
 > **R2-164 (2026-11-22, vòng audit cuốn chiếu 0.2.79→HEAD — math engine):** Deep audit phần
 > Math Engine phát hiện **E57 (5 lỗi word/boundary)** và **E58 (22 test `#[ignore]` che giấu 22 lỗi thật)**:
-> AST parser nuốt `}` (`rac`/`\sqrt`/nested braces vỡ), eval sai `pi`/`e`/`^` right-assoc/unary, classifier từ chối
+> AST parser nuốt `}` (`\frac`/`\sqrt`/nested braces vỡ), eval sai `pi`/`e`/`^` right-assoc/unary, classifier từ chối
 > công thức cơ bản (LaTeX 0.2/MathML 0.5 < ngưỡng 0.75 → Smart Clipboard chết), lexicon trùng trigger/alias +
 > 1358 < 1500 entry, test typo (`}}` sót escape / alias chứa space). FCA đầy đủ ở `docs/specs/project-common-errors.md`
 > (E57/E58). Giờ đây 927/927 test math xanh khi `--include-ignored`; 22 test đã un-ignore thành gate CI vĩnh viễn;
@@ -12,6 +12,19 @@
 > 0.1.100) 0 warning trên Linux/windows-msvc/darwin.
 
 > **R2-163 (2026-11-22, vòng audit CI parity):** `ci-macos.yml` có path filter nhưng thiếu `math/**` — trong khi `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`), nên một commit sửa math-only (vd `2ddbd771`) KHÔNG kích hoạt ci-macos → gap parity 3 nền tảng. FCA: thêm `"math/**"` vào cả `push` lẫn `pull_request` paths của `ci-macos.yml` (YAML parse ok). Từ commit này, mọi sửa đổi ở `math/` đều chạy đủ gate macOS. Cùng vòng: ci-linux báo `unused dependency textvn-ipc` ở `textvn-cli` (chỉ dùng trong khối `cfg(windows)` của `doctor.rs`) → chuyển sang `[target.'cfg(windows)'.dependencies]`; quét lại cả 4 target (linux, windows-msvc x64, darwin arm64/x64) bằng `cargo +nightly check --workspace --all-targets` không còn warning manifest nào.
+
+## Bản 0.2.86 — E59 Zero-Python Native (Rust `xtask` + C/libdbus `e2e_fcitx5.c`) & Audit cuốn chiếu 3 lượt hội tụ 0 lỗi (2026-11-23)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | (1) **E59 — Loại bỏ hoàn toàn Python khỏi repo**: port 18/18 script Python sang `cargo xtask` thuần `std` (`xtask/src/{hygiene,win_tools,linux_tools,assist_tools,png,art_icons,en_office,gen_en_office_data}.rs`) và `adapters/linux-fcitx5/tests/e2e_fcitx5.c` (C/libdbus); thêm gate vĩnh viễn `cargo xtask no-python` và `cargo xtask check-en-office` vào `preflight`, `repo-hygiene.yml` và `ci-shared.yml`. (2) **Audit cuốn chiếu 3 lượt (Pass 1: 48 lỗi `9203c67f` → Pass 2: 9 lỗi `cda886b9` → Pass 3: `ZERO_DEFECTS_CONVERGED`)**: sửa `test-linux-package.sh` (`export -f run_xtask`), sửa `e2e_fcitx5.c` gọi DBus method `CurrentInputMethod()` + `mkdir_p()` + `dbus_free()` + kiểm NULL `msg`/`reply`, gating `e2e_fcitx5` theo `PkgConfig`/`dbus-1` trong `adapters/linux-fcitx5/CMakeLists.txt`; thay shell-out `tar`/`unzip` bằng ZIP/ZIP64 thuần `std` trong bộ nhớ + `inflate_raw_bounded` chống zip-bomb (512 MiB/archive, `HDIST <= 32`, bắt buộc EOB 256) + chặn trùng entry không phân biệt hoa/thường; XML 1.0 kiểm namespace chặt chẽ (`xmlns:p=""`, `&#+65;`, giữ khoảng trắng R2-95); PE32/PE32+ import & delay-load `DataDirectory[13]` (kể cả VA `grAttrs == 0`); LZ77 Fixed-Huffman + PNG Sub filter giữ ảnh Store < 1,5 MB; quét Python shebang toàn repo; dọn sạch tham chiếu `.py` cũ ở docs/corpus và `scripts/__pycache__/`. (3) Docs phát hành: `CHANGELOG.md` 0.2.86 song ngữ VI+EN + compare link, `README.md` VI/EN 1:1, appstream `<release version="0.2.86">` đứng đầu, `debian/changelog` `0.2.86-0ppa1`, `PKGBUILD`/`.SRCINFO` `pkgver=0.2.86`. |
+| Đo (gate A local) | `cargo fmt --all --check` 0 diff · `cargo clippy --workspace --all-targets -- -D warnings` + cross-check/clippy `--target x86_64-unknown-linux-gnu` 0 warning · `cargo test --workspace` **75 suite ok, 0 fail** (`xtask`: **91 pass**, `textvn-math`: **927 pass, 0 ignored**) · `textvn-cli verify` + `sizes` ABI 20/532 ok · replay 4 adapter (`win`, `tsf`, `mac` 170/170, `linux` 56/56) PASS · `check-tables` + `check-en-office` (11.165 hàng) + `check-win-corpus` (72) + `check-mac-corpus` (114) PASS · `cargo xtask check-version-sync` **15/15 = 0.2.86** · `hygiene-apis` (301 file) + `hygiene-docs` (107 link / 100 md) + `hygiene-secrets` (862 file) + `no-python` + `iss-tabs` + `ascii-ps1` PASS · REUSE 3.3 **1018/1018** PASS *(local perf step lệch phần cứng `parse_config` p50 2187→9887 ns theo R2 — gate perf thật chạy trên CI)* |
+| CI (B3) | *(sẽ cập nhật run ID xanh 7/7 sau khi push commit bump)* |
+| Phát hành | *(sẽ cập nhật tag `v0.2.86`, release-candidate run ID, 34 assets & SHA256SUMS pin sau B6–B7)* |
+| Homebrew (B7b/B7d) | *(sẽ cập nhật sau B7b/B7d)* |
+| approved (B7c) | *(sẽ cập nhật sau B7c)* |
+| AUR / PPA / Store | *(sẽ cập nhật hash `v0.2.86.tar.gz` trong cả `PKGBUILD` lẫn `.SRCINFO` sau khi tag tồn tại — R2-120c)* |
+| Ghi chú giới hạn | Chưa có Authenticode (SignPath Foundation) và Apple Developer ID/notarization |
 
 ## Bản 0.2.85 — Audit cuốn chiếu 0.2.79..HEAD khép sạch Math Engine: E57 word-buffer FCA + E58 (22 lỗi thật dưới `#[ignore]`, un-ignore toàn bộ vào gate) (2026-11-22)
 

@@ -1,3 +1,20 @@
+textvn (0.2.86-0ppa1) noble; urgency=medium
+
+  * E59 — Zero-Python native repository migration & 3-pass rolling audit:
+    ported all 18 Python tooling, generator, assist-eval, Windows PE/MSIX and
+    Linux E2E scripts into zero-dependency Rust (`xtask`) and C/libdbus
+    (`adapters/linux-fcitx5/tests/e2e_fcitx5.c`), enforced permanently by the
+    `cargo xtask no-python` gate in CI and preflight.
+  * Hardened pure-std RFC 1951 DEFLATE/inflate_raw_bounded (zip-bomb caps,
+    HDIST<=32, mandatory dynamic EOB 256), ZIP/ZIP64 reader (duplicate entry
+    rejection, 512 MiB cap), strict namespace-aware XML 1.0 parser, PE32/PE32+
+    import & delay-load inspector, and optional PkgConfig/dbus-1 gating in
+    adapters/linux-fcitx5/CMakeLists.txt so minimal packaging builds stay green.
+  * 3-pass audit converged to zero defects; 91 xtask tests + full workspace
+    test suites pass 100%, clippy -D warnings clean, REUSE 3.3 compliant.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Mon, 23 Nov 2026 08:40:00 +0700
+
 textvn (0.2.85-0ppa1) noble; urgency=medium
 
   * Audit loop 0.2.79..HEAD tron ven (E40, E50, textvn-math): E58 FCA phan bon — thang bo toan bo #[ignore]
