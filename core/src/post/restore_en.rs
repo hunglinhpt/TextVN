@@ -364,6 +364,26 @@ pub(crate) fn is_english_lexicon_word(word: &str, english_words: &[String]) -> b
         || english_words.iter().any(|w| w.eq_ignore_ascii_case(word))
 }
 
+/// Kiểm tra từ sau khi lọc phím hoàn tác `s`/`f`/`r` có phải từ tiếng Anh thật hay không (E60):
+/// với độ dài 2 chỉ nhận các từ 2 chữ cái thật (`as`, `if`, `is`, `of`, `or`, `os`, `us`) để tránh
+/// mã viết tắt nhiễu trong google-10k (`ar`, `er`…) làm hỏng định danh code (`arr[0]`, `err`).
+pub(crate) fn is_real_english_word_for_undo(word: &str, english_words: &[String]) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    if english_words.iter().any(|w| w.eq_ignore_ascii_case(word)) {
+        return true;
+    }
+    if word.len() == 2 {
+        let needle = word.to_lowercase();
+        return matches!(
+            needle.as_str(),
+            "as" | "if" | "is" | "of" | "or" | "os" | "us"
+        );
+    }
+    is_english_lexicon_word(word, english_words)
+}
+
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
 ///
 /// `true` khi: kết quả fold **không** là âm tiết Việt hợp lệ (nhánh 1); hoặc

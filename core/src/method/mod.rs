@@ -78,10 +78,14 @@ pub fn fold_caps(
     out
 }
 
-/// Kết quả fold kèm chuỗi phím hiệu lực đã loại bỏ các cặp phím tạo-dấu-rồi-hoàn-tác (E50).
+/// Các vị trí phím hoàn tác cần bỏ trong `raw` (E50/E60):
+/// - `unambiguous_drops`: phím hoàn tác chắc chắn (`x`/`j`/mũ/sừng/gạch/VNI/VIQR/QuickTelex/bộ 3
+///   chữ giống nhau/hoàn tác ngay sau phụ âm).
+/// - `ambiguous_drops`: phím `s`/`f`/`r` ngay sau nguyên âm có thể vừa là hoàn tác UniKey vừa
+///   là phụ âm đôi hợp lệ trong tiếng Anh (`ss`/`ff`/`rr`), chỉ bỏ khi tổ hợp khớp từ EN thật.
 pub(crate) struct FoldEffective {
-    pub effective_raw: Vec<char>,
-    pub unambiguous_undo: bool,
+    pub unambiguous_drops: Vec<usize>,
+    pub ambiguous_drops: Vec<usize>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -92,26 +96,26 @@ struct VowelMarks {
 
 struct UndoTracker {
     method: Method,
-    keep: Vec<bool>,
     marks: Vec<VowelMarks>,
     strokes: Vec<Option<usize>>,
     tone_src: Option<usize>,
     uo_confirm_w: Option<usize>,
     standalone_src: Option<usize>,
-    unambiguous: bool,
+    unambiguous_drops: Vec<usize>,
+    ambiguous_drops: Vec<usize>,
 }
 
 impl UndoTracker {
     fn new(method: Method, len: usize) -> Self {
         Self {
             method,
-            keep: vec![true; len],
             marks: Vec::with_capacity(len),
             strokes: Vec::with_capacity(len),
             tone_src: None,
             uo_confirm_w: None,
             standalone_src: None,
-            unambiguous: false,
+            unambiguous_drops: Vec::new(),
+            ambiguous_drops: Vec::new(),
         }
     }
 
@@ -155,19 +159,22 @@ impl UndoTracker {
             self.tone_src = Some(i);
         } else if before_tone > 0 && after_tone == 0 {
             if let Some(prev) = self.tone_src.take() {
-                self.keep[prev] = false;
-                let prev_ch = raw[prev].to_ascii_lowercase();
-                if after.len() == before.len() {
-                    // Phím xoá dấu ('z'/'0') tự triệt tiêu không đẩy ký tự.
-                    // Không bật `unambiguous`: để `tooiszz ` vẫn giữ chữ `z` literal
-                    // khi không phải âm tiết Việt, còn `toansz ` / `toi610 ` đã hợp lệ Việt.
-                    self.keep[i] = false;
-                } else if !matches!(prev_ch, 's' | 'f' | 'r') {
-                    // Undo cùng dấu không trùng phụ âm đôi EN phổ biến (x, j, VNI, VIQR).
-                    self.unambiguous = true;
+                if after.len() != before.len()
+                    && i == prev + 1
+                    && raw[prev].eq_ignore_ascii_case(&c)
+                {
+                    let prev_ch = raw[prev].to_ascii_lowercase();
+                    let after_consonant = prev > 0
+                        && !matches!(
+                            raw[prev - 1].to_ascii_lowercase(),
+                            'a' | 'e' | 'i' | 'o' | 'u' | 'y'
+                        );
+                    if !matches!(prev_ch, 's' | 'f' | 'r') || after_consonant {
+                        self.unambiguous_drops.push(prev);
+                    } else {
+                        self.ambiguous_drops.push(prev);
+                    }
                 }
-            } else if after.len() == before.len() {
-                self.keep[i] = false;
             }
         }
 
@@ -180,9 +187,8 @@ impl UndoTracker {
                 .is_some_and(|ch| matches!(ch, 'ư' | 'Ư' | 'ơ' | 'Ơ'));
         if reverted_standalone {
             if let Some(prev) = self.standalone_src.take() {
-                if raw[prev].eq_ignore_ascii_case(&c) {
-                    self.keep[prev] = false;
-                    self.unambiguous = true;
+                if i == prev + 1 && raw[prev].eq_ignore_ascii_case(&c) {
+                    self.unambiguous_drops.push(prev);
                 }
             }
         } else if after.len() == before.len() + 1
@@ -216,13 +222,15 @@ impl UndoTracker {
                 self.strokes[p] = Some(i);
             } else if is_stroke(before[p]) && is_plain_d(after[p]) {
                 if let Some(prev) = self.strokes[p].take() {
-                    self.keep[prev] = false;
-                    self.unambiguous = true;
-                }
-                if after.len() == before.len() {
-                    // VNI `d9d`: phím `d` thứ hai vừa gỡ gạch vừa không đẩy thêm.
-                    self.keep[i] = false;
-                    self.unambiguous = true;
+                    if i == prev + 1 {
+                        self.unambiguous_drops.push(prev);
+                        if after.len() == before.len() {
+                            // VNI `d9d`: phím `d` thứ hai vừa gỡ gạch vừa không đẩy thêm.
+                            self.unambiguous_drops.push(i);
+                        }
+                    }
+                } else if after.len() == before.len() {
+                    self.unambiguous_drops.push(i);
                 }
             }
 
@@ -233,8 +241,9 @@ impl UndoTracker {
                         self.marks[p].horn = None;
                     } else if matches!(be, A_CIRC | E_CIRC | O_CIRC) && matches!(ae, A | E | O) {
                         if let Some(prev) = self.marks[p].circ.take() {
-                            self.keep[prev] = false;
-                            self.unambiguous = true;
+                            if i == prev + 1 {
+                                self.unambiguous_drops.push(prev);
+                            }
                         }
                     } else if matches!(ae, A_BREVE | O_HOOK | U_HOOK) {
                         if Self::is_horn_breve_key(self.method, c) {
@@ -243,12 +252,14 @@ impl UndoTracker {
                         self.marks[p].circ = None;
                     } else if matches!(be, A_BREVE | O_HOOK | U_HOOK) && matches!(ae, A | O | U) {
                         if let Some(prev) = self.marks[p].horn.take() {
-                            self.keep[prev] = false;
-                            self.unambiguous = true;
+                            if i == prev + 1 {
+                                self.unambiguous_drops.push(prev);
+                            }
                         }
                         if let Some(prev) = self.uo_confirm_w.take() {
-                            self.keep[prev] = false;
-                            self.unambiguous = true;
+                            if i == prev + 1 {
+                                self.unambiguous_drops.push(prev);
+                            }
                         }
                     }
                 }
@@ -262,7 +273,7 @@ impl UndoTracker {
     }
 }
 
-/// Fold và tính `effective_raw` bằng cách loại các phím tạo-dấu-rồi-hoàn-tác (E50), giữ nguyên
+/// Fold và thu thập các vị trí phím tạo-dấu-rồi-hoàn-tác (E50/E60), giữ nguyên
 /// đường nóng `fold_caps` không cấp phát thêm bộ nhớ.
 pub(crate) fn fold_effective_caps(
     raw: &[char],
@@ -303,28 +314,29 @@ pub(crate) fn fold_effective_caps(
                 .filter(|(_, ch)| ch.eq_ignore_ascii_case(&first))
                 .nth(2)
             {
-                tracker.keep[idx] = false;
-                tracker.unambiguous = true;
+                tracker.unambiguous_drops.push(idx);
             }
         }
     }
-    let effective_raw: Vec<char> = raw
-        .iter()
-        .enumerate()
-        .filter_map(|(i, &c)| tracker.keep[i].then_some(c))
-        .collect();
-    if effective_raw != raw
-        && raw.windows(3).any(|w| {
-            w[0].is_ascii_alphabetic()
-                && w[0].eq_ignore_ascii_case(&w[1])
-                && w[1].eq_ignore_ascii_case(&w[2])
-        })
-    {
-        tracker.unambiguous = true;
+    let mut remaining_ambiguous = Vec::with_capacity(tracker.ambiguous_drops.len());
+    for p in tracker.ambiguous_drops {
+        let triple = p + 2 < raw.len()
+            && raw[p].is_ascii_alphabetic()
+            && raw[p].eq_ignore_ascii_case(&raw[p + 1])
+            && raw[p + 1].eq_ignore_ascii_case(&raw[p + 2]);
+        if triple {
+            tracker.unambiguous_drops.push(p);
+        } else {
+            remaining_ambiguous.push(p);
+        }
     }
+    tracker.unambiguous_drops.sort_unstable();
+    tracker.unambiguous_drops.dedup();
+    remaining_ambiguous.sort_unstable();
+    remaining_ambiguous.dedup();
     FoldEffective {
-        effective_raw,
-        unambiguous_undo: tracker.unambiguous,
+        unambiguous_drops: tracker.unambiguous_drops,
+        ambiguous_drops: remaining_ambiguous,
     }
 }
 

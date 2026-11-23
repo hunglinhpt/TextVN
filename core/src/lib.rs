@@ -1605,21 +1605,62 @@ impl Engine {
         )
     }
 
-    /// Chọn chuỗi phím gốc hiệu lực cho đường restore/định danh (E50):
-    /// ưu tiên `raw` nếu bản thân nó là từ EN đã biết; ngược lại nếu vừa
-    /// trải qua hoàn tác dấu (`xx`→`x`, `ddd`→`dd`, `66`→`6`…) không trùng phụ âm
-    /// đôi EN hoặc kết quả sau lọc là từ EN chuẩn (`Texxt`→`Text`), trả bản
-    /// hiệu lực để không bao giờ hồi sinh phím đã hủy.
+    /// Chọn chuỗi phím gốc hiệu lực cho đường restore/định danh (E50/E60):
+    /// ưu tiên `raw` nếu bản thân nó là từ EN đã biết; ngược lại luôn bỏ các vị trí hoàn tác
+    /// chắc chắn (`unambiguous_drops`) và tìm tập con nhỏ nhất các vị trí hoàn tác mơ hồ
+    /// (`s`/`f`/`r` sau nguyên âm) cần bỏ để khớp từ EN chuẩn (`Sirr`→`Sir`, `Tassk`→`Task`,
+    /// `addrress`→`address`, `proffessional`→`professional`, `exxpress`→`express`), bảo vệ
+    /// nguyên vẹn phụ âm đôi hợp lệ cuối từ.
     fn choose_restore_source(&self, raw: &[char]) -> Vec<char> {
         let eff = self.fold_effective_keys(raw);
-        if eff.effective_raw == raw || !eff.unambiguous_undo {
+        if eff.unambiguous_drops.is_empty() && eff.ambiguous_drops.is_empty() {
             return raw.to_vec();
         }
         let raw_s: String = raw.iter().collect();
         if post::restore_en::is_english_lexicon_word(&raw_s, &self.opts.english_words) {
             return raw.to_vec();
         }
-        eff.effective_raw
+        let build = |amb_mask: usize| -> Vec<char> {
+            let mut drop_flags = vec![false; raw.len()];
+            for &idx in &eff.unambiguous_drops {
+                drop_flags[idx] = true;
+            }
+            for (bit, &idx) in eff.ambiguous_drops.iter().enumerate() {
+                if (amb_mask >> bit) & 1 != 0 {
+                    drop_flags[idx] = true;
+                }
+            }
+            raw.iter()
+                .enumerate()
+                .filter_map(|(i, &c)| (!drop_flags[i]).then_some(c))
+                .collect()
+        };
+
+        let amb_n = eff.ambiguous_drops.len().min(4);
+        let max_mask = 1usize << amb_n;
+        for target_drops in 0..=amb_n {
+            for mask in 0..max_mask {
+                if mask.count_ones() as usize != target_drops {
+                    continue;
+                }
+                if eff.unambiguous_drops.is_empty() && mask == 0 {
+                    continue;
+                }
+                let cand = build(mask);
+                let cand_s: String = cand.iter().collect();
+                if post::restore_en::is_real_english_word_for_undo(
+                    &cand_s,
+                    &self.opts.english_words,
+                ) {
+                    return cand;
+                }
+            }
+        }
+
+        if !eff.unambiguous_drops.is_empty() {
+            return build(0);
+        }
+        raw.to_vec()
     }
 
     fn restore_source(&self) -> Vec<char> {
@@ -2801,10 +2842,17 @@ impl Engine {
             if self.word.is_empty() || self.word.raw.len() < 2 {
                 return None;
             }
-            let typed_s: String = self.restore_source().iter().collect();
+            let restore_src = self.restore_source();
+            let typed_s: String = restore_src.iter().collect();
             if space_mode
                 && (post::restore_en::is_known_en_word(&typed_s.to_lowercase())
-                    || (self.word.active && validate::is_valid_word(&self.word.display)))
+                    || (self.word.active && validate::is_valid_word(&self.word.display))
+                    || (self.word.active
+                        && self.word.raw != restore_src
+                        && post::restore_en::is_real_english_word_for_undo(
+                            &typed_s,
+                            &self.opts.english_words,
+                        )))
             {
                 return None;
             }
