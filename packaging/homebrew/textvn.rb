@@ -5,7 +5,7 @@ cask "textvn" do
   version "0.2.86"
   # sha256 của TextVN-macos-universal-v<version>.zip — cập nhật MỖI bản phát hành
   # (lấy từ SHA256SUMS.txt của release; bước B7b trong release-process.md)
-  sha256 "20dd3825e48675266141dbd29513c8c2ae7fec58d7d5c2b65a652110990a28d2"
+  sha256 "152a771782e36d4c4f3fe0666164e0e385344d306a791a2cecaf687cb4f4efd9"
 
   url "https://github.com/hunglinhpt/TextVN/releases/download/v#{version}/TextVN-macos-universal-v#{version}.zip"
   name "TextVN"
