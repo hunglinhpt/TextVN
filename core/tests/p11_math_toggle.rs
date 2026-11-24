@@ -8,14 +8,28 @@
 //! 3. Tắt math qua `set_options` (UI/tray toggle OFF) phải dọn sạch FSM chord
 //!    (armed leader) để pass-through 100% ngay lập tức.
 
-use textvn_core::{Action, Engine, EngineOptions, KeyEvent, FLAG_CONSUMED};
+use textvn_core::{keymap, Action, Engine, EngineOptions, KeyEvent, FLAG_CONSUMED};
 
 fn type_keys(e: &mut Engine, keys: &str, buf: &mut Vec<char>) {
     for c in keys.chars() {
-        let k = KeyEvent::char_down(c);
+        let k = match c {
+            ' ' => KeyEvent {
+                vk: keymap::vk::SPACE,
+                ch: ' ' as u32,
+                key_down: true,
+                ..Default::default()
+            },
+            '\n' => KeyEvent::key_down(keymap::vk::RETURN),
+            '\t' => KeyEvent::key_down(keymap::vk::TAB),
+            _ => KeyEvent::char_down(c),
+        };
         let outcome = e.key(&k);
         match outcome.action {
-            Action::Pass => buf.push(c),
+            Action::Pass => {
+                if outcome.flags & FLAG_CONSUMED == 0 {
+                    buf.push(c);
+                }
+            }
             Action::Replace {
                 delete_count,
                 insert,
@@ -71,21 +85,28 @@ fn math_default_off_unikey_style_unchanged() {
     assert_eq!(type_and_get_with(&mut e, "TextVN "), "TextVN ");
 }
 
-/// 2. Math BẬT nhưng không sticky/không trong $...$: pass-through thuần,
-///    keys_typed đếm đúng 1 lần mỗi phím (không double-count).
+/// 2. Math BẬT với default config (không cần sticky): văn xuôi bình thường pass-through
+///    và `keys_typed` đếm đúng 1 lần/phím, còn chord/alias/inline-eval chạy ngay ở mọi editor.
 #[test]
 fn math_enabled_passthrough_counts_keys_typed_once() {
     let mut e = Engine::new(opts_with_math(true));
     let before = e.dream_rsi_snapshot().keys_typed;
-    let s = type_and_get_with(&mut e, "hello world 123 `~^ ");
-    // Không ở trong math span, không sticky → toàn bộ pass-through
-    assert_eq!(s, "hello world 123 `~^ ");
+    let s = type_and_get_with(&mut e, "hello world 123 +-* ");
+    assert_eq!(s, "hello world 123 +-* ");
     let after = e.dream_rsi_snapshot().keys_typed;
     assert_eq!(
         after - before,
-        "hello world 123 `~^ ".chars().count() as u64,
+        "hello world 123 +-* ".chars().count() as u64,
         "mỗi phím printable phải đếm đúng 1 lần keys_typed (G19)"
     );
+
+    // Không cần bật `sticky_math_mode`: tích nút Math & Science là gõ được công thức ngay!
+    assert_eq!(type_and_get_with(&mut e, "`a"), "α");
+    assert_eq!(type_and_get_with(&mut e, "`~"), "≈");
+    assert_eq!(type_and_get_with(&mut e, "\\can "), "√x ");
+    assert_eq!(type_and_get_with(&mut e, "=2+3="), "5");
+    assert_eq!(type_and_get_with(&mut e, "=cos(0)="), "1");
+    assert_eq!(type_and_get_with(&mut e, "$aa$ chaof "), "$aa$ chào ");
 }
 
 /// 3. Bật math + sticky, arm leader (`) rồi TẮT math qua set_options:

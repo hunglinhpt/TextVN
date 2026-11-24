@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 
 use textvn_config::{
     AssistAutoFix, AssistMode, Config, DiacriticStyle, DocError, DocKind, MacroEntry, MacroTrigger,
-    Method, SettingsDoc,
+    MathOutputMode, Method, SettingsDoc,
 };
 
 /// Dữ liệu trạng thái bật/tắt gõ per-app lưu trong `state.json`.
@@ -388,6 +388,33 @@ impl SvcManager {
     /// P11: Math & Science đang bật hay không (đọc từ config — cùng nguồn với UI).
     pub fn is_math_enabled(&self) -> bool {
         self.config().math.enabled
+    }
+
+    /// P11/E62: đảo trạng thái Math & Science (`Ctrl+Shift+M`), trả `(enabled_mới, version)`.
+    pub fn toggle_math_enabled(&self) -> Result<(bool, u64), DocError> {
+        let mut next = false;
+        let ver = self.update_config(|c| {
+            c.math.enabled = !c.math.enabled;
+            next = c.math.enabled;
+        })?;
+        Ok((next, ver))
+    }
+
+    /// P11/E62: xoay vòng định dạng đầu ra Math (`Ctrl+Alt+M`):
+    /// `AutoByApp → Normal → Latex → UnicodeMath → Typst → AutoByApp`.
+    pub fn cycle_math_output_mode(&self) -> Result<(MathOutputMode, u64), DocError> {
+        let mut next = MathOutputMode::AutoByApp;
+        let ver = self.update_config(|c| {
+            c.math.output_mode = match c.math.output_mode {
+                MathOutputMode::AutoByApp => MathOutputMode::Normal,
+                MathOutputMode::Normal => MathOutputMode::Latex,
+                MathOutputMode::Latex => MathOutputMode::UnicodeMath,
+                MathOutputMode::UnicodeMath => MathOutputMode::Typst,
+                MathOutputMode::Typst => MathOutputMode::AutoByApp,
+            };
+            next = c.math.output_mode;
+        })?;
+        Ok((next, ver))
     }
 
     /// Cho phép gõ tắt cả khi đang tắt tiếng Việt.

@@ -105,7 +105,9 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 - Escape khôi phục nguyên chuỗi phím đã gõ ở mọi thời điểm.
 - Chống vòng lặp phím (E28): gõ lặp dấu không sinh chu kỳ vô tận trên cả Telex, VNI và VIQR.
 - Gõ tắt (macro) theo kiểu chữ (HD→HỢP ĐỒNG), hoạt động được cả khi tắt tiếng Việt.
-- Emoji gõ tắt; số tiền `=1.550.00đ` → chữ Việt; bảo vệ công thức Excel và định danh lập trình.
+- **Bảng chọn Emoji nhẹ chuẩn HĐH / MS Teams / iOS (`Ctrl+Alt+E`) & gõ nhanh `:shortcode:` (P12)**: ~280 emoji quen thuộc chia 8 nhóm (Gần đây MRU + 7 danh mục), tìm kiếm song ngữ Việt–Anh không dấu (`cười`/`cuoi`/`fire`/`tim`), tự mở rộng `:smile:`, `:fire:`, `:camon:` ngay khi gõ (kể cả chế độ Telex & EN, tự chặn ở ô mật khẩu/terminal/URL/công thức toán); render emoji màu thật cực nhẹ bằng Direct2D/DirectWrite (Windows, không cướp focus), `NSPanel` Apple Color Emoji (macOS), và `IBusLookupTable`/`CommonCandidateList` (Linux X11 + Wayland).
+- **Math & Science trên mọi editor (`Ctrl+Shift+M` / `Ctrl+Alt+M`, [MATH_SCIENCE_GUIDE.md](docs/MATH_SCIENCE_GUIDE.md))**: bật là dùng ngay trên Notepad, Word, VS Code, Chrome, Teams, terminal (cả Mode VI lẫn EN) — gõ leader chords (`` `a ``→`α`, `` `/ ``→`\frac{}{}` tự đặt con trỏ vào `{}`), alias (`\can`, `\alpha`), tính nhanh `=2+3=`, tự tạm dừng tiếng Việt trong `$...$`/`\(...\)` và tự bật lại trong `\text{...}`.
+- Số tiền `=1.550.00đ` → chữ Việt; bảo vệ công thức Excel và định danh lập trình.
 
 ### 4. Trợ Lý Ngữ Pháp Câu & Từ Ngữ Cảnh On-Device
 - 15 loại lỗi phát hiện tự động: lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển âm tiết dựng sẵn), ngày tháng vô lý (31/02, 32/13), số tiền phân cách hỗn loạn (1.250.00đ).
@@ -349,7 +351,9 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 - Escape key immediately restores raw original keystrokes at any point.
 - Anti-key-loop protection (E28): repeated tone keys never produce infinite cycles across Telex, VNI, and VIQR.
 - Text macros with case style awareness (HD → HỢP ĐỒNG), functional even when Vietnamese typing is toggled off.
-- Emoji shortcuts; `=1.550.00đ` currency to Vietnamese words; Excel formula and programming identifier protection.
+- **Ultra-lightweight OS / MS Teams / iOS-style Emoji Picker (`Ctrl+Alt+E`) & inline `:shortcode:` expansion (P12)**: ~280 familiar emojis across 8 categories (MRU Recent + 7 tabs), diacritic-insensitive bilingual Vietnamese/English search (`cười`/`cuoi`/`fire`/`tim`), instant `:smile:`, `:fire:`, `:camon:` expansion in both Telex and EN modes (auto-blocked in passwords, terminals, URLs, and math spans); native color-emoji rendering with Direct2D/DirectWrite (Windows, non-activating), Apple Color Emoji `NSPanel` (macOS), and `IBusLookupTable`/`CommonCandidateList` (Linux X11 + Wayland).
+- **Universal Math & Science across every editor (`Ctrl+Shift+M` / `Ctrl+Alt+M`, [MATH_SCIENCE_GUIDE.md](docs/MATH_SCIENCE_GUIDE.md))**: works immediately upon enabling in Notepad, Word, VS Code, Chrome, Teams, and terminals (both VI and EN modes) — leader chords (`` `a ``→`α`, `` `/ ``→`\frac{}{}` with automatic caret placement inside `{}`), aliases (`\can`, `\alpha`), quick calculator `=2+3=`, automatic Vietnamese suspension inside `$...$`/`\(...\)` and resumption inside `\text{...}`.
+- `=1.550.00đ` currency to Vietnamese words; Excel formula and programming identifier protection.
 
 ### 4. On-Device Grammar & Context Assistant
 - 15 issue types: word repeats, 2–4-word phrase repeats, punctuation spacing, sentence-case, diacritic typos, double negatives, end-of-sentence commas, post-conjunction commas, a/an articles, easily-confused English words, lowercase pronoun "i", English spelling (OS spell), Vietnamese spelling (built-in syllable dictionary), impossible dates (31/02, 32/13), inconsistent money grouping (1.250.00đ).

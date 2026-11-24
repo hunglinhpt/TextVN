@@ -12,6 +12,7 @@
 #include "textvn_ffi.h"
 #include "linux_common.h"
 #include "lc_compose.h"
+#include "lc_emoji.h"
 
 G_BEGIN_DECLS
 
@@ -58,6 +59,9 @@ struct _TextVNIbusEngine {
     uint32_t              assist_undo_replacement_glyphs;
     char                  assist_undo_original_tail[LC_MAX_SENTENCE_FIX_CHARS];
     char                  assist_undo_replacement[LC_MAX_SENTENCE_FIX_CHARS];
+
+    /* P12: Bộ chọn Emoji nhẹ qua IBusLookupTable (X11 + Wayland) */
+    lc_emoji_picker       emoji;
 };
 
 struct _TextVNIbusEngineClass {

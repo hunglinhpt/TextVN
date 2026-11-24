@@ -85,6 +85,20 @@ final class IMKTextTarget: TextTarget {
         return true
     }
 
+    /// P11/E62: dịch con trỏ sang trái `count` bước qua `moveLeft:` chuẩn của AppKit/IMK
+    /// (không cần quyền Accessibility).
+    func moveLeft(count: Int) {
+        let steps = min(max(0, count), 64)
+        guard steps > 0 else { return }
+        let object = client as AnyObject
+        guard object.responds(to: #selector(TextCommandTarget.doCommand(by:))) else { return }
+        let selector = #selector(NSResponder.moveLeft(_:))
+        let target = unsafeBitCast(object, to: TextCommandTarget.self)
+        for _ in 0..<steps {
+            target.doCommand(by: selector)
+        }
+    }
+
     /// Text ngay trước caret — **precondition D12** (R-2/R-7): trước khi xoá để
     /// tự sửa, adapter phải xác minh vùng sắp xoá **đúng** là đuôi câu mà
     /// engine biết; không xác minh được ⇒ **không sửa** (fail-safe).

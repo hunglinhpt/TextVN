@@ -7,6 +7,7 @@
 
 pub mod caps;
 pub mod emoji;
+pub mod emoji_catalog;
 pub mod r#macro;
 pub mod number_vn;
 pub mod predict;

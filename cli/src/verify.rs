@@ -206,6 +206,9 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_style_note_correction",
         "ime_style_profile_drain",
         "ime_style_profile_persist",
+        // P12: Emoji Picker nhẹ — tìm kiếm VI/EN không dấu + ghi nhận MRU/Dream RSI.
+        "ime_emoji_search",
+        "ime_emoji_record_use",
     ]
 }
 
@@ -233,7 +236,7 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 delete_count,
                 insert_len,
                 preedit_len,
-                _reserved,
+                cursor_left,
                 flags,
                 insert,
                 preedit,

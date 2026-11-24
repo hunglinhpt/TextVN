@@ -374,6 +374,32 @@ pub fn send_style_update_async(json: String) {
     drop(spawn);
 }
 
+/// Gửi lệnh điều khiển một chiều (ToggleMath / CycleMathMode / OpenEmojiPicker) lên tray
+/// trên thread nền (fire-and-forget, xác thực `server_is_textvn`, fail-open khi tray tắt).
+pub fn send_command_async(msg: Message) {
+    let spawn = std::thread::Builder::new()
+        .name("textvn-tsf-cmd".into())
+        .spawn(move || {
+            let mut opened: Option<std::fs::File> = None;
+            for name in pipe_name_candidates() {
+                match textvn_ipc::pipe_client_options().open(&name) {
+                    Ok(stream) if server_is_textvn(&stream) => {
+                        opened = Some(stream);
+                        break;
+                    }
+                    Ok(stream) => drop(stream),
+                    Err(_) => continue,
+                }
+            }
+            let Some(mut stream) = opened else {
+                return;
+            };
+            let _ = send_message(&mut stream, &msg);
+            let _ = read_next_message(&mut stream);
+        });
+    drop(spawn);
+}
+
 /// `%APPDATA%\TextVN\state.json` → map trạng thái (`"*"` = toàn cục).
 /// Debounce phía TIP cho phím chuyển Ctrl+Shift — khớp cửa sổ 250ms phía tray
 /// (`textvn_tray::try_claim_global_toggle`): một lần bấm được MỌI bên nhìn thấy

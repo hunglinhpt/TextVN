@@ -149,6 +149,10 @@ pub struct TsfShared {
     pub overlay: crate::overlay::CandidateOverlay,
     /// R2-134: chữ mờ gợi ý sẵn (ghost text) sau con trỏ.
     pub ghost: crate::ghost::GhostText,
+    /// P12: Bảng chọn Emoji nhẹ (Direct2D/DirectWrite màu thật, không cướp focus).
+    pub emoji_picker: crate::emoji_picker::EmojiPicker,
+    /// Ngữ cảnh TSF khi mở Emoji Picker (dùng cho callback click chuột).
+    pub emoji_ctx: RefCell<Option<ITfContext>>,
     /// Lỗi/câu/caret của overlay đang hiện (AS-031 · A2). `None` = overlay tắt.
     pub assist: RefCell<Option<ActiveAssist>>,
     /// Trạng thái hoàn tác tự sửa cả câu (AS-050 · Mode 2 / A3). `None` = không có undo hoặc đã hết hạn.
@@ -174,6 +178,8 @@ impl TsfShared {
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
             ghost: crate::ghost::GhostText::new(),
+            emoji_picker: crate::emoji_picker::EmojiPicker::new(),
+            emoji_ctx: RefCell::new(None),
             assist: RefCell::new(None),
             assist_undo: RefCell::new(None),
         }
@@ -244,8 +250,10 @@ impl TsfShared {
                 .thread
                 .try_borrow()
                 .map(|t| {
-                    // Terminal: Mode EN phải đưa phím thẳng tới app (vim, less).
-                    t.macro_when_off() || (t.suggest_enabled() && !t.engine.is_terminal())
+                    // Terminal: Mode EN đưa phím thẳng cho app (vim, less) trừ khi Math hoặc macro_when_off bật.
+                    t.macro_when_off()
+                        || t.math_enabled()
+                        || (t.suggest_enabled() && !t.engine.is_terminal())
                 })
                 .unwrap_or(false);
         (vi_on || passthrough_on).then_some(vi_on)
@@ -1119,8 +1127,156 @@ pub fn apply_ctrl_tap_in_context(shared: &Rc<TsfShared>, fallback_ctx: Option<&I
 #[cfg(windows)]
 pub fn hide_assist_overlay(shared: &TsfShared) {
     shared.overlay.hide();
+    shared.emoji_picker.hide();
+    if let Ok(mut slot) = shared.emoji_ctx.try_borrow_mut() {
+        *slot = None;
+    }
     if let Ok(mut slot) = shared.assist.try_borrow_mut() {
         *slot = None;
+    }
+}
+
+/// P12: mở hoặc đóng bảng chọn Emoji (Ctrl+Alt+E) neo gần vị trí caret hiện tại.
+#[cfg(windows)]
+pub fn open_emoji_picker(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>) {
+    if shared.emoji_picker.is_visible() {
+        shared.emoji_picker.hide();
+        if let Ok(mut slot) = shared.emoji_ctx.try_borrow_mut() {
+            *slot = None;
+        }
+        return;
+    }
+    let weak = Rc::downgrade(shared);
+    shared.emoji_picker.set_click_handler(move |ev| {
+        let Some(sh) = weak.upgrade() else { return };
+        match ev {
+            crate::emoji_picker::ClickEvent::SwitchTab(cat) => {
+                let items = sh
+                    .thread
+                    .try_borrow()
+                    .map(|t| t.engine.emoji_search("", cat, 120))
+                    .unwrap_or_default();
+                sh.emoji_picker.set_items_and_redraw(items);
+            }
+            crate::emoji_picker::ClickEvent::CommitGlyph(glyph) => {
+                let saved_ctx = sh
+                    .emoji_ctx
+                    .try_borrow_mut()
+                    .ok()
+                    .and_then(|mut s| s.take());
+                commit_emoji_glyph(&sh, saved_ctx.as_ref(), &glyph);
+            }
+        }
+    });
+    if let Ok(mut slot) = shared.emoji_ctx.try_borrow_mut() {
+        *slot = ctx.cloned();
+    }
+    let items = shared
+        .thread
+        .try_borrow()
+        .map(|t| t.engine.emoji_search("", 0, 120))
+        .unwrap_or_default();
+    let anchor = caret_screen_anchor();
+    shared.emoji_picker.show(anchor, items);
+}
+
+/// P12: lấy tọa độ màn hình của caret (GetGUIThreadInfo + ClientToScreen), không cần edit session.
+#[cfg(windows)]
+fn caret_screen_anchor() -> Option<(i32, i32, i32)> {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::Graphics::Gdi::ClientToScreen;
+    use windows::Win32::UI::WindowsAndMessaging::{GetGUIThreadInfo, GUITHREADINFO};
+    unsafe {
+        let mut info = GUITHREADINFO {
+            cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+            ..Default::default()
+        };
+        if GetGUIThreadInfo(0, &mut info).is_ok()
+            && !info.hwndCaret.is_invalid()
+            && (info.rcCaret.right > info.rcCaret.left || info.rcCaret.bottom > info.rcCaret.top)
+        {
+            let mut tl = POINT {
+                x: info.rcCaret.left,
+                y: info.rcCaret.top,
+            };
+            let mut br = POINT {
+                x: info.rcCaret.right,
+                y: info.rcCaret.bottom,
+            };
+            if ClientToScreen(info.hwndCaret, &mut tl).as_bool()
+                && ClientToScreen(info.hwndCaret, &mut br).as_bool()
+            {
+                return Some((tl.x, tl.y, br.y.max(tl.y + 18)));
+            }
+        }
+    }
+    None
+}
+
+/// P12: chèn 1 glyph emoji (UTF-16 surrogate-safe) vào vị trí con trỏ qua `ITfEditSession`
+/// và ghi nhận MRU + Dream RSI (G19).
+#[cfg(windows)]
+pub fn commit_emoji_glyph(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, glyph: &str) {
+    if glyph.is_empty() {
+        return;
+    }
+    if let Ok(mut thread) = shared.thread.try_borrow_mut() {
+        thread.engine.emoji_record_use(glyph);
+    }
+    let Some(ctx) = ctx else {
+        return;
+    };
+    let session: ITfEditSession =
+        EmojiCommitSession::new(shared.clone(), ctx.clone(), glyph.to_string()).into();
+    let _ = request_sync_or_async(ctx, shared.tid, &session);
+}
+
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+struct EmojiCommitSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+    glyph: String,
+}
+
+#[cfg(windows)]
+impl EmojiCommitSession {
+    fn new(shared: Rc<TsfShared>, ctx: ITfContext, glyph: String) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+            glyph,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for EmojiCommitSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let chars: Vec<char> = self.glyph.chars().collect();
+        let wide = to_wide_nul(&chars);
+        let body = &wide[..wide.len().saturating_sub(1)];
+        if body.is_empty() {
+            return Ok(());
+        }
+        // SAFETY: gọi trong edit session với `ec` hợp lệ; kết thúc mọi composition cũ trước khi chèn.
+        unsafe {
+            if let Ok(mut comp) = self.shared.composition.try_borrow_mut() {
+                if let Some(c) = comp.take() {
+                    let _ = c.EndComposition(ec);
+                }
+            }
+            if let Ok(mut text) = self.shared.comp_text.try_borrow_mut() {
+                text.clear();
+            }
+            if let Some(sel) = selection_range(&self.ctx, ec) {
+                let _ = sel.SetText(ec, 0, body);
+                set_caret_after(&self.ctx, ec, &sel);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -2480,9 +2636,11 @@ fn apply_plan(
             if plan.end {
                 if let Some(c) = comp.take() {
                     if let Ok(range) = c.GetRange() {
-                        // P11 math: dịch con trỏ trái N ký tự (path TSF-Aware spec §3.2).
-                        shift_caret_left(ctx, ec, &range, plan.cursor_left);
-                        set_caret_after(ctx, ec, &range);
+                        // P11/E62 math: dịch con trỏ trái N ký tự (path TSF-Aware spec §3.2).
+                        // Chỉ fallback sang set_caret_after khi cursor_left == 0 hoặc shift thất bại.
+                        if !shift_caret_left(ctx, ec, &range, plan.cursor_left) {
+                            set_caret_after(ctx, ec, &range);
+                        }
                     }
                     let _ = c.EndComposition(ec);
                 }
@@ -2639,25 +2797,46 @@ fn tsf_caret_anchor(ctx: &ITfContext, ec: u32) -> Option<Anchor> {
     }
 }
 
-/// Đặt caret (selection rỗng) ngay sau `range`.
+/// P11/E62 math — dịch con trỏ trái `steps` ký tự sau khi commit text math
+/// (con trỏ rơi vào placeholder đầu tiên của template `\frac{}{}`).
+/// Trả `true` khi đã đặt selection thành công; `false` → caller fallback `set_caret_after`.
 #[cfg(windows)]
-/// P11 math — dịch con trỏ trái `steps` ký tự sau khi commit text math
-/// (con trỏ rơi vào placeholder đầu tiên của template `rac{}{}`).
-/// Path TSF-Aware: ShiftStart âm trên range caret rồi để set_caret_after
-/// đặt selection. Lỗi → bỏ qua lặng lẽ (không bao giờ hỏng document).
-pub(crate) fn shift_caret_left(_ctx: &ITfContext, ec: u32, range: &ITfRange, steps: u16) {
+pub(crate) fn shift_caret_left(ctx: &ITfContext, ec: u32, range: &ITfRange, steps: u16) -> bool {
     if steps == 0 {
-        return;
+        return false;
     }
     // SAFETY: gọi trong edit session với `ec` hợp lệ (cùng lưới set_caret_after).
     unsafe {
-        let Ok(caret) = range.Clone() else { return };
+        let Ok(caret) = range.Clone() else {
+            return false;
+        };
         if caret.Collapse(ec, TF_ANCHOR_END).is_err() {
-            return;
+            return false;
         }
-        let n = -(i32::from(steps.min(16)));
+        let n = -(i32::from(steps.min(64)));
         let mut shifted: i32 = 0;
-        let _ = caret.ShiftStart(ec, n, &mut shifted, std::ptr::null());
+        if caret
+            .ShiftStart(ec, n, &mut shifted, std::ptr::null())
+            .is_err()
+        {
+            return false;
+        }
+        if caret.Collapse(ec, TF_ANCHOR_START).is_err() {
+            return false;
+        }
+        let mut sel = [TF_SELECTION {
+            range: std::mem::ManuallyDrop::new(Some(caret)),
+            style: TF_SELECTIONSTYLE {
+                ase: TF_AE_NONE,
+                fInterimChar: false.into(),
+            },
+        }];
+        let ok = ctx.SetSelection(ec, &sel).is_ok();
+        drop(std::mem::ManuallyDrop::into_inner(std::mem::replace(
+            &mut sel[0].range,
+            std::mem::ManuallyDrop::new(None),
+        )));
+        ok
     }
 }
 

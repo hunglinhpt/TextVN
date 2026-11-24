@@ -15,6 +15,7 @@ pub mod doc;
 pub mod macro_text;
 
 pub use doc::{DocError, DocKind, SettingsDoc};
+pub use textvn_math::{MathConfig, MathOutputMode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]

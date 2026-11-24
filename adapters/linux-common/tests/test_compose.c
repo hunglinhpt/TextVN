@@ -835,6 +835,45 @@ static void test_mode_en_prediction_passthrough(void) {
     ime_instance_free(inst);
 }
 
+static void test_e62_math_plan(void) {
+    /* 1) Backtick arm chord: ACTION_PASS | IME_FLAG_CONSUMED → eaten=1, không đưa vào preedit. */
+    lc_comp cur;
+    memset(&cur, 0, sizeof(cur));
+    ime_result_v1 r;
+    memset(&r, 0, sizeof(r));
+    r.abi_version = IME_ABI_VERSION;
+    r.action = IME_ACTION_PASS;
+    r.flags = IME_FLAG_CONSUMED;
+    lc_plan plan;
+    lc_plan_key(&cur, (lc_key){ LC_KEY_CHAR, '`' }, &r, &plan);
+    assert(plan.eaten == 1 && plan.has_text == 0 && plan.end == 0);
+
+    /* 2) `\frac{}{}`: ACTION_REPLACE giữ nguyên cursor_left = 3. */
+    memset(&r, 0, sizeof(r));
+    r.abi_version = IME_ABI_VERSION;
+    r.action = IME_ACTION_REPLACE;
+    r.flags = IME_FLAG_CONSUMED | IME_FLAG_WORD_END;
+    r.cursor_left = 3;
+    const char *frac = "\\frac{}{}";
+    r.insert_len = (uint16_t)strlen(frac);
+    for (size_t i = 0; i < r.insert_len; i++) r.insert[i] = (uint32_t)(unsigned char)frac[i];
+    lc_plan_key(&cur, (lc_key){ LC_KEY_CHAR, '/' }, &r, &plan);
+    assert(plan.eaten == 1 && plan.end == 1 && plan.cursor_left == 3);
+    assert(plan.text_len == strlen(frac));
+
+    /* 3) `\can` + Enter: ACTION_REPLACE có `\n` cuối → bỏ `\n`, eaten=0 trả Enter thật. */
+    memset(&r, 0, sizeof(r));
+    r.abi_version = IME_ABI_VERSION;
+    r.action = IME_ACTION_REPLACE;
+    r.flags = IME_FLAG_CONSUMED | IME_FLAG_WORD_END;
+    r.insert[0] = 0x221Au; /* √ */
+    r.insert[1] = 'x';
+    r.insert[2] = '\n';
+    r.insert_len = 3;
+    lc_plan_key(&cur, (lc_key){ LC_KEY_ENTER, 0 }, &r, &plan);
+    assert(plan.eaten == 0 && plan.end == 1 && plan.text_len == 2);
+}
+
 int main(void) {
     test_classify();
     test_typing();
@@ -856,6 +895,7 @@ int main(void) {
     test_transcode_hotkey();
     test_transcode_selection_slice();
     test_macro_when_vi_off();
+    test_e62_math_plan();
     test_find_settings_binary();
     printf("test_compose: OK\n");
     return 0;

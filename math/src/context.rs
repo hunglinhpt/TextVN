@@ -17,6 +17,12 @@ pub struct MathContextFsm {
     stack: [SpanKind; MAX_STACK],
     depth: usize,
     in_math: bool,
+    tail: [char; 16],
+    tail_len: usize,
+    esc_pending: bool,
+    just_opened_dollar: bool,
+    closing_block_dollar: bool,
+    text_brace_depth: usize,
 }
 
 impl Default for MathContextFsm {
@@ -31,6 +37,12 @@ impl MathContextFsm {
             stack: [SpanKind::Math; MAX_STACK],
             depth: 0,
             in_math: false,
+            tail: ['\0'; 16],
+            tail_len: 0,
+            esc_pending: false,
+            just_opened_dollar: false,
+            closing_block_dollar: false,
+            text_brace_depth: 0,
         }
     }
 
@@ -43,7 +55,7 @@ impl MathContextFsm {
     }
 
     pub fn vietnamese_suspended(&self) -> bool {
-        self.in_math && self.current() == SpanKind::Math
+        self.in_math && !self.in_text_span()
     }
 
     pub fn in_text_span(&self) -> bool {
@@ -129,15 +141,140 @@ impl MathContextFsm {
         self.in_math
     }
 
-    /// Feed a text character for delimiter tracking
+    fn push_tail(&mut self, c: char) {
+        if self.tail_len < self.tail.len() {
+            self.tail[self.tail_len] = c;
+            self.tail_len += 1;
+        } else {
+            self.tail.copy_within(1.., 0);
+            self.tail[self.tail.len() - 1] = c;
+        }
+    }
+
+    fn tail_ends_with_cmd(&self, cmd: &str) -> bool {
+        let cmd_len = cmd.chars().count();
+        if self.tail_len < cmd_len {
+            return false;
+        }
+        let start = self.tail_len - cmd_len;
+        let matches = self.tail[start..self.tail_len]
+            .iter()
+            .copied()
+            .eq(cmd.chars());
+        // Tránh khớp `\\text` (backslash kép là xuống dòng LaTeX).
+        let unescaped = start == 0 || self.tail[start - 1] != '\\';
+        matches && unescaped
+    }
+
+    fn tail_closing_brace_cmd(&self, prefix: &str) -> bool {
+        // Khớp `<prefix>{<env>` ở đuôi tail khi `c == '}'`, với `<env>` chỉ gồm chữ cái/số/`*`.
+        let brace_pos = self.tail[..self.tail_len].iter().rposition(|&ch| ch == '{');
+        let Some(bp) = brace_pos else {
+            return false;
+        };
+        let env = &self.tail[bp + 1..self.tail_len];
+        if env.is_empty()
+            || !env
+                .iter()
+                .all(|ch| ch.is_ascii_alphanumeric() || *ch == '*')
+        {
+            return false;
+        }
+        let pref_len = prefix.chars().count();
+        if bp < pref_len {
+            return false;
+        }
+        let start = bp - pref_len;
+        let matches = self.tail[start..bp].iter().copied().eq(prefix.chars());
+        let unescaped = start == 0 || self.tail[start - 1] != '\\';
+        matches && unescaped
+    }
+
+    /// Feed a text character for delimiter tracking (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`,
+    /// `\begin{...}...\end{...}`, `\text{...}`, và `\$`/`\{`/`\}` escape).
     pub fn feed_text_char(&mut self, c: char) {
+        if self.esc_pending {
+            self.esc_pending = false;
+            self.just_opened_dollar = false;
+            self.closing_block_dollar = false;
+            match c {
+                '(' if !self.in_math() => self.enter_math(false),
+                ')' if self.depth > 0 && self.current() == SpanKind::InlineMath => self.exit_math(),
+                '[' if !self.in_math() => self.enter_math(true),
+                ']' if self.depth > 0 && self.current() == SpanKind::BlockMath => self.exit_math(),
+                _ => {}
+            }
+            self.push_tail(c);
+            return;
+        }
+
+        if c == '\\' {
+            self.just_opened_dollar = false;
+            self.closing_block_dollar = false;
+            self.esc_pending = true;
+            self.push_tail(c);
+            return;
+        }
+
+        if self.in_text_span() {
+            if c == '{' {
+                self.text_brace_depth += 1;
+            } else if c == '}' {
+                self.text_brace_depth = self.text_brace_depth.saturating_sub(1);
+                if self.text_brace_depth == 0 {
+                    self.pop();
+                }
+            }
+            self.push_tail(c);
+            return;
+        }
+
         if c == '$' {
-            if self.in_math() {
+            if self.just_opened_dollar && self.depth > 0 && self.current() == SpanKind::InlineMath {
+                self.just_opened_dollar = false;
+                self.stack[self.depth - 1] = SpanKind::BlockMath;
+                self.in_math = true;
+            } else if self.depth > 0 && self.current() == SpanKind::BlockMath {
+                if self.closing_block_dollar {
+                    self.closing_block_dollar = false;
+                    self.exit_math();
+                } else {
+                    self.closing_block_dollar = true;
+                }
+            } else if self.in_math() {
                 self.exit_math();
             } else {
                 self.enter_math(false);
+                self.just_opened_dollar = true;
+            }
+            self.push_tail(c);
+            return;
+        }
+
+        self.just_opened_dollar = false;
+        self.closing_block_dollar = false;
+
+        if c == '{'
+            && self.in_math()
+            && (self.tail_ends_with_cmd("\\text")
+                || self.tail_ends_with_cmd("\\textrm")
+                || self.tail_ends_with_cmd("\\mbox")
+                || self.tail_ends_with_cmd("\\textbf"))
+        {
+            self.enter_text_in_math();
+            self.text_brace_depth = 1;
+        } else if c == '}' {
+            if self.tail_closing_brace_cmd("\\begin") && !self.in_math() {
+                self.enter_math(true);
+            } else if self.tail_closing_brace_cmd("\\end")
+                && self.depth > 0
+                && self.current() == SpanKind::BlockMath
+            {
+                self.exit_math();
             }
         }
+
+        self.push_tail(c);
     }
 
     /// Feed a text slice for delimiter tracking
@@ -156,8 +293,10 @@ mod tests {
     fn enter_exit_math() {
         let mut fsm = MathContextFsm::new();
         assert!(!fsm.in_math());
+        assert!(!fsm.vietnamese_suspended());
         fsm.enter_math(false);
         assert!(fsm.in_math());
+        assert!(fsm.vietnamese_suspended());
         fsm.exit_math();
         assert!(!fsm.in_math());
     }
@@ -174,7 +313,29 @@ mod tests {
         let mut fsm = MathContextFsm::new();
         fsm.feed_text_char('$');
         assert!(fsm.in_math());
+        assert!(fsm.vietnamese_suspended());
+        fsm.feed_text_char('x');
         fsm.feed_text_char('$');
+        assert!(!fsm.in_math());
+    }
+
+    #[test]
+    fn escaped_block_paren_and_text_spans() {
+        let mut fsm = MathContextFsm::new();
+        fsm.feed_text("\\$50");
+        assert!(!fsm.in_math());
+        fsm.feed_text("$$x^2$$");
+        assert!(!fsm.in_math());
+        fsm.feed_text("\\(a+b\\)");
+        assert!(!fsm.in_math());
+        fsm.feed_text("\\[x_1\\]");
+        assert!(!fsm.in_math());
+        fsm.feed_text("$x + \\text{với ");
+        assert!(fsm.in_text_span());
+        assert!(!fsm.vietnamese_suspended());
+        fsm.feed_text("} y$");
+        assert!(!fsm.in_math());
+        fsm.feed_text("\\begin{equation}a_{11}\\end{equation}");
         assert!(!fsm.in_math());
     }
 }

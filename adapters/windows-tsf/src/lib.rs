@@ -11,14 +11,16 @@
 
 use textvn_appdb::{AppDb, EngineOwner};
 use textvn_ffi::{
-    ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
-    ime_reset, ime_result_v1, ime_set_context, IME_ABI_VERSION, IME_OK,
+    ime_context_v1, ime_emoji_record_use, ime_emoji_search, ime_instance, ime_instance_free,
+    ime_instance_new, ime_key, ime_key_v1, ime_reset, ime_result_v1, ime_set_context,
+    IME_ABI_VERSION, IME_OK,
 };
 use textvn_field_detect::{rules_win::UiaElement, FieldContext, ProbeSnapshot, SecurityState};
 use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_SEARCH};
 
 pub mod assist;
 pub mod compose;
+pub mod emoji_picker;
 #[cfg(windows)]
 pub mod os_spell;
 pub mod overlay;
@@ -286,6 +288,11 @@ pub struct ThreadState {
     macro_when_off: bool,
     /// `config.suggest.enabled`: khi bật, Mode EN vẫn đi qua engine (passthrough) để dự đoán tiếng Anh.
     suggest_enabled: bool,
+    /// P11/E62: `config.math.enabled` — khi bật, Mode EN và mọi editor/terminal đều đi qua engine
+    /// để gõ công thức (`a, \can, =2+3=, $...$).
+    math_enabled: bool,
+    /// P11/E62: `config.math.altgr_enabled` — cho phép phím tắt AltGr (`Ctrl+Alt+<phím>`) vào engine.
+    math_altgr_enabled: bool,
     /// `config.assist.auto_fix` của lần nạp config gần nhất (AS-050 · Mode 2 / A3).
     assist_auto_fix: textvn_config::AssistAutoFix,
     /// `config.assist.mode` của lần nạp config gần nhất (AS-050 · Mode 1/2).
@@ -329,6 +336,8 @@ impl ThreadState {
             user_enabled: None,
             macro_when_off: false,
             suggest_enabled: textvn_config::SuggestSettings::default().enabled,
+            math_enabled: textvn_config::Config::default().math.enabled,
+            math_altgr_enabled: textvn_config::Config::default().math.altgr_enabled,
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
             // Vòng 34 (audit A2): fresh-install chưa có config.json — enum
             // `#[default] Off` làm trợ lý CHẾT hoàn toàn (đúng lớp lỗi F-A mà
@@ -463,6 +472,8 @@ impl ThreadState {
         {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
             self.suggest_enabled = cfg.suggest.enabled;
+            self.math_enabled = cfg.math.enabled;
+            self.math_altgr_enabled = cfg.math.altgr_enabled;
             self.assist_auto_fix = cfg.assist.auto_fix;
             self.assist_mode = cfg.assist.mode;
             self.auto_capitalize = cfg.auto_capitalize;
@@ -482,6 +493,16 @@ impl ThreadState {
     /// để gợi ý/hoàn tất từ và cụm tiếng Anh.
     pub fn suggest_enabled(&self) -> bool {
         self.suggest_enabled
+    }
+
+    /// P11/E62: "Math & Science" đang bật — cho phép gõ công thức ở mọi editor và Mode EN.
+    pub fn math_enabled(&self) -> bool {
+        self.math_enabled
+    }
+
+    /// P11/E62: lớp phím tắt AltGr (`Ctrl+Alt+<phím>`) của Math & Science đang bật.
+    pub fn math_altgr_enabled(&self) -> bool {
+        self.math_altgr_enabled
     }
 
     /// Cấu hình tự sửa cả câu (AS-050 · Mode 2 / A3).
@@ -782,6 +803,40 @@ impl EngineSession {
     pub fn reject_edit_session(&mut self) -> EditSessionResult {
         let _ = ime_reset(self.instance);
         EditSessionResult::RejectedResetEngine
+    }
+
+    /// P12: tìm kiếm emoji (VI/EN không dấu + MRU của engine).
+    pub fn emoji_search(
+        &self,
+        query: &str,
+        category: u8,
+        limit: u32,
+    ) -> Vec<emoji_picker::EmojiItem> {
+        let mut buf = [0u8; 8192];
+        let mut out_len = 0usize;
+        let rc = ime_emoji_search(
+            self.instance,
+            query.as_ptr(),
+            query.len(),
+            category,
+            limit,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut out_len,
+        );
+        if rc != IME_OK || out_len == 0 {
+            return Vec::new();
+        }
+        std::str::from_utf8(&buf[..out_len])
+            .map(emoji_picker::parse_emoji_tsv)
+            .unwrap_or_default()
+    }
+
+    /// P12 + G19: ghi nhận emoji vừa chọn để cập nhật MRU & Dream RSI.
+    pub fn emoji_record_use(&mut self, glyph: &str) {
+        if !glyph.is_empty() {
+            let _ = ime_emoji_record_use(self.instance, glyph.as_ptr(), glyph.len());
+        }
     }
 
     /// Authorize SelectionReplace against adapter-owned text. Khi không chứng

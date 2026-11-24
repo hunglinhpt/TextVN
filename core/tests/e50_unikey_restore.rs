@@ -14,10 +14,20 @@ use textvn_core::method::{fold, Method};
 use textvn_core::transform::DiacriticStyle;
 use textvn_core::{Action, Context, Engine, EngineOptions, KeyEvent};
 
-/// Helper: gõ một chuỗi qua engine
+/// Helper: gõ một chuỗi qua engine (dùng đúng vk::SPACE/RETURN/TAB giống adapter thật)
 fn type_keys(e: &mut Engine, keys: &str, buf: &mut Vec<char>) {
     for c in keys.chars() {
-        let k = KeyEvent::char_down(c);
+        let k = match c {
+            ' ' => KeyEvent {
+                vk: keymap::vk::SPACE,
+                ch: ' ' as u32,
+                key_down: true,
+                ..Default::default()
+            },
+            '\n' => KeyEvent::key_down(keymap::vk::RETURN),
+            '\t' => KeyEvent::key_down(keymap::vk::TAB),
+            _ => KeyEvent::char_down(c),
+        };
         let outcome = e.key(&k);
         match outcome.action {
             Action::Pass => buf.push(c),
@@ -515,7 +525,7 @@ fn e60_freq3000_unikey_undo_sweep() {
                 undo_seq.extend(&chars[idx + 1..]);
                 if matches!(
                     undo_seq.as_str(),
-                    "off" | "ass" | "loss" | "less" | "arr" | "ess"
+                    "off" | "ass" | "loss" | "less" | "arr" | "ess" | "marry"
                 ) {
                     continue;
                 }
@@ -537,4 +547,385 @@ fn e60_freq3000_unikey_undo_sweep() {
         checked,
         failures.join("\n")
     );
+}
+
+fn type_with_method(method: Method, auto_capitalize: bool, keys: &str) -> String {
+    let mut opts = EngineOptions {
+        method,
+        auto_capitalize,
+        ..Default::default()
+    };
+    opts.diacritic_style = DiacriticStyle::New;
+    type_with_opts(opts, IME_STRATEGY_PREEDIT, keys)
+}
+
+#[test]
+fn e61_tone_strip_z_and_vni_0_matrix() {
+    // BUG-1 (E61): `z` (Telex/SimpleTelex) và `0` (VNI) gỡ dấu thanh cuối từ phải giữ
+    // phần hiển thị thay vì bung ngược phím dấu + `z`/`0` ra document, đồng thời từ EN
+    // thực thụ (`resize`, `serialize`, `quartz`, `hertz`) vẫn khôi phục nguyên văn.
+    for method in [Method::Telex, Method::SimpleTelex] {
+        for (typed, want) in [
+            ("vieetjz ", "viêt "),
+            ("dduowcjz ", "đươc "),
+            ("hocjz ", "hoc "),
+            ("depjz ", "dep "),
+            ("tetsz ", "tet "),
+            ("vietsz ", "viet "),
+            ("aszz ", "az "),
+            ("sirzz ", "siz "),
+            ("sirez ", "sie "),
+            ("taskz ", "tak "),
+            ("tooiszz ", "tôiz "),
+            ("quartz ", "quartz "),
+            ("hertz ", "hertz "),
+            ("megahertz ", "megahertz "),
+            ("resize ", "resize "),
+            ("serialize ", "serialize "),
+            ("normalize ", "normalize "),
+        ] {
+            assert_eq!(
+                type_with_method(method, false, typed),
+                want,
+                "E61 {method:?} `{typed}`"
+            );
+        }
+    }
+
+    for (typed, want) in [
+        ("d9uo7c50 ", "đươc "),
+        ("viet50 ", "viet "),
+        ("hoc50 ", "hoc "),
+        ("a100 ", "a0 "),
+    ] {
+        assert_eq!(
+            type_with_method(Method::Vni, false, typed),
+            want,
+            "E61 VNI `{typed}`"
+        );
+    }
+
+    // ESC ngay sau khi gỡ dấu bằng `z` giữ nguyên `viêt` trên màn hình.
+    let mut e = Engine::new(EngineOptions::default());
+    let mut buf: Vec<char> = Vec::new();
+    type_keys(&mut e, "vieetjz", &mut buf);
+    assert_eq!(buf.iter().collect::<String>(), "viêt");
+    let esc = KeyEvent {
+        vk: keymap::vk::ESCAPE,
+        key_down: true,
+        ..Default::default()
+    };
+    let out = e.key(&esc);
+    if let Action::Restore {
+        delete_count,
+        insert,
+    }
+    | Action::Replace {
+        delete_count,
+        insert,
+    } = out.action
+    {
+        buf.truncate(buf.len() - delete_count as usize);
+        buf.extend(insert);
+    }
+    assert_eq!(buf.iter().collect::<String>(), "viêt", "vieetjz + Esc");
+}
+
+#[test]
+fn e61_double_letters_scandinavian_and_tech_compounds() {
+    // BUG-2 & BUG-4: từ tiếng Anh phụ âm đôi thực thiếu trong 10k và họ `-sson` Bắc Âu
+    // không bị nuốt thành từ khác hoặc rớt phụ âm đôi.
+    let protected_en: &[(&str, &str)] = &[
+        ("dessert ", "dessert "),
+        ("desserts ", "desserts "),
+        ("marry ", "marry "),
+        ("married ", "married "),
+        ("scarred ", "scarred "),
+        ("scarring ", "scarring "),
+        ("busses ", "busses "),
+        ("bussing ", "bussing "),
+        ("buff ", "buff "),
+        ("buffing ", "buffing "),
+        ("lasses ", "lasses "),
+        ("diss ", "diss "),
+        ("doss ", "doss "),
+        ("dossed ", "dossed "),
+        ("garry ", "garry "),
+        ("furr ", "furr "),
+        ("marrry ", "marry "),
+        ("lass ", "las "),
+        ("buss ", "bus "),
+        ("lasser ", "laser "),
+        ("johnsson ", "johnson "),
+        ("furry ", "furry "),
+        ("newsstand ", "newsstand "),
+        ("transship ", "transship "),
+        ("transsonic ", "transsonic "),
+        ("andersson ", "andersson "),
+        ("johansson ", "johansson "),
+        ("larsson ", "larsson "),
+        ("svensson ", "svensson "),
+        ("carlsson ", "carlsson "),
+        ("nilsson ", "nilsson "),
+        ("persson ", "persson "),
+        ("olsson ", "olsson "),
+        ("wolff ", "wolff "),
+        ("orff ", "orff "),
+        ("dorff ", "dorff "),
+    ];
+    assert_matrix(protected_en, "E61 BUG-2/BUG-4 protected EN");
+
+    // BUG-3: thuật ngữ tech, số nhiều/chia từ, ghép 2 từ và PascalCase sau undo UniKey.
+    let tech_and_compounds: &[(&str, &str)] = &[
+        ("varrss ", "vars "),
+        ("sirrss ", "sirs "),
+        ("deffss ", "defs "),
+        ("reffss ", "refs "),
+        ("parrser ", "parser "),
+        ("parrsers ", "parsers "),
+        ("conffigs ", "configs "),
+        ("deffaults ", "defaults "),
+        ("spoooff ", "spoof "),
+        ("forrmatter ", "formatter "),
+        ("serrverless ", "serverless "),
+        ("lefftmost ", "leftmost "),
+        ("serrde ", "serde "),
+        ("macoss ", "macos "),
+        ("russtc ", "rustc "),
+        ("posstgres ", "postgres "),
+        ("dereff ", "deref "),
+        ("unreff ", "unref "),
+        ("esslint ", "eslint "),
+        ("wassm ", "wasm "),
+        ("axioss ", "axios "),
+        ("centoss ", "centos "),
+        ("varrname ", "varname "),
+        ("sirrname ", "sirname "),
+        ("tasskmgr ", "taskmgr "),
+        ("deffval ", "defval "),
+        ("reffcount ", "refcount "),
+        ("conffigfile ", "configfile "),
+        ("SerrdeJson ", "SerdeJson "),
+        ("CurrIdx ", "CurIdx "),
+        ("DereffPtr ", "DerefPtr "),
+        ("MacossApp ", "MacosApp "),
+    ];
+    assert_matrix(tech_and_compounds, "E61 BUG-3 tech & compounds");
+}
+
+#[test]
+fn e61_sentence_start_auto_cap_camel_and_switch_undo() {
+    // BUG-5: auto_capitalize ở đầu câu vẫn tách camelCase sau khi phần đầu đã undo UniKey,
+    // trong khi `Hello. bAn ` (OP-006 R1-4 chưa undo) vẫn giữ nguyên.
+    for (typed, want) in [
+        ("Hello. varrName ", "Hello. VarName "),
+        ("Hello. sirrName ", "Hello. SirName "),
+        ("Hello. tasskMgr ", "Hello. TaskMgr "),
+        ("Hello. deffVal ", "Hello. DefVal "),
+        ("Hello. reffCount ", "Hello. RefCount "),
+        ("Hello. possX ", "Hello. PosX "),
+        ("Hello. bAn ", "Hello. BAn "),
+    ] {
+        assert_eq!(type_and_get(typed), want, "E61 BUG-5 `{typed}`");
+    }
+
+    // BUG-6: đổi dấu thanh rồi undo (`asxx`/`a122`/`a'~~`) và đổi mũ<->sừng/trăng rồi undo
+    // (`aaww`/`fowoo`/`a688`/`a^((`).
+    for (method, typed, want) in [
+        (Method::Telex, "asxx ", "ax "),
+        (Method::Telex, "aaww ", "aw "),
+        (Method::Telex, "fowoo ", "foo "),
+        (Method::Vni, "a122 ", "a2 "),
+        (Method::Vni, "a688 ", "a8 "),
+        (Method::Viqr, "a'~~ ", "a~ "),
+        (Method::Viqr, "a^(( ", "a( "),
+    ] {
+        assert_eq!(
+            type_with_method(method, false, typed),
+            want,
+            "E61 BUG-6 {method:?} `{typed}`"
+        );
+    }
+
+    // BUG-9 & BUG-10: non-adjacent stroke undo từ `dd`/`d9`, giữ `deadend`, và `dduowok`.
+    assert_eq!(
+        type_with_method(Method::Telex, false, "ddad "),
+        "dad ",
+        "E61 BUG-9 ddad"
+    );
+    assert_eq!(
+        type_with_method(Method::Telex, false, "ddongd "),
+        "dongd ",
+        "E61 BUG-9 ddongd"
+    );
+    assert_eq!(
+        type_with_method(Method::Telex, false, "deadend "),
+        "deadend ",
+        "E61 BUG-9 deadend contrast"
+    );
+    assert_eq!(
+        type_with_method(Method::Vni, false, "d9a9 "),
+        "da9 ",
+        "E61 BUG-9 VNI d9a9"
+    );
+    assert_eq!(
+        type_with_method(Method::Telex, false, "dduowok "),
+        "dduowok ",
+        "E61 BUG-10 dduowok"
+    );
+}
+
+#[test]
+fn e61_space_complete_guard_for_undone_tokens() {
+    // BUG-7 + E61 Audit BUG-1: suggest_vn_complete + suggest_space_complete với vk::SPACE thật
+    // không được nuốt token vừa undo UniKey hay gỡ dấu `z` ở Space.
+    for (typed, want) in [
+        ("majj ", "maj "),
+        ("projj ", "proj "),
+        ("subjj ", "subj "),
+        ("adjj ", "adj "),
+        ("errr ", "err "),
+        ("Tassk ", "Task "),
+        ("tesst ", "test "),
+        ("aszz ", "az "),
+        ("hocjz ", "hoc "),
+        ("depjz ", "dep "),
+        ("vietsz ", "viet "),
+        ("sirzz ", "siz "),
+        ("sirez ", "sie "),
+        ("taskz ", "tak "),
+        ("vieetjz ", "viêt "),
+        ("dduowcjz ", "đươc "),
+    ] {
+        let opts = EngineOptions {
+            suggest_vn_complete: true,
+            suggest_space_complete: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            type_with_opts(opts, IME_STRATEGY_PREEDIT, typed),
+            want,
+            "E61 Space-complete guard `{typed}`"
+        );
+    }
+
+    // E61 Audit BUG-2: stderr, serverless và các từ EN phụ âm đôi thật / chia thì giữ nguyên vẹn.
+    let audit_en: &[(&str, &str)] = &[
+        ("stderr ", "stderr "),
+        ("serverless ", "serverless "),
+        ("perror ", "perror "),
+        ("barred ", "barred "),
+        ("barring ", "barring "),
+        ("preferring ", "preferring "),
+        ("transferring ", "transferring "),
+        ("gassed ", "gassed "),
+        ("gasses ", "gasses "),
+        ("gassing ", "gassing "),
+        ("masses ", "masses "),
+        ("massed ", "massed "),
+        ("bossed ", "bossed "),
+        ("bosses ", "bosses "),
+        ("tossed ", "tossed "),
+        ("tosses ", "tosses "),
+        ("messed ", "messed "),
+        ("messes ", "messes "),
+        ("passcode ", "passcode "),
+        ("passkey ", "passkey "),
+        ("passthrough ", "passthrough "),
+        ("passable ", "passable "),
+        ("compass ", "compass "),
+        ("compress ", "compress "),
+        ("repress ", "repress "),
+        ("regress ", "regress "),
+        ("redress ", "redress "),
+        ("waitress ", "waitress "),
+        ("fortress ", "fortress "),
+        ("hostess ", "hostess "),
+        ("goddess ", "goddess "),
+        ("forrester ", "forrester "),
+        ("caress ", "caress "),
+        ("recess ", "recess "),
+        ("sparrow ", "sparrow "),
+        ("ramirez ", "ramirez "),
+        ("horowitz ", "horowitz "),
+        ("suarez ", "suarez "),
+        ("alvarez ", "alvarez "),
+        ("schwarz ", "schwarz "),
+        ("kurtz ", "kurtz "),
+        ("ress ", "res "),
+        ("sirr ", "sir "),
+        ("reff ", "ref "),
+    ];
+    assert_matrix(audit_en, "E61 Audit BUG-2 EN/tech integrity");
+
+    // E61 Audit BUG-3 & BUG-4: ươ->uô qua 'o' giữ nguyên 'w' (`chuowot`, `muowoc`, `thuowo`),
+    // fallback `userssa`/`asffa`/`carffa` giữ nguyên, và `aszzBar` giữ `azBar`.
+    assert_eq!(
+        type_with_method(Method::Telex, false, "chuowot "),
+        "chuowot "
+    );
+    assert_eq!(type_with_method(Method::Telex, false, "muowoc "), "muowoc ");
+    assert_eq!(
+        type_with_method(Method::Telex, false, "userssa "),
+        "userssa "
+    );
+    assert_eq!(type_with_method(Method::Telex, false, "asffa "), "asffa ");
+    assert_eq!(type_with_method(Method::Telex, false, "carffa "), "carffa ");
+    assert_eq!(type_with_method(Method::Telex, false, "aszzBar "), "azBar ");
+
+    // E61 Pass-2 Audit: auto_capitalize + tone_strip + camelCase (`Hello. aszzBar`),
+    // từ EN thực (hisses/referrer/cutlass/windlass/focussed/biassed/martinez/ortiz),
+    // unstressed -er undo (bufferring/filterred/caterred) và uo_confirm_w khi `o` đổi `ươ`->`uô`.
+    for (typed, want) in [
+        ("Hello. aszzBar ", "Hello. AzBar "),
+        ("Hello. tetszBar ", "Hello. TetBar "),
+        ("Hello. vieetjzBar ", "Hello. ViêtBar "),
+        ("hisses ", "hisses "),
+        ("referrer ", "referrer "),
+        ("preferrer ", "preferrer "),
+        ("transferrer ", "transferrer "),
+        ("occurrer ", "occurrer "),
+        ("cutlass ", "cutlass "),
+        ("windlass ", "windlass "),
+        ("focussed ", "focussed "),
+        ("focussing ", "focussing "),
+        ("biassed ", "biassed "),
+        ("biasses ", "biasses "),
+        ("martinez ", "martinez "),
+        ("fernandez ", "fernandez "),
+        ("hernandez ", "hernandez "),
+        ("rodriguez ", "rodriguez "),
+        ("cortez ", "cortez "),
+        ("ortiz ", "ortiz "),
+        ("juarez ", "juarez "),
+        ("bufferring ", "buffering "),
+        ("bufferred ", "buffered "),
+        ("filterred ", "filtered "),
+        ("differred ", "differed "),
+        ("differring ", "differing "),
+        ("renderred ", "rendered "),
+        ("renderring ", "rendering "),
+        ("dduowoot ", "dduoot "),
+        ("dduowoww ", "dduow "),
+    ] {
+        assert_eq!(type_and_get(typed), want, "E61 Pass-2 `{typed}`");
+    }
+
+    let mut e = Engine::new(EngineOptions::default());
+    let mut buf = Vec::new();
+    type_keys(&mut e, "thuowo", &mut buf);
+    let out = e.key(&KeyEvent::key_down(keymap::vk::ESCAPE));
+    if let Action::Restore {
+        delete_count,
+        insert,
+    }
+    | Action::Replace {
+        delete_count,
+        insert,
+    } = out.action
+    {
+        buf.truncate(buf.len() - delete_count as usize);
+        buf.extend(insert);
+    }
+    assert_eq!(buf.iter().collect::<String>(), "thuowo");
 }

@@ -1791,6 +1791,113 @@ pub extern "C" fn ime_style_profile_persist(
     }
 }
 
+/// P12 — Tìm kiếm emoji nhẹ (song ngữ VI/EN không dấu + nhóm `0` Gần đây, `1..=7` nhóm, `0xFF` tất cả).
+///
+/// - `inst` có thể `NULL` (trả thứ tự danh mục mặc định không MRU — tiện cho Tray/UI độc lập).
+/// - `query_utf8` có thể `NULL` khi `query_len == 0` (truy vấn rỗng).
+/// - Ghi các dòng UTF-8 dạng `glyph\tshortcode\tcategory\n` (kết thúc bằng NUL) vào `out_buf`,
+///   luôn cắt tại ranh giới dòng (không bao giờ chẻ UTF-8). `*out_len` = số byte dữ liệu (không tính NUL).
+#[no_mangle]
+pub extern "C" fn ime_emoji_search(
+    inst: *const ime_instance,
+    query_utf8: *const u8,
+    query_len: usize,
+    category: u8,
+    limit: u32,
+    out_buf: *mut u8,
+    buf_len: usize,
+    out_len: *mut usize,
+) -> i32 {
+    if out_buf.is_null() || out_len.is_null() || buf_len == 0 {
+        return IME_ERR_INVALID_ARG;
+    }
+    if query_len > 0 && query_utf8.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let query = if query_len == 0 {
+        ""
+    } else {
+        let bytes = unsafe { slice::from_raw_parts(query_utf8, query_len.min(128)) };
+        match std::str::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => return IME_ERR_INVALID_ARG,
+        }
+    };
+    let cap = (limit as usize).clamp(1, 320);
+    let inst_ref = if inst.is_null() {
+        None
+    } else {
+        Some(unsafe { &*inst })
+    };
+    let res = guarded(|| {
+        let entries = match inst_ref {
+            Some(i) => i.engine.emoji_search(query, category, cap),
+            None => textvn_core::post::emoji_catalog::search_emojis(
+                query,
+                category,
+                &textvn_core::post::emoji_catalog::EmojiMru::default(),
+                cap,
+            ),
+        };
+        let mut buf = Vec::with_capacity(buf_len.min(4096));
+        for e in entries {
+            let line_len = e.glyph.len() + 1 + e.shortcode.len() + 3; // \t + \t + digit + \n
+            if buf.len() + line_len + 1 > buf_len {
+                break;
+            }
+            buf.extend_from_slice(e.glyph.as_bytes());
+            buf.push(b'\t');
+            buf.extend_from_slice(e.shortcode.as_bytes());
+            buf.push(b'\t');
+            buf.push(b'0' + (e.category.min(9)));
+            buf.push(b'\n');
+        }
+        buf
+    });
+    match res {
+        Some(bytes) => {
+            let n = bytes.len();
+            unsafe {
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf, n);
+                *out_buf.add(n) = 0;
+                *out_len = n;
+            }
+            IME_OK
+        }
+        None => {
+            unsafe {
+                *out_buf = 0;
+                *out_len = 0;
+            }
+            IME_ERR_INTERNAL
+        }
+    }
+}
+
+/// P12 + G19 — Ghi nhận 1 emoji vừa chọn từ Emoji Picker (cập nhật MRU + Dream RSI).
+/// G8: chỉ ghi nhận nếu glyph nằm trong danh mục tĩnh, không lưu văn bản tự do.
+#[no_mangle]
+pub extern "C" fn ime_emoji_record_use(
+    inst: *mut ime_instance,
+    glyph_utf8: *const u8,
+    glyph_len: usize,
+) -> i32 {
+    if inst.is_null() || glyph_utf8.is_null() || glyph_len == 0 || glyph_len > 32 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    let bytes = unsafe { slice::from_raw_parts(glyph_utf8, glyph_len) };
+    let Ok(glyph) = std::str::from_utf8(bytes) else {
+        return IME_ERR_INVALID_ARG;
+    };
+    match guarded(|| {
+        inst.engine.emoji_record_use(glyph);
+    }) {
+        Some(()) => IME_OK,
+        None => IME_ERR_INTERNAL,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3340,5 +3447,94 @@ mod tests {
         assert_eq!(n, 2);
         let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
         assert_eq!(cstr.to_str().unwrap(), "đ");
+    }
+
+    #[test]
+    fn emoji_ffi_search_and_record_use_safe_bounds() {
+        let mut inst: *mut ime_instance = std::ptr::null_mut();
+        assert_eq!(ime_instance_new(std::ptr::null(), 0, &mut inst), IME_OK);
+        assert!(!inst.is_null());
+
+        // 1) Tìm kiếm với `inst == NULL` và từ khóa tiếng Việt có dấu.
+        let q = "cười";
+        let mut buf = [0u8; 512];
+        let mut out_len = 0usize;
+        assert_eq!(
+            ime_emoji_search(
+                std::ptr::null(),
+                q.as_ptr(),
+                q.len(),
+                0,
+                5,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut out_len
+            ),
+            IME_OK
+        );
+        let text = std::str::from_utf8(&buf[..out_len]).unwrap();
+        assert!(text.contains('\t') && text.ends_with('\n'));
+        assert_eq!(buf[out_len], 0);
+
+        // 2) Ghi nhận dùng 🚀 và kiểm tra MRU đẩy 🚀 lên đầu nhóm Gần đây (0).
+        let rocket = "🚀";
+        assert_eq!(
+            ime_emoji_record_use(inst, rocket.as_ptr(), rocket.len()),
+            IME_OK
+        );
+        assert_eq!(
+            ime_emoji_search(
+                inst,
+                std::ptr::null(),
+                0,
+                0,
+                5,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut out_len
+            ),
+            IME_OK
+        );
+        let recent = std::str::from_utf8(&buf[..out_len]).unwrap();
+        assert!(recent.starts_with("🚀\trocket\t7\n"), "recent={recent}");
+
+        // 3) Buffer quá nhỏ: không bao giờ cắt giữa UTF-8 hoặc ghi tràn.
+        let mut tiny = [0u8; 4];
+        assert_eq!(
+            ime_emoji_search(
+                inst,
+                std::ptr::null(),
+                0,
+                0,
+                5,
+                tiny.as_mut_ptr(),
+                tiny.len(),
+                &mut out_len
+            ),
+            IME_OK
+        );
+        assert_eq!(out_len, 0);
+        assert_eq!(tiny[0], 0);
+
+        // 4) Tham số lỗi → IME_ERR_INVALID_ARG.
+        assert_eq!(
+            ime_emoji_search(
+                inst,
+                std::ptr::null(),
+                3,
+                0,
+                5,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut out_len
+            ),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(
+            ime_emoji_record_use(std::ptr::null_mut(), rocket.as_ptr(), rocket.len()),
+            IME_ERR_INVALID_ARG
+        );
+
+        ime_instance_free(inst);
     }
 }

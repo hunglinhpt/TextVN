@@ -82,6 +82,7 @@ typedef struct lc_plan {
     int      end;                   /* commit `text` (hoặc preedit hiện tại) rồi đóng */
     int      eaten;                 /* 1 = nuốt phím; 0 = app nhận phím gốc */
     int      reset_engine;          /* commit + ime_reset (preedit tràn LC_COMP_MAX; Ctrl+Space tới app) */
+    uint16_t cursor_left;           /* P11/E62: số bước mũi tên trái sau khi commit template Math */
 } lc_plan;
 
 /* Tính kế hoạch cho một phím từ kết quả engine. Hàm thuần. */
@@ -152,6 +153,8 @@ typedef struct lc_config_state {
     /* config.suggest.enabled (hoặc trigger == "tab_and_space"): khi bật, Mode EN vẫn
      * đưa phím qua engine (passthrough) để dự đoán/hoàn tất từ và cụm tiếng Anh. */
     int       suggest_enabled;
+    /* P11/E62: config.math.enabled — khi bật, Mode EN và mọi app/terminal đều đi qua engine. */
+    int       math_enabled;
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     int       assist_mode;     /* LC_ASSIST_MODE_* (0=off, 1=highlight, 2=autocorrect) */
     int       assist_auto_fix; /* LC_ASSIST_AUTO_FIX_* (0=off, 1=safe) */

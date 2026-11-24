@@ -46,6 +46,8 @@ public protocol TextTarget: AnyObject {
     /// IMKTextTarget bị static-dispatch nuốt, chord chết thầm). Default
     /// `nil` fail-open ở extension dưới.
     func text(in range: NSRange) -> String?
+    /// P11/E62: dịch con trỏ sang trái `count` ký tự sau khi chèn template Math.
+    func moveLeft(count: Int)
 }
 
 extension TextTarget {
@@ -61,6 +63,9 @@ extension TextTarget {
 
     /// Mặc định: không đọc được text theo range ⇒ `nil` (fail-open, A4).
     public func text(in range: NSRange) -> String? { nil }
+
+    /// Mặc định: no-op cho mock test không cần dịch con trỏ.
+    public func moveLeft(count: Int) {}
 }
 
 /// Trạng thái marked của controller — 1 instance theo controller (main thread).

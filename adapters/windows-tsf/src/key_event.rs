@@ -29,14 +29,16 @@ use crate::class::ObjGuard;
 use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
 use crate::edit_session::{
-    apply_assist_suggestion, apply_ctrl_tap_in_context, hide_assist_overlay, request_sync_or_async,
-    select_assist_issue, selected_assist_issue, AssistRecallSession, EndCompositionSession,
-    KeyEditSession, TsfShared,
+    apply_assist_suggestion, apply_ctrl_tap_in_context, commit_emoji_glyph, hide_assist_overlay,
+    open_emoji_picker, request_sync_or_async, select_assist_issue, selected_assist_issue,
+    AssistRecallSession, EndCompositionSession, KeyEditSession, TsfShared,
 };
 #[cfg(windows)]
 use crate::trace;
 #[cfg(windows)]
-use textvn_ffi::{ACTION_PASS, MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
+use textvn_ffi::{
+    ACTION_PASS, IME_FLAG_CONSUMED, MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_SHIFT, MOD_SUPER,
+};
 
 #[cfg(windows)]
 #[implement(ITfKeyEventSink)]
@@ -643,11 +645,83 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         }
     }
 
+    // P11/E62: Ctrl+Shift+M bật/tắt nhanh Math & Science; Ctrl+Alt+M xoay vòng định dạng công thức.
+    // P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (tìm kiếm không mất focus app).
+    let mods_no_caps = mods & !MOD_CAPS;
+    if vk == 0x45 && mods_no_caps == (MOD_CTRL | MOD_ALT) {
+        shared.dead_key_armed.set(false);
+        end_composition(shared, ctx);
+        shared.reset_engine();
+        open_emoji_picker(shared, ctx);
+        return true;
+    }
+    if shared.emoji_picker.is_visible() {
+        // Phím tắt hệ thống (Alt+Tab, Ctrl+C, Win+D...): đóng bảng Emoji và nhả phím cho OS/app.
+        if (mods & (MOD_CTRL | MOD_ALT | MOD_SUPER)) != 0 {
+            shared.emoji_picker.hide();
+            if let Ok(mut slot) = shared.emoji_ctx.try_borrow_mut() {
+                *slot = None;
+            }
+            return false;
+        }
+        let ch_opt = char::from_u32(translate_key(vk, lparam)).filter(|c| !c.is_control());
+        let shift = (mods & MOD_SHIFT) != 0;
+        match shared.emoji_picker.handle_key(vk, ch_opt, shift) {
+            crate::emoji_picker::PickerKeyAction::Redraw => {}
+            crate::emoji_picker::PickerKeyAction::Reload => {
+                let (q, cat) = shared.emoji_picker.query_and_category();
+                let items = shared
+                    .thread
+                    .try_borrow()
+                    .map(|t| t.engine.emoji_search(&q, cat, 120))
+                    .unwrap_or_default();
+                shared.emoji_picker.set_items_and_redraw(items);
+            }
+            crate::emoji_picker::PickerKeyAction::Commit(glyph) => {
+                commit_emoji_glyph(shared, ctx, &glyph);
+            }
+            crate::emoji_picker::PickerKeyAction::Close => {
+                if let Ok(mut slot) = shared.emoji_ctx.try_borrow_mut() {
+                    *slot = None;
+                }
+            }
+        }
+        return true;
+    }
+    if vk == 0x4D && mods_no_caps == (MOD_CTRL | MOD_SHIFT) {
+        shared.dead_key_armed.set(false);
+        end_composition(shared, ctx);
+        shared.reset_engine();
+        crate::ipc_client::send_command_async(textvn_ipc::Message::ToggleMath);
+        return true;
+    }
+    if vk == 0x4D && mods_no_caps == (MOD_CTRL | MOD_ALT) {
+        shared.dead_key_armed.set(false);
+        end_composition(shared, ctx);
+        shared.reset_engine();
+        crate::ipc_client::send_command_async(textvn_ipc::Message::CycleMathMode);
+        return true;
+    }
+
+    // Reload config xóa từ trong engine → chỉ làm ở ranh giới từ (đặt trước kiểm tra AltGr để đọc cờ mới).
+    if !shared.is_composing() {
+        shared.sync_config();
+    }
+
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.
-    // Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct.
-    let is_ctrl_space = vk == 0x20 && (mods & !MOD_CAPS) == MOD_CTRL;
-    if (mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 && !is_ctrl_space)
+    // Ngoại lệ:
+    // - Ctrl+Space được giữ lại cho Text Prediction & Text Correct.
+    // - AltGr (Ctrl+Alt+<phím in được>) được giữ lại khi Math & Science + AltGr bật.
+    let is_ctrl_space = vk == 0x20 && mods_no_caps == MOD_CTRL;
+    let is_math_altgr = (mods_no_caps == (MOD_CTRL | MOD_ALT)
+        || mods_no_caps == (MOD_CTRL | MOD_ALT | MOD_SHIFT))
+        && shared
+            .thread
+            .try_borrow()
+            .map(|t| t.math_enabled() && t.math_altgr_enabled())
+            .unwrap_or(false);
+    if (mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 && !is_ctrl_space && !is_math_altgr)
         || vk == vkc::PACKET
         || vk == vkc::PROCESSKEY
     {
@@ -657,10 +731,6 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         return false;
     }
 
-    // Reload config xóa từ trong engine → chỉ làm ở ranh giới từ.
-    if !shared.is_composing() {
-        shared.sync_config();
-    }
     let Some(vi_on) = shared.engine_mode() else {
         shared.dead_key_armed.set(false);
         end_composition(shared, ctx);
@@ -668,7 +738,17 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         return false;
     };
 
-    let key = KeyKind::classify_with_mods(vk, translate_key(vk, lparam), mods);
+    let ch = if is_math_altgr {
+        let direct = translate_key(vk, lparam);
+        if direct != 0 {
+            direct
+        } else {
+            translate_key_base(vk, lparam)
+        }
+    } else {
+        translate_key(vk, lparam)
+    };
+    let key = KeyKind::classify_with_mods(vk, ch, mods);
     if trace::enabled() && !shared.is_composing() && key.needs_session_when_idle() {
         trace_context_signals(shared, ctx);
     }
@@ -711,14 +791,16 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     }
     if !shared.is_composing() && !key.needs_session_when_idle() {
         // Backspace/Esc/điều hướng khi không composing: chỉ cho engine dọn trạng thái.
+        // E62: nếu engine nuốt phím (vd. Esc huỷ math chord `` ` `` đang arm), trả `true`
+        // để Esc không đóng hộp thoại của app.
         if let Ok(mut thread) = shared.thread.try_borrow_mut() {
             thread.engine.set_enabled(vi_on);
-            let passed = matches!(
-                thread.engine.key_event_raw(vk, key.engine_ch(), mods),
-                Ok(r) if r.action == ACTION_PASS
-            );
-            if !passed {
-                thread.engine.reset();
+            match thread.engine.key_event_raw(vk, key.engine_ch(), mods) {
+                Ok(r) if r.action == ACTION_PASS && (r.flags & IME_FLAG_CONSUMED) != 0 => {
+                    return true;
+                }
+                Ok(r) if r.action == ACTION_PASS => {}
+                _ => thread.engine.reset(),
             }
         }
         return false;
@@ -939,6 +1021,41 @@ fn translate_key(vk: u32, lparam: LPARAM) -> u32 {
             .next()
             .and_then(|r| r.ok())
             .map_or(0, u32::from),
+        _ => 0,
+    }
+}
+
+/// Dịch phím bỏ qua trạng thái Ctrl/Alt (dùng cho AltGr `Ctrl+Alt+<phím>` trên layout US-QWERTY
+/// nơi `ToUnicodeEx` trả 0 khi Ctrl+Alt đang giữ). Giữ nguyên Shift/CapsLock và layout hiện hành.
+#[cfg(windows)]
+fn translate_key_base(vk: u32, lparam: LPARAM) -> u32 {
+    const TOUNICODE_NO_STATE_CHANGE: u32 = 0x4;
+    let raw = lparam.0 as u32;
+    let mut scan = (raw >> 16) & 0xFF;
+    if raw & (1 << 24) != 0 {
+        scan |= 0xE000;
+    }
+    let mut state = [0u8; 256];
+    let mut buf = [0u16; 8];
+    // SAFETY: buffer cố định trên stack; layout của chính thread UI.
+    let n = unsafe {
+        if GetKeyboardState(&mut state).is_err() {
+            return 0;
+        }
+        for k in [0x11usize, 0x12, 0xA2, 0xA3, 0xA4, 0xA5] {
+            state[k] = 0;
+        }
+        ToUnicodeEx(
+            vk,
+            scan,
+            &state,
+            &mut buf,
+            TOUNICODE_NO_STATE_CHANGE,
+            Some(GetKeyboardLayout(0)),
+        )
+    };
+    match n {
+        1 => u32::from(buf[0]),
         _ => 0,
     }
 }

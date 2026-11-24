@@ -110,26 +110,36 @@ impl Engine {
     /// Xử lý phím qua math khi `math.enabled`. `None` = math không quan tâm,
     /// pipeline tiếng Việt chạy như cũ.
     ///
-    /// G19: `keys_typed` chỉ đếm đúng 1 lần cho mỗi phím gõ chữ thật — ở đây chỉ
-    /// đếm khi math **thực sự nhận** phím (trả `Some`); nếu trả `None` thì pipeline
-    /// chính tự đếm ở dưới (tránh double-count khi math bật mà pass-through).
+    /// G19: `keys_typed` chỉ đếm đúng 1 lần cho mỗi phím gõ chữ thật (`printable().is_some()`) —
+    /// ở đây chỉ đếm khi math **thực sự nhận** phím in được (trả `Some`); `Esc` huỷ chord không
+    /// phải phím gõ chữ nên không cộng `keys_typed`.
     fn math_key(&mut self, k: &KeyEvent) -> Option<Outcome> {
         let out = self.math_key_inner(k);
-        if out.is_some() {
+        if out.is_some() && k.printable().is_some() {
             self.dream_rsi.keys_typed = self.dream_rsi.keys_typed.saturating_add(1);
         }
         out
     }
 
     fn math_key_inner(&mut self, k: &KeyEvent) -> Option<Outcome> {
-        // E57a: đồng bộ word math với Backspace/caret — word_buf của MathEngine
-        // chỉ được nuôi qua `process_char`/`feed_context`, trước đây Backspace
-        // hoặc phím di chuyển caret làm nó lệch document (bung sai lệnh /
-        // ReplaceBuffer delete lấn text phía trước người dùng).
+        // E57a + E62 (C6): đồng bộ word/chord math với Backspace, Escape và phím điều hướng.
         if k.key_down {
             match k.vk {
                 keymap::vk::BACK => {
                     self.math.process_backspace();
+                    return None;
+                }
+                keymap::vk::ESCAPE => {
+                    if self.math.chord_fsm.state() != textvn_math::ChordState::Idle {
+                        self.math.chord_fsm.reset();
+                        return Some(Outcome {
+                            action: Action::Pass,
+                            preedit: Vec::new(),
+                            flags: FLAG_CONSUMED,
+                            cursor_left: 0,
+                        });
+                    }
+                    self.math.caret_moved();
                     return None;
                 }
                 keymap::vk::LEFT
@@ -146,15 +156,7 @@ impl Engine {
             }
         }
         let c = k.printable()?;
-        // AltGr = Ctrl+Alt + ký tự (Windows); còn lại chord hệ thống → bỏ qua.
-        let is_altgr = k.mods == (keymap::MOD_CTRL | keymap::MOD_ALT);
-        let plain = k.mods
-            & (keymap::MOD_CTRL | keymap::MOD_ALT | keymap::MOD_SUPER | keymap::MOD_META)
-            == 0;
-        if !plain && !(is_altgr && self.opts.math.altgr_enabled) {
-            return None;
-        }
-        // Ô secure/mật khẩu: math tắt hẳn (G8 — không đụng dữ liệu nhạy cảm).
+        // Ô mật khẩu: math tắt hẳn (G8 — không đụng dữ liệu nhạy cảm).
         if self.secure() {
             return None;
         }
@@ -163,41 +165,83 @@ impl Engine {
             is_word_equation: self.math_profile.is_word_equation,
             altgr_blocked: false,
         };
-        let in_math_span = self.math.context_fsm.in_math();
-        // 	ext{...} → tiếng Việt chạy bình thường (spec §3.4).
-        if self.math.context_fsm.in_text_span() {
-            return None;
-        }
-        // (keys_typed được đếm ở math_key khi trả Some — xem G19 note ở trên.)
-
-        let sticky = self.opts.math.sticky_math_mode;
-        let math_active = sticky || in_math_span;
-
-        if math_active {
-            // 1. Chord/AltGr/word — context FSM được feed bên trong.
-            if let Some(action) = self.math.process_char(c, 0, &guard) {
-                return self.math_outcome(action, c);
-            }
-            // 2. Boundary → alias/template/eval.
-            if Self::is_math_boundary(c) {
-                let mode = self.math_effective_mode();
-                if let Some(action) = self.math.process_boundary(c, mode, &guard) {
-                    return self.math_outcome(action, c);
+        // AltGr = Ctrl+Alt + ký tự (Windows); còn lại chord hệ thống → bỏ qua.
+        let non_caps_mods = k.mods & !keymap::MOD_CAPS;
+        let is_altgr = non_caps_mods == (keymap::MOD_CTRL | keymap::MOD_ALT);
+        let plain = non_caps_mods
+            & (keymap::MOD_CTRL | keymap::MOD_ALT | keymap::MOD_SUPER | keymap::MOD_META)
+            == 0;
+        if is_altgr {
+            if self.opts.math.altgr_enabled && !guard.blocks_chords() {
+                if let Some(action) = textvn_math::chords::altgr_chord(c) {
+                    return self.math_outcome(action, None);
                 }
             }
-        } else {
-            // Chưa active: chỉ theo dõi ngữ cảnh để phát hiện vào $...$/egin{...}.
-            self.math.feed_context(c);
+            return None;
+        }
+        if !plain {
+            return None;
         }
 
-        // Trong math span (ngoài 	ext{}): treo tiếng Việt — phím đi thẳng.
-        if in_math_span && plain {
-            self.word.clear();
-            return Some(Outcome::pass());
+        // E62 (C8): luôn đồng bộ mode kết xuất hiện hành của ChordFsm (kể cả AutoByApp).
+        let eff_mode = self.math_effective_mode();
+        if self.math.chord_fsm.mode() != eff_mode {
+            self.math.chord_fsm.set_mode_keep_state(eff_mode);
         }
-        // Sticky ON + word đang là lệnh `\...`: treo Telex/VNI cho tới boundary.
-        if sticky && self.math.word_is_command() {
-            return Some(Outcome::pass());
+
+        // E62 (Blocker #4): đang trong `\text{...}` — feed delimiter trước để dấu `}` thoát
+        // ra lại `InlineMath`/`BlockMath`, còn bên trong để tiếng Việt chạy bình thường.
+        if self.math.context_fsm.in_text_span() {
+            self.math.context_fsm.feed_text_char(c);
+            self.math.reset_word();
+            return None;
+        }
+
+        let was_in_math = self.math.context_fsm.in_math();
+
+        // E62 (Blocker #1 & #2): khi `math.enabled = true`, chord leader, `=expr=` và `\alias`
+        // luôn hoạt động ngay ở MỌI editor (không cần bật thêm `sticky_math_mode`), và phím chord
+        // KHÔNG được truyền làm `boundary` vào `math_outcome` (`\`a` → `α`, không ra `αa`).
+        if let Some(action) = self.math.process_char(c, 0, &guard) {
+            return self.math_outcome(action, None);
+        }
+        // Boundary → `\alias` / `\template` (`Some(c)` để xử lý space / dấu câu / Enter).
+        if Self::is_math_boundary(c) {
+            if let Some(action) = self.math.process_boundary(c, eff_mode, &guard) {
+                return self.math_outcome(action, Some(c));
+            }
+        }
+
+        // Cập nhật context FSM cho mọi ký tự không bị nuốt làm chord (`$...$`, `$$...$$`,
+        // `\(...\)`, `\[...\]`, `\begin{...}`, `\text{...}`).
+        self.math.context_fsm.feed_text_char(c);
+        if self.math.context_fsm.in_text_span() {
+            self.math.reset_word();
+            self.word.clear();
+            self.note_pass(k);
+            return Some(Outcome {
+                action: Action::Pass,
+                preedit: Vec::new(),
+                flags: FLAG_WORD_END,
+                cursor_left: 0,
+            });
+        }
+
+        let exited_math = was_in_math && !self.math.context_fsm.in_math();
+        // Trong math span (hoặc vừa đóng span, hoặc đang gõ `\...` / `=expr=`): treo tiếng Việt
+        // và trả FLAG_WORD_END để adapter commit ký tự ngay thay vì giữ composition gạch chân (C4).
+        if exited_math
+            || self.math.context_fsm.vietnamese_suspended()
+            || self.math.word_is_command()
+        {
+            self.word.clear();
+            self.note_pass(k);
+            return Some(Outcome {
+                action: Action::Pass,
+                preedit: Vec::new(),
+                flags: FLAG_WORD_END,
+                cursor_left: 0,
+            });
         }
         None
     }
@@ -223,14 +267,17 @@ impl Engine {
     }
 
     /// MathAction → Outcome: commit tail (glyph+unicode), RSI, con trỏ trái.
-    fn math_outcome(&mut self, action: MathActionKind, boundary: char) -> Option<Outcome> {
+    fn math_outcome(&mut self, action: MathActionKind, boundary: Option<char>) -> Option<Outcome> {
         match action {
-            MathActionKind::Consume => Some(Outcome {
-                action: Action::Pass,
-                preedit: Vec::new(),
-                flags: FLAG_CONSUMED,
-                cursor_left: 0,
-            }),
+            MathActionKind::Consume => {
+                self.word.clear();
+                Some(Outcome {
+                    action: Action::Pass,
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED,
+                    cursor_left: 0,
+                })
+            }
             MathActionKind::Emit {
                 text,
                 cursor_left_steps,
@@ -252,23 +299,24 @@ impl Engine {
     }
 
     /// Commit text math: cap MAX_TEXT (vượt → pass nguyên phím, an toàn tuyệt
-    /// đối — template lớn đi đường clipboard Smart Paste), record tail 2 buffer.
+    /// đối — template lớn đi đường clipboard Smart Paste), record tail & buffer.
     fn math_commit(
         &mut self,
         mut text: String,
         cursor_left_steps: usize,
         delete_chars: u16,
-        boundary: char,
+        boundary: Option<char>,
     ) -> Option<Outcome> {
-        // Nối ký tự boundary: space sau alias không double; punct giữ lại.
-        if boundary == ' ' {
-            if !text.ends_with(' ') {
-                text.push(' ');
+        if let Some(b) = boundary {
+            // Nối boundary cho `\alias`/`\template`: space không double; Tab bị nuốt;
+            // Enter giữ `\n` ở cuối `insert` để adapter trả lại phím Enter thật; punct giữ nguyên.
+            if b == ' ' {
+                if !text.ends_with(' ') {
+                    text.push(' ');
+                }
+            } else if b != '\t' && b != '=' {
+                text.push(b);
             }
-        } else if boundary != '\n' && boundary != '\t' && boundary != '=' {
-            // Ngoại lệ: `=` là delimiter ĐÓNG của inline eval (=expr=) — đã tính
-            // trong delete_chars, không append lại (tránh `=2+3=` → `5=`).
-            text.push(boundary);
         }
         let unicode: Vec<char> = text.chars().collect();
         if unicode.is_empty() || unicode.len() > MAX_TEXT {
@@ -498,10 +546,6 @@ pub struct Engine {
     bracket_word: Option<(Vec<char>, Vec<char>)>,
     /// Vừa học ứng viên: ranh giới Mode EN kế tiếp không học lại chính chữ đó.
     accepted_just_now: bool,
-    /// E50: từ vừa bị auto-restore theo rule mới. Nếu người dùng gõ tiếp theo style
-    /// Unikey, **skip rule Unikey** để phục vụ thói quen người dùng Unikey lâu năm.
-    /// Được đặt bởi `restore_raw()` và reset bởi `on_char()` khi bắt đầu word mới.
-    last_word_was_restored: bool,
 
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
@@ -516,6 +560,9 @@ pub struct Engine {
     /// hiện tại và đóng ranh giới từ: `tunx` + `Ctrl` → giữ `tũn`; với âm tiết không hợp lệ
     /// trong tiếng Việt như `sort` → `sỏt`, bấm `Ctrl` sẽ khôi phục về `sort`).
     ctrl_tap_armed: bool,
+    /// P12: danh sách emoji dùng gần đây (MRU giới hạn 32 phần tử, chỉ chứa chỉ số mục trong
+    /// `emoji_catalog::CATALOG` — tuân thủ G8 không lưu chuỗi tự do).
+    emoji_mru: post::emoji_catalog::EmojiMru,
 }
 
 fn valid_style_text(s: &str) -> bool {
@@ -716,7 +763,6 @@ impl Engine {
             em_dash_next: false,
             bracket_word: None,
             accepted_just_now: false,
-            last_word_was_restored: false,
             dream_rsi: DreamRsi::default(),
             rsi_reported: DreamRsi::default(),
             rsi_peeked: std::cell::Cell::new(DreamRsi::default()),
@@ -727,6 +773,7 @@ impl Engine {
             sentence_widths: Vec::new(),
             last_predict: None,
             ctrl_tap_armed: false,
+            emoji_mru: post::emoji_catalog::EmojiMru::default(),
             math: MathEngine::new(math_config),
             math_profile: textvn_math::AppProfile::unknown(),
         }
@@ -937,13 +984,10 @@ impl Engine {
 
     /// Trả từ đang mở về chuỗi gõ (`boundary` nếu có đi theo sau) — dùng chung cho Ctrl
     /// tap, Ctrl+Space và ranh giới từ (RESTORE = REPLACE, P0-4 §3).
-    /// E50: đánh dấu từ đã được auto-restore theo rule mới.
     fn restore_raw(&mut self, boundary: Option<char>) -> Outcome {
         let delete = self.word.owned as u16;
         let mut insert = self.restore_source();
         insert.extend(boundary);
-        // E50: đánh dấu từ đã được auto-restore theo rule mới
-        self.last_word_was_restored = true;
         self.word.clear();
         // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
         self.record(Tail::Replace {
@@ -1203,6 +1247,79 @@ impl Engine {
     /// P10 — Dream RSI: snapshot counters (không xóa — vĩnh viễn theo engine).
     pub fn dream_rsi_snapshot(&self) -> DreamRsi {
         self.dream_rsi
+    }
+
+    /// P12: tìm kiếm emoji theo từ khóa song ngữ VI/EN không dấu và nhóm (`0` = Gần đây,
+    /// `1..=7` = 7 nhóm, `0xFF` = tất cả), xếp hạng có ưu tiên MRU của người dùng.
+    pub fn emoji_search(
+        &self,
+        query: &str,
+        category: u8,
+        limit: usize,
+    ) -> Vec<&'static post::emoji_catalog::EmojiEntry> {
+        post::emoji_catalog::search_emojis(query, category, &self.emoji_mru, limit)
+    }
+
+    /// P12 + G19: ghi nhận 1 emoji vừa được chọn từ Emoji Picker (cập nhật MRU + Dream RSI).
+    /// Trả `true` nếu glyph nằm trong danh mục chuẩn.
+    pub fn emoji_record_use(&mut self, glyph: &str) -> bool {
+        if self.emoji_mru.record(glyph) {
+            self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+            self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(1);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// P12: mở rộng nhanh `:shortcode:` ngay khi gõ dấu `:` đóng (cả trong chế độ VI lẫn EN).
+    /// Hoạt động kể cả khi từ giữa hai dấu `:` bị Telex tạm biến dấu (vd. `:fire:` → `:fỉe` → `🔥`).
+    fn try_inline_emoji_shortcode(&mut self) -> Option<Outcome> {
+        let owned = if self.word.active {
+            self.word.owned.min(self.recent.len())
+        } else {
+            0
+        };
+        let prefix_len = self.recent.len() - owned;
+        let mut candidate = Vec::with_capacity(prefix_len.min(32) + self.word.raw.len());
+        let prefix_start = prefix_len.saturating_sub(32);
+        candidate.extend_from_slice(&self.recent[prefix_start..prefix_len]);
+        if owned > 0 {
+            candidate.extend_from_slice(&self.word.raw);
+        }
+        let (raw_del, entry) = post::emoji_catalog::match_inline_shortcode(&candidate)?;
+        // Vị trí dấu `:` mở nằm trong phần `prefix` (trước từ active vì `:` không phải ký tự từ).
+        let open_in_cand = candidate.len().checked_sub(raw_del)?;
+        let open_in_recent = prefix_start + open_in_cand;
+        if open_in_recent >= prefix_len {
+            return None;
+        }
+        let doc_del = self.recent.len() - open_in_recent;
+        if doc_del == 0 || doc_del > u16::MAX as usize {
+            return None;
+        }
+        let glyph_chars: Vec<char> = entry.glyph.chars().collect();
+        if glyph_chars.is_empty() || glyph_chars.len() > MAX_TEXT {
+            return None;
+        }
+        self.word.clear();
+        self.record(Tail::Replace {
+            delete: doc_del,
+            glyph: &glyph_chars,
+            unicode: &glyph_chars,
+        });
+        self.emoji_mru.record(entry.glyph);
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(1);
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: doc_del as u16,
+                insert: glyph_chars,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
+        })
     }
 
     pub fn set_options(&mut self, opts: EngineOptions) {
@@ -1613,7 +1730,10 @@ impl Engine {
     /// nguyên vẹn phụ âm đôi hợp lệ cuối từ.
     fn choose_restore_source(&self, raw: &[char]) -> Vec<char> {
         let eff = self.fold_effective_keys(raw);
-        if eff.unambiguous_drops.is_empty() && eff.ambiguous_drops.is_empty() {
+        if eff.unambiguous_drops.is_empty()
+            && eff.ambiguous_drops.is_empty()
+            && eff.overwritten_tone_drops.is_empty()
+        {
             return raw.to_vec();
         }
         let raw_s: String = raw.iter().collect();
@@ -1657,10 +1777,33 @@ impl Engine {
             }
         }
 
-        if !eff.unambiguous_drops.is_empty() {
-            return build(0);
+        if !eff.unambiguous_drops.is_empty() || !eff.overwritten_tone_drops.is_empty() {
+            let mut drop_flags = vec![false; raw.len()];
+            for &idx in &eff.unambiguous_drops {
+                drop_flags[idx] = true;
+            }
+            for &idx in &eff.overwritten_tone_drops {
+                drop_flags[idx] = true;
+            }
+            return raw
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &c)| (!drop_flags[i]).then_some(c))
+                .collect();
         }
         raw.to_vec()
+    }
+
+    fn is_intentional_tone_strip(&self) -> bool {
+        if !self.word.active {
+            return false;
+        }
+        let eff = self.fold_effective_keys(&self.word.raw);
+        if !eff.tone_strip_at_end {
+            return false;
+        }
+        let raw_s: String = self.word.raw.iter().collect();
+        !post::restore_en::is_english_lexicon_word(&raw_s, &self.opts.english_words)
     }
 
     fn restore_source(&self) -> Vec<char> {
@@ -1784,6 +1927,18 @@ impl Engine {
         // (EVKey spec #5); `secure` tuyệt đối không (S3).
         if let Some(out) = self.try_macro(k, strategy, vi_on) {
             return out;
+        }
+
+        // P12: mở rộng nhanh `:shortcode:` (vd. `:smile:`, `:fire:`, `:ok:`, `:tim:`)
+        // khi không ở ô mật khẩu (`secure`), không ở terminal và không ở trong span toán `$...$`.
+        if k.printable() == Some(':')
+            && !self.secure()
+            && self.ctx.field_role != strategy::IME_FIELD_TERMINAL
+            && !self.math.context_fsm.vietnamese_suspended()
+        {
+            if let Some(out) = self.try_inline_emoji_shortcode() {
+                return out;
+            }
         }
 
         if strategy == Strategy::Passthrough {
@@ -1978,12 +2133,6 @@ impl Engine {
             return Outcome::pass();
         }
 
-        // E50: bắt đầu từ mới — reset cờ "từ vừa restore" (chỉ có hiệu lực
-        // cho từ đầu tiên sau restore; gõ tiếp word mới sẽ không bị ảnh hưởng).
-        if self.word.is_empty() {
-            self.last_word_was_restored = false;
-        }
-
         // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
         // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
         // Nếu người dùng đã tự gõ chữ hoa (`cap == c`, ví dụ `. TextVN`), giữ nguyên
@@ -2020,17 +2169,32 @@ impl Engine {
         // nhận action sau với `delete_count` tính theo raw trong khi document
         // còn giữ glyph precomposed trước fold — lệch sổ ("useState": doc "úe"
         // 2 glyph, delete 3 theo raw 3 phím) đã lọt qua test bisect OP-006.
-        if !self.word.identifier && !self.word.auto_capped && self.is_camel_case_transition(c) {
+        // BUG-5 + E61 Pass-2 Audit: nếu từ vừa tự viết hoa đầu câu ĐÃ hoàn tác UniKey hoặc
+        // gỡ dấu thanh `z`/`0` ở cuối (`Hello. varrName `, `Hello. aszzBar `), vẫn cho nhận diện
+        // camelCase để tách đoạn đầu đã undo thành identifier sạch; từ chưa từng undo (`Hello. bAn `)
+        // vẫn giữ khóa OP-006.
+        let allow_auto_capped_camel = self.word.auto_capped && self.word.active && {
+            let eff = self.fold_effective_keys(&self.word.raw);
+            !eff.unambiguous_drops.is_empty()
+                || !eff.ambiguous_drops.is_empty()
+                || eff.tone_strip_at_end
+        };
+        if !self.word.identifier
+            && (!self.word.auto_capped || allow_auto_capped_camel)
+            && self.is_camel_case_transition(c)
+        {
             if self.word.active {
                 // E50: đồng bộ `raw` về phần hiển thị/hiệu lực TRƯỚC khi bật
                 // `identifier` để không hồi sinh phím undo (`TexxtVN`) hoặc chuỗi
                 // `keys_for` tổng hợp sau Backspace (`Text`+BS*2+`VN`, E47).
-                let next_raw =
-                    if self.word.rebuilt && self.word.display.iter().all(|c| c.is_ascii()) {
-                        self.word.display.clone()
-                    } else {
-                        self.restore_source()
-                    };
+                let next_raw = if (self.word.rebuilt
+                    && self.word.display.iter().all(|c| c.is_ascii()))
+                    || self.is_intentional_tone_strip()
+                {
+                    self.word.display.clone()
+                } else {
+                    self.restore_source()
+                };
                 self.word.raw = next_raw;
                 self.word.rebuilt = false;
             }
@@ -2320,14 +2484,11 @@ impl Engine {
     /// không phải cái người dùng gõ — restore sẽ đưa phím lạ vào document
     /// (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`). Từ đã dựng lại thì giữ nguyên
     /// phần hiển thị trong document (close_word) — đúng cái người dùng đang thấy.
-    /// E50: từ **vừa** được auto-restore theo rule mới (`last_word_was_restored` = true)
-    /// → **skip rule Unikey**: không restore thêm nếu người dùng gõ tiếp theo style
-    /// Unikey để phục vụ thói quen người dùng Unikey lâu năm.
     fn restorable(&self) -> bool {
         if self.word.identifier
             || self.word.rebuilt
-            || self.last_word_was_restored
             || !self.opts.auto_restore_english
+            || self.is_intentional_tone_strip()
         {
             return false;
         }
@@ -2484,6 +2645,30 @@ impl Engine {
         self.sentence[start..].iter().any(|c| ID_PUNCT.contains(c))
     }
 
+    fn should_skip_space_complete(&self) -> bool {
+        if self.is_intentional_tone_strip() {
+            return true;
+        }
+        let restore_src = self.restore_source();
+        let typed_s: String = restore_src.iter().collect();
+        let undo_kept_ascii =
+            self.word.active && self.word.display.iter().all(|ch| ch.is_ascii()) && {
+                let eff = self.fold_effective_keys(&self.word.raw);
+                eff.tone_strip_at_end
+                    || ((!eff.unambiguous_drops.is_empty() || !eff.ambiguous_drops.is_empty())
+                        && restore_src == self.word.display)
+            };
+        undo_kept_ascii
+            || post::restore_en::is_known_en_word(&typed_s.to_lowercase())
+            || (self.word.active && validate::is_valid_word(&self.word.display))
+            || (self.word.active
+                && self.word.raw != restore_src
+                && post::restore_en::is_real_english_word_for_undo(
+                    &typed_s,
+                    &self.opts.english_words,
+                ))
+    }
+
     fn try_vn_complete(
         &mut self,
         k: &KeyEvent,
@@ -2501,6 +2686,11 @@ impl Engine {
         }
         // P8/F3: username/id sau dấu chấm — KHÔNG hoàn tất.
         if self.word_after_id_boundary() {
+            return None;
+        }
+        // Space (append) nghiêm ngặt hơn Tab: bỏ qua từ đã hoàn tác UniKey / gỡ dấu `z`/`0`,
+        // từ EN đã biết hoặc âm tiết Việt hợp lệ để `try_vn_complete` không cướp quyền `try_english_complete`.
+        if append.is_some() && self.should_skip_space_complete() {
             return None;
         }
         let typed: String = self.word.display.iter().collect::<String>().to_lowercase();
@@ -2844,16 +3034,7 @@ impl Engine {
             }
             let restore_src = self.restore_source();
             let typed_s: String = restore_src.iter().collect();
-            if space_mode
-                && (post::restore_en::is_known_en_word(&typed_s.to_lowercase())
-                    || (self.word.active && validate::is_valid_word(&self.word.display))
-                    || (self.word.active
-                        && self.word.raw != restore_src
-                        && post::restore_en::is_real_english_word_for_undo(
-                            &typed_s,
-                            &self.opts.english_words,
-                        )))
-            {
+            if space_mode && self.should_skip_space_complete() {
                 return None;
             }
             let folded_s: String = if self.word.active {
@@ -3005,7 +3186,7 @@ impl Engine {
         // "chuỗi đã gõ" thật để trả; giữ nguyên phần hiển thị trong document và
         // trong buffer câu (không record — buffer câu đã đúng phần hiển thị),
         // đóng từ; phím ESC vẫn bị nuốt để composition đóng sạch như ESC thường.
-        if self.word.rebuilt {
+        if self.word.rebuilt || self.is_intentional_tone_strip() {
             self.word.clear();
             return Outcome {
                 action: Action::Commit { insert: Vec::new() },

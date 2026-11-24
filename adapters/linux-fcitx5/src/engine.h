@@ -23,6 +23,7 @@
 #include <string>
 
 #include "lc_compose.h"
+#include "lc_emoji.h"
 #include "linux_common.h"
 #include "textvn_ffi.h"
 
@@ -58,6 +59,8 @@ public:
     std::string assistUndoReplacement;  /* UTF-8 */
     uint32_t assistUndoReplacementGlyphs = 0;
     uint64_t assistUndoTimestampMs = 0;
+    /* P12: Bộ chọn Emoji nhẹ qua Fcitx5 CommonCandidateList (X11 + Wayland) */
+    lc_emoji_picker emoji{};
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {
@@ -90,6 +93,9 @@ private:
     void syncAssistState(TextVNState *st);
     void consumeAssistIpc();
     void clearAssistUI(TextVNState *st);
+    /* P12: Bảng chọn Emoji nhẹ (Fcitx5 CommonCandidateList + AuxUp) */
+    void renderEmojiUI(TextVNState *st);
+    void hideEmojiUI(TextVNState *st);
     /* R2-134: bản xem trước dự đoán ("⇥ phần mềm") ở dòng phụ của bảng Fcitx5. */
     void updatePreview(TextVNState *st);
     void hidePreview(TextVNState *st);

@@ -88,6 +88,23 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private var assistUndo: AssistUndoState?
     /// Candidate panel của IMK cho Mode 1 (Highlight)
     private var candidatePanel: IMKCandidates?
+    /// P12: Bảng chọn Emoji nhẹ (non-activating NSPanel + Apple Color Emoji).
+    private lazy var emojiPickerPanel: EmojiPickerPanel = {
+        let panel = EmojiPickerPanel()
+        panel.onSwitchCategory = { [weak self] cat in
+            guard let self = self else { return }
+            let items = self.engine?.emojiSearch(query: "", category: cat, limit: 120) ?? []
+            self.emojiPickerPanel.updateItems(items)
+        }
+        panel.onSelectGlyph = { [weak self] glyph in
+            guard let self = self else { return }
+            self.engine?.emojiRecordUse(glyph)
+            if let sender = self.client(), let target = self.clientTarget(sender) {
+                target.insert(glyph, replacementRange: .notFound)
+            }
+        }
+        return panel
+    }()
     /// R2-155 (parity Windows P9): hẹn giờ "dừng gõ 1 s" — bảng gợi ý chỉ hiện khi dừng gõ,
     /// không hiện ngay tại phím trigger.
     private var assistIdleTimer: Timer?
@@ -181,6 +198,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         otherKeyPressed = false
         assistUndo = nil
         candidatePanel?.hide()
+        emojiPickerPanel.hide()
         currentCandidates.removeAll()
         Diagnostics.log("deactivateServer — committed-before-hide (B13)")
         super.deactivateServer(sender)
@@ -194,6 +212,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         otherKeyPressed = false
         assistUndo = nil
         candidatePanel?.hide()
+        emojiPickerPanel.hide()
         currentCandidates.removeAll()
         Diagnostics.log("commitComposition — committed-before-hide")
         super.commitComposition(sender)
@@ -324,6 +343,44 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return toggleVietnamese(sender)
         }
 
+        // P12: Ctrl+Option+E (Ctrl+Alt+E) mở/đóng Bảng Emoji nhẹ (không cướp focus).
+        if event.type == .keyDown, Self.isEmojiPickerChord(mods: mods, keyCode: event.keyCode) {
+            otherKeyPressed = true
+            finishWordBeforeChord(sender)
+            if emojiPickerPanel.isVisible {
+                emojiPickerPanel.hide()
+            } else {
+                let items = engine?.emojiSearch(query: "", category: 0, limit: 120) ?? []
+                emojiPickerPanel.show(at: nil, items: items)
+            }
+            return true
+        }
+        if event.type == .keyDown, emojiPickerPanel.isVisible {
+            // Phím tắt hệ thống (Cmd+Tab, Cmd+C, Ctrl+...): đóng bảng Emoji và trả phím cho OS/app.
+            if (mods & (FFI.modCtrl | FFI.modAlt | FFI.modMeta)) != 0 {
+                emojiPickerPanel.hide()
+                return false
+            }
+            let shift = (mods & FFI.modShift) != 0
+            switch emojiPickerPanel.handleKey(
+                keyCode: event.keyCode,
+                chars: event.characters,
+                shift: shift
+            ) {
+            case .redraw, .close:
+                break
+            case let .reload(q, cat):
+                let items = engine?.emojiSearch(query: q, category: cat, limit: 120) ?? []
+                emojiPickerPanel.updateItems(items)
+            case let .commit(glyph):
+                engine?.emojiRecordUse(glyph)
+                if let target = clientTarget(sender) {
+                    target.insert(glyph, replacementRange: .notFound)
+                }
+            }
+            return true
+        }
+
         // OP-007 (P5 §7.4) · R2-139: chord Ctrl+Shift+F9 chuyển mã vùng bôi đen —
         // như Windows (`key_event.rs`), chạy TRƯỚC nhánh chord hệ thống. Không
         // (R2-131/R2-133, như Windows). KHÔNG nuốt khi không có selection:
@@ -445,6 +502,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         switch toApply.action {
         case .pass:
+            // E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc
+            // huỷ chord) → chốt marked nếu có (KHÔNG reset engine) và nuốt phím (trả true).
+            if toApply.isConsumed {
+                if !marked.text.isEmpty {
+                    target.insert(marked.text, replacementRange: .notFound)
+                    marked.clear()
+                }
+                return true
+            }
             if keyEvent.isAssistHotkey() {
                 // R2-121: Ctrl+Space không khớp dự đoán — engine đã nhả từ
                 // (WORD_END) nhưng GIỮ buffer câu cho lượt kiểm tra on-demand:
@@ -504,6 +570,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 try ApplyReplace.apply(toApply, strategy: effectiveStrategy,
                                        target: target, marked: marked,
                                        onReset: { [weak self] in self?.engine?.reset() })
+                if toApply.cursorLeft > 0 {
+                    target.moveLeft(count: toApply.cursorLeft)
+                }
                 logAction(toApply)
                 if marked.isEmpty, isAssistActive(for: context.appID) {
                     let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
@@ -721,11 +790,29 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         switch outcome.action {
         case let .commit(insert):
             guard let text = strip(insert) else { return nil }
-            return KeyOutcome(action: .commit(insert: text), flags: outcome.flags)
+            return KeyOutcome(
+                action: .commit(insert: text),
+                flags: outcome.flags,
+                cursorLeft: outcome.cursorLeft
+            )
         case let .restore(deleteCount, insert):
             guard let text = strip(insert) else { return nil }
             return KeyOutcome(
-                action: .restore(deleteCount: deleteCount, insert: text), flags: outcome.flags
+                action: .restore(deleteCount: deleteCount, insert: text),
+                flags: outcome.flags,
+                cursorLeft: outcome.cursorLeft
+            )
+        case let .replace(deleteCount, insert, preedit):
+            // E62: `\can` + Enter trả REPLACE có `\n` cuối → bỏ `\n` để app nhận phím Enter thật.
+            guard insert.last == "\n" else { return nil }
+            return KeyOutcome(
+                action: .replace(
+                    deleteCount: deleteCount,
+                    insert: String(insert.dropLast()),
+                    preedit: preedit
+                ),
+                flags: outcome.flags,
+                cursorLeft: outcome.cursorLeft
             )
         default:
             return nil
@@ -738,6 +825,13 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         let ignore = FFI.modCaps | FFI.modFn
         return keyCode == kVK_Space
             && (mods & ~ignore) == (FFI.modCtrl | FFI.modShift)
+    }
+
+    /// P12: `Ctrl+Option+E` (`kVK_ANSI_E` = 14) mở Bảng Emoji nhẹ.
+    static func isEmojiPickerChord(mods: UInt32, keyCode: UInt16) -> Bool {
+        let ignore = FFI.modCaps | FFI.modFn
+        return keyCode == UInt16(kVK_ANSI_E)
+            && (mods & ~ignore) == (FFI.modCtrl | FFI.modAlt)
     }
 
     /// OP-007 (P5 §7.4) · R2-139: chord `Ctrl+Shift+F9` chuyển mã vùng bôi

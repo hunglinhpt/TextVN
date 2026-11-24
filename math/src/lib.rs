@@ -186,6 +186,16 @@ impl MathEngine {
         self.word_buf.starts_with('\\') || self.word_buf.starts_with('=')
     }
 
+    /// Word đang gõ có phải inline-eval `=expr=` đang mở không.
+    pub fn word_is_eval(&self) -> bool {
+        self.word_buf.starts_with('=')
+    }
+
+    /// Xoá word đang theo dõi (khi gõ tắt/emoji/command không còn hợp lệ).
+    pub fn reset_word(&mut self) {
+        self.word_buf.clear();
+    }
+
     /// Set new config — dựng lại chord FSM với leader/timeout mới.
     pub fn set_config(&mut self, config: MathConfig) {
         self.chord_fsm = ChordFsm::new(&config);

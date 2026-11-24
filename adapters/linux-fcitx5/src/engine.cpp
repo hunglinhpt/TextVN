@@ -338,6 +338,38 @@ private:
     TextVNState *st_ = nullptr;
 };
 
+/* P12: Candidate word cho Bảng chọn Emoji nhẹ trên Fcitx5 (X11 + Wayland). */
+class EmojiCandidateWord : public fcitx::CandidateWord {
+public:
+    EmojiCandidateWord(std::string glyph, std::string shortcode, TextVNState *st, size_t idx)
+        : fcitx::CandidateWord(fcitx::Text(glyph + " :" + shortcode + ":")),
+          glyph_(std::move(glyph)),
+          st_(st),
+          idx_(idx) {}
+
+    void select(fcitx::InputContext *ic) const override {
+        if (!ic) return;
+        try {
+            char chosen[LC_EMOJI_GLYPH_MAX];
+            if (st_ && lc_emoji_pick_index(&st_->emoji, st_->inst, idx_, chosen, sizeof(chosen))) {
+                ic->inputPanel().reset();
+                ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+                ic->commitString(chosen);
+                return;
+            }
+            ic->inputPanel().reset();
+            ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+            ic->commitString(glyph_);
+        } catch (...) {
+        }
+    }
+
+private:
+    std::string glyph_;
+    TextVNState *st_ = nullptr;
+    size_t idx_ = 0;
+};
+
 /* ---- State per IC ---- */
 
 TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
@@ -466,6 +498,43 @@ void TextVNEngine::showPreedit(TextVNState *st, const uint32_t *text, size_t len
 void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len) {
     showPreedit(st, nullptr, 0);
     if (len > 0) st->ic->commitString(utf32ToUtf8(text, len));
+}
+
+void TextVNEngine::hideEmojiUI(TextVNState *st) {
+    if (!st || !st->emoji.active) return;
+    lc_emoji_close(&st->emoji);
+    if (st->ic) {
+        st->ic->inputPanel().reset();
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    }
+}
+
+void TextVNEngine::renderEmojiUI(TextVNState *st) {
+    if (!st || !st->ic || !st->emoji.active) return;
+    try {
+        auto &panel = st->ic->inputPanel();
+        char aux[256];
+        lc_emoji_format_aux(&st->emoji, aux, sizeof(aux));
+        panel.setAuxUp(fcitx::Text(aux));
+
+        auto candList = std::make_unique<fcitx::CommonCandidateList>();
+        candList->setPageSize(LC_EMOJI_PAGE_SIZE);
+        const size_t pageStart = (st->emoji.selected / LC_EMOJI_PAGE_SIZE) * LC_EMOJI_PAGE_SIZE;
+        size_t pageEnd = pageStart + LC_EMOJI_PAGE_SIZE;
+        if (pageEnd > st->emoji.count) pageEnd = st->emoji.count;
+        for (size_t i = pageStart; i < pageEnd; ++i) {
+            candList->append(std::make_unique<EmojiCandidateWord>(
+                st->emoji.items[i].glyph, st->emoji.items[i].shortcode, st, i));
+        }
+        if (pageEnd > pageStart) {
+            candList->setGlobalCursorIndex(static_cast<int>(st->emoji.selected - pageStart));
+            panel.setCandidateList(std::move(candList));
+        } else {
+            panel.setCandidateList(nullptr);
+        }
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    } catch (...) {
+    }
 }
 
 void TextVNEngine::hidePreview(TextVNState *st) {
@@ -980,6 +1049,7 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
 void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &event) {
     if (!st) return;
     clearAssistUI(st);
+    hideEmojiUI(st);
     /* R-4: đổi focus ⇒ trạng thái hoàn tác hết hiệu lực. */
     st->assistUndoValid = false;
     if (event.type() == fcitx::EventType::InputContextFocusOut) {
@@ -1095,11 +1165,53 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
         (key.sym() == FcitxKey_space || key.sym() == FcitxKey_KP_Space)) {
-        // Ctrl+Shift was already armed before Space arrived. This shortcut
-        // toggles immediately, so prevent the two subsequent releases from
-        // interpreting the same chord as the Ctrl+Shift toggle again.
         lc_modifier_toggle_reset(&st->toggle);
         toggleVietnamese(st);
+        return true;
+    }
+
+    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua CommonCandidateList). */
+    if (lc_is_emoji_hotkey(static_cast<uint32_t>(key.sym()),
+                           states.test(fcitx::KeyState::Ctrl),
+                           states.test(fcitx::KeyState::Alt),
+                           states.test(fcitx::KeyState::Shift),
+                           states.test(fcitx::KeyState::Super))) {
+        lc_modifier_toggle_reset(&st->toggle);
+        if (st->comp.len > 0) finishWord(st);
+        clearAssistUI(st);
+        if (st->emoji.active) {
+            hideEmojiUI(st);
+        } else {
+            lc_emoji_open(&st->emoji, st->inst);
+            renderEmojiUI(st);
+        }
+        return true;
+    }
+    if (st->emoji.active) {
+        if (mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) {
+            hideEmojiUI(st);
+            return false;
+        }
+        uint32_t evk = 0, ech = 0;
+        mapFcitxKey(key, &evk, &ech);
+        if (key.sym() == FcitxKey_Left) evk = 0x25u;
+        else if (key.sym() == FcitxKey_Up) evk = 0x26u;
+        else if (key.sym() == FcitxKey_Right) evk = 0x27u;
+        else if (key.sym() == FcitxKey_Down) evk = 0x28u;
+        char glyph[LC_EMOJI_GLYPH_MAX];
+        const int res = lc_emoji_handle_key(&st->emoji, st->inst, evk, ech,
+                                            states.test(fcitx::KeyState::Shift) ? 1 : 0,
+                                            glyph, sizeof(glyph));
+        if (res == LC_EMOJI_COMMIT) {
+            st->ic->inputPanel().reset();
+            st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+            st->ic->commitString(glyph);
+        } else if (res == LC_EMOJI_CLOSED) {
+            st->ic->inputPanel().reset();
+            st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+        } else {
+            renderEmojiUI(st);
+        }
         return true;
     }
 
@@ -1145,7 +1257,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const bool terminal =
         st->terminalApp == 1 || st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Terminal);
     const bool passthroughOn =
-        !viEnabled_ && (st->config.allow_macro_when_vi_off || (st->config.suggest_enabled && !terminal));
+        !viEnabled_ && (st->config.allow_macro_when_vi_off || st->config.math_enabled ||
+                        (st->config.suggest_enabled && !terminal));
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || secure ||
         !(viEnabled_ || passthroughOn) || !st->inst) {
         finishWord(st);
@@ -1206,6 +1319,12 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         size_t n = 0;
         const uint32_t *t = lc_plan_commit_text(&st->comp, &plan, &n);
         commitText(st, t, n);
+        if (plan.cursor_left > 0) {
+            const uint16_t steps = plan.cursor_left > 64 ? 64 : plan.cursor_left;
+            for (uint16_t i = 0; i < steps; ++i) {
+                st->ic->forwardKey(fcitx::Key(FcitxKey_Left));
+            }
+        }
     } else if (plan.has_text) {
         showPreedit(st, plan.text, plan.text_len);
     }

@@ -89,20 +89,37 @@ public struct KeyOutcome: Equatable {
 
     public let action: Action
     public let flags: UInt32
+    /// P11/E62 math: số bước dịch con trỏ sang trái sau khi chèn template (vd. `\frac{}{}` → 3).
+    public let cursorLeft: Int
     public var isError: Bool { flags & FFI.flagError != 0 }
     public var isWordEnd: Bool { flags & FFI.flagWordEnd != 0 }
+    public var isConsumed: Bool { flags & FFI.flagConsumed != 0 }
 
     /// Public: adapter (IMKLib) dựng lại outcome đã chỉnh (bỏ ranh giới Enter/Tab
     /// — B2); memberwise init tự sinh chỉ là `internal` của module CoreBridge.
-    public init(action: Action, flags: UInt32) {
+    public init(action: Action, flags: UInt32, cursorLeft: Int = 0) {
         self.action = action
         self.flags = flags
+        self.cursorLeft = cursorLeft
     }
 }
 
 /// Lỗi non-fatal khi tạo instance (P0-2 §5 — adapter log, không crash).
 public enum ImeError: Error, Equatable {
     case invalidArg(rc: Int32)
+}
+
+/// P12: Một mục emoji trả về từ `ime_emoji_search`.
+public struct EmojiItem: Equatable {
+    public let glyph: String
+    public let shortcode: String
+    public let category: UInt8
+
+    public init(glyph: String, shortcode: String, category: UInt8) {
+        self.glyph = glyph
+        self.shortcode = shortcode
+        self.category = category
+    }
 }
 
 /// Sự kiện phím đã normalize (trước khi vào engine) — mirror `ime_key_v1`.
@@ -299,6 +316,52 @@ public final class ImeEngine {
         let n = ime_peek_completion(instance, &buf, buf.count)
         guard n > 0 else { return nil }
         return String(cString: buf)
+    }
+
+    /// P12: tìm kiếm emoji song ngữ VI/EN không dấu + MRU từ `ime_emoji_search`.
+    public func emojiSearch(query: String, category: UInt8, limit: UInt32 = 120) -> [EmojiItem] {
+        var outBuf = [UInt8](repeating: 0, count: 8192)
+        var outLen: Int = 0
+        let qBytes = Array(query.utf8)
+        let rc: Int32 = qBytes.withUnsafeBufferPointer { qPtr in
+            outBuf.withUnsafeMutableBufferPointer { oPtr in
+                ime_emoji_search(
+                    instance,
+                    qBytes.isEmpty ? nil : qPtr.baseAddress,
+                    qBytes.count,
+                    category,
+                    limit,
+                    oPtr.baseAddress,
+                    oPtr.count,
+                    &outLen
+                )
+            }
+        }
+        guard rc == FFI.ok, outLen > 0,
+              let text = String(bytes: outBuf.prefix(outLen), encoding: .utf8) else {
+            return []
+        }
+        var items: [EmojiItem] = []
+        for line in text.split(separator: "\n") {
+            let cols = line.split(separator: "\t")
+            if cols.count >= 3, let cat = UInt8(cols[2]) {
+                items.append(EmojiItem(
+                    glyph: String(cols[0]),
+                    shortcode: String(cols[1]),
+                    category: cat
+                ))
+            }
+        }
+        return items
+    }
+
+    /// P12 + G19: ghi nhận emoji vừa chọn vào MRU và Dream RSI.
+    public func emojiRecordUse(_ glyph: String) {
+        let bytes = Array(glyph.utf8)
+        guard !bytes.isEmpty else { return }
+        bytes.withUnsafeBufferPointer { ptr in
+            _ = ime_emoji_record_use(instance, ptr.baseAddress, bytes.count)
+        }
     }
 
     /// OP-007b · R2-139: `ime_convert_selection` — chuyển mã vùng bôi đen theo
@@ -658,18 +721,24 @@ public final class ImeEngine {
         let delete = Int(out.delete_count)
         let flags = out.flags
 
+        let cursorLeft = Int(out.cursor_left)
         switch out.action {
         case FFI.actionPass:
-            return KeyOutcome(action: .pass, flags: flags)
+            return KeyOutcome(action: .pass, flags: flags, cursorLeft: cursorLeft)
         case FFI.actionReplace:
             return KeyOutcome(
                 action: .replace(deleteCount: delete, insert: insert, preedit: preedit),
-                flags: flags
+                flags: flags,
+                cursorLeft: cursorLeft
             )
         case FFI.actionCommit:
-            return KeyOutcome(action: .commit(insert: insert), flags: flags)
+            return KeyOutcome(action: .commit(insert: insert), flags: flags, cursorLeft: cursorLeft)
         case FFI.actionRestore:
-            return KeyOutcome(action: .restore(deleteCount: delete, insert: insert), flags: flags)
+            return KeyOutcome(
+                action: .restore(deleteCount: delete, insert: insert),
+                flags: flags,
+                cursorLeft: cursorLeft
+            )
         default:
             Diagnostics.log("unknown action \(out.action) — fail-open PASS")
             return KeyOutcome(action: .pass, flags: flags | FFI.flagError)

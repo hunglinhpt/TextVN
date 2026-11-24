@@ -136,7 +136,7 @@ typedef struct ime_result {
   uint16_t delete_count;          /* số ký tự phía TRƯỚC con trỏ cần xóa              */
   uint16_t insert_len;
   uint16_t preedit_len;          /* preedit cần hiển thị (0 nếu adapter không preedit) */
-  uint16_t _reserved;
+  uint16_t cursor_left;          /* số bước dịch con trỏ sang trái sau chèn (Math)    */
   uint32_t flags;                /* IME_FLAG_*                                        */
   uint32_t insert[IME_MAX_TEXT]; /* UTF-32                                             */
   uint32_t preedit[IME_MAX_TEXT];/* UTF-32                                             */
@@ -287,6 +287,16 @@ int32_t      ime_style_profile_drain(ime_instance *inst,
  * 0600; pending chỉ xoá sau khi ghi xong. Không có gì để lưu cũng trả IME_OK. */
 int32_t      ime_style_profile_persist(ime_instance *inst,
                                        const uint8_t *path_utf8, size_t path_len);
+/* P12 — Emoji Picker nhẹ (danh mục ~280 emoji OS/Teams/iOS, tìm kiếm VI/EN không dấu,
+ * MRU 32 phần tử + Dream RSI). Ghi các dòng UTF-8 `glyph\tshortcode\tcategory\n` NUL-terminated.
+ * `inst` có thể NULL (không dùng MRU); `query_utf8` có thể NULL khi `query_len == 0`. */
+int32_t      ime_emoji_search(const ime_instance *inst,
+                              const uint8_t *query_utf8, size_t query_len,
+                              uint8_t category, uint32_t limit,
+                              uint8_t *out_buf, size_t buf_len,
+                              size_t *out_len);
+int32_t      ime_emoji_record_use(ime_instance *inst,
+                                  const uint8_t *glyph_utf8, size_t glyph_len);
 #ifdef __cplusplus
 }
 #endif

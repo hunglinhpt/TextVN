@@ -15,6 +15,7 @@
 
 pub mod assist;
 pub mod autostart;
+pub mod emoji_popup;
 pub mod foreground;
 pub mod hotkey;
 pub mod icons;
@@ -49,6 +50,8 @@ pub const WM_REQUEST_EXIT: u32 = 0x8000 + 4;
 pub const WM_START_COMPATIBILITY_HOOK: u32 = 0x8000 + 5;
 /// LL hook của tray phát hiện Ctrl+Shift tap toàn cục → tray toggle + đổi icon.
 pub const WM_TOGGLE_HOTKEY: u32 = 0x8000 + 6;
+/// P12: yêu cầu mở cửa sổ Emoji Picker từ tray (hotkey `Ctrl+Alt+E` ở Hook/menu).
+pub const WM_OPEN_EMOJI_PICKER: u32 = 0x8000 + 7;
 
 /// Ghi chuỗi UTF-8 sang bộ đệm UTF-16 kèm null terminator.
 #[cfg(windows)]
@@ -414,6 +417,22 @@ pub fn notify_open_settings() {
             let hwnd = HWND(raw as *mut _);
             unsafe {
                 let _ = PostMessageW(Some(hwnd), WM_OPEN_SETTINGS, WPARAM(0), LPARAM(0));
+            }
+        }
+    }
+}
+
+/// P12: yêu cầu mở Emoji Picker từ thread IPC (Windows Hook) hoặc phím tắt.
+pub fn notify_open_emoji_picker() {
+    #[cfg(windows)]
+    {
+        let raw = TRAY_HWND.load(Ordering::Acquire);
+        if raw != 0 {
+            use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+            use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
+            let hwnd = HWND(raw as *mut _);
+            unsafe {
+                let _ = PostMessageW(Some(hwnd), WM_OPEN_EMOJI_PICKER, WPARAM(0), LPARAM(0));
             }
         }
     }

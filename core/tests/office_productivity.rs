@@ -417,7 +417,8 @@ fn office_all_four_methods_tone_switching_and_removal() {
     assert_eq!(type_sequence(&mut e_telex, "tooisfrxj "), "tội ");
     assert_eq!(type_sequence(&mut e_telex, "tooisz "), "tôi ");
     assert_eq!(type_sequence(&mut e_telex, "tooiszz"), "tôiz");
-    assert_eq!(type_sequence(&mut e_telex, "tooiszz "), "tooiszz ");
+    // E61: `z` vừa gỡ dấu thanh thành công cuối từ → giữ hiển thị `tôiz `, không hồi sinh `s`/`oo` thành `tooiszz `.
+    assert_eq!(type_sequence(&mut e_telex, "tooiszz "), "tôiz ");
 
     // 2. SimpleTelex: `w` đứng riêng không biến thành `ư`, chỉ làm móc cho `o/u/a`
     let mut e_simple = Engine::new(EngineOptions {

@@ -99,6 +99,49 @@ static void clear_assist_ui(TextVNIbusEngine *self) {
     ibus_engine_hide_auxiliary_text(engine);
 }
 
+/* P12: ẩn/vẽ Bảng chọn Emoji nhẹ qua IBusLookupTable (chạy mượt X11 + Wayland). */
+static void hide_emoji_ui(TextVNIbusEngine *self) {
+    if (!self->emoji.active) return;
+    lc_emoji_close(&self->emoji);
+    IBusEngine *engine = (IBusEngine *)self;
+    if (self->lookup_table) {
+        ibus_lookup_table_clear(self->lookup_table);
+        ibus_engine_hide_lookup_table(engine);
+    }
+    ibus_engine_hide_auxiliary_text(engine);
+}
+
+static void render_emoji_ui(TextVNIbusEngine *self) {
+    IBusEngine *engine = (IBusEngine *)self;
+    if (!self->emoji.active) return;
+    if (!self->lookup_table) {
+        self->lookup_table = ibus_lookup_table_new(LC_EMOJI_PAGE_SIZE, 0, TRUE, TRUE);
+        g_object_ref_sink(self->lookup_table);
+    }
+    ibus_lookup_table_set_page_size(self->lookup_table, LC_EMOJI_PAGE_SIZE);
+    ibus_lookup_table_clear(self->lookup_table);
+
+    size_t page_start = (self->emoji.selected / LC_EMOJI_PAGE_SIZE) * LC_EMOJI_PAGE_SIZE;
+    size_t page_end = page_start + LC_EMOJI_PAGE_SIZE;
+    if (page_end > self->emoji.count) page_end = self->emoji.count;
+    for (size_t i = page_start; i < page_end; i++) {
+        char label[96];
+        g_snprintf(label, sizeof(label), "%s :%s:",
+                   self->emoji.items[i].glyph, self->emoji.items[i].shortcode);
+        ibus_lookup_table_append_candidate(self->lookup_table, ibus_text_new_from_string(label));
+    }
+    if (page_end > page_start) {
+        ibus_lookup_table_set_cursor_pos(self->lookup_table,
+                                         (guint)(self->emoji.selected - page_start));
+        ibus_engine_update_lookup_table(engine, self->lookup_table, TRUE);
+    } else {
+        ibus_engine_hide_lookup_table(engine);
+    }
+    char aux[256];
+    lc_emoji_format_aux(&self->emoji, aux, sizeof(aux));
+    ibus_engine_update_auxiliary_text(engine, ibus_text_new_from_string(aux), TRUE);
+}
+
 /* Commit preedit hiện tại nguyên văn + reset engine (focus/chord/secure/toggle). */
 /* R2-134: ẩn bản xem trước dự đoán (dòng phụ) nếu đang hiện. */
 static void hide_preview(TextVNIbusEngine *self) {
@@ -860,6 +903,7 @@ static void textvn_ibus_engine_finalize(GObject *object) {
 static void forget_word(TextVNIbusEngine *self) {
     assist_idle_cancel(self);
     clear_assist_ui(self);
+    hide_emoji_ui(self);
     self->assist_undo_valid = FALSE;
     self->comp.len = 0;
     if (self->inst) ime_reset(self->inst);
@@ -945,6 +989,19 @@ static void engine_candidate_clicked(IBusEngine *engine, guint index, guint butt
     (void)button;
     (void)state;
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    if (self->emoji.active) {
+        size_t page_start = (self->emoji.selected / LC_EMOJI_PAGE_SIZE) * LC_EMOJI_PAGE_SIZE;
+        char glyph[LC_EMOJI_GLYPH_MAX];
+        if (lc_emoji_pick_index(&self->emoji, self->inst, page_start + index, glyph, sizeof(glyph))) {
+            if (self->lookup_table) {
+                ibus_lookup_table_clear(self->lookup_table);
+                ibus_engine_hide_lookup_table(engine);
+            }
+            ibus_engine_hide_auxiliary_text(engine);
+            ibus_engine_commit_text(engine, ibus_text_new_from_string(glyph));
+        }
+        return;
+    }
     if (self->assist_ui_showing && index < self->assist_candidate_count) {
         apply_assist_candidate(self, index);
     }
@@ -1033,12 +1090,58 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
         (keyval == IBUS_KEY_space || keyval == IBUS_KEY_KP_Space)) {
-        /* The modifiers were armed for the Ctrl+Shift tap before Space arrived.
-         * This shortcut already toggles now, so disarm it before the later
-         * key-release notifications; otherwise releasing Shift/Control toggles
-         * a second time and leaves the mode unchanged. */
         lc_modifier_toggle_reset(&self->toggle);
         toggle_vietnamese(self);
+        return TRUE;
+    }
+
+    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua IBusLookupTable). */
+    if (lc_is_emoji_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
+                           (state & IBUS_MOD1_MASK) != 0,
+                           (state & IBUS_SHIFT_MASK) != 0,
+                           (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0)) {
+        lc_modifier_toggle_reset(&self->toggle);
+        if (self->comp.len > 0) finish_word(self);
+        clear_assist_ui(self);
+        if (self->emoji.active) {
+            hide_emoji_ui(self);
+        } else {
+            lc_emoji_open(&self->emoji, self->inst);
+            render_emoji_ui(self);
+        }
+        return TRUE;
+    }
+    if (self->emoji.active) {
+        if (mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) {
+            hide_emoji_ui(self);
+            return FALSE;
+        }
+        uint32_t evk = 0, ech = 0;
+        textvn_ibus_map_key(keyval, &evk, &ech);
+        if (keyval == IBUS_KEY_Left) evk = 0x25u;
+        else if (keyval == IBUS_KEY_Up) evk = 0x26u;
+        else if (keyval == IBUS_KEY_Right) evk = 0x27u;
+        else if (keyval == IBUS_KEY_Down) evk = 0x28u;
+        char glyph[LC_EMOJI_GLYPH_MAX];
+        int res = lc_emoji_handle_key(&self->emoji, self->inst, evk, ech,
+                                      (state & IBUS_SHIFT_MASK) != 0 ? 1 : 0,
+                                      glyph, sizeof(glyph));
+        if (res == LC_EMOJI_COMMIT) {
+            if (self->lookup_table) {
+                ibus_lookup_table_clear(self->lookup_table);
+                ibus_engine_hide_lookup_table(engine);
+            }
+            ibus_engine_hide_auxiliary_text(engine);
+            ibus_engine_commit_text(engine, ibus_text_new_from_string(glyph));
+        } else if (res == LC_EMOJI_CLOSED) {
+            if (self->lookup_table) {
+                ibus_lookup_table_clear(self->lookup_table);
+                ibus_engine_hide_lookup_table(engine);
+            }
+            ibus_engine_hide_auxiliary_text(engine);
+        } else {
+            render_emoji_ui(self);
+        }
         return TRUE;
     }
 
@@ -1075,8 +1178,9 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                                                  (state & IBUS_SHIFT_MASK) != 0,
                                                  (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0) != 0;
 
-    /* Terminal: Mode EN phải đưa phím thẳng tới app (vim, less). */
+    /* Terminal: Mode EN đưa phím thẳng tới app (vim, less), trừ khi Math hoặc macro_when_off bật. */
     gboolean passthrough_on = !s_vi_enabled && (self->config.allow_macro_when_vi_off ||
+                                                self->config.math_enabled ||
                                                 (self->config.suggest_enabled && !self->terminal));
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || self->secure ||
         !(s_vi_enabled || passthrough_on) || !self->inst) {
@@ -1132,6 +1236,12 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         const uint32_t *t = lc_plan_commit_text(&self->comp, &plan, &n);
         commit_text(self, t, n);
         lc_utf32_to_utf8(t, n, committed, sizeof(committed));
+        if (plan.cursor_left > 0) {
+            uint16_t steps = plan.cursor_left > 64 ? 64 : plan.cursor_left;
+            for (uint16_t i = 0; i < steps; i++) {
+                ibus_engine_forward_key_event(engine, IBUS_KEY_Left, 0, 0);
+            }
+        }
     } else if (plan.has_text) {
         show_preedit(self, plan.text, plan.text_len);
     }

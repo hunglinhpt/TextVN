@@ -39,6 +39,7 @@ pub const ID_CURRENT_APP_TOGGLE: u32 = 1030;
 pub const ID_HOOK_COMPAT_MODE: u32 = 1040;
 pub const ID_TOGGLE_ASSIST: u32 = 1045;
 pub const ID_TOGGLE_MATH: u32 = 1046;
+pub const ID_OPEN_EMOJI_PICKER: u32 = 1047;
 pub const ID_OPEN_SETTINGS: u32 = 1050;
 pub const ID_HEALTH_STATUS: u32 = 1060;
 pub const ID_UNINSTALL: u32 = 1070;
@@ -219,6 +220,14 @@ impl TrayMenu {
                 PCWSTR(w(math_label).as_ptr()),
             );
 
+            // 5d. P12: Bảng chọn Emoji nhẹ (Ctrl+Alt+E) — không cướp focus.
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_OPEN_EMOJI_PICKER as usize,
+                PCWSTR(w("Bảng Emoji (Ctrl+Alt+E)").as_ptr()),
+            );
+
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
             // 6. Cài đặt...
@@ -365,6 +374,9 @@ impl TrayMenu {
                         );
                     }
                 }
+            }
+            ID_OPEN_EMOJI_PICKER => {
+                crate::emoji_popup::toggle_tray_emoji_popup();
             }
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());

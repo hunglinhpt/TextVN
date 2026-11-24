@@ -632,6 +632,44 @@ impl IpcServer {
                     }
                     Some(Message::Ack)
                 }
+                Message::ToggleMath => {
+                    if let Ok((enabled, ver)) = self.svc.toggle_math_enabled() {
+                        self.broadcast_config_reload(ver);
+                        crate::notify_tray_state_changed();
+                        let msg = if enabled {
+                            "Math & Science: Đã bật (gõ `a, \\can, =2+3=)"
+                        } else {
+                            "Math & Science: Đã tắt"
+                        };
+                        crate::assist::notify_simple(&self.svc, "TextVN Math", msg);
+                    }
+                    Some(Message::Ack)
+                }
+                Message::CycleMathMode => {
+                    if let Ok((mode, ver)) = self.svc.cycle_math_output_mode() {
+                        self.broadcast_config_reload(ver);
+                        crate::notify_tray_state_changed();
+                        let label = match mode {
+                            textvn_config::MathOutputMode::AutoByApp => "Tự động theo ứng dụng",
+                            textvn_config::MathOutputMode::Normal => "Unicode trực tiếp (α, √)",
+                            textvn_config::MathOutputMode::Latex => "LaTeX (\\alpha, \\frac{}{})",
+                            textvn_config::MathOutputMode::UnicodeMath => {
+                                "Word Equation (UnicodeMath)"
+                            }
+                            textvn_config::MathOutputMode::Typst => "Typst",
+                        };
+                        crate::assist::notify_simple(
+                            &self.svc,
+                            "TextVN Math",
+                            &format!("Chế độ công thức: {label}"),
+                        );
+                    }
+                    Some(Message::Ack)
+                }
+                Message::OpenEmojiPicker => {
+                    crate::notify_open_emoji_picker();
+                    Some(Message::Ack)
+                }
                 Message::Ping => Some(Message::Pong {
                     uptime_ms: self.uptime_ms(),
                 }),

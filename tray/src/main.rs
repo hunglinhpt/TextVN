@@ -1321,6 +1321,10 @@ unsafe extern "system" fn wnd_proc(
             }
             LRESULT(0)
         }
+        textvn_tray::WM_OPEN_EMOJI_PICKER => {
+            textvn_tray::emoji_popup::toggle_tray_emoji_popup();
+            LRESULT(0)
+        }
         textvn_tray::WM_START_COMPATIBILITY_HOOK => {
             ensure_hook_running();
             LRESULT(0)

@@ -246,25 +246,37 @@ impl AppProfile {
             AppCategory::Terminal => AppFormatKind::Unicode,
             AppCategory::Unknown => AppFormatKind::Unicode,
         };
-        let is_mathtype = cat == AppCategory::OfficeEquation;
+        let proc = process_name.to_ascii_lowercase();
+        let class = window_class.to_ascii_lowercase();
+        let title = window_title.to_ascii_lowercase();
+        // Chỉ chặn chords bên trong MathType / Equation Editor OLE thật — không chặn cả
+        // WINWORD.EXE đang gõ văn bản hay công thức thường (C9).
+        let is_mathtype = proc.contains("mathtype")
+            || class.contains("mtwindow")
+            || class.contains("mtewindow")
+            || class.contains("mtequation")
+            || class.contains("eqnedt");
+        let is_word_equation = class.contains("mtequation")
+            || class.contains("equation")
+            || title.contains("equation");
         Self {
             format,
             name: process_name.to_string(),
             is_mathtype,
-            is_word_equation: is_mathtype,
+            is_word_equation,
         }
     }
 }
 
 /// Resolve output mode for an app
 pub fn resolve_output_mode(profile: &AppProfile, current: MathOutputMode) -> MathOutputMode {
+    let _ = current;
     match profile.format {
         AppFormatKind::MathML => MathOutputMode::Normal,
         AppFormatKind::Latex => MathOutputMode::Latex,
         AppFormatKind::Unicode => MathOutputMode::UnicodeMath,
         AppFormatKind::Typst => MathOutputMode::Typst,
     }
-    .max(current)
 }
 
 /// Wrapper: resolve app with single app_id string

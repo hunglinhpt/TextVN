@@ -43,7 +43,8 @@ public enum TapInjector {
         // vẫn trả `true` → mất chữ. Text tối đa 64 scalar ≈ ≤ 7 event 20 code unit.
         var offset = 0
         while offset < units.count {
-            let chunk = Array(units[offset..<min(offset + 20, units.count)])
+            let end = safeUtf16ChunkEnd(units, offset: offset, maxChunk: 20)
+            let chunk = Array(units[offset..<end])
             let event = CGEvent(
                 keyboardEventSource: source,
                 virtualKey: 0,
@@ -53,7 +54,7 @@ public enum TapInjector {
             event?.post(tap: .cghidEventTap)
             guard event != nil else { break }
             posted += 1
-            offset += chunk.count
+            offset = end
         }
         return posted > 0
     }
@@ -79,7 +80,8 @@ public enum TapInjector {
         var offset = 0
         var ok = true
         while offset < units.count {
-            let chunk = Array(units[offset..<min(offset + 20, units.count)])
+            let end = safeUtf16ChunkEnd(units, offset: offset, maxChunk: 20)
+            let chunk = Array(units[offset..<end])
             let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
             event?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
             event?.post(tap: .cghidEventTap)
@@ -87,9 +89,22 @@ public enum TapInjector {
                 ok = false
                 break
             }
-            offset += chunk.count
+            offset = end
         }
         return ok
+    }
+
+    /// P12: không bao giờ cắt giữa cặp surrogate UTF-16 (emoji ngoài BMP như `🚀`, `😀`)
+    /// tại biên khối 20 UniChar của `CGEvent`.
+    public static func safeUtf16ChunkEnd(_ units: [UInt16], offset: Int, maxChunk: Int = 20) -> Int {
+        var end = min(offset + maxChunk, units.count)
+        if end < units.count && end > offset + 1 {
+            let last = units[end - 1]
+            if (0xD800...0xDBFF).contains(last) {
+                end -= 1
+            }
+        }
+        return end
     }
 
     private static let kVKLeftArrow: UInt16 = 123

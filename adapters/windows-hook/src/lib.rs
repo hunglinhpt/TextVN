@@ -10,8 +10,9 @@ use std::time::Duration;
 
 use textvn_appdb::{AppDb, EngineOwner};
 use textvn_ffi::{
-    ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reload_config,
-    ime_reset, ime_result_v1, ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
+    ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
+    ime_reload_config, ime_reset, ime_result_v1, ime_set_context, ACTION_PASS, IME_ABI_VERSION,
+    IME_FLAG_CONSUMED, IME_FLAG_ERROR, IME_OK,
 };
 use textvn_field_detect::{FieldContext, SecurityState};
 
@@ -50,6 +51,9 @@ pub enum CallbackDecision {
 pub enum EngineOutcome {
     /// Phím gốc đi qua cho OS (modifier, hotkey, key engine không nhận).
     Pass,
+    /// E62 (P11 Math): engine nuốt phím im lặng (`ACTION_PASS | IME_FLAG_CONSUMED`,
+    /// vd. backtick `` ` `` arm chord hoặc Esc huỷ chord) — nuốt phím gốc, KHÔNG inject.
+    Consumed,
     /// P8 (vòng 55 — root cause "ô chữ nhật nhỏ/mũi tên xanh" trên TSF-bypass
     /// apps): engine xử lý phím letter nhưng KHÔNG biến đổi (raw == display).
     /// Hook vẫn PHẢI nuốt phím gốc và inject lại qua KEYEVENTF_UNICODE —
@@ -106,6 +110,25 @@ impl HookEngine {
         }
     }
 
+    /// Cập nhật ngữ cảnh app + trạng thái bật tiếng Việt (cho phép Mode EN + Math).
+    pub fn set_context(&mut self, app_id: &str, enabled: bool) {
+        if self.instance.is_null() {
+            return;
+        }
+        let c_app = std::ffi::CString::new(app_id).ok();
+        let ctx = ime_context_v1 {
+            abi_version: IME_ABI_VERSION,
+            enabled: u32::from(enabled),
+            secure: 0,
+            field_role: 0,
+            caps: 0,
+            app_id: c_app.as_ref().map_or(std::ptr::null(), |s| s.as_ptr()),
+            element_name: std::ptr::null(),
+            hint: -1,
+        };
+        let _ = ime_set_context(self.instance, &ctx);
+    }
+
     /// Chỉ forward result transform cho injection layer. FFI error hoặc flag
     /// error đều fail-open, không nuốt key gốc.
     pub fn process(
@@ -133,10 +156,12 @@ impl HookEngine {
         if status != IME_OK || output.flags & IME_FLAG_ERROR != 0 {
             EngineOutcome::Pass
         } else if output.action == ACTION_PASS {
-            // P8 (vòng 55): letter engine không biến đổi — vẫn nuốt + inject
-            // UNICODE khi là letter thuần (không Ctrl/Alt/Win) để chặn OS-IME
-            // composition box (Windows VIE IME bắt VK gốc).
-            if is_plain_letter(&event) {
+            if (output.flags & IME_FLAG_CONSUMED) != 0 {
+                EngineOutcome::Consumed
+            } else if is_plain_letter(&event) {
+                // P8 (vòng 55): letter engine không biến đổi — vẫn nuốt + inject
+                // UNICODE khi là letter thuần (không Ctrl/Alt/Win) để chặn OS-IME
+                // composition box (Windows VIE IME bắt VK gốc).
                 EngineOutcome::PassUnicode
             } else {
                 EngineOutcome::Pass

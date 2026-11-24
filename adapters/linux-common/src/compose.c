@@ -97,6 +97,13 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
     plan_zero(out);
 
     if (r->action == IME_ACTION_PASS) {
+        /* E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc huỷ)
+         * → đóng preedit nếu đang mở, KHÔNG đưa vào preedit và nuốt phím (eaten = 1). */
+        if (r->flags & IME_FLAG_CONSUMED) {
+            out->end = composing;
+            out->eaten = 1;
+            return;
+        }
         if (key.kind == LC_KEY_CHAR && !word_end) {
             /* Engine nhận ký tự vào từ nhưng chưa biến đổi → đưa vào preedit. */
             if (cur->len + 1 >= LC_COMP_MAX) {
@@ -163,9 +170,11 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
         out->text_len = keep + ins;
         out->has_text = 1;
         out->eaten = 1;
+        out->cursor_left = r->cursor_left;
 
         uint32_t b = 0;
-        if (word_end && r->action != IME_ACTION_REPLACE && boundary_char(key, &b) &&
+        if (word_end && boundary_char(key, &b) &&
+            (r->action != IME_ACTION_REPLACE || b == '\n') &&
             out->text_len > 0 && out->text[out->text_len - 1] == b) {
             out->text_len -= 1;
             out->eaten = 0;
@@ -663,6 +672,7 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
             /* Chỉ `suggest.enabled`: engine dự đoán Mode EN theo khoá này (`tab_and_space`
              * một mình không bật gì — composition vô ích). */
             st->suggest_enabled = sug_en ? 1 : 0;
+            st->math_enabled = ime_settings_get_bool(s, "math.enabled") == 1 ? 1 : 0;
             char *mode = ime_settings_get_str(s, "assist.mode");
             if (mode) {
                 if (strcmp(mode, "highlight") == 0) {

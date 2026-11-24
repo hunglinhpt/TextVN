@@ -46,8 +46,17 @@ mod hook_app {
     static CAPS_HELD: AtomicBool = AtomicBool::new(false);
 
     static GLOBAL_ENABLED: AtomicBool = AtomicBool::new(true);
+    static GLOBAL_MATH_ENABLED: AtomicBool = AtomicBool::new(false);
+    static GLOBAL_MATH_ALTGR: AtomicBool = AtomicBool::new(false);
     static RELOAD_CONFIG_PENDING: AtomicBool = AtomicBool::new(false);
     static HOOK_MAIN_THREAD_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+    fn sync_math_flags_from_json(json: &str) {
+        if let Ok(cfg) = textvn_config::parse_config(json) {
+            GLOBAL_MATH_ENABLED.store(cfg.math.enabled, Ordering::Release);
+            GLOBAL_MATH_ALTGR.store(cfg.math.altgr_enabled, Ordering::Release);
+        }
+    }
 
     #[derive(Clone, Copy)]
     struct FocusProbe {
@@ -68,13 +77,12 @@ mod hook_app {
         None
     }
 
-    fn trigger_global_toggle() {
-        std::thread::spawn(|| {
+    fn send_ipc_to_tray(msg: textvn_ipc::Message) {
+        std::thread::spawn(move || {
             use std::io::Write;
-            use textvn_ipc::{encode_frame, Message};
+            use textvn_ipc::encode_frame;
             for name in textvn_ipc::candidate_pipe_names() {
                 if let Ok(mut stream) = textvn_ipc::pipe_client_options().open(&name) {
-                    let msg = Message::ToggleGlobal;
                     if let Ok(frame) = encode_frame(&msg) {
                         let _ = stream.write_all(&frame);
                         let _ = stream.flush();
@@ -83,6 +91,10 @@ mod hook_app {
                 }
             }
         });
+    }
+
+    fn trigger_global_toggle() {
+        send_ipc_to_tray(textvn_ipc::Message::ToggleGlobal);
     }
 
     /// Trạng thái Hook toàn cục trong thread hook của tiến trình.
@@ -122,6 +134,7 @@ mod hook_app {
 
         let now = Instant::now();
         let engine = if let Some(ref json) = load_user_config() {
+            sync_math_flags_from_json(json);
             HookEngine::new_with_config(json).unwrap_or_else(|_| HookEngine::new().unwrap())
         } else {
             HookEngine::new().unwrap()
@@ -225,6 +238,7 @@ mod hook_app {
         // Tự động nạp lại config nếu có thông báo từ IPC hoặc file thay đổi
         if RELOAD_CONFIG_PENDING.swap(false, Ordering::AcqRel) {
             if let Some(cfg) = load_user_config() {
+                sync_math_flags_from_json(&cfg);
                 HOOK_CTX.with(|cell| {
                     if let Some(ctx) = cell.borrow_mut().as_mut() {
                         let _ = ctx.engine.reload_config(&cfg);
@@ -291,21 +305,45 @@ mod hook_app {
             }
         }
 
-        // Nếu bộ gõ đang ở chế độ Tiếng Anh (off), không can thiệp, chuyển ngay cho OS
-        if !GLOBAL_ENABLED.load(Ordering::Acquire) {
-            return CallNextHookEx(None, code, wparam, lparam);
-        }
-
         // 2. Chỉ xử lý khi key down (WM_KEYDOWN hoặc WM_SYSKEYDOWN)
         if !is_down {
             return CallNextHookEx(None, code, wparam, lparam);
         }
         let mods = get_active_modifiers();
 
-        // 3. Chord hệ thống (Ctrl, Alt, Win) -> PASS lập tức (B6). Ctrl+←, Ctrl+Z,
-        // Ctrl+V, Alt+Tab… đổi con trỏ/text mà engine không thấy: bỏ từ đang gõ (trừ
-        // khi chính phím này là modifier — Ctrl+Shift giữa từ không được mất từ).
-        let system_chord = (mods & (0x2 | 0x4 | 0x8)) != 0;
+        // P11/E62/P12 hotkeys toàn cục trong chế độ Hook:
+        // Ctrl+Shift+M = bật/tắt Math & Science; Ctrl+Alt+M = đổi chế độ Math; Ctrl+Alt+E = Emoji Picker.
+        if vk == 0x4D && mods == (0x1 | 0x2) {
+            reset_hook_engine();
+            send_ipc_to_tray(Message::ToggleMath);
+            return LRESULT(1);
+        }
+        if vk == 0x4D && mods == (0x2 | 0x4) {
+            reset_hook_engine();
+            send_ipc_to_tray(Message::CycleMathMode);
+            return LRESULT(1);
+        }
+        if vk == 0x45 && mods == (0x2 | 0x4) {
+            reset_hook_engine();
+            send_ipc_to_tray(Message::OpenEmojiPicker);
+            return LRESULT(1);
+        }
+
+        // Nếu cả tiếng Việt và Math & Science đều tắt, không can thiệp, chuyển ngay cho OS.
+        let vi_enabled = GLOBAL_ENABLED.load(Ordering::Acquire);
+        let math_enabled = GLOBAL_MATH_ENABLED.load(Ordering::Acquire);
+        if !vi_enabled && !math_enabled {
+            return CallNextHookEx(None, code, wparam, lparam);
+        }
+
+        // 3. Chord hệ thống (Ctrl, Alt, Win) -> PASS lập tức (B6).
+        // Ngoại lệ: AltGr (Ctrl+Alt+<phím>) khi Math & Science + altgr_enabled bật.
+        let is_math_altgr = math_enabled
+            && GLOBAL_MATH_ALTGR.load(Ordering::Acquire)
+            && ((mods & (0x2 | 0x4)) == (0x2 | 0x4))
+            && ((mods & 0x8) == 0)
+            && !is_modifier_vk(vk);
+        let system_chord = (mods & (0x2 | 0x4 | 0x8)) != 0 && !is_math_altgr;
         if system_chord {
             if !is_modifier_vk(vk) {
                 reset_hook_engine();
@@ -314,6 +352,7 @@ mod hook_app {
         }
 
         let mut outcome_to_inject = None;
+        let mut consumed_silent = false;
 
         HOOK_CTX.with(|cell| {
             let mut borrow = cell.borrow_mut();
@@ -373,6 +412,7 @@ mod hook_app {
             }
 
             let mut result = empty_ime_result();
+            ctx.engine.set_context(&ctx.current_app_id, vi_enabled);
             let outcome = ctx
                 .engine
                 .process(&ctx.state, event, ctx.appdb.as_ref(), &mut result);
@@ -387,6 +427,7 @@ mod hook_app {
 
             match outcome {
                 EngineOutcome::Transform => outcome_to_inject = Some(result),
+                EngineOutcome::Consumed => consumed_silent = true,
                 // P8 (vòng 55): Pass trên letter thuần → vẫn nuốt + inject lại
                 // chính ký tự gõ qua KEYEVENTF_UNICODE — chặn Windows VIE IME
                 // bắt VK gốc dựng composition box (xung đột 2 bộ gõ trên
@@ -402,6 +443,11 @@ mod hook_app {
                 EngineOutcome::Pass => {}
             }
         });
+
+        // E62: engine nuốt phím im lặng (vd. `` ` `` arm chord hoặc Esc huỷ chord).
+        if consumed_silent {
+            return LRESULT(1);
+        }
 
         // 4. Nếu engine yêu cầu thay đổi ký tự -> nuốt phím gốc (return 1) và thực hiện inject
         if let Some(res) = outcome_to_inject {
@@ -450,7 +496,14 @@ mod hook_app {
         IN_INJECTION.store(true, Ordering::Release);
 
         let delete_count = result.delete_count as usize;
-        let insert_slice = &result.insert[..result.insert_len as usize];
+        let mut insert_len = (result.insert_len as usize).min(result.insert.len());
+        // E62: `\can` + Enter trả `ACTION_REPLACE` kết thúc bằng `\n` — đổi `\n` thành phím
+        // VK_RETURN thật sau chuỗi Unicode để terminal/chat nhận Enter đúng nghĩa.
+        let trailing_enter = insert_len > 0 && result.insert[insert_len - 1] == '\n' as u32;
+        if trailing_enter {
+            insert_len -= 1;
+        }
+        let insert_slice = &result.insert[..insert_len];
         let utf16_chars: Vec<u16> = insert_slice
             .iter()
             .filter_map(|&c| char::from_u32(c))
@@ -514,6 +567,62 @@ mod hook_app {
                         wVk: VIRTUAL_KEY(0),
                         wScan: ch,
                         dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                        time: 0,
+                        dwExtraInfo: INJECT_TAG,
+                    },
+                },
+            });
+        }
+
+        // 2b. Gửi Enter thật nếu kết quả kết thúc bằng `\n`.
+        if trailing_enter {
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_RETURN,
+                        wScan: 0,
+                        dwFlags: KEYBD_EVENT_FLAGS(0),
+                        time: 0,
+                        dwExtraInfo: INJECT_TAG,
+                    },
+                },
+            });
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_RETURN,
+                        wScan: 0,
+                        dwFlags: KEYEVENTF_KEYUP,
+                        time: 0,
+                        dwExtraInfo: INJECT_TAG,
+                    },
+                },
+            });
+        }
+
+        // 3. P11/E62: dịch con trỏ trái N bước sau khi chèn template (vd. `\frac{}{}` → cursor_left=3).
+        for _ in 0..result.cursor_left.min(64) {
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_LEFT,
+                        wScan: 0,
+                        dwFlags: KEYEVENTF_EXTENDEDKEY,
+                        time: 0,
+                        dwExtraInfo: INJECT_TAG,
+                    },
+                },
+            });
+            inputs.push(INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_LEFT,
+                        wScan: 0,
+                        dwFlags: KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,
                         time: 0,
                         dwExtraInfo: INJECT_TAG,
                     },

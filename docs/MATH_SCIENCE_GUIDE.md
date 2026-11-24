@@ -12,16 +12,16 @@
 
 | Bước | Thao tác | Ghi chú |
 |---|---|---|
-| 1 | **UI (khuyến nghị):** checkbox `Math & Science` trong mục "Tùy chọn gõ" của cửa sổ Cài đặt (3 OS), hoặc chuột phải icon khay/menu bar → mục `Math & Science` (ngay dưới "Trợ lý ngữ pháp" ở Windows) | Lưu ngay vào `config.math.enabled`, engine nạp lại tức thì — không cần khởi động lại. Mặc định **TẮT** — hành vi gõ cũ giữ nguyên 100% |
+| 1 | **UI (khuyến nghị):** checkbox `Math & Science` trong mục "Tùy chọn gõ" của cửa sổ Cài đặt (3 OS), hoặc chuột phải icon khay/menu bar → mục `Math & Science` (ngay dưới "Trợ lý ngữ pháp" ở Windows) | Lưu ngay vào `config.math.enabled`, engine nạp lại tức thì và **hoạt động ngay trên mọi editor/vùng nhập text (cả Mode VI lẫn EN)** — không cần bật `sticky_math_mode` hay khởi động lại. Mặc định **TẮT** — hành vi gõ cũ giữ nguyên 100% |
 | 2 | (Tuỳ chọn) chỉnh tay `config.v1.json`: `"math": { "enabled": true }` rồi ConfigReload | Tương đương bước 1 |
-| 3 | Sticky Math Mode: `"sticky_math_mode": true` | Chords hoạt động ở **mọi** app, không cần trong `$...$` |
+| 3 | Phím tắt bật/tắt nhanh: `Ctrl+Shift+M` | Đảo trực tiếp `config.math.enabled`, đồng bộ lại khay hệ thống & mọi adapter tức thì |
 
 Tổ hợp phím toàn cục (đều remap được qua `math.hotkeys[]`):
 
 | Hotkey | Hành động |
 |---|---|
-| `Ctrl+Alt+M` | Xoay vòng chế độ kết xuất: Normal → AutoByApp → Latex → UnicodeMath → Typst |
-| `Ctrl+Shift+M` | Bật/tắt Sticky Math Mode |
+| `Ctrl+Shift+M` | Bật/tắt nhanh Math & Science (`config.math.enabled`) trên mọi editor |
+| `Ctrl+Alt+M` | Xoay vòng chế độ kết xuất: AutoByApp → Normal → Latex → UnicodeMath → Typst |
 | `Ctrl+Alt+V` | **Dán công thức thông minh** — tự chọn định dạng theo app đích |
 | `Ctrl+Alt+Space` | Mở Palette tìm kiếm ký hiệu/công thức |
 
@@ -141,16 +141,16 @@ Payload > 64 KB bị loại trước khi parse; công thức giữ **chỉ trong
 
 | Step | Action | Note |
 |---|---|---|
-| 1 | **UI (recommended):** the `Math & Science` checkbox in the Settings window's "Tùy chọn gõ" section (all 3 OS), or right-click the tray/menu-bar icon → `Math & Science` item (directly below "Trợ lý ngữ pháp" on Windows) | Saves to `config.math.enabled` instantly and the engine reloads immediately — no restart needed. Default **OFF** — legacy typing behavior unchanged 100% |
+| 1 | **UI (recommended):** the `Math & Science` checkbox in the Settings window's "Tùy chọn gõ" section (all 3 OS), or right-click the tray/menu-bar icon → `Math & Science` item (directly below "Trợ lý ngữ pháp" on Windows) | Saves to `config.math.enabled` instantly and **activates immediately across every editor and text input (both VI and EN modes)** — no `sticky_math_mode` or restart needed. Default **OFF** — legacy typing behavior unchanged 100% |
 | 2 | (Optional) hand-edit `config.v1.json`: `"math": { "enabled": true }` then ConfigReload | Equivalent to step 1 |
-| 3 | Sticky Math Mode: `"sticky_math_mode": true` | Chords work in **any** app, no `$...$` needed |
+| 3 | Quick toggle hotkey: `Ctrl+Shift+M` | Toggles `config.math.enabled` live and syncs Tray/Settings/all adapters instantly |
 
 Global hotkeys (all remappable via `math.hotkeys[]`):
 
 | Hotkey | Action |
 |---|---|
-| `Ctrl+Alt+M` | Cycle output mode: Normal → AutoByApp → Latex → UnicodeMath → Typst |
-| `Ctrl+Shift+M` | Toggle Sticky Math Mode |
+| `Ctrl+Shift+M` | Quick toggle Math & Science (`config.math.enabled`) across all editors |
+| `Ctrl+Alt+M` | Cycle output mode: AutoByApp → Normal → Latex → UnicodeMath → Typst |
 | `Ctrl+Alt+V` | **Smart Formula Paste** — auto-picks format for the focused app |
 | `Ctrl+Alt+Space` | Open symbol/formula search Palette |
 

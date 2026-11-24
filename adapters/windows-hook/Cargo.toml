@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 textvn-appdb = { path = "../../appdb" }
+textvn-config = { path = "../../config" }
 textvn-field-detect = { path = "../../field-detect" }
 textvn-ffi = { path = "../../ffi" }
 textvn-strategy = { path = "../../strategy" }

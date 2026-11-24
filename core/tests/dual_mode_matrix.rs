@@ -591,17 +591,17 @@ fn suite_d_undo_tone_and_double_key_golden() {
         let opts = opts_for(Method::Telex, false);
         let got = type_string(&opts, &format!("{keys} ").chars().collect::<Vec<_>>());
         // Ghim golden: fold chính là đích; mọi phím undo lặp (`ddd`, `aaa`, `eee`,
-        // `aww`, `axx`, `asss`…) KHÔNG được hồi sinh thành bản gốc dư phím ở ranh giới (E50).
-        // Chỉ các từ EN thật (`www`, `ass`), cặp s/f/r đơn mơ hồ (`aff`, `arr`) và `z` trước
-        // âm chưa hợp lệ (`vieetjz`) giữ chuỗi phím gõ.
+        // `aww`, `axx`, `asss`…) và `z` gỡ dấu cuối từ (`vieetjz` → `viêt`) KHÔNG được
+        // hồi sinh thành bản gốc dư phím ở ranh giới (E50/E61).
+        // Chỉ các từ EN thật (`www`, `ass`) và cặp s/f/r đơn mơ hồ (`aff`, `arr`) giữ raw.
         let raw: Vec<char> = keys.chars().collect();
         let folded_chars = method::fold(&raw, Method::Telex, old, true);
         let folded: String = folded_chars.iter().collect();
         assert_eq!(folded, *want, "Telex golden fold `{keys}`");
         let expected = match *keys {
             // Chưa undo & không phải âm tiết Việt độc lập (`â`): restore EN.
-            // Từ EN thật (`www`, `ass`), cặp s/f/r đơn (`aff`, `arr`), `z` trước âm chưa hợp lệ: giữ raw.
-            "aa" | "www" | "ass" | "aff" | "arr" | "vieetjz" => format!("{keys} "),
+            // Từ EN thật (`www`, `ass`) và cặp s/f/r đơn (`aff`, `arr`): giữ raw.
+            "aa" | "www" | "ass" | "aff" | "arr" => format!("{keys} "),
             _ => format!("{want} "),
         };
         assert_eq!(got, expected, "Telex golden `{keys}`");

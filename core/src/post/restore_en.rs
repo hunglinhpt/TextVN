@@ -346,27 +346,372 @@ pub fn is_known_en_word(word: &str) -> bool {
     en_common_set().contains(needle.as_str()) || en_freq_set().contains(needle.as_str())
 }
 
-/// Từ có nằm trong bất kỳ nguồn từ vựng EN đã biết nào (common, freq3000, words10k, thuật ngữ
-/// tech/business hoặc danh sách `english_words` của người dùng) hay không (E50).
+/// Từ tiếng Anh viết đôi phụ âm (`ss`/`ff`/`rr`), họ Bắc Âu `-sson`, và từ đuôi `z` thiếu trong
+/// `en_words10k.txt` — giữ nguyên dạng gốc khi người dùng gõ thẳng (`dessert`,
+/// `marry`, `scarred`, `busses`, `buff`, `buffing`, `newsstand`, `wolff`, `andersson`, `quartz`…).
+/// Không đưa `"hiss"`, `"buss"`, `"lass"`, `"lasser"` vào bảng này để giữ hoàn tác UniKey (`his`/`bus`/`las`/`laser`).
+const EN_EXTRA_LEXICON_WORDS: &[&str] = &[
+    "alvarez",
+    "andersson",
+    "baroness",
+    "barrage",
+    "barred",
+    "barring",
+    "biassed",
+    "biasses",
+    "biassing",
+    "bliss",
+    "bluff",
+    "bluffed",
+    "blurred",
+    "blurry",
+    "borrow",
+    "buff",
+    "buffed",
+    "buffing",
+    "buffs",
+    "burr",
+    "bussed",
+    "busses",
+    "bussing",
+    "carcass",
+    "caress",
+    "carlsson",
+    "carrot",
+    "charred",
+    "charring",
+    "compass",
+    "compress",
+    "conferred",
+    "conferrer",
+    "conferring",
+    "cortez",
+    "countess",
+    "cuffed",
+    "cutlass",
+    "dandruff",
+    "deferred",
+    "deferring",
+    "dessert",
+    "desserts",
+    "deterred",
+    "deterring",
+    "digress",
+    "diss",
+    "dissed",
+    "disses",
+    "distress",
+    "dorff",
+    "doss",
+    "dossed",
+    "dossing",
+    "eriksson",
+    "ersatz",
+    "fernandez",
+    "floss",
+    "fluff",
+    "flurry",
+    "focussed",
+    "focusses",
+    "focussing",
+    "forrester",
+    "fortress",
+    "fritz",
+    "furr",
+    "furry",
+    "garry",
+    "gassed",
+    "gasses",
+    "gassing",
+    "gigahertz",
+    "gloss",
+    "goddess",
+    "gruff",
+    "gustafsson",
+    "handcuff",
+    "hansson",
+    "hernandez",
+    "hertz",
+    "hissed",
+    "hisses",
+    "hissing",
+    "horowitz",
+    "hostess",
+    "hurry",
+    "inferred",
+    "inferring",
+    "ingress",
+    "jarred",
+    "jarring",
+    "johansson",
+    "jonsson",
+    "juarez",
+    "kilohertz",
+    "klutz",
+    "kurtz",
+    "larsson",
+    "lassed",
+    "lasses",
+    "lioness",
+    "lorenz",
+    "marred",
+    "married",
+    "marries",
+    "marring",
+    "marry",
+    "marrying",
+    "martinez",
+    "massacre",
+    "massaged",
+    "massages",
+    "mastiff",
+    "megahertz",
+    "newsstand",
+    "newsstands",
+    "nilsson",
+    "occurred",
+    "occurrer",
+    "olsson",
+    "orff",
+    "ortiz",
+    "overpass",
+    "parred",
+    "parring",
+    "parrot",
+    "passable",
+    "passbook",
+    "passcode",
+    "passkey",
+    "passover",
+    "passthrough",
+    "perez",
+    "perror",
+    "persson",
+    "pettersson",
+    "plaintiff",
+    "poetess",
+    "preferred",
+    "preferrer",
+    "preferring",
+    "priestess",
+    "protectress",
+    "puffed",
+    "purr",
+    "quartz",
+    "ramirez",
+    "recess",
+    "recurred",
+    "redress",
+    "referred",
+    "referrer",
+    "regress",
+    "repress",
+    "rodriguez",
+    "scarred",
+    "scarring",
+    "schwartz",
+    "schwarz",
+    "scoff",
+    "scuffed",
+    "scurry",
+    "serverless",
+    "sheriff",
+    "sniffed",
+    "sorrow",
+    "sparred",
+    "sparring",
+    "sparrow",
+    "sparrows",
+    "spitz",
+    "starred",
+    "starry",
+    "stderr",
+    "stiff",
+    "stuffed",
+    "suarez",
+    "surpass",
+    "svensson",
+    "tariff",
+    "tarred",
+    "tarring",
+    "transferred",
+    "transferrer",
+    "transferring",
+    "transship",
+    "transsonic",
+    "underpass",
+    "waitress",
+    "warred",
+    "warring",
+    "whirr",
+    "windlass",
+    "wolff",
+];
+
+/// Thuật ngữ lập trình / CLI / tech hay gặp không có trong `en_words10k.txt` — phục vụ
+/// tách phím hoàn tác UniKey (`serrde`→`serde`, `varrss`→`vars`, `SerrdeJson`→`SerdeJson`).
+const TECH_UNDO_WORDS: &[&str] = &[
+    "args",
+    "async",
+    "axios",
+    "centos",
+    "cfg",
+    "configs",
+    "cur",
+    "defaults",
+    "defs",
+    "deref",
+    "devops",
+    "dir",
+    "docker",
+    "errno",
+    "eslint",
+    "formatter",
+    "github",
+    "gitlab",
+    "idx",
+    "impl",
+    "kafka",
+    "leftmost",
+    "linter",
+    "linux",
+    "macos",
+    "mgr",
+    "mongo",
+    "mutex",
+    "mysql",
+    "nginx",
+    "oauth",
+    "parsers",
+    "pos",
+    "posix",
+    "postgres",
+    "ptr",
+    "redis",
+    "ref",
+    "refs",
+    "regex",
+    "res",
+    "rustc",
+    "semver",
+    "serde",
+    "serverless",
+    "sir",
+    "sirs",
+    "spoof",
+    "src",
+    "stderr",
+    "stdin",
+    "stdout",
+    "unref",
+    "usr",
+    "val",
+    "vars",
+    "vscode",
+    "wasm",
+];
+
+fn in_base_lexicon_lower(needle: &str, orig: &str, english_words: &[String]) -> bool {
+    let uniform_chars = needle
+        .chars()
+        .next()
+        .is_some_and(|f| needle.chars().all(|c| c == f));
+    en_common_set().contains(needle)
+        || en_freq_set().contains(needle)
+        || (!uniform_chars && en_words10k_contains(needle))
+        || EN_EXTRA_LEXICON_WORDS.binary_search(&needle).is_ok()
+        || is_tech_business_term(needle)
+        || english_words.iter().any(|w| w.eq_ignore_ascii_case(orig))
+}
+
+fn is_doubled_consonant_inflection(lower: &str, orig: &str, english_words: &[String]) -> bool {
+    const SUFFIXES: &[(&str, usize)] = &[
+        ("rred", 2),
+        ("rring", 3),
+        ("ssed", 2),
+        ("ssing", 3),
+        ("sses", 2),
+        ("ffed", 2),
+        ("ffing", 3),
+    ];
+    for &(suf, dbl_strip) in SUFFIXES {
+        if lower.ends_with(suf) && lower.len() >= suf.len() + 2 {
+            let base = &lower[..lower.len() - dbl_strip];
+            if base == "bass" && suf != "sses" {
+                continue;
+            }
+            if base.len() >= 4 && in_base_lexicon_lower(base, orig, english_words) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Từ có nằm trong bất kỳ nguồn từ vựng EN đã biết nào (common, freq3000, words10k, từ đôi
+/// ngoại lệ, biến thể chia thì giữ phụ âm đôi, thuật ngữ tech hoặc danh sách `english_words`
+/// của người dùng) hay không (E50/E61).
 pub(crate) fn is_english_lexicon_word(word: &str, english_words: &[String]) -> bool {
     if word.is_empty() {
         return false;
     }
     let needle = word.to_lowercase();
-    let uniform_chars = needle
-        .chars()
-        .next()
-        .is_some_and(|f| needle.chars().all(|c| c == f));
-    en_common_set().contains(needle.as_str())
-        || en_freq_set().contains(needle.as_str())
-        || (!uniform_chars && en_words10k_contains(&needle))
-        || is_tech_business_term(&needle)
-        || english_words.iter().any(|w| w.eq_ignore_ascii_case(word))
+    in_base_lexicon_lower(&needle, word, english_words)
+        || is_doubled_consonant_inflection(&needle, word, english_words)
 }
 
-/// Kiểm tra từ sau khi lọc phím hoàn tác `s`/`f`/`r` có phải từ tiếng Anh thật hay không (E60):
+fn in_undo_exact_lexicon(lower: &str, orig: &str, english_words: &[String]) -> bool {
+    if lower.len() < 3 || matches!(lower, "bufing" | "los" | "les") {
+        return false;
+    }
+    in_base_lexicon_lower(lower, orig, english_words)
+        || TECH_UNDO_WORDS.binary_search(&lower).is_ok()
+}
+
+/// Từ nguồn sạch (>= 4 ký tự nếu từ `en_words10k`, hoặc nằm trong `en_common`/`en_freq3000`/
+/// `TECH_BUSINESS_TERMS`/`EN_EXTRA_LEXICON_WORDS`/`TECH_UNDO_WORDS` trừ `"res"`, `"las"`) để làm gốc
+/// chia từ / ghép 2 phần — loại bỏ nhiễu 3 chữ cái (`pas`, `mas`, `des`, `std`, `las`…).
+fn in_undo_part_lexicon(lower: &str, orig: &str, english_words: &[String]) -> bool {
+    if lower.len() < 3 || matches!(lower, "bufing" | "los" | "les" | "res" | "las") {
+        return false;
+    }
+    let uniform_chars = lower
+        .chars()
+        .next()
+        .is_some_and(|f| lower.chars().all(|c| c == f));
+    en_common_set().contains(lower)
+        || en_freq_set().contains(lower)
+        || (lower.len() >= 4 && !uniform_chars && en_words10k_contains(lower))
+        || EN_EXTRA_LEXICON_WORDS.binary_search(&lower).is_ok()
+        || is_tech_business_term(lower)
+        || TECH_UNDO_WORDS.binary_search(&lower).is_ok()
+        || english_words.iter().any(|w| w.eq_ignore_ascii_case(orig))
+}
+
+fn is_cvc_single_sfr(stem: &str) -> bool {
+    let b = stem.as_bytes();
+    if b.len() < 3 {
+        return false;
+    }
+    // Âm cuối `-er` không mang trọng âm (`buffer`, `filter`, `cater`, `offer`; trừ các gốc
+    // trọng âm `-fer`/`deter`) KHÔNG gấp đôi phụ âm cuối trong tiếng Anh → giữ được UniKey undo `bufferring ` → `buffering `.
+    if stem.ends_with("er")
+        && b.len() >= 5
+        && !matches!(
+            stem,
+            "refer" | "prefer" | "transfer" | "confer" | "defer" | "infer" | "deter"
+        )
+    {
+        return false;
+    }
+    let is_v = |ch: u8| matches!(ch, b'a' | b'e' | b'i' | b'o' | b'u');
+    !is_v(b[b.len() - 3]) && is_v(b[b.len() - 2]) && matches!(b[b.len() - 1], b'r' | b's' | b'f')
+}
+
+/// Kiểm tra từ sau khi lọc phím hoàn tác `s`/`f`/`r` có phải từ tiếng Anh thật hay không (E60/E61):
 /// với độ dài 2 chỉ nhận các từ 2 chữ cái thật (`as`, `if`, `is`, `of`, `or`, `os`, `us`) để tránh
 /// mã viết tắt nhiễu trong google-10k (`ar`, `er`…) làm hỏng định danh code (`arr[0]`, `err`).
+/// Hỗ trợ thêm thuật ngữ tech, hậu tố chia từ và ghép 2 từ thường (`var`+`name`, `task`+`mgr`).
 pub(crate) fn is_real_english_word_for_undo(word: &str, english_words: &[String]) -> bool {
     if word.is_empty() {
         return false;
@@ -374,14 +719,60 @@ pub(crate) fn is_real_english_word_for_undo(word: &str, english_words: &[String]
     if english_words.iter().any(|w| w.eq_ignore_ascii_case(word)) {
         return true;
     }
-    if word.len() == 2 {
-        let needle = word.to_lowercase();
+    let needle = word.to_lowercase();
+    if matches!(needle.as_str(), "bufing" | "los" | "les") {
+        return false;
+    }
+    if needle.len() == 2 {
         return matches!(
             needle.as_str(),
             "as" | "if" | "is" | "of" | "or" | "os" | "us"
         );
     }
-    is_english_lexicon_word(word, english_words)
+    if in_undo_exact_lexicon(&needle, word, english_words)
+        || is_doubled_consonant_inflection(&needle, word, english_words)
+    {
+        return true;
+    }
+    // Hậu tố chia từ cơ bản trên gốc sạch (`deffaults` -> `defaults`, `serrverless` -> `serverless`).
+    if needle.len() >= 4 && needle.is_ascii() {
+        for suf in ["s", "es", "ed", "ing", "er", "less", "most"] {
+            if let Some(stem) = needle.strip_suffix(suf) {
+                if stem.len() < 3 || !in_undo_part_lexicon(stem, stem, english_words) {
+                    continue;
+                }
+                if suf == "s" && stem.ends_with('s') {
+                    continue;
+                }
+                if suf == "es"
+                    && !(stem.ends_with('s')
+                        || stem.ends_with('x')
+                        || stem.ends_with('z')
+                        || stem.ends_with("ch")
+                        || stem.ends_with("sh")
+                        || stem.ends_with('o'))
+                {
+                    continue;
+                }
+                if matches!(suf, "es" | "ed" | "ing" | "er") && is_cvc_single_sfr(stem) {
+                    continue;
+                }
+                return true;
+            }
+        }
+    }
+    // Định danh ghép 2 từ thường (`var`+`name`, `sir`+`name`, `task`+`mgr`, `def`+`val`…).
+    if needle.len() >= 6 && needle.is_ascii() {
+        for split in 3..=needle.len() - 3 {
+            let (left, right) = needle.split_at(split);
+            if in_undo_part_lexicon(left, left, english_words)
+                && in_undo_part_lexicon(right, right, english_words)
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
@@ -1092,6 +1483,18 @@ mod tests {
         assert_eq!(
             complete_word("vn", "vn", &["VnExpress".to_string()]),
             Some("vnexpress".to_string())
+        );
+    }
+
+    #[test]
+    fn e61_extra_and_tech_tables_strictly_sorted() {
+        assert!(
+            EN_EXTRA_LEXICON_WORDS.windows(2).all(|w| w[0] < w[1]),
+            "EN_EXTRA_LEXICON_WORDS phải sắp xếp tăng dần nghiêm ngặt cho binary_search"
+        );
+        assert!(
+            TECH_UNDO_WORDS.windows(2).all(|w| w[0] < w[1]),
+            "TECH_UNDO_WORDS phải sắp xếp tăng dần nghiêm ngặt cho binary_search"
         );
     }
 }

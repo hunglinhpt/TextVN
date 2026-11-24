@@ -21,7 +21,8 @@
 //!   (macro/emoji có trigger chứa dấu câu) — lớp COM phải xác minh được mới xóa.
 
 use textvn_ffi::{
-    ime_result_v1, ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE, IME_FLAG_WORD_END,
+    ime_result_v1, ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE, IME_FLAG_CONSUMED,
+    IME_FLAG_WORD_END,
 };
 
 /// Win VK dùng để phân loại phím (khớp `textvn_core::keymap::vk`).
@@ -55,6 +56,9 @@ pub enum KeyKind {
     Enter,
     Tab,
     CtrlSpace,
+    /// Tổ hợp AltGr (`Ctrl+Alt+<phím in được>`) dành cho Math & Science:
+    /// khớp biểu tượng thì thay thế, không khớp thì pass-through nguyên phím (không chèn chữ thô).
+    AltGr(char),
     /// Không sinh ký tự: mũi tên, Delete, Home/End, F-key, PageUp…
     Other,
 }
@@ -87,15 +91,24 @@ impl KeyKind {
     /// nhận qua `vk` (engine map Enter→`\n`, Tab→`\t`).
     /// Phân loại kèm modifier: nhận diện Ctrl+Space (trigger Text Prediction & Text Correct).
     pub fn classify_with_mods(vk: u32, ch: u32, mods: u32) -> KeyKind {
-        if vk == 0x20 && (mods & !textvn_ffi::MOD_CAPS) == textvn_ffi::MOD_CTRL {
+        let mods_no_caps = mods & !textvn_ffi::MOD_CAPS;
+        if vk == 0x20 && mods_no_caps == textvn_ffi::MOD_CTRL {
             return KeyKind::CtrlSpace;
         }
-        Self::classify(vk, ch)
+        let kind = Self::classify(vk, ch);
+        if mods_no_caps == (textvn_ffi::MOD_CTRL | textvn_ffi::MOD_ALT)
+            || mods_no_caps == (textvn_ffi::MOD_CTRL | textvn_ffi::MOD_ALT | textvn_ffi::MOD_SHIFT)
+        {
+            if let KeyKind::Char(c) = kind {
+                return KeyKind::AltGr(c);
+            }
+        }
+        kind
     }
 
     pub fn engine_ch(self) -> u32 {
         match self {
-            KeyKind::Char(c) => c as u32,
+            KeyKind::Char(c) | KeyKind::AltGr(c) => c as u32,
             _ => 0,
         }
     }
@@ -115,7 +128,11 @@ impl KeyKind {
     pub fn needs_session_when_idle(self) -> bool {
         matches!(
             self,
-            KeyKind::Char(_) | KeyKind::Enter | KeyKind::Tab | KeyKind::CtrlSpace
+            KeyKind::Char(_)
+                | KeyKind::AltGr(_)
+                | KeyKind::Enter
+                | KeyKind::Tab
+                | KeyKind::CtrlSpace
         )
     }
 }
@@ -423,6 +440,10 @@ impl EngineStep {
     fn word_end(&self) -> bool {
         self.flags & IME_FLAG_WORD_END != 0
     }
+
+    fn consumed(&self) -> bool {
+        self.flags & IME_FLAG_CONSUMED != 0
+    }
 }
 
 /// Việc lớp COM phải làm trong edit session cho một phím.
@@ -459,6 +480,15 @@ impl CompositionPlan {
 pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> CompositionPlan {
     let composing = !current.is_empty();
     match step.action {
+        // E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc huỷ chord)
+        // → KHÔNG chèn vào composition và KHÔNG forward cho app.
+        ACTION_PASS if step.consumed() => CompositionPlan {
+            delete_before: 0,
+            text: None,
+            end: composing,
+            eaten: true,
+            cursor_left: 0,
+        },
         ACTION_PASS => match key {
             // Engine đã nhận ký tự vào từ nhưng chưa biến đổi → TIP tự đưa vào composition.
             KeyKind::Char(c) if !step.word_end() => {
@@ -524,10 +554,12 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
             // Ký tự in được ở lại trong text commit (phím bị ăn, như nhánh PASS ở trên).
             // Enter/Tab thì bỏ ra và để app nhận phím gốc — Enter phải là phím Enter
             // thật (chat gửi tin), không phải ký tự `\n` chèn vào text.
-            // REPLACE có WORD_END là macro/emoji: trigger bị nuốt theo P0-3 §1.1.
-            if step.word_end() && step.action != ACTION_REPLACE {
+            // REPLACE có WORD_END là macro/emoji/math: trigger Space/Tab bị nuốt,
+            // nhưng riêng Enter (`\n`) khi engine giữ `\n` ở cuối `insert` (vd. `\can` + Enter)
+            // thì bỏ `\n` và để app nhận phím Enter thật.
+            if step.word_end() {
                 if let Some(b) = key.native_boundary_char() {
-                    if text.last() == Some(&b) {
+                    if (step.action != ACTION_REPLACE || b == '\n') && text.last() == Some(&b) {
                         text.pop();
                         eaten = false;
                     }
@@ -704,7 +736,7 @@ mod tests {
                 KeyKind::Backspace => {
                     doc.committed.pop();
                 }
-                KeyKind::Escape | KeyKind::CtrlSpace | KeyKind::Other => {}
+                KeyKind::Escape | KeyKind::CtrlSpace | KeyKind::AltGr(_) | KeyKind::Other => {}
             }
         }
         plan
@@ -2258,5 +2290,65 @@ mod tests {
             checked, 528,
             "cần đủ 528 case TSF/Focus/Terminal (chạy {checked})"
         );
+    }
+
+    #[test]
+    fn e62_math_consumed_pass_altgr_and_enter_replace() {
+        // 1) Backtick `` ` `` arm chord: ACTION_PASS | IME_FLAG_CONSUMED → ăn phím, không chèn `` ` ``.
+        let armed = EngineStep {
+            action: ACTION_PASS,
+            delete_count: 0,
+            insert: Vec::new(),
+            flags: IME_FLAG_CONSUMED,
+            cursor_left: 0,
+        };
+        let p_idle = plan_key(&[], KeyKind::Char('`'), &armed);
+        assert!(p_idle.eaten && p_idle.text.is_none() && !p_idle.end);
+        let p_comp = plan_key(&['x'], KeyKind::Char('`'), &armed);
+        assert!(p_comp.eaten && p_comp.text.is_none() && p_comp.end);
+
+        // 2) `\frac{}{}`: ACTION_REPLACE + cursor_left=3 giữ nguyên cursor_left & đóng composition.
+        let frac = EngineStep {
+            action: ACTION_REPLACE,
+            delete_count: 0,
+            insert: "\\frac{}{}".chars().collect(),
+            flags: IME_FLAG_CONSUMED | IME_FLAG_WORD_END,
+            cursor_left: 3,
+        };
+        let p_frac = plan_key(&[], KeyKind::Char('/'), &frac);
+        assert!(p_frac.eaten && p_frac.end && p_frac.cursor_left == 3);
+        assert_eq!(
+            p_frac.text.unwrap().iter().collect::<String>(),
+            "\\frac{}{}"
+        );
+
+        // 3) `\can` + Enter: ACTION_REPLACE có `\n` cuối → bỏ `\n` khỏi text, trả Enter thật cho app.
+        let sqrt_enter = EngineStep {
+            action: ACTION_REPLACE,
+            delete_count: 4,
+            insert: "√x\n".chars().collect(),
+            flags: IME_FLAG_CONSUMED | IME_FLAG_WORD_END,
+            cursor_left: 0,
+        };
+        let p_ent = plan_key(&['\\', 'c', 'a', 'n'], KeyKind::Enter, &sqrt_enter);
+        assert!(!p_ent.eaten && p_ent.end);
+        assert_eq!(p_ent.text.unwrap().iter().collect::<String>(), "√x");
+
+        // 4) AltGr chưa ánh xạ khi đang composing: không bao giờ chèn chữ thô vào composition.
+        let alt_z = KeyKind::classify_with_mods(
+            b'Z' as u32,
+            'z' as u32,
+            textvn_ffi::MOD_CTRL | textvn_ffi::MOD_ALT,
+        );
+        assert_eq!(alt_z, KeyKind::AltGr('z'));
+        let pass_we = EngineStep {
+            action: ACTION_PASS,
+            delete_count: 0,
+            insert: Vec::new(),
+            flags: IME_FLAG_WORD_END,
+            cursor_left: 0,
+        };
+        let p_alt = plan_key(&['a'], alt_z, &pass_we);
+        assert!(!p_alt.eaten && p_alt.end && p_alt.text.is_none());
     }
 }

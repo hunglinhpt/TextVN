@@ -156,6 +156,15 @@ pub enum Message {
         /// JSON drain (đã cap 200 từ/50 cặp phía engine).
         json: String,
     },
+    /// P11/E62: bật/tắt nhanh Math & Science (`Ctrl+Shift+M`) từ adapter → tray
+    /// lưu config + broadcast `ConfigReload` + cập nhật menu khay.
+    ToggleMath,
+    /// P11/E62: xoay vòng định dạng đầu ra Math (`Ctrl+Alt+M`: Normal → LaTeX →
+    /// WordUnicode → AutoByApp) từ adapter → tray lưu config + broadcast `ConfigReload`.
+    CycleMathMode,
+    /// P12: mở Emoji Picker nhẹ trên tray (khi gọi từ Windows Hook ở terminal/app
+    /// không do TSF sở hữu, hoặc từ hotkey toàn cục `Ctrl+Alt+E`).
+    OpenEmojiPicker,
 }
 
 /// Một lỗi trong [`Message::AssistReport`].

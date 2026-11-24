@@ -309,6 +309,7 @@ fn d300_end_to_end_sequences() {
                         "[{tag}] '{c}': PassUnicode contract"
                     );
                 }
+                EngineOutcome::Consumed => {}
                 EngineOutcome::Pass => {
                     // non-letter (., @, /) giữ Pass VK gốc — hợp lệ P8.
                     assert!(
@@ -365,6 +366,7 @@ fn e48_hook_origin_guard_prevents_textvn_duplication() {
         result.abi_version = textvn_ffi::IME_ABI_VERSION;
         match engine.process(&state, ev, None, &mut result) {
             EngineOutcome::PassUnicode | EngineOutcome::Pass => doc.push(ch),
+            EngineOutcome::Consumed => {}
             EngineOutcome::Transform => {
                 let del = usize::from(result.delete_count);
                 assert!(del <= doc.len(), "TextVN: delete {del} > len {}", doc.len());
@@ -462,6 +464,7 @@ fn e48_dual_mode_rapid_origin_matrix_140() {
                                     .filter_map(|&u| char::from_u32(u)),
                             );
                         }
+                        EngineOutcome::Consumed => {}
                     }
                     if with_interleaved_injected {
                         assert_ne!(
@@ -524,4 +527,63 @@ fn e48_dual_mode_rapid_origin_matrix_140() {
         }
     }
     assert!(checked >= 100, "E48 hook matrix chỉ chạy {checked} case");
+}
+
+#[test]
+fn e62_hook_math_consumed_and_cursor_left() {
+    let cfg = r#"{"config_version":1,"math":{"enabled":true,"output_mode":"Latex"}}"#;
+    let mut engine = textvn_win_hook::HookEngine::new_with_config(cfg).expect("hook engine math");
+    engine.set_context("MobaXterm.exe", false); // Mode EN + Math bật
+    let mut state = HookState::new(
+        "MobaXterm.exe",
+        0,
+        HookMode::Always,
+        std::time::Duration::from_millis(2),
+    );
+    state.publish_probe(1, IME_FIELD_BODY, SecurityState::NonSecure);
+
+    // 1) Backtick `` ` `` arm chord → EngineOutcome::Consumed (nuốt im, không inject `` ` ``).
+    let mut res = textvn_ffi::ime_result_v1 {
+        abi_version: textvn_ffi::IME_ABI_VERSION,
+        action: 0,
+        delete_count: 0,
+        insert_len: 0,
+        preedit_len: 0,
+        cursor_left: 0,
+        flags: 0,
+        insert: [0; textvn_ffi::IME_MAX_TEXT],
+        preedit: [0; textvn_ffi::IME_MAX_TEXT],
+    };
+    let ev_bt = KeyEvent {
+        key_down: true,
+        injected: false,
+        system_chord: false,
+        vk: 0xC0,
+        ch: '`' as u32,
+        mods: 0,
+    };
+    assert_eq!(
+        engine.process(&state, ev_bt, None, &mut res),
+        EngineOutcome::Consumed
+    );
+
+    // 2) `/` hoàn tất chord `` `/ `` → `\frac{}{}` với cursor_left = 3.
+    let ev_slash = KeyEvent {
+        key_down: true,
+        injected: false,
+        system_chord: false,
+        vk: 0xBF,
+        ch: '/' as u32,
+        mods: 0,
+    };
+    assert_eq!(
+        engine.process(&state, ev_slash, None, &mut res),
+        EngineOutcome::Transform
+    );
+    let inserted: String = res.insert[..usize::from(res.insert_len)]
+        .iter()
+        .filter_map(|&u| char::from_u32(u))
+        .collect();
+    assert_eq!(inserted, "\\frac{}{}");
+    assert_eq!(res.cursor_left, 3);
 }

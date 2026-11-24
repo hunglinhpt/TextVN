@@ -56,7 +56,7 @@ const GREEK_LOWER: &[(char, &str, &str)] = &[
     ('s', "σ", "\\sigma"),
     ('f', "φ", "\\phi"),
     ('c', "χ", "\\chi"),
-    ('y', "ψ", "\\ψ"),
+    ('y', "ψ", "\\psi"),
     ('w', "ω", "\\omega"),
     ('u', "υ", "\\upsilon"),
     ('v', "ν", "\\nu"),
@@ -72,8 +72,8 @@ const GREEK_UPPER: &[(char, &str, &str)] = &[
     ('Z', "Ζ", "Z"),
     ('H', "Η", "H"),
     ('T', "Θ", "\\Theta"),
-    ('K', "Κ", "Κ"),
-    ('L', "Λ", "\\Λambda"),
+    ('K', "Κ", "K"),
+    ('L', "Λ", "\\Lambda"),
     ('M', "Μ", "M"),
     ('P', "Π", "\\Pi"),
     ('R', "Ρ", "P"),
@@ -126,6 +126,11 @@ impl ChordFsm {
     pub fn set_mode(&mut self, mode: MathOutputMode) {
         self.mode = mode;
         self.reset();
+    }
+
+    /// Đổi mode giữ nguyên trạng thái đang armed/chain (cùng phiên gõ AutoByApp).
+    pub fn set_mode_keep_state(&mut self, mode: MathOutputMode) {
+        self.mode = mode;
     }
 
     /// Reset lặng lẽ về Idle (focus loss / app đổi / cancel ngoài).
