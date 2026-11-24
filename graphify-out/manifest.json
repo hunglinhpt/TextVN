@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795496196.3661332,
-    "seen": 1795497091.9020157,
-    "ast_hash": "37851014763a7fd99910482673cda7b5",
+    "mtime": 1795503981.812182,
+    "seen": 1795507309.2459526,
+    "ast_hash": "c0b3a5e2e531460abeb0e204a18eb004",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -996,9 +996,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1795398167.2648034,
-    "seen": 1795400088.9308226,
-    "ast_hash": "58f6bed95a843fe0144e302b2e23094b",
+    "mtime": 1795504192.9788785,
+    "seen": 1795507309.1692984,
+    "ast_hash": "a2166949a4ae77e0e21ee2ede4133751",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1008,9 +1008,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795496201.4404073,
-    "seen": 1795497091.8400602,
-    "ast_hash": "96c8b75c0f986a53d59c45819bc62610",
+    "mtime": 1795504216.8882704,
+    "seen": 1795507309.1748636,
+    "ast_hash": "bcf80c42dd30b187b070ae669541ee46",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1110,9 +1110,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1795487269.4995897,
-    "seen": 1795491322.2466502,
-    "ast_hash": "62b3834ad60ef0096870364dcdaec6e6",
+    "mtime": 1795503893.7120316,
+    "seen": 1795507308.9434617,
+    "ast_hash": "2dfd0c58d19e934ab04cb41daa58f1da",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -1152,15 +1152,15 @@
     "semantic_hash": ""
   },
   "scripts/install_linux.sh": {
-    "mtime": 1795313935.636006,
-    "seen": 1795314565.7932308,
-    "ast_hash": "8459b5f59644e70770f64d9ba35244b6",
+    "mtime": 1795503508.0308604,
+    "seen": 1795507309.0978262,
+    "ast_hash": "d95929842c4b31aeae753ef1f9154122",
     "semantic_hash": ""
   },
   "scripts/uninstall_linux.sh": {
-    "mtime": 1795313935.6565807,
-    "seen": 1795314565.7932308,
-    "ast_hash": "a0a30fd1c0ab28b5878453e7c351b779",
+    "mtime": 1795503513.748582,
+    "seen": 1795507309.1004837,
+    "ast_hash": "5ac7548099be9df94f30d6b03f76be12",
     "semantic_hash": ""
   },
   "tray/build.rs": {
@@ -1200,9 +1200,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.c": {
-    "mtime": 1795487266.3442807,
-    "seen": 1795491322.2476504,
-    "ast_hash": "d54fb9c01e611bf007bf86ae6c73ff50",
+    "mtime": 1795503890.992482,
+    "seen": 1795507308.9496737,
+    "ast_hash": "b21300f94c27900b8012d175cfed6c43",
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.h": {
@@ -1326,9 +1326,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1795398057.9362745,
-    "seen": 1795400088.9007952,
-    "ast_hash": "05dab5b4c12cddd0bed4402085942a43",
+    "mtime": 1795503995.1216602,
+    "seen": 1795507308.9586017,
+    "ast_hash": "0839c1f0b82fd311d6629fcb8cfc0751",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1344,9 +1344,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1795398060.5830965,
-    "seen": 1795400088.9007952,
-    "ast_hash": "e30a666723cb631ab6744bfa8cfcf40c",
+    "mtime": 1795503997.7908015,
+    "seen": 1795507308.96114,
+    "ast_hash": "b24ad1d5c25db8541d1790e3e435cd83",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1795398063.0981586,
-    "seen": 1795400088.9017916,
-    "ast_hash": "c74ef949c396810f59aec06b44be3ff5",
+    "mtime": 1795504000.5252886,
+    "seen": 1795507308.9699547,
+    "ast_hash": "3fadb6155dc97d30dca5baac8a7e3f74",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1602,33 +1602,33 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1795400019.580281,
-    "seen": 1795400088.9199896,
-    "ast_hash": "3d6bdab2a2e044a409543f454b91dde2",
+    "mtime": 1795507025.4992158,
+    "seen": 1795507309.0932398,
+    "ast_hash": "a7cdbfa522157fe465a261e29f25e07d",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
-    "mtime": 1795313935.5722237,
-    "seen": 1795314565.7932308,
-    "ast_hash": "c7eeadc999bfe8997299ecd4dd5cdefd",
+    "mtime": 1795503496.0261154,
+    "seen": 1795507309.0932398,
+    "ast_hash": "fc6cb7e31aa61236bef21ed95e1ceca4",
     "semantic_hash": ""
   },
   "packaging/linux/textvn-common.sh": {
-    "mtime": 1795313935.573224,
-    "seen": 1795314565.7932308,
-    "ast_hash": "9f507dafed12339af8b7c1869b207ab1",
+    "mtime": 1795503897.2825797,
+    "seen": 1795507309.0932398,
+    "ast_hash": "7db2f7f032b657b082bd41e4471be44d",
     "semantic_hash": ""
   },
   "packaging/linux/textvn-portable.sh": {
-    "mtime": 1795313935.579236,
-    "seen": 1795314565.7932308,
-    "ast_hash": "71d11ff4f1658eb318ef43ade7f75c1f",
+    "mtime": 1795503499.1052165,
+    "seen": 1795507309.0932398,
+    "ast_hash": "56149300d4cf7bc516e414d53f99d7b2",
     "semantic_hash": ""
   },
   "packaging/linux/uninstall.sh": {
-    "mtime": 1795313935.580236,
-    "seen": 1795314565.7932308,
-    "ast_hash": "385d74608c8536d0cdb1487b83c8d625",
+    "mtime": 1795503502.0786972,
+    "seen": 1795507309.0932398,
+    "ast_hash": "fbc48fb0c2571ebe658009323723297c",
     "semantic_hash": ""
   },
   "packaging/macos/pkg-scripts/postinstall": {
@@ -1680,9 +1680,9 @@
     "semantic_hash": ""
   },
   "scripts/test-linux-package.sh": {
-    "mtime": 1795393390.152004,
-    "seen": 1795396416.330434,
-    "ast_hash": "65a15c5cc7dadeb1c0139c3c1ddd9c8d",
+    "mtime": 1795503687.0691018,
+    "seen": 1795507309.1004837,
+    "ast_hash": "c3eb8eeed98ab8189f3c2efd4dd5bcc8",
     "semantic_hash": ""
   },
   "scripts/uninstall_macos.sh": {
@@ -1830,15 +1830,15 @@
     "semantic_hash": ""
   },
   "docs/developer-guide.md": {
-    "mtime": 1795397973.101016,
-    "seen": 1795400088.937582,
-    "ast_hash": "30a6c908bf6ed1d916136090711a88c2",
+    "mtime": 1795503622.2676997,
+    "seen": 1795507309.2286701,
+    "ast_hash": "5403ba81fc33a2418cc8d9a4ad661e5c",
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1795400050.095397,
-    "seen": 1795400088.937582,
-    "ast_hash": "fb6efefaa5150ad05f79f0f82fb0a2d1",
+    "mtime": 1795507227.489288,
+    "seen": 1795507309.2326996,
+    "ast_hash": "34fbb7c79419d5b9a0486bfa67b2e42e",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1866,9 +1866,9 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1795313934.0338817,
-    "seen": 1795314565.7932308,
-    "ast_hash": "b1510e87814df5b1eaf785b3e6653f95",
+    "mtime": 1795503631.701968,
+    "seen": 1795507309.250964,
+    "ast_hash": "2a1dfaea7caa06efb4c9e5b7e298fb28",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
