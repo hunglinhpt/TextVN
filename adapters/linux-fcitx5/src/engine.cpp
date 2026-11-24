@@ -161,12 +161,21 @@ bool applyAssistCandidate(fcitx::InputContext *ic, uint32_t deleteGlyphs,
  * (fail-safe R-2), hủy phím (như Windows khi session gặp sự cố). */
 static constexpr uint32_t kMaxTranscodeChars = 64000;
 
+static bool isTerminalState(TextVNState *st) {
+    if (!st || !st->ic) return false;
+    if (st->terminalApp < 0 && !st->ic->program().empty()) {
+        st->terminalApp = lc_is_terminal_app(st->ic->program().c_str()) ? 1 : 0;
+    }
+    return st->terminalApp == 1 ||
+           st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Terminal);
+}
+
 static bool performSelectionConvert(TextVNState *st) {
     if (!st || !st->ic || !st->inst) return false;
     if (!st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText)) return false;
-    /* S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
-     * khẩu; không đọc/không sửa. */
-    if (st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
+    /* S3 + E64: ô mật khẩu / terminal — không đọc/sửa surrounding text. */
+    if (st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive) ||
+        isTerminalState(st)) {
         return false;
     }
     /* Chụp MỘT lần surrounding: text/anchor/cursor phải cùng chụp. */
@@ -551,7 +560,8 @@ void TextVNEngine::hidePreview(TextVNState *st) {
 /* R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt SẼ
  * nối thêm ở dòng phụ của bảng Fcitx5 cạnh con trỏ — không chạm preedit/văn bản. */
 void TextVNEngine::updatePreview(TextVNState *st) {
-    if (!st || !st->ic || !st->inst || assistUiShowing_ ||
+    if (!st || !st->ic || !st->inst || assistUiShowing_ || isTerminalState(st) ||
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive) ||
         !(viEnabled_ || st->config.suggest_enabled)) {
         hidePreview(st);
         return;
@@ -577,7 +587,8 @@ void TextVNEngine::updatePreview(TextVNState *st) {
  * Precondition D12 kiểm TRƯỚC khi đụng document: từ còn ở preedit chưa nằm
  * trong document ⇒ so surrounding với đuôi câu BỎ phần preedit. */
 bool TextVNEngine::hotkeyFixSentence(TextVNState *st) {
-    if (!st || !st->ic || !st->inst || !viEnabled_ ||
+    if (!st || !st->ic || !st->inst || !viEnabled_ || isTerminalState(st) ||
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive) ||
         !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
         return false;
     }
@@ -717,7 +728,8 @@ void TextVNEngine::assistIdleCancel(TextVNState *st) {
  * đang gõ dở nằm trong preedit — chốt giữa chừng sẽ cắt đôi từ (Windows có đường riêng). */
 void TextVNEngine::assistIdleArm(TextVNState *st) {
     assistIdleCancel(st);
-    if (!st || !st->inst || !st->ic || !viEnabled_ ||
+    if (!st || !st->inst || !st->ic || !viEnabled_ || isTerminalState(st) ||
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive) ||
         !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
         return;
     }
@@ -725,7 +737,8 @@ void TextVNEngine::assistIdleArm(TextVNState *st) {
         CLOCK_MONOTONIC, fcitx::now(CLOCK_MONOTONIC) + LC_ASSIST_IDLE_MS * 1000ULL, 0,
         [this, st](fcitx::EventSourceTime *, uint64_t) {
             try {
-                if (viEnabled_ && st->inst && st->comp.len == 0) {
+                if (viEnabled_ && st->inst && st->comp.len == 0 && !isTerminalState(st) &&
+                    !st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
                     (void)checkAndApplyAssist(st, 0, false, false, true);
                 }
             } catch (...) {
@@ -766,7 +779,10 @@ void TextVNEngine::syncAssistState(TextVNState *) {
 
 bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                                       bool isSentenceTrigger, bool planEaten, bool allowDisplay) {
-    if (!st || !st->inst || !st->ic) return planEaten;
+    if (!st || !st->inst || !st->ic || isTerminalState(st) ||
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
+        return planEaten;
+    }
     const bool dbg = lc_assist_debug_enabled() != 0;
     if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
         if (dbg) {
@@ -1170,8 +1186,13 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         return true;
     }
 
-    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua CommonCandidateList). */
-    if (lc_is_emoji_hotkey(static_cast<uint32_t>(key.sym()),
+    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua CommonCandidateList);
+     * tắt trong terminal / ô mật khẩu (E64). */
+    const bool emojiBlocked =
+        isTerminalState(st) ||
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
+    if (!emojiBlocked &&
+        lc_is_emoji_hotkey(static_cast<uint32_t>(key.sym()),
                            states.test(fcitx::KeyState::Ctrl),
                            states.test(fcitx::KeyState::Alt),
                            states.test(fcitx::KeyState::Shift),
@@ -1304,6 +1325,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
 
     if (plan.delete_before > 0) {
         const bool surrounding =
+            !terminal &&
             st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
             st->ic->surroundingText().isValid();
         if (!surrounding) {
@@ -1331,9 +1353,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     lc_comp_apply(&st->comp, &plan);
     if (plan.reset_engine) ime_reset(st->inst);
 
-    /* Trợ lý ngữ pháp (AS-060 / P4-6): trigger kiểm tra khi commit kết thúc câu hoặc dấu cách */
+    /* Trợ lý ngữ pháp (AS-060 / P4-6): trigger kiểm tra khi commit kết thúc câu hoặc dấu cách;
+     * tuyệt đối không chạy trong terminal (E64). */
     const uint32_t triggerKind = (k.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(k.ch) : IME_ASSIST_TRIGGER_NONE;
-    if (triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
+    if (!terminal && triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
         bool isSentence = (triggerKind == IME_ASSIST_TRIGGER_SENTENCE);
         /* R2-155: phím trigger chỉ kiểm tra + tự sửa (Mode 2); danh sách hiện khi dừng gõ. */
         st->assistAutofixed = false;
@@ -1349,7 +1372,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         return eaten;
     }
     /* R2-155: mọi phím gõ chữ/xoá ẩn danh sách đang hiện và hẹn lại timer idle. */
-    if (lc_assist_idle_arms(k.kind == LC_KEY_CHAR, k.kind == LC_KEY_BACKSPACE, viEnabled_ ? 1 : 0)) {
+    if (!terminal &&
+        lc_assist_idle_arms(k.kind == LC_KEY_CHAR, k.kind == LC_KEY_BACKSPACE, viEnabled_ ? 1 : 0)) {
         clearAssistUI(st);
         assistIdleArm(st);
     }

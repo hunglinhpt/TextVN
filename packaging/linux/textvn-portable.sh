@@ -11,6 +11,11 @@
 # động lại IBus (IBUS_COMPONENT_PATH) hoặc Fcitx5 (FCITX_ADDON_DIRS + XDG_DATA_DIRS).
 # Không có gì tồn tại qua lần đăng xuất; cấu hình ở ~/.config/TextVN dùng chung với bản cài.
 
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "✗ Không dùng 'source' hay '.' với textvn-portable.sh (sẽ đóng terminal). Hãy chạy trực tiếp: ./textvn-portable.sh" >&2
+    return 1
+fi
+
 set -euo pipefail
 
 PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"

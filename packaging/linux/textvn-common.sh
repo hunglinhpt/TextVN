@@ -13,15 +13,23 @@ tv_err() { echo "${TV_C_ERR}✗ $*${TV_C_OFF}" >&2; }
 
 tv_version() { cat "$1/VERSION" 2>/dev/null || echo "?"; }
 
-# Gói hợp lệ: có CLI và ít nhất một adapter.
+# Gói hợp lệ: có CLI, chạy được trên glibc máy hiện tại và có ít nhất một adapter.
 tv_check_package() {
-    local d="$1"
+    local d="$1" err=""
     if [[ ! -x "$d/bin/textvn" ]]; then
         tv_err "Không phải thư mục gói TextVN (thiếu bin/textvn): $d"
         return 1
     fi
     if [[ ! -x "$d/lib/textvn/textvn-ibus-engine" && ! -f "$d/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
         tv_err "Gói không có adapter IBus lẫn Fcitx5."
+        return 1
+    fi
+    # E64: kiểm tra tương thích glibc/loader TRƯỚC khi cài hoặc restart IBus — tránh
+    # ghi đè bản binary không chạy được trên Ubuntu 22.04 (glibc 2.35) làm hỏng phiên IBus.
+    if ! err="$("$d/bin/textvn" --help 2>&1 >/dev/null)"; then
+        tv_err "Binary dựng sẵn không tương thích thư viện hệ thống trên máy này (ví dụ Ubuntu 22.04 có glibc cũ hơn Ubuntu 24.04):"
+        [[ -n "$err" ]] && tv_err "  $err"
+        tv_err "Hãy dựng trực tiếp từ mã nguồn cho máy bạn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
         return 1
     fi
 }
@@ -188,13 +196,17 @@ tv_systemd_user_ok() {
 
 # Khởi động lại ibus-daemon với IBUS_COMPONENT_PATH — giữ nguyên tham số của daemon đang
 # chạy (GNOME: `--panel disable`). Phiên systemd (GNOME ≥ 43): đổi môi trường của user
-# manager rồi restart đúng unit; còn lại: chạy lại daemon với cùng tham số.
+# manager rồi restart đúng unit; GNOME Wayland không có unit systemd (Ubuntu 22.04 GNOME 42):
+# KHÔNG giết/replace thô ibus-daemon do gnome-shell quản lý (E64 — dễ đứt socket Wayland IM
+# làm sập/đóng gnome-terminal); các phiên còn lại: chạy lại daemon tách khỏi PTY terminal.
 tv_restart_ibus() { # <component_path | "">
     local comp="$1" unit pid args=()
     tv_ibus_clear_cache
     if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]] && tv_systemd_user_ok; then
         if [[ -n "$comp" ]]; then
             systemctl --user set-environment "IBUS_COMPONENT_PATH=$comp" 2>/dev/null || true
+            command -v dbus-update-activation-environment >/dev/null 2>&1 &&
+                IBUS_COMPONENT_PATH="$comp" dbus-update-activation-environment --systemd IBUS_COMPONENT_PATH 2>/dev/null || true
         else
             systemctl --user unset-environment IBUS_COMPONENT_PATH 2>/dev/null || true
         fi
@@ -203,21 +215,36 @@ tv_restart_ibus() { # <component_path | "">
             systemctl --user restart "$unit" && tv_ok "Đã khởi động lại IBus ($unit)." && return 0
         fi
     fi
+    # E64: trên GNOME Wayland cũ hơn GNOME 43 (như Ubuntu 22.04 GNOME 42) không có systemd unit
+    # cho IBus — gnome-shell tự giữ socket Wayland IM với ibus-daemon. Dùng `ibus-daemon --replace`
+    # từ terminal dễ làm đứt kết nối IM của gnome-terminal/GTK3. Chỉ làm mới cache & nhắc đăng xuất.
+    if [[ "${TV_FORCE_IBUS_REPLACE:-0}" != 1 && "${XDG_SESSION_TYPE:-}" == wayland &&
+          "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]]; then
+        command -v ibus >/dev/null 2>&1 && ibus write-cache >/dev/null 2>&1 || true
+        tv_say "GNOME Wayland (không có systemd IBus unit, vd. Ubuntu 22.04): giữ nguyên ibus-daemon để không làm gián đoạn terminal."
+        tv_say "Hãy đăng xuất và đăng nhập lại 1 lần để GNOME nạp TextVN an toàn."
+        return 0
+    fi
     pid="$(pgrep -x -u "$(id -u)" ibus-daemon | head -n1)"
     if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
         mapfile -d '' args < "/proc/$pid/cmdline"
         args=("${args[@]:1}")
     fi
     [[ ${#args[@]} -eq 0 ]] && args=(--xim)
-    local keep=()
+    local keep=() had_xim=0
     for a in "${args[@]}"; do
-        case "$a" in -d|--daemonize|-r|--replace|-dr|-rd|-drx|-dxr|-rdx|-rxd|-xdr|-xrd) ;;
-            *) keep+=("$a") ;; esac
+        case "$a" in
+            -d|--daemonize|-r|--replace|-dr|-rd) ;;
+            -x|--xim) had_xim=1 ;;
+            -drx|-dxr|-rdx|-rxd|-xdr|-xrd|-dx|-xd|-rx|-xr) had_xim=1 ;;
+            *) keep+=("$a") ;;
+        esac
     done
+    [[ "$had_xim" == 1 ]] && keep+=(--xim)
     if [[ -n "$comp" ]]; then
-        IBUS_COMPONENT_PATH="$comp" setsid ibus-daemon "${keep[@]}" --replace --daemonize
+        IBUS_COMPONENT_PATH="$comp" setsid ibus-daemon "${keep[@]}" --replace --daemonize </dev/null >/dev/null 2>&1
     else
-        env -u IBUS_COMPONENT_PATH setsid ibus-daemon "${keep[@]}" --replace --daemonize
+        env -u IBUS_COMPONENT_PATH setsid ibus-daemon "${keep[@]}" --replace --daemonize </dev/null >/dev/null 2>&1
     fi
     sleep 1
     tv_ok "Đã khởi động lại IBus."
@@ -289,9 +316,9 @@ tv_restart_fcitx5() { # <addon_dirs | ""> <extra_xdg_data_dir | ""> <profile_act
     fi
     [[ "$was_running" == 1 ]] || return 0
     if [[ -n "$addons" ]]; then
-        FCITX_ADDON_DIRS="$addons" XDG_DATA_DIRS="$data" setsid fcitx5 -d "${keep[@]}" >/dev/null 2>&1 || true
+        FCITX_ADDON_DIRS="$addons" XDG_DATA_DIRS="$data" setsid fcitx5 -d "${keep[@]}" </dev/null >/dev/null 2>&1 || true
     else
-        env -u FCITX_ADDON_DIRS XDG_DATA_DIRS="$data" setsid fcitx5 -d "${keep[@]}" >/dev/null 2>&1 || true
+        env -u FCITX_ADDON_DIRS XDG_DATA_DIRS="$data" setsid fcitx5 -d "${keep[@]}" </dev/null >/dev/null 2>&1 || true
     fi
     sleep 1
     tv_ok "Đã khởi động lại Fcitx5."
@@ -312,6 +339,10 @@ tv_activate_ibus() {
         esac
         gsettings set org.gnome.desktop.input-sources sources "$new" &&
             tv_ok "Đã thêm TextVN vào nguồn nhập của GNOME (Super+Space để chuyển)."
+        if [[ "$cur" == *"'Unikey'"* || "$cur" == *"'unikey'"* ]]; then
+            tv_say "Phát hiện ibus-unikey đang có sẵn trong nguồn nhập GNOME."
+            tv_say "Hãy nhấn Super+Space chọn 'Vietnamese (TextVN)' (hoặc bỏ 'Unikey' trong Cài đặt → Bàn phím → Nguồn nhập để tránh nhầm hai bộ gõ)."
+        fi
     elif gsettings list-schemas 2>/dev/null | grep -qx org.freedesktop.ibus.general; then
         cur="$(gsettings get org.freedesktop.ibus.general preload-engines 2>/dev/null)" || return 0
         [[ "$cur" == *"'textvn'"* ]] && return 0
@@ -322,6 +353,9 @@ tv_activate_ibus() {
         esac
         gsettings set org.freedesktop.ibus.general preload-engines "$new" &&
             tv_ok "Đã thêm TextVN vào danh sách engine của IBus."
+        if [[ "$cur" == *"'Unikey'"* || "$cur" == *"'unikey'"* ]]; then
+            tv_say "Phát hiện ibus-unikey đang có sẵn trong IBus — hãy chọn 'Vietnamese (TextVN)' hoặc gỡ Unikey khỏi danh sách engine để tránh nhầm lẫn."
+        fi
     fi
 }
 

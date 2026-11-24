@@ -10,6 +10,11 @@
 # Cần: cargo, cmake, pkg-config, gcc/g++ và header IBus (libibus-1.0-dev) và/hoặc Fcitx5
 # (libfcitx5core-dev fcitx5-modules-dev), GTK4 (libgtk-4-dev) cho bảng điều khiển.
 
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "✗ Không dùng 'source' hay '.' với install_linux.sh (sẽ đóng terminal). Hãy chạy trực tiếp: ./scripts/install_linux.sh" >&2
+    return 1
+fi
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,4 +51,4 @@ fi
 
 STAGE="$ROOT/target/linux-stage"
 "$ROOT/scripts/stage-linux.sh" "$STAGE" "$ADAPTERS"
-exec "$STAGE/install.sh" "$@"
+"$STAGE/install.sh" "$@"

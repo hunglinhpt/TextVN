@@ -7,6 +7,133 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.87] — 2026-11-24
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Tính năng mới & Sửa lỗi / Added, Changed & Fixed
+
+- **E61 — Hoàn tác dấu kiểu UniKey & ưu tiên song ngữ Việt–Anh chính xác**:
+  - Sửa triệt để lỗi gõ lặp phím dấu/thanh để hoàn tác trên từ tiếng Anh và thuật ngữ vẫn bị nhân
+    đôi ký tự cuối (`Sirr` → `Sir`, `firre` → `fire`, `starr` → `star`, `Eulerr` → `Euler`,
+    `Tensorr` → `Tensor`, `Bayess` → `Bayes`, `parrse` → `parse`, `xorr` → `xor`, `Sirri` → `Siri`)
+    trên cả Telex, SimpleTelex và VNI.
+  - Giữ đúng nguyên tắc mặc định: khi gõ bình thường (`sir` → `sỉ`) tiếng Việt thắng; ngay khi
+    người dùng cố ý gõ lặp phím hoàn tác (`Sirr` / `sỉ` + `r`) bộ gõ nhận diện chủ đích tiếng Anh
+    và trả đúng `Sir` / `sir` không còn đuôi thừa.
+- **E62 — Chế độ Math & Science hoạt động trên MỌI trình soạn thảo & cả 4 adapter OS**:
+  - Kích hoạt đồng bộ trên Windows TSF, macOS IMK, Linux IBus và Linux Fcitx5 cho mọi vùng nhập
+    text (Notepad, Word, VS Code, Overleaf, Chrome, Teams, cả Mode VI lẫn EN) với định vị con trỏ
+    chính xác (`cursor_left`, vd. `` `/ `` → `\frac{}{}` đặt con trỏ thẳng vào `{}`).
+- **P12 — Bảng chọn Emoji bản địa siêu nhẹ (`Ctrl+Alt+E`) & gõ nhanh `:shortcode:`**:
+  - Kho ~280 emoji quen thuộc chia 8 nhóm (Gần đây MRU + 7 danh mục), bảng tĩnh zero-heap, tìm kiếm
+    song ngữ Việt–Anh không dấu (`cười`/`cuoi`/`fire`/`tim`), tự mở rộng `:smile:`, `:fire:`,
+    `:camon:` ngay khi gõ (kể cả sau hoàn tác UniKey `:firre:` / `:starr:`).
+  - Render emoji màu bản địa không cướp focus trên cả 3 OS: Direct2D/DirectWrite (Windows),
+    `NSPanel` Apple Color Emoji (macOS), `IBusLookupTable`/`CommonCandidateList` (Linux X11 + Wayland).
+- **E63 — Audit đa góc nhìn chuyên gia (Nhà nghiên cứu Toán học · Học sinh/Sinh viên · UniKey & Emoji)**:
+  - **LaTeX / Typst (`math/src/context.rs`, `math/src/lib.rs`)**: tăng `TAIL_CAP=32`; chỉ tạm dừng
+    tiếng Việt trong môi trường toán thực sự (`equation`, `align*`, `cases`, `subequations`…),
+    hỗ trợ môi trường lồng nhau trong `$...$`, mở rộng `TextInMath` (`\intertext`, `\textit`, `\emph`,
+    `\tag`) và giữ Telex sống trong `\begin{document}`/`\section{...}`/`\textbf{...}`.
+  - **Học sinh/Sinh viên (`math/src/chords.rs`, `math/src/lexicon.rs`, `math/src/eval.rs`)**: bật
+    chuỗi mũ/chỉ số `SupChain`/`SubChain` mở rộng (`0-9+-()ni`: `xⁿ`, `x⁻¹`, `SO₄²⁻`, `aₙ`) ngay ở
+    mode `Normal` mặc định; thêm alias `\infty`, `\voimoi`, `\in`, `\chia` và 18 alias hóa học chữ
+    thường (`\h2o`, `\co2`, `\h2so4`, `\Fe2+`, `\OH-`); chặn panic `eval_delimited("= =")`, thoát
+    tức thì dấu `=` lẻ trong bài văn (`Ta có x = 5, nên...`), khử nhiễu IEEE-754 (`=0.1+0.2=` → `0.3`,
+    `=cos(pi/2)=` → `0`).
+- **E64 — Khắc phục triệt để lỗi đóng terminal trên Ubuntu 22.04 LTS & đồng tồn tại IBus/`ibus-unikey` + Audit 3 lượt**:
+  - Thêm source-guard trước `set -euo pipefail` ở cả 5 script Linux (`install.sh`, `uninstall.sh`,
+    `textvn-portable.sh`, `scripts/install_linux.sh`, `scripts/uninstall_linux.sh`) và bỏ `exec`
+    trong wrapper script để `source`/`.` không bao giờ đóng mất terminal hay làm rò `set -e`.
+  - Gia cố `packaging/linux/textvn-common.sh`: kiểm tra tương thích glibc (`bin/textvn --help`)
+    trước khi cài/restart IBus; bảo toàn `--xim` với mọi cờ gộp (`-drx`) và tách FD PTY
+    (`</dev/null >/dev/null 2>&1`) cho cả IBus và Fcitx5; trên GNOME Wayland không có systemd IBus
+    unit (Ubuntu 22.04 GNOME 42) giữ nguyên `ibus-daemon` (`ibus write-cache` + hướng dẫn đăng
+    xuất/đăng nhập) để không làm đứt socket Wayland IM của `gnome-terminal`; phát hiện `ibus-unikey`
+    và hướng dẫn đồng tồn tại không xoá Unikey.
+  - Bổ sung bảo vệ terminal toàn diện (`self->terminal` / `isTerminalState` + `PasswordOrSensitive`)
+    trong cả `adapters/linux-ibus/src/engine.c` và `adapters/linux-fcitx5/src/engine.cpp` (tắt
+    assist, preview, hotkey sửa câu, chuyển mã bôi đen, bảng Emoji và `delete_surrounding_text`
+    trong terminal).
+  - Cập nhật `docs/user-guide.md` (hướng dẫn Ubuntu 22.04 + `ibus-unikey`) và `docs/developer-guide.md`
+    (tách `apt install` IBus riêng khỏi Fcitx5 tránh xung đột `im-config`).
+
+### Kiểm thử / Testing
+
+- `core/tests/e63_expert_personas_audit.rs` (5 bộ kiểm thử 4 góc nhìn chuyên gia × 3 chiến lược ×
+  Telex/SimpleTelex/VNI) + `textvn-math` **942 pass, 0 ignored** + `scripts/test-linux-package.sh`
+  (`unit_e64_ubuntu22_guards`).
+- Dream RSI (G19) giữ nguyên chuẩn không hồi quy: `72/318` (22%), `36` accepts; bảo mật G8 zero
+  keylogging xác nhận qua 3 lượt audit.
+- `cargo xtask preflight`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo xtask check-version-sync` (15/15 = 0.2.87), REUSE 3.3, `bash -n` (15/15 script) và CI 7/7
+  workflow xanh 100%.
+
+---
+
+**English** — 0.2.87:
+
+### Added, Changed & Fixed
+
+- **E61 — Deep UniKey-style repeat-key undo & VI/EN bilingual restore**:
+  - Eliminated trailing duplicated characters when repeating tone/mark keys to undo onto English or
+    scientific words (`Sirr` → `Sir`, `firre` → `fire`, `starr` → `star`, `Eulerr` → `Euler`,
+    `Tensorr` → `Tensor`, `Bayess` → `Bayes`, `parrse` → `parse`, `xorr` → `xor`, `Sirri` → `Siri`)
+    across Telex, SimpleTelex, and VNI.
+  - Preserves default Vietnamese precedence during normal typing (`sir` → `sỉ`), while immediately
+    switching to the clean English word (`Sir` / `sir`) when the user intentionally repeats the mark
+    key in classic UniKey style.
+- **E62 — Universal Math & Science across every editor & all 4 OS adapters**:
+  - Enabled consistently across Windows TSF, macOS IMK, Linux IBus, and Linux Fcitx5 in every text
+    input (Notepad, Word, VS Code, Overleaf, Chrome, Teams; both VI and EN modes) with exact
+    `cursor_left` repositioning (e.g. `` `/ `` → `\frac{}{}` places the caret directly inside `{}`).
+- **P12 — Ultra-lightweight native 3-OS Emoji Picker (`Ctrl+Alt+E`) & inline `:shortcode:`**:
+  - ~280 familiar emojis across 8 categories (MRU Recent + 7 tabs), zero-heap static catalog,
+    diacritic-insensitive Vietnamese/English search (`cười`/`cuoi`/`fire`/`tim`), and inline
+    `:smile:`, `:fire:`, `:camon:` expansion (including after UniKey undo `:firre:` / `:starr:`).
+  - Native non-activating color emoji UI on all 3 platforms: Direct2D/DirectWrite (Windows), Apple
+    Color Emoji `NSPanel` (macOS), and `IBusLookupTable`/`CommonCandidateList` (Linux X11 + Wayland).
+- **E63 — 4-persona expert audit (Math Researcher · Student · UniKey Bilingual · Emoji)**:
+  - **LaTeX / Typst (`math/src/context.rs`, `math/src/lib.rs`)**: raised `TAIL_CAP=32`; suspend
+    Vietnamese only inside genuine math environments (`equation`, `align*`, `cases`, `subequations`…),
+    support nested environments inside `$...$`, expanded `TextInMath` (`\intertext`, `\textit`,
+    `\emph`, `\tag`), and keep Telex active inside `\begin{document}`/`\section{...}`/`\textbf{...}`.
+  - **Students (`math/src/chords.rs`, `math/src/lexicon.rs`, `math/src/eval.rs`)**: enabled extended
+    `SupChain`/`SubChain` (`0-9+-()ni`: `xⁿ`, `x⁻¹`, `SO₄²⁻`, `aₙ`) in default `Normal` mode; added
+    `\infty`, `\voimoi`, `\in`, `\chia` and 18 lowercase chemistry aliases (`\h2o`, `\co2`, `\h2so4`,
+    `\Fe2+`, `\OH-`); fixed `eval_delimited("= =")` slice panic, exited immediately on lone prose `=`
+    (`Ta có x = 5, nên...`), and cleaned IEEE-754 display noise (`=0.1+0.2=` → `0.3`, `=cos(pi/2)=` → `0`).
+- **E64 — Ubuntu 22.04 LTS terminal-closing fix, IBus/`ibus-unikey` coexistence & 3-pass audit**:
+  - Added source-guards before `set -euo pipefail` across all 5 Linux scripts (`install.sh`,
+    `uninstall.sh`, `textvn-portable.sh`, `scripts/install_linux.sh`, `scripts/uninstall_linux.sh`)
+    and removed `exec` from wrapper scripts so sourcing never kills the terminal or leaks `set -e`.
+  - Hardened `packaging/linux/textvn-common.sh`: pre-install glibc compatibility probe
+    (`bin/textvn --help`), preserved `--xim` across combined flags (`-drx`) and detached PTY FDs
+    (`</dev/null >/dev/null 2>&1`) for both IBus and Fcitx5, skipped violent `ibus-daemon --replace`
+    on GNOME Wayland without a systemd IBus unit (Ubuntu 22.04 GNOME 42) to protect `gnome-terminal`'s
+    Wayland IM socket, and added non-destructive `ibus-unikey` coexistence guidance.
+  - Added full terminal safety guards (`self->terminal` / `isTerminalState` + `PasswordOrSensitive`)
+    to both `adapters/linux-ibus/src/engine.c` and `adapters/linux-fcitx5/src/engine.cpp` (disabling
+    assist, preview, sentence-fix hotkey, selection convert, Emoji picker, and
+    `delete_surrounding_text` in terminals).
+  - Updated `docs/user-guide.md` (Ubuntu 22.04 + `ibus-unikey` guide) and `docs/developer-guide.md`
+    (separated IBus-only `apt install` from optional Fcitx5 deps to avoid `im-config` conflicts).
+
+### Testing
+
+- `core/tests/e63_expert_personas_audit.rs` (5 suites across 4 expert personas × 3 strategies ×
+  Telex/SimpleTelex/VNI), `textvn-math` **942 pass, 0 ignored**, and `scripts/test-linux-package.sh`
+  (`unit_e64_ubuntu22_guards`).
+- Dream RSI (G19) non-regression confirmed: `72/318` (22%), `36` accepts; G8 zero-keylogging
+  verified across 3 audit passes.
+- `cargo xtask preflight`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo xtask check-version-sync` (15/15 = 0.2.87), REUSE 3.3, `bash -n` (15/15 scripts), and all
+  7/7 CI workflows 100% green.
+
+---
+
 ## [0.2.86] — 2026-11-23
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3513,7 +3640,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...HEAD
+[0.2.87]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...v0.2.87
 [0.2.86]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...v0.2.86
 [0.2.85]: https://github.com/hunglinhpt/TextVN/compare/v0.2.84...v0.2.85
 [0.2.84]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...v0.2.84

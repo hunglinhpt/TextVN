@@ -124,11 +124,15 @@ thay `URL` vì `Foundation` không khả dụng trong `PackageDescription` scope
 ### Linux (Ubuntu/Debian)
 
 ```bash
-sudo apt install cmake pkg-config g++ libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev \
-    fcitx5-modules-dev fcitx5-modules libgtk-4-dev ibus fcitx5 dbus libdbus-1-dev
-scripts/e2e-linux.sh            # build adapter + ctest + e2e IBus/Fcitx5 thật
-scripts/install_linux.sh        # build từ nguồn rồi cài per-user (install.sh của gói)
-scripts/build-linux.sh          # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha256)
+# Ubuntu mặc định dùng IBus (kể cả máy đang cài sẵn ibus / ibus-unikey — KHÔNG cài đè fcitx5):
+sudo apt install cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev ibus dbus libdbus-1-dev
+
+# (Tuỳ chọn) Chỉ cài thêm nếu bạn dùng Fcitx5 hoặc chạy full e2e cả 2 framework:
+# sudo apt install libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev fcitx5-modules fcitx5
+
+./scripts/install_linux.sh      # build từ nguồn rồi cài per-user (chạy trực tiếp, KHÔNG dùng `source`/`.`)
+./scripts/e2e-linux.sh          # build adapter + ctest + e2e IBus/Fcitx5 thật
+./scripts/build-linux.sh        # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha256)
 ```
 
 ## 3. Kiểm thử

@@ -154,7 +154,7 @@ static void hide_preview(TextVNIbusEngine *self) {
  * nối thêm ở dòng phụ của bảng IBus cạnh con trỏ. Không chèn vào preedit: một
  * số toolkit tự chốt preedit khi mất focus ⇒ chữ gợi ý lọt vào văn bản. */
 static void update_preview(TextVNIbusEngine *self) {
-    if (!self->inst || self->assist_ui_showing ||
+    if (!self->inst || self->assist_ui_showing || self->secure || self->terminal ||
         !(s_vi_enabled || self->config.suggest_enabled)) {
         hide_preview(self);
         return;
@@ -419,9 +419,8 @@ static gboolean perform_selection_convert(TextVNIbusEngine *self) {
     IBusEngine *engine = (IBusEngine *)self;
     if (!self || !self->inst) return FALSE;
     if (!(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) return FALSE;
-    /* S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
-     * khẩu; không đọc/không sửa. */
-    if (self->secure) return FALSE;
+    /* S3 + E64: ô mật khẩu / terminal — không đọc hay xoá surrounding text trong terminal. */
+    if (self->secure || self->terminal) return FALSE;
 
     /* Chụp MỘT lần surrounding: text/cursor/anchor phải cùng chụp. */
     IBusText *text = NULL;
@@ -485,7 +484,7 @@ static gboolean perform_selection_convert(TextVNIbusEngine *self) {
  * preedit. */
 static gboolean hotkey_fix_sentence(TextVNIbusEngine *self) {
     IBusEngine *engine = (IBusEngine *)self;
-    if (!self->inst || !s_vi_enabled ||
+    if (!self->inst || !s_vi_enabled || self->secure || self->terminal ||
         !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode) ||
         !(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) {
         return FALSE;
@@ -552,7 +551,7 @@ static gboolean hotkey_fix_sentence(TextVNIbusEngine *self) {
 static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_char,
                                        gboolean is_sentence_trigger, gboolean plan_eaten,
                                        const char *committed, gboolean allow_display) {
-    if (!self || !self->inst) return plan_eaten;
+    if (!self || !self->inst || self->secure || self->terminal) return plan_eaten;
     const int dbg = lc_assist_debug_enabled();
     if (dbg) {
         lc_log(LC_LOG_INFO, "IBus", "assist: trigger=%u vi=%d state=%d mode=%d",
@@ -772,7 +771,7 @@ static void assist_idle_cancel(TextVNIbusEngine *self) {
 static gboolean assist_idle_fire(gpointer data) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)data;
     self->assist_idle_id = 0;
-    if (self->inst && !self->secure && s_vi_enabled && self->comp.len == 0) {
+    if (self->inst && !self->secure && !self->terminal && s_vi_enabled && self->comp.len == 0) {
         (void)check_and_apply_assist(self, 0, FALSE, FALSE, "", TRUE);
     }
     return G_SOURCE_REMOVE;
@@ -780,7 +779,7 @@ static gboolean assist_idle_fire(gpointer data) {
 
 static void assist_idle_arm(TextVNIbusEngine *self) {
     assist_idle_cancel(self);
-    if (!self->inst || self->secure || !s_vi_enabled ||
+    if (!self->inst || self->secure || self->terminal || !s_vi_enabled ||
         !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode)) {
         return;
     }
@@ -968,6 +967,12 @@ static void engine_set_content_type(IBusEngine *engine, guint purpose, guint hin
     gboolean terminal = purpose == 10;
     if (terminal != self->terminal) {
         self->terminal = terminal;
+        if (terminal) {
+            assist_idle_cancel(self);
+            clear_assist_ui(self);
+            hide_emoji_ui(self);
+            hide_preview(self);
+        }
         push_context(self, s_vi_enabled);
     }
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->set_content_type(engine, purpose, hints);
@@ -1095,8 +1100,10 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         return TRUE;
     }
 
-    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua IBusLookupTable). */
-    if (lc_is_emoji_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
+    /* P12: Ctrl+Alt+E mở/đóng Bảng Emoji nhẹ (X11 + Wayland qua IBusLookupTable);
+     * tắt trong terminal / ô mật khẩu (E64). */
+    if (!self->secure && !self->terminal &&
+        lc_is_emoji_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
                            (state & IBUS_MOD1_MASK) != 0,
                            (state & IBUS_SHIFT_MASK) != 0,
                            (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0)) {
@@ -1215,8 +1222,8 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     lc_plan_key(&self->comp, key, &r, &plan);
 
     if (plan.delete_before > 0) {
-        /* Chỉ xóa text đã commit khi client thật sự hỗ trợ surrounding text. */
-        if (!(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) {
+        /* Chỉ xóa text đã commit khi client thật sự hỗ trợ surrounding text và KHÔNG phải terminal (E64). */
+        if (self->terminal || !(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) {
             finish_word(self);
             return FALSE;
         }
@@ -1248,9 +1255,11 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     lc_comp_apply(&self->comp, &plan);
     if (plan.reset_engine) ime_reset(self->inst);
 
-    /* Trợ lý ngữ pháp (AS-060 / P4-6): trigger kiểm tra khi commit kết thúc câu hoặc dấu cách */
+    /* Trợ lý ngữ pháp (AS-060 / P4-6): trigger kiểm tra khi commit kết thúc câu hoặc dấu cách;
+     * tuyệt đối không chạy trong terminal (E64). */
     uint32_t trigger_kind = (key.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(key.ch) : IME_ASSIST_TRIGGER_NONE;
-    if (trigger_kind != IME_ASSIST_TRIGGER_NONE && s_vi_enabled && self->comp.len == 0 && self->inst) {
+    if (!self->terminal && trigger_kind != IME_ASSIST_TRIGGER_NONE && s_vi_enabled &&
+        self->comp.len == 0 && self->inst) {
         gboolean is_sentence = (trigger_kind == IME_ASSIST_TRIGGER_SENTENCE);
         /* R2-155: phím trigger chỉ kiểm tra + tự sửa (Mode 2); danh sách hiện khi dừng gõ. */
         self->assist_autofixed = FALSE;
@@ -1267,7 +1276,8 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         return eaten;
     }
     /* R2-155: mọi phím gõ chữ/xoá hẹn lại timer idle (danh sách đang hiện đã bị ẩn ở đầu hàm). */
-    if (lc_assist_idle_arms(key.kind == LC_KEY_CHAR, key.kind == LC_KEY_BACKSPACE, s_vi_enabled)) {
+    if (!self->terminal &&
+        lc_assist_idle_arms(key.kind == LC_KEY_CHAR, key.kind == LC_KEY_BACKSPACE, s_vi_enabled)) {
         clear_assist_ui(self); /* phím số/chữ trần không đóng danh sách sống — ẩn ở đây */
         assist_idle_arm(self);
     }

@@ -10,6 +10,11 @@
 # Mọi file đã cài được ghi vào <prefix>/share/textvn/install-manifest.txt để
 # uninstall.sh gỡ đúng và đủ.
 
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "✗ Không dùng 'source' hay '.' với install.sh (sẽ đóng terminal). Hãy chạy trực tiếp: ./install.sh" >&2
+    return 1
+fi
+
 set -euo pipefail
 
 PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

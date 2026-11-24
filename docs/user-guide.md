@@ -132,8 +132,19 @@ Gỡ bản cài: `~/.local/share/textvn/uninstall.sh` (hoặc `sudo /usr/share/t
 Thêm `--purge` nếu muốn xoá cả cấu hình.
 
 Yêu cầu: IBus ≥ 1.5 hoặc Fcitx5 ≥ 5.0, glibc tương đương Ubuntu 24.04 trở lên cho bản dựng
-sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`, xem
-[developer guide](developer-guide.md)). Bảng điều khiển cần GTK 4.
+sẵn. **Ubuntu 22.04 LTS** (glibc 2.35): dựng trực tiếp từ mã nguồn cho IBus (không cài thêm `fcitx5`
+nếu đang dùng IBus/ibus-unikey mặc định của Ubuntu, luôn chạy trực tiếp `./scripts/install_linux.sh`
+— **không** dùng `source` hay `.`):
+
+```bash
+sudo apt install cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev ibus dbus libdbus-1-dev
+./scripts/install_linux.sh
+```
+
+Nếu máy đã cài sẵn `ibus-unikey`: giữ nguyên IBus, đăng xuất và đăng nhập lại 1 lần (đặc biệt trên
+Ubuntu 22.04 GNOME Wayland để không ngắt kết nối `ibus-daemon` của phiên đang chạy), sau đó chọn
+**Vietnamese (TextVN)** bằng `Super + Space` (hoặc bỏ *Unikey* trong *Cài đặt → Bàn phím → Nguồn
+nhập* để tránh nhầm hai bộ gõ). Bảng điều khiển cần GTK 4.
 
 
 
@@ -339,9 +350,10 @@ chính xác gate nào đang chặn (**chỉ log cờ và số đếm — không 
 dung câu bạn gõ**):
 
 ```bash
-# IBus (Ubuntu/GNOME mặc định): khởi động lại engine với debug
-killall ibus-engine-textvn 2>/dev/null
-TEXTVN_ASSIST_DEBUG=1 /usr/libexec/ibus-engine-textvn &
+# IBus (Ubuntu/GNOME mặc định): chạy trực tiếp engine với log debug trong terminal riêng
+# (KHÔNG dùng `killall` hay `ibus-daemon --replace` trên GNOME Wayland 22.04)
+pkill -x -u "$(id -u)" textvn-ibus-engine 2>/dev/null || true
+TEXTVN_ASSIST_DEBUG=1 "${HOME}/.local/lib/textvn/textvn-ibus-engine" --ibus &
 journalctl --user -f | grep "assist"
 ```
 
@@ -387,6 +399,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Windows: chọn TextVN xong vẫn gõ ra tiếng Anh/không ra chữ, hoặc TextVN không có trong Win+Space | (1) Win11 24H2+ có thể từ chối kích hoạt bộ gõ chỉ đăng ký cho tài khoản (HKCU) — bản cài cho tài khoản, portable và Store không tự xin UAC; (2) TextVN từng bị mất khỏi danh sách Win+Space sau nâng cấp liên tục. Cách xử lý: chạy **bộ cài cho mọi người dùng** `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần) — luồng `/ALLUSERS` được CI kiểm chứng đầy đủ; sau cài, đăng xuất/đăng nhập nếu vẫn chưa thấy. Kiểm tra nhanh: PowerShell `Get-WinUserLanguageList` phải thấy dòng chứa `{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}`. |
 | Windows: phần mềm diệt virus / SmartScreen cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Bản phát hành chưa có chữ ký Authenticode (đang chờ SignPath Foundation) — kiểm `checks.authenticode` trong `RELEASE_REPORT.json` của gói; tính toàn vẹn kiểm bằng chữ ký GPG/Sigstore (`release/signing.md`). Bản Store: gói được Microsoft ký, nhưng ở lần mở đầu app chép chương trình (chưa ký Authenticode) ra `%LOCALAPPDATA%\Programs\TextVN-Store` để đăng ký bộ gõ — Kaspersky từng cách ly các tệp này (2026-10-11); khôi phục từ khu cách ly + thêm ngoại lệ, và gửi báo nhầm theo `antivirus-false-positive.md` §10. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
+| Linux (Ubuntu 22.04 + IBus / `ibus-unikey`): đóng mất terminal khi chạy lệnh cài hoặc gõ trong `gnome-terminal` | (1) Không dùng `source` / `.` với `install.sh` hay `scripts/install_linux.sh` (từ 0.2.87 script đã chặn tự động); luôn chạy trực tiếp `./install.sh` hoặc `./scripts/install_linux.sh`. (2) Ubuntu 22.04 dùng glibc 2.35 nên bản tarball 24.04 không chạy được — `install.sh` từ 0.2.87 tự kiểm tra glibc trước khi đụng IBus; hãy dựng từ nguồn chỉ với gói IBus (không cài thêm `fcitx5` đè lên `ibus`). (3) Trên GNOME 42 Wayland (Ubuntu 22.04), TextVN không còn gọi `ibus-daemon --replace` làm đứt socket IM của `gnome-terminal` — chỉ cần đăng xuất/đăng nhập lại 1 lần rồi chọn **Vietnamese (TextVN)** thay cho *Unikey* trong *Cài đặt → Bàn phím → Nguồn nhập*. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
 | Windows: không thấy panel của Trợ lý ngữ pháp | (1) Bản ≤ 0.2.45 không neo được panel trong một số ứng dụng (Notepad Win11…) nên chỉ hiện toast "Phát hiện N lỗi" — bản sau 0.2.45 luôn hiện panel và **bỏ toast phát hiện** (R2-125/R2-126). (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** rồi hiện toast "Đã tự sửa…" (tối đa 1 lần/60 giây, do **TextVN.exe** ở khay hiển thị) — muốn thấy panel gợi ý, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ. Từ bản sau 0.2.45 bộ cài **tự quét bản cũ**: cài cho mọi người dùng tự gỡ bản cho tài khoản; cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ (cần quyền quản trị); nâng cấp tại chỗ dọn sạch file của bản cũ (giữ cài đặt và bộ gõ). |

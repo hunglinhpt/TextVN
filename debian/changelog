@@ -1,3 +1,31 @@
+textvn (0.2.87-0ppa1) noble; urgency=medium
+
+  * E61 — Deep UniKey-style tone undo & VI/EN bilingual restore: repeating a
+    tone/mark key (e.g. `Sirr` -> `Sir`, `firre` -> `fire`, `starr` -> `star`,
+    `Eulerr` -> `Euler`, `Tensorr` -> `Tensor`) now restores the exact English
+    or scientific word cleanly without leaving doubled trailing keys across
+    Telex, SimpleTelex and VNI.
+  * E62 — Universal Math & Science engine across all editors and all 4 OS
+    adapters (Windows TSF, macOS IMK, Linux IBus & Fcitx5): enabled in every
+    text box with `cursor_left` repositioning and zero-corruption LaTeX/Typst
+    context handling.
+  * P12 — Lightweight 3-OS Native Emoji Picker (`Ctrl+Alt+E` + `:shortcode:`
+    inline expansion with zero-heap static table and instant search).
+  * E63 — 4-persona expert audit (Math Researcher LaTeX/Typst environments &
+    nested `$...$`/`\begin{cases}`, Student Sup/Sub chains `0-9+-()ni` +
+    lowercase chemistry aliases + IEEE-754 clean inline calculator, UniKey
+    scientific lexicon & inline emoji undo).
+  * E64 — Ubuntu 22.04 LTS terminal safety & IBus/`ibus-unikey` hardening:
+    added source-guards to all Linux install/uninstall/portable scripts,
+    removed `exec` from wrapper scripts, added pre-install glibc compatibility
+    check, preserved `--xim` and detached PTY FDs in daemon restarts, skipped
+    violent `ibus-daemon --replace` on GNOME Wayland without systemd IBus unit
+    (Ubuntu 22.04 GNOME 42), added `ibus-unikey` coexistence notice, and
+    disabled assist/preview/emoji/surrounding-delete inside terminals on both
+    IBus and Fcitx5.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Tue, 24 Nov 2026 14:10:00 +0700
+
 textvn (0.2.86-0ppa1) noble; urgency=medium
 
   * E59 — Zero-Python native repository migration & 3-pass rolling audit:

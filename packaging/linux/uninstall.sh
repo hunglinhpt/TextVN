@@ -8,6 +8,11 @@
 # Tuỳ chọn: --prefix DIR (mặc định: thư mục cài chứa script này), --no-restart,
 #           --purge (xoá luôn cấu hình ~/.config/TextVN và nhật ký — mặc định GIỮ LẠI).
 
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "✗ Không dùng 'source' hay '.' với uninstall.sh (sẽ đóng terminal). Hãy chạy trực tiếp: ./uninstall.sh" >&2
+    return 1
+fi
+
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

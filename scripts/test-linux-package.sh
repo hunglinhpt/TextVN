@@ -435,10 +435,50 @@ unit_system_root() {
 }
 export -f unit_system_root
 
+# ---- Kiểm thử đơn vị: E64 bảo vệ terminal Ubuntu 22.04 (source-guard & ibus-unikey) ----
+unit_e64_ubuntu22_guards() {
+    local t out
+    t="$(new_home)"
+    export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config"
+    # 1. `source`/`.` các script cài đặt KHÔNG ĐƯỢC đóng shell hay rò `set -e`.
+    for sc in "$ROOT/packaging/linux/install.sh" "$ROOT/packaging/linux/textvn-portable.sh" \
+              "$ROOT/packaging/linux/uninstall.sh" "$ROOT/scripts/install_linux.sh" \
+              "$ROOT/scripts/uninstall_linux.sh"; do
+        out="$(bash -c "source '$sc' 2>&1; echo SHELL_ALIVE" || true)"
+        grep -q 'SHELL_ALIVE' <<<"$out" || fail "E64: source $sc đã đóng mất shell: $out"
+    done
+    # 2. Máy Ubuntu có sẵn ibus-unikey: thêm TextVN không phá Unikey và in hướng dẫn chuyển đổi.
+    cat > "$t/fakebin/gsettings" <<'G'
+#!/usr/bin/env bash
+store="$HOME/.fake-gsettings"
+case "$1" in
+    list-schemas) echo org.gnome.desktop.input-sources ;;
+    get) cat "$store" ;;
+    set) echo "$4" > "$store" ;;
+esac
+G
+    chmod +x "$t/fakebin/gsettings"
+    export PATH="$t/fakebin:$PATH"
+    # shellcheck source=packaging/linux/textvn-common.sh
+    . "$ROOT/packaging/linux/textvn-common.sh"
+    echo "[('xkb', 'us'), ('ibus', 'Unikey')]" > "$HOME/.fake-gsettings"
+    out="$(tv_activate_ibus 2>&1)"
+    grep -q 'ibus-unikey' <<<"$out" || fail "E64: thiếu cảnh báo đồng tồn tại ibus-unikey: $out"
+    grep -Fq "('ibus', 'Unikey'), ('ibus', 'textvn')" "$HOME/.fake-gsettings" ||
+        fail "E64: danh sách nguồn nhập GNOME sau cài sai: $(cat "$HOME/.fake-gsettings")"
+    # 3. GNOME Wayland (không systemd IBus unit — Ubuntu 22.04): không replace thô ibus-daemon.
+    out="$(XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=ubuntu:GNOME TV_SKIP_MANAGER_ENV=1 tv_restart_ibus "" 2>&1)"
+    grep -q 'GNOME Wayland' <<<"$out" || fail "E64: không kích hoạt nhánh an toàn GNOME Wayland: $out"
+    rm -rf "$t"
+    echo "PASS đơn vị: E64 source-guard, tương thích ibus-unikey và bảo vệ GNOME Wayland Ubuntu 22.04"
+}
+export -f unit_e64_ubuntu22_guards
+
 bash -c unit_activation
 bash -c unit_ibus_component
 bash -c unit_fcitx5_absent
 bash -c unit_system_root
+bash -c unit_e64_ubuntu22_guards
 
 for fw in ibus fcitx5; do
     dbus-run-session -- bash -c "scenario_install $fw" 2> >(grep -v 'fd limit' >&2)

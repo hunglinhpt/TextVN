@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.87" date="2026-11-24">
+      <description>
+        <p>Major quality, Math &amp; Science, Emoji Picker, UniKey restore and Linux Ubuntu 22.04 compatibility release. E61 fixes UniKey-style repeat-key undo and VI/EN bilingual conflict resolution (e.g. Sirr to Sir, firre to fire, Eulerr to Euler) across Telex, SimpleTelex and VNI. E62 makes the Math &amp; Science mode work universally in every editor across Windows TSF, macOS IMK, Linux IBus and Fcitx5 with cursor_left repositioning. P12 adds a lightweight native 3-OS Emoji Picker (Ctrl+Alt+E plus :shortcode: inline expansion). E63 closes a 4-persona expert audit (Math Researcher LaTeX/Typst environments, Student Sup/Sub chains and lowercase chemistry aliases plus IEEE-754 clean inline calculator, and UniKey scientific lexicon). E64 hardens Ubuntu 22.04 LTS terminal safety and IBus/ibus-unikey coexistence: source-guards on all Linux scripts, pre-install glibc check, safe GNOME Wayland handling without disrupting gnome-terminal, and full terminal guards in both IBus and Fcitx5 adapters.</p>
+      </description>
+    </release>
     <release version="0.2.86" date="2026-11-23">
       <description>
         <p>E59 zero-Python native repository migration and 3-pass rolling audit: all 18 Python build, hygiene, PE/MSIX verification, asset generation, assist evaluation and Linux Fcitx5 E2E scripts have been ported to zero-dependency Rust (xtask) and C/libdbus (e2e_fcitx5.c), enforced permanently by the cargo xtask no-python gate in CI and preflight. Three rolling audit passes hardened the pure-std RFC 1951 DEFLATE/PNG codec (bounded inflate, HDIST up to 32, dynamic EOB validation), in-memory ZIP/ZIP64 MSIX verifier (duplicate entry rejection, 512 MiB archive cap), strict namespace-aware XML 1.0 parser, PE32/PE32+ import and delay-load checker, and made the Fcitx5 D-Bus E2E binary optional via PkgConfig so minimal Debian/Arch packaging builds without libdbus-1-dev stay green. All workspace test suites, 91 xtask unit tests, clippy -D warnings, and 7/7 CI workflows pass 100%.</p>
