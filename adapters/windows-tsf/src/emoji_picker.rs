@@ -576,6 +576,19 @@ mod win {
         }
     }
 
+    /// Trên x86 (32-bit), `SetWindowLongPtrW` alias sang `SetWindowLongW(..., i32)`;
+    /// trên x64 (64-bit) nhận `isize`. Tách helper để build sạch cả x86 lẫn x64.
+    unsafe fn set_user_data(hwnd: HWND, ptr: isize) {
+        #[cfg(target_pointer_width = "64")]
+        {
+            let _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, ptr);
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            let _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, ptr as i32);
+        }
+    }
+
     impl Drop for EmojiPicker {
         fn drop(&mut self) {
             if let Ok(mut inner) = self.inner.try_borrow_mut() {
@@ -583,7 +596,7 @@ mod win {
                     let hwnd = inner.hwnd;
                     inner.hwnd = HWND::default();
                     unsafe {
-                        let _ = SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+                        set_user_data(hwnd, 0);
                         let _ = DestroyWindow(hwnd);
                     }
                 }
@@ -676,7 +689,7 @@ mod win {
                 let cs = lparam.0 as *const CREATESTRUCTW;
                 if !cs.is_null() {
                     let ptr = (*cs).lpCreateParams as isize;
-                    SetWindowLongPtrW(hwnd, GWLP_USERDATA, ptr);
+                    set_user_data(hwnd, ptr);
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
