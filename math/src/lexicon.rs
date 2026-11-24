@@ -47,7 +47,7 @@ macro_rules! e {
 const MATH_SYMBOLS: &[MathEntry] = &[
     e!(
         "infinity",
-        ["inf", "vocuc", "vc", "oo"],
+        ["inf", "infty", "vocuc", "vc", "oo"],
         PureMath,
         "\\infty",
         "infinity",
@@ -223,7 +223,7 @@ const MATH_SYMBOLS: &[MathEntry] = &[
     ),
     e!(
         "forall",
-        ["moi", "voimoinguoi"],
+        ["moi", "voimoi", "voimoinguoi"],
         PureMath,
         "\\forall",
         "forall",
@@ -256,7 +256,7 @@ const MATH_SYMBOLS: &[MathEntry] = &[
     ),
     e!(
         "isin",
-        ["thuoc"],
+        ["thuoc", "in"],
         PureMath,
         "\\in",
         "in",
@@ -421,7 +421,7 @@ const MATH_SYMBOLS: &[MathEntry] = &[
     ),
     e!(
         "div",
-        ["chiachinh"],
+        ["chia", "chiachinh"],
         PureMath,
         "\\div",
         "div",
@@ -3050,7 +3050,7 @@ element_table! {
 const CHEMISTRY: &[MathEntry] = &[
     e!(
         "H2O",
-        ["nuoc"],
+        ["nuoc", "h2o"],
         ChemistryBio,
         "H_2O",
         "H_2 O",
@@ -3061,7 +3061,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "CO2",
-        ["cacbondioxit"],
+        ["cacbondioxit", "co2"],
         ChemistryBio,
         "CO_2",
         "C O_2",
@@ -3083,7 +3083,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "O2",
-        ["oxyphantu"],
+        ["oxyphantu", "o2"],
         ChemistryBio,
         "O_2",
         "O_2",
@@ -3094,7 +3094,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "N2",
-        ["nitophantu"],
+        ["nitophantu", "n2"],
         ChemistryBio,
         "N_2",
         "N_2",
@@ -3105,7 +3105,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "H2",
-        ["hydrophantu"],
+        ["hydrophantu", "h2"],
         ChemistryBio,
         "H_2",
         "H_2",
@@ -3116,7 +3116,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "NaCl",
-        ["muoian"],
+        ["muoian", "nacl"],
         ChemistryBio,
         "NaCl",
         "Na Cl",
@@ -3127,7 +3127,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "H2SO4",
-        ["axitsunfuric"],
+        ["axitsunfuric", "h2so4"],
         ChemistryBio,
         "H_2SO_4",
         "H_2 S O_4",
@@ -3138,7 +3138,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "HNO3",
-        ["axitnitric"],
+        ["axitnitric", "hno3"],
         ChemistryBio,
         "HNO_3",
         "H N O_3",
@@ -3149,7 +3149,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "HCl",
-        ["axitclohydric"],
+        ["axitclohydric", "hcl"],
         ChemistryBio,
         "HCl",
         "H Cl",
@@ -3160,7 +3160,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "NaOH",
-        ["natrihidroxit"],
+        ["natrihidroxit", "naoh"],
         ChemistryBio,
         "NaOH",
         "Na O H",
@@ -3171,7 +3171,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "KOH",
-        ["kalihidroxit"],
+        ["kalihidroxit", "koh"],
         ChemistryBio,
         "KOH",
         "K O H",
@@ -3182,7 +3182,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "CaCO3",
-        ["davoi"],
+        ["davoi", "caco3"],
         ChemistryBio,
         "CaCO_3",
         "Ca C O_3",
@@ -3193,7 +3193,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "NaHCO3",
-        ["muoinoi"],
+        ["muoinoi", "nahco3"],
         ChemistryBio,
         "NaHCO_3",
         "Na H C O_3",
@@ -3204,7 +3204,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "CH4",
-        ["metan"],
+        ["metan", "ch4"],
         ChemistryBio,
         "CH_4",
         "C H_4",
@@ -3215,7 +3215,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "NH3",
-        ["amoniac"],
+        ["amoniac", "nh3"],
         ChemistryBio,
         "NH_3",
         "N H_3",
@@ -3226,7 +3226,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "C2H5OH",
-        ["ruouetylic"],
+        ["ruouetylic", "c2h5oh"],
         ChemistryBio,
         "C_2H_5OH",
         "C_2 H_5 O H",
@@ -3237,7 +3237,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "CH3COOH",
-        ["axitacetic"],
+        ["axitacetic", "ch3cooh"],
         ChemistryBio,
         "CH_3COOH",
         "C H_3 C O O H",
@@ -3248,7 +3248,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "C6H12O6",
-        ["glucozo"],
+        ["glucozo", "c6h12o6"],
         ChemistryBio,
         "C_6H_{12}O_6",
         "C_6 H_(12) O_6",
@@ -3259,7 +3259,7 @@ const CHEMISTRY: &[MathEntry] = &[
     ),
     e!(
         "Na2SO4",
-        ["natrisunfat"],
+        ["natrisunfat", "na2so4"],
         ChemistryBio,
         "Na_2SO_4",
         "Na_2 S O_4",

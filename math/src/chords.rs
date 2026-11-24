@@ -85,9 +85,52 @@ const GREEK_UPPER: &[(char, &str, &str)] = &[
     ('X', "Ξ", "\\Xi"),
 ];
 
-/// Chuỗi superscript/subscript digit chain (UnicodeMath).
-const SUP_DIGITS: &[char] = &['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
-const SUB_DIGITS: &[char] = &['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+/// Ánh xạ ký tự trong chuỗi superscript/subscript (Normal & UnicodeMath):
+/// chữ số `0-9`, dấu `+-`, ngoặc `()` và chỉ số phổ thông `n`, `i` (`x²`, `xⁿ`, `x⁻¹`,
+/// `H₂O`, `H₂SO₄`, `SO₄²⁻`, `Ca²⁺`, `aᵢ`, `aₙ`, `x⁽ⁿ⁺¹⁾`).
+fn map_sup_char(c: char) -> Option<char> {
+    Some(match c {
+        '0' => '⁰',
+        '1' => '¹',
+        '2' => '²',
+        '3' => '³',
+        '4' => '⁴',
+        '5' => '⁵',
+        '6' => '⁶',
+        '7' => '⁷',
+        '8' => '⁸',
+        '9' => '⁹',
+        '+' => '⁺',
+        '-' => '⁻',
+        '(' => '⁽',
+        ')' => '⁾',
+        'n' => 'ⁿ',
+        'i' => 'ⁱ',
+        _ => return None,
+    })
+}
+
+fn map_sub_char(c: char) -> Option<char> {
+    Some(match c {
+        '0' => '₀',
+        '1' => '₁',
+        '2' => '₂',
+        '3' => '₃',
+        '4' => '₄',
+        '5' => '₅',
+        '6' => '₆',
+        '7' => '₇',
+        '8' => '₈',
+        '9' => '₉',
+        '+' => '₊',
+        '-' => '₋',
+        '(' => '₍',
+        ')' => '₎',
+        'n' => 'ₙ',
+        'i' => 'ᵢ',
+        _ => return None,
+    })
+}
 
 /// Zero-alloc FSM chord — 1 instance / engine.
 #[derive(Debug, Clone)]
@@ -163,8 +206,8 @@ impl ChordFsm {
         match self.state {
             ChordState::Idle => self.process_idle(c, now_ms),
             ChordState::Armed => self.process_armed(c, now_ms),
-            ChordState::SupChain => self.process_chain(c, SUP_DIGITS),
-            ChordState::SubChain => self.process_chain(c, SUB_DIGITS),
+            ChordState::SupChain => self.process_chain(c, map_sup_char),
+            ChordState::SubChain => self.process_chain(c, map_sub_char),
         }
     }
 
@@ -208,11 +251,16 @@ impl ChordFsm {
         }
         // 2. Symbol / structure chords.
         if let Some(out) = symbol_chord(c, self.mode) {
-            // `^` / `_` ở UnicodeMath mở chain.
-            if self.mode == MathOutputMode::UnicodeMath && c == '^' {
-                self.state = ChordState::SupChain;
-            } else if self.mode == MathOutputMode::UnicodeMath && c == '_' {
-                self.state = ChordState::SubChain;
+            // `^` / `_` ở Normal & UnicodeMath mở chain superscript/subscript.
+            if matches!(
+                self.mode,
+                MathOutputMode::Normal | MathOutputMode::UnicodeMath
+            ) {
+                if c == '^' {
+                    self.state = ChordState::SupChain;
+                } else if c == '_' {
+                    self.state = ChordState::SubChain;
+                }
             }
             return Some(out);
         }
@@ -220,12 +268,11 @@ impl ChordFsm {
         Some(emit_literal(format!("{}{}", self.leader, c)))
     }
 
-    fn process_chain(&mut self, c: char, table: &[char]) -> Option<MathAction> {
-        if let Some(d) = c.to_digit(10) {
-            let uni = table[d as usize];
+    fn process_chain(&mut self, c: char, map_fn: fn(char) -> Option<char>) -> Option<MathAction> {
+        if let Some(uni) = map_fn(c) {
             return Some(emit(uni.to_string(), 0)); // chain giữ nguyên
         }
-        // Phím không phải digit → thoát chain, xử lý như từ Idle (re-entry).
+        // Phím ngoài bảng mũ/chỉ số → thoát chain, xử lý như từ Idle (re-entry).
         self.reset();
         if c == self.leader {
             self.state = ChordState::Armed;
@@ -289,14 +336,14 @@ pub fn symbol_chord(c: char, mode: MathOutputMode) -> Option<MathAction> {
         '^' => match mode {
             MathOutputMode::Latex => ("^{}".into(), 1),
             MathOutputMode::Typst => ("^()".into(), 1),
-            // UnicodeMath: mở chain superscript — phát rỗng (chain lo digit kế).
-            MathOutputMode::UnicodeMath => (String::new(), 0),
+            // Normal & UnicodeMath: mở chain superscript — Consume (chain lo ký tự kế).
+            MathOutputMode::Normal | MathOutputMode::UnicodeMath => (String::new(), 0),
             _ => ("^".into(), 0),
         },
         '_' => match mode {
             MathOutputMode::Latex => ("_{}".into(), 1),
             MathOutputMode::Typst => ("_()".into(), 1),
-            MathOutputMode::UnicodeMath => (String::new(), 0),
+            MathOutputMode::Normal | MathOutputMode::UnicodeMath => (String::new(), 0),
             _ => ("_".into(), 0),
         },
         'i' => match mode {
@@ -373,8 +420,8 @@ pub fn symbol_chord(c: char, mode: MathOutputMode) -> Option<MathAction> {
         },
         _ => return None,
     };
-    // UnicodeMath `^`/`_` mở chain — text rỗng là tín hiệu mở chain (không chèn gì).
-    if text.is_empty() && mode == MathOutputMode::UnicodeMath {
+    // Normal & UnicodeMath `^`/`_` mở chain — text rỗng là tín hiệu mở chain (không chèn gì).
+    if text.is_empty() && matches!(mode, MathOutputMode::Normal | MathOutputMode::UnicodeMath) {
         return Some(MathAction::Consume);
     }
     Some(emit(text, steps))

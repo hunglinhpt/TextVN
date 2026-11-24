@@ -101,10 +101,7 @@ impl Outcome {
 impl Engine {
     /// Phím boundary cho math: mở rộng `lias` / `	emplate` / `=expr=`.
     fn is_math_boundary(c: char) -> bool {
-        matches!(
-            c,
-            ' ' | '\n' | '\t' | ',' | '.' | ';' | ':' | '!' | '?' | ')' | ']' | '"' | '\'' | '='
-        )
+        textvn_math::is_math_boundary(c)
     }
 
     /// Xử lý phím qua math khi `math.enabled`. `None` = math không quan tâm,
@@ -1285,7 +1282,8 @@ impl Engine {
         let prefix_start = prefix_len.saturating_sub(32);
         candidate.extend_from_slice(&self.recent[prefix_start..prefix_len]);
         if owned > 0 {
-            candidate.extend_from_slice(&self.word.raw);
+            let eff = self.restore_source();
+            candidate.extend_from_slice(&eff);
         }
         let (raw_del, entry) = post::emoji_catalog::match_inline_shortcode(&candidate)?;
         // Vị trí dấu `:` mở nằm trong phần `prefix` (trước từ active vì `:` không phải ký tự từ).
@@ -1790,6 +1788,21 @@ impl Engine {
                 .enumerate()
                 .filter_map(|(i, &c)| (!drop_flags[i]).then_some(c))
                 .collect();
+        }
+        // E63: từ không nằm trong từ điển EN (`!is_english_lexicon_word(raw)`), dài >= 5
+        // và kết thúc bằng một cặp hoàn tác `-rr` ở cuối từ (`Eulerr`→`Euler`, `Fourierr`→`Fourier`,
+        // `Tensorr`→`Tensor`, `Shaderr`→`Shader`, `Solverr`→`Solver`, `compilerr`→`compiler`…)
+        // — trong tiếng Anh hầu như không có từ >= 5 ký tự kết thúc bằng `-rr` ngoài các ngoại lệ
+        // đã được bảo vệ phía trên (`whirr`, `stderr`).
+        if raw.len() >= 5 && eff.ambiguous_drops.len() == 1 {
+            let idx = eff.ambiguous_drops[0];
+            if idx + 2 == raw.len() && raw[idx].eq_ignore_ascii_case(&'r') {
+                return raw
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &c)| (i != idx).then_some(c))
+                    .collect();
+            }
         }
         raw.to_vec()
     }

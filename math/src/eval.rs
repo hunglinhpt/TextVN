@@ -311,25 +311,114 @@ pub fn eval(expr: &str) -> Option<f64> {
     }
 }
 
-/// Format kết quả eval ra text gọn: số nguyên không có `.0`, số thực dùng repr ngắn
-/// nhất; NaN/Inf không bao giờ tới đây (eval đã guard), nhưng vẫn chặn an toàn.
+/// Kiểm tra chuỗi bên trong biểu thức inline eval (`=expr=` đang mở, đã bỏ dấu `=` đầu)
+/// có còn khả năng hợp lệ thành biểu thức toán học hay không. Nếu người dùng chỉ gõ dấu `=`
+/// trong văn xuôi (`Ta có x = 5, nên kết quả...`), trả `false` ngay ở ký tự phá vỡ (`,`,
+/// chữ Việt, từ không phải tên hàm toán học...) để thoát eval tức thì và không làm chết Telex.
+pub fn is_valid_eval_prefix(inner: &str) -> bool {
+    const ALLOWED_IDENTS: &[&str] = &[
+        "sqrt", "sin", "cos", "tan", "ln", "log", "log10", "abs", "pi", "e",
+    ];
+    let bytes = inner.as_bytes();
+    let mut i = 0;
+    let mut last_was_operand = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b' ' {
+            i += 1;
+            continue;
+        }
+        if b.is_ascii_digit() || b == b'.' {
+            if last_was_operand {
+                // Hai số/toán hạng tách bởi space mà không có toán tử (`= 5 6` hoặc `= 5 a`)
+                // — không phải biểu thức eval hợp lệ.
+                return false;
+            }
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+            last_was_operand = true;
+            continue;
+        }
+        if matches!(b, b'+' | b'-' | b'*' | b'/' | b'^' | b'%' | b'(') {
+            last_was_operand = false;
+            i += 1;
+            continue;
+        }
+        if b == b')' {
+            last_was_operand = true;
+            i += 1;
+            continue;
+        }
+        if b.is_ascii_alphabetic() {
+            if last_was_operand {
+                // Ví dụ `= 5 n` ("x = 5 nên") — chữ cái sau số tách bằng space không phải eval.
+                return false;
+            }
+            let start = i;
+            while i < bytes.len() && bytes[i].is_ascii_alphanumeric() {
+                i += 1;
+            }
+            let ident = &inner[start..i];
+            let at_end = i == bytes.len();
+            let ok = if at_end {
+                // Đang gõ dở ở cuối buffer: chấp nhận tiền tố của tên hàm/hằng số hợp lệ.
+                ALLOWED_IDENTS
+                    .iter()
+                    .any(|&name| name.starts_with(ident) || name.eq_ignore_ascii_case(ident))
+                    || ALLOWED_IDENTS.iter().any(|&name| {
+                        name.len() >= ident.len() && name[..ident.len()].eq_ignore_ascii_case(ident)
+                    })
+            } else {
+                // Đã kết thúc định danh (sau là space/toán tử/`(`): phải khớp chính xác hàm/hằng số.
+                ALLOWED_IDENTS
+                    .iter()
+                    .any(|&name| name.eq_ignore_ascii_case(ident))
+            };
+            if !ok {
+                return false;
+            }
+            last_was_operand = true;
+            continue;
+        }
+        // Bất kỳ ký tự nào khác (`,`, `\n`, `\t`, `;`, chữ có dấu Unicode...) đều phá vỡ eval.
+        return false;
+    }
+    true
+}
+
+/// Format kết quả eval ra text gọn: số nguyên không có `.0`, loại bỏ nhiễu dấu phẩy động
+/// IEEE-754 (`0.1+0.2` → `"0.3"`, `sin(pi/6)` → `"0.5"`, `cos(pi/2)` → `"0"`, `-0` → `"0"`);
+/// NaN/Inf không bao giờ tới đây (eval đã guard), nhưng vẫn chặn an toàn.
 pub fn format_value(v: f64) -> String {
     if !v.is_finite() {
         return String::from("NaN");
     }
-    if v.fract() == 0.0 && v.abs() < 1e15 {
-        format!("{}", v as i64)
-    } else {
-        format!("{v}")
+    let clean = if v.abs() < 1e-12 { 0.0 } else { v };
+    let rounded_int = clean.round();
+    if clean.abs() < 1e15 && (clean - rounded_int).abs() <= 1e-12 * clean.abs().max(1.0) {
+        return format!("{}", rounded_int as i64);
     }
+    if clean.abs() >= 1e-6 && clean.abs() < 1e12 {
+        // Làm tròn 12 chữ số có nghĩa để xoá nhiễu `0.30000000000000004` / `0.49999999999999994`.
+        let mag = clean.abs().log10().floor() as i32;
+        let dec = (11 - mag).clamp(0, 12) as usize;
+        let s = format!("{clean:.dec$}");
+        let trimmed = s.trim_end_matches('0').trim_end_matches('.');
+        if trimmed == "-0" || trimmed.is_empty() {
+            return String::from("0");
+        }
+        return trimmed.to_string();
+    }
+    format!("{clean}")
 }
 
 /// Check if input is wrapped in (= ... =) delimiters and evaluate inner expression
 pub fn eval_delimited(input: &str) -> Option<f64> {
     let trimmed = input.trim();
-    if trimmed.len() >= 4 && trimmed.starts_with("(= ") && trimmed.ends_with(" =)") {
+    if trimmed.len() >= 6 && trimmed.starts_with("(= ") && trimmed.ends_with(" =)") {
         eval(&trimmed[3..trimmed.len() - 2])
-    } else if trimmed.len() >= 2 && trimmed.starts_with("= ") && trimmed.ends_with(" =") {
+    } else if trimmed.len() >= 4 && trimmed.starts_with("= ") && trimmed.ends_with(" =") {
         eval(&trimmed[2..trimmed.len() - 2])
     } else {
         None

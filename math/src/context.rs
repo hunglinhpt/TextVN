@@ -11,13 +11,48 @@ pub enum SpanKind {
 }
 
 const MAX_STACK: usize = 32;
+const TAIL_CAP: usize = 32;
+
+/// Các môi trường toán học LaTeX thực sự cần treo bộ gõ tiếng Việt (`\begin{...}...\end{...}`).
+/// Các môi trường văn bản (`document`, `abstract`, `theorem`, `proof`, `itemize`, `figure`…)
+/// PHẢI cho phép gõ tiếng Việt bình thường bên trong.
+fn is_math_env_name(env: &str) -> bool {
+    let base = env.strip_suffix('*').unwrap_or(env);
+    matches!(
+        base,
+        "equation"
+            | "align"
+            | "alignat"
+            | "flalign"
+            | "gather"
+            | "multline"
+            | "eqnarray"
+            | "math"
+            | "displaymath"
+            | "split"
+            | "subequations"
+            | "cases"
+            | "dcases"
+            | "rcases"
+            | "matrix"
+            | "pmatrix"
+            | "bmatrix"
+            | "Bmatrix"
+            | "vmatrix"
+            | "Vmatrix"
+            | "smallmatrix"
+            | "array"
+            | "aligned"
+            | "gathered"
+    )
+}
 
 #[derive(Debug, Clone)]
 pub struct MathContextFsm {
     stack: [SpanKind; MAX_STACK],
     depth: usize,
     in_math: bool,
-    tail: [char; 16],
+    tail: [char; TAIL_CAP],
     tail_len: usize,
     esc_pending: bool,
     just_opened_dollar: bool,
@@ -37,7 +72,7 @@ impl MathContextFsm {
             stack: [SpanKind::Math; MAX_STACK],
             depth: 0,
             in_math: false,
-            tail: ['\0'; 16],
+            tail: ['\0'; TAIL_CAP],
             tail_len: 0,
             esc_pending: false,
             just_opened_dollar: false,
@@ -166,8 +201,10 @@ impl MathContextFsm {
         matches && unescaped
     }
 
-    fn tail_closing_brace_cmd(&self, prefix: &str) -> bool {
-        // Khớp `<prefix>{<env>` ở đuôi tail khi `c == '}'`, với `<env>` chỉ gồm chữ cái/số/`*`.
+    fn tail_closing_brace_math_env(&self, prefix: &str) -> bool {
+        // Khớp `<prefix>{<env>` ở đuôi tail khi `c == '}'`, chỉ trả true cho môi trường toán học
+        // thực sự (`equation`, `align`, `gather`, `cases`, `matrix`...), KHÔNG treo tiếng Việt
+        // trong `\begin{document}`, `\begin{theorem}`, `\begin{proof}`, `\begin{itemize}`…
         let brace_pos = self.tail[..self.tail_len].iter().rposition(|&ch| ch == '{');
         let Some(bp) = brace_pos else {
             return false;
@@ -187,7 +224,15 @@ impl MathContextFsm {
         let start = bp - pref_len;
         let matches = self.tail[start..bp].iter().copied().eq(prefix.chars());
         let unescaped = start == 0 || self.tail[start - 1] != '\\';
-        matches && unescaped
+        if !(matches && unescaped) {
+            return false;
+        }
+        let mut env_buf = [0u8; TAIL_CAP];
+        for (idx, &ch) in env.iter().enumerate() {
+            env_buf[idx] = ch as u8;
+        }
+        let env_str = core::str::from_utf8(&env_buf[..env.len()]).unwrap_or("");
+        is_math_env_name(env_str)
     }
 
     /// Feed a text character for delimiter tracking (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`,
@@ -259,14 +304,24 @@ impl MathContextFsm {
             && (self.tail_ends_with_cmd("\\text")
                 || self.tail_ends_with_cmd("\\textrm")
                 || self.tail_ends_with_cmd("\\mbox")
-                || self.tail_ends_with_cmd("\\textbf"))
+                || self.tail_ends_with_cmd("\\textbf")
+                || self.tail_ends_with_cmd("\\textit")
+                || self.tail_ends_with_cmd("\\textsf")
+                || self.tail_ends_with_cmd("\\texttt")
+                || self.tail_ends_with_cmd("\\textup")
+                || self.tail_ends_with_cmd("\\textsl")
+                || self.tail_ends_with_cmd("\\emph")
+                || self.tail_ends_with_cmd("\\hbox")
+                || self.tail_ends_with_cmd("\\intertext")
+                || self.tail_ends_with_cmd("\\shortintertext")
+                || self.tail_ends_with_cmd("\\tag"))
         {
             self.enter_text_in_math();
             self.text_brace_depth = 1;
         } else if c == '}' {
-            if self.tail_closing_brace_cmd("\\begin") && !self.in_math() {
+            if self.tail_closing_brace_math_env("\\begin") {
                 self.enter_math(true);
-            } else if self.tail_closing_brace_cmd("\\end")
+            } else if self.tail_closing_brace_math_env("\\end")
                 && self.depth > 0
                 && self.current() == SpanKind::BlockMath
             {

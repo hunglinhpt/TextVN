@@ -55,7 +55,7 @@ Chế độ kết xuất ảnh hưởng đầu ra — ví dụ `/`:
 | Typst | `frac(, )` | trái 3 bước |
 | UnicodeMath | `⁄` | — |
 
-`^` / `_` ở mode **UnicodeMath** mở *chain*: `` ` ``+`^` rồi `25` → `²⁵` (phím nào không phải digit thoát chain).
+`^` / `_` ở mode **Normal** và **UnicodeMath** mở *chain* mũ/chỉ số cho chữ số `0-9`, dấu `+-`, ngoặc `()` và chỉ số `n`, `i`: `` ` ``+`^` rồi `25` → `²⁵`, ``x`^-1`` → `x⁻¹`, ``x`^(n+1)`` → `x⁽ⁿ⁺¹⁾`, ``H`_2SO`_4`` → `H₂SO₄`, ``SO`_4`^2-`` → `SO₄²⁻`, ``a`_n-1`` → `aₙ₋₁` (ký tự ngoài bảng hoặc Space/Esc/Backspace thoát chain).
 
 ## 3. Layer B — AltGr (tùy chọn)
 
@@ -68,12 +68,14 @@ Bật `"altgr_enabled": true` → giữ `AltGr` (Ctrl+Alt bên phải) + 1 phím
 |---|---|---|---|
 | `\tong` | ∑ | `\tichphan` · `\tp` | ∫ |
 | `\phanso` · `\ps` | phân số | `\can` | √ |
-| `\vocuc` · `\inf` | ∞ | `\suyra` | ⇒ |
+| `\vocuc` · `\infty` · `\inf` | ∞ | `\voimoi` · `\forall` | ∀ |
+| `\thuoc` · `\in` | ∈ | `\suyra` | ⇒ |
 | `\tuongduong` | ⇔ | `\khac` | ≠ |
 | `\nhohon` | ≤ | `\lonhon` | ≥ |
-| `\vuonggoc` | ⊥ | `\songsong` | ∥ |
+| `\nhan` · `\chia` | × · ÷ | `\vuonggoc` · `\songsong` | ⊥ · ∥ |
 | `\goc` | ∠ | `\do` | ° |
 | `\duongkinh` | Ø | `\ohm` | Ω |
+| `\h2o` · `\co2` · `\h2so4` | H₂O · CO₂ · H₂SO₄ | `\Fe2+` · `\OH-` · `\SO4-2` | Fe²⁺ · OH⁻ · SO₄²⁻ |
 | `\thuannghich` | A⁻¹ | `\vc` | vector |
 
 Đầy đủ trong palette (`Ctrl+Alt+Space`): **1.500+** ký tự/công thức/đơn vị/nguyên tố
@@ -96,15 +98,14 @@ Biên **1 ≤ N, M ≤ 10** (tổng ô ≤ 100). Template lớn hơn 64 ký tự
 
 ## 6. Tính nhanh `=expr=`
 
-Gõ `=2^10=` rồi **Space/Enter** → `= 1024 `. Hỗ trợ `+ - * / ^ %`, `sqrt sin cos
-tan ln log10 abs`, `pi`, `e`, ngoặc `()` `[]`. Chia 0 / overflow / cú pháp sai →
-không có gì xảy ra (fail-open, không sửa chữ của bạn).
+Gõ `=2^10=` → `1024`, `=0.1+0.2=` → `0.3`, `=sin(pi/6)=` → `0.5`, `=cos(pi/2)=` → `0` (khử nhiễu IEEE-754). Hỗ trợ `+ - * / ^ %`, `sqrt sin cos tan ln log10 abs`, `pi`, `e`, ngoặc `()` `[]`. Chia 0 / overflow / cú pháp sai / dấu `=` lẻ trong câu văn (`Ta có x = 5, nên kết quả là tiếng Việt`, `a == b`) → fail-open tức thì, không bao giờ làm hỏng tiếng Việt.
 
 ## 7. Bypass ngữ cảnh — tiếng Việt không bị phá
 
-- Trong `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, `\begin{...}` → Telex/VNI **tạm ngừng**.
-- Trong `\text{`, `\textrm{`, `\mbox{`, `\textbf{` → tiếng Việt **bật lại** (gõ chữ có dấu bình thường).
-- `\{`, `\}`, `\$` là ký tự literal — không đổi ngữ cảnh.
+- Trong `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, và các môi trường toán học LaTeX (`\begin{equation}`, `\begin{align*}`, `\begin{gather}`, `\begin{cases}`, `\begin{subequations}`…, kể cả lồng nhau) → Telex/VNI **tạm ngừng**.
+- Trong các môi trường văn bản (`\begin{document}`, `\begin{abstract}`, `\begin{theorem}`, `\begin{proof}`, `\begin{itemize}`…) và lệnh văn bản (`\section{`, `\text{`, `\textrm{`, `\mbox{`, `\textbf{`, `\textit{`, `\emph{`, `\intertext{`, `\tag{`…) → tiếng Việt **hoạt động bình thường**.
+- Trong đối số định danh LaTeX (`\label{...}`, `\ref{...}`, `\cite{...}`, `\usepackage{...}`, `\mathbb{...}`) → Telex tạm dừng để giữ nguyên nhãn/mã.
+- `\{`, `\}`, `\$`, `\\` (xuống dòng LaTeX) không làm kẹt ngữ cảnh.
 - Token code **miễn nhiễm**: `0xFF`, `0b1010`, `u32`, `f64`, `CAN_FD`, `ECU_SW`, `GPIO_PIN`.
 
 ## 8. Dán công thức thông minh (Ctrl+Alt+V)
@@ -182,8 +183,7 @@ Output mode affects results — example `/`:
 | Typst | `frac(, )` | left 3 steps |
 | UnicodeMath | `⁄` | — |
 
-`^` / `_` in **UnicodeMath** mode open a *chain*: leader+`^` then `25` → `²⁵`
-(any non-digit exits the chain).
+`^` / `_` in both **Normal** and **UnicodeMath** modes open a superscript/subscript *chain* for digits `0-9`, signs `+-`, parens `()`, and indices `n`, `i`: leader+`^` then `25` → `²⁵`, ``x`^-1`` → `x⁻¹`, ``x`^(n+1)`` → `x⁽ⁿ⁺¹⁾`, ``H`_2SO`_4`` → `H₂SO₄`, ``SO`_4`^2-`` → `SO₄²⁻`, ``a`_n-1`` → `aₙ₋₁` (any other char or Space/Esc/Backspace exits the chain).
 
 ## 3. Layer B — AltGr (opt-in)
 
@@ -196,12 +196,14 @@ Enable `"altgr_enabled": true` → hold `AltGr` (right Ctrl+Alt) + one key:
 |---|---|---|---|
 | `\tong` | ∑ | `\tichphan` · `\tp` | ∫ |
 | `\phanso` · `\ps` | fraction | `\can` | √ |
-| `\vocuc` · `\inf` | ∞ | `\suyra` | ⇒ |
+| `\vocuc` · `\infty` · `\inf` | ∞ | `\voimoi` · `\forall` | ∀ |
+| `\thuoc` · `\in` | ∈ | `\suyra` | ⇒ |
 | `\tuongduong` | ⇔ | `\khac` | ≠ |
 | `\nhohon` | ≤ | `\lonhon` | ≥ |
-| `\vuonggoc` | ⊥ | `\songsong` | ∥ |
+| `\nhan` · `\chia` | × · ÷ | `\vuonggoc` · `\songsong` | ⊥ · ∥ |
 | `\goc` | ∠ | `\do` | ° |
 | `\duongkinh` | Ø | `\ohm` | Ω |
+| `\h2o` · `\co2` · `\h2so4` | H₂O · CO₂ · H₂SO₄ | `\Fe2+` · `\OH-` · `\SO4-2` | Fe²⁺ · OH⁻ · SO₄²⁻ |
 | `\thuannghich` | A⁻¹ | `\vc` | vector |
 
 Full list in the palette (`Ctrl+Alt+Space`): **1,500+** symbols/formulas/units/elements
@@ -224,15 +226,14 @@ limit) go through **Ctrl+Alt+V Smart Paste** instead.
 
 ## 6. Inline calculator `=expr=`
 
-Type `=2^10=` then **Space/Enter** → `= 1024 `. Supports `+ - * / ^ %`,
-`sqrt sin cos tan ln log10 abs`, `pi`, `e`, parentheses `()` `[]`. Division by zero /
-overflow / malformed input → nothing happens (fail-open, your text is never touched).
+Type `=2^10=` → `1024`, `=0.1+0.2=` → `0.3`, `=sin(pi/6)=` → `0.5`, `=cos(pi/2)=` → `0` (IEEE-754 noise stripped). Supports `+ - * / ^ %`, `sqrt sin cos tan ln log10 abs`, `pi`, `e`, parentheses `()` `[]`. Division by zero / overflow / malformed input / lone `=` in prose (`Ta có x = 5, nên kết quả là tiếng Việt`, `a == b`) → instant fail-open, Vietnamese typing stays completely unaffected.
 
 ## 7. Context auto-bypass — Vietnamese stays safe
 
-- Inside `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, `\begin{...}` → Telex/VNI **suspended**.
-- Inside `\text{`, `\textrm{`, `\mbox{`, `\textbf{` → Vietnamese **re-enabled**.
-- `\{`, `\}`, `\$` are literal chars — no context change.
+- Inside `$...$`, `$$...$$`, `\(...\)`, `\[...\]`, and true LaTeX math environments (`\begin{equation}`, `\begin{align*}`, `\begin{gather}`, `\begin{cases}`, `\begin{subequations}`…, including nested environments) → Telex/VNI **suspended**.
+- Inside text environments (`\begin{document}`, `\begin{abstract}`, `\begin{theorem}`, `\begin{proof}`, `\begin{itemize}`…) and text commands (`\section{`, `\text{`, `\textrm{`, `\mbox{`, `\textbf{`, `\textit{`, `\emph{`, `\intertext{`, `\tag{`…) → Vietnamese **works normally**.
+- Inside LaTeX identifier arguments (`\label{...}`, `\ref{...}`, `\cite{...}`, `\usepackage{...}`, `\mathbb{...}`) → Telex stays suspended so labels/keys remain intact.
+- `\{`, `\}`, `\$`, `\\` (LaTeX line break) never get the context stuck.
 - Code tokens are **immune**: `0xFF`, `0b1010`, `u32`, `f64`, `CAN_FD`, `ECU_SW`, `GPIO_PIN`.
 
 ## 8. Smart formula paste (Ctrl+Alt+V)
