@@ -7,25 +7,25 @@
 #include <string.h>
 
 static const char *const CATEGORY_ICONS[8] = {
-    "\xF0\x9F\x95\x92",             /* 🕒 Gần đây */
-    "\xF0\x9F\x98\x80",             /* 😀 Cảm xúc */
-    "\xF0\x9F\x91\x8B",             /* 👋 Cử chỉ */
-    "\xE2\x9D\xA4\xEF\xB8\x8F",     /* ❤️ Biểu tượng */
-    "\xF0\x9F\x90\xB6",             /* 🐶 Thiên nhiên */
-    "\xF0\x9F\x8D\x9C",             /* 🍜 Đồ ăn */
-    "\xF0\x9F\x92\xBB",             /* 💻 Công việc */
-    "\xF0\x9F\x8E\x89"              /* 🎉 Hoạt động */
+    "🕒", /* Gần đây */
+    "😀", /* Cảm xúc */
+    "👋", /* Cử chỉ */
+    "❤️", /* Biểu tượng */
+    "🐶", /* Thiên nhiên */
+    "🍜", /* Đồ ăn */
+    "💻", /* Công việc */
+    "🎉"  /* Hoạt động */
 };
 
 static const char *const CATEGORY_NAMES[8] = {
-    "G\xE1\xBA\xA7n \xC4\x91\xC3\xA2y",
-    "C\xE1\xBA\xA3m x\xC3\xBAc",
-    "C\xE1\xBB\xAD ch\xE1\xBB\x89",
-    "Bi\xE1\xBB\x83u t\xC6\xB0\xE1\xBB\xA3ng",
-    "Thi\xC3\xAAn nhi\xC3\xAAn",
-    "\xC4\x90\xE1\xBB\x93 \xC4\x83n",
-    "C\xC3\xB4ng vi\xE1\xBB\x87c",
-    "Ho\xE1\xBA\xA1t \xC4\x91\xE1\xBB\x99ng"
+    "Gần đây",
+    "Cảm xúc",
+    "Cử chỉ",
+    "Biểu tượng",
+    "Thiên nhiên",
+    "Đồ ăn",
+    "Công việc",
+    "Hoạt động"
 };
 
 static size_t append_utf8_char(char *buf, size_t len, size_t cap, uint32_t cp) {
@@ -249,11 +249,11 @@ void lc_emoji_format_aux(const lc_emoji_picker *p, char *out, size_t out_cap) {
     uint8_t cat = p->category < 8u ? p->category : 0u;
     if (p->query_len > 0) {
         (void)snprintf(out, out_cap,
-                       "\xF0\x9F\x94\x8D %s  (Enter ch\xC3\xA8n \xC2\xB7 Esc \xC4\x91\xC3\xB3ng)",
+                       "🔍 %s  (Enter chèn · Esc đóng)",
                        p->query);
     } else {
         (void)snprintf(out, out_cap,
-                       "%s %s  |  G\xC3\xB5 t\xC3\xACm \xC2\xB7 Tab nh\xC3\xB3m \xC2\xB7 1-9/Enter ch\xC3\xA8n",
+                       "%s %s  |  Gõ tìm · Tab nhóm · 1-9/Enter chèn",
                        CATEGORY_ICONS[cat], CATEGORY_NAMES[cat]);
     }
 }

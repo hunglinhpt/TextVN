@@ -37,15 +37,15 @@ int main(void) {
     assert(p.count > 0);
     assert(strcmp(p.items[0].shortcode, "fire") == 0);
     assert(lc_emoji_handle_key(&p, inst, 0x0Du, 0, 0, glyph, sizeof(glyph)) == LC_EMOJI_COMMIT);
-    assert(strcmp(glyph, "\xF0\x9F\x94\xA5") == 0);
+    assert(strcmp(glyph, "🔥") == 0);
     assert(p.active == 0);
 
     /* 4. Mở lại: 🔥 đứng đầu nhóm Gần đây (MRU), phím '1' chọn ngay! */
     lc_emoji_open(&p, inst);
     assert(p.count > 0);
-    assert(strcmp(p.items[0].glyph, "\xF0\x9F\x94\xA5") == 0);
+    assert(strcmp(p.items[0].glyph, "🔥") == 0);
     assert(lc_emoji_handle_key(&p, inst, 0, '1', 0, glyph, sizeof(glyph)) == LC_EMOJI_COMMIT);
-    assert(strcmp(glyph, "\xF0\x9F\x94\xA5") == 0);
+    assert(strcmp(glyph, "🔥") == 0);
 
     /* 5. Mở lại, Tab chuyển nhóm 0 → 1, Esc đóng sạch. */
     lc_emoji_open(&p, inst);
