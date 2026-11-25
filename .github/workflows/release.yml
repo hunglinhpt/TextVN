@@ -215,6 +215,7 @@ jobs:
               groupadd -f -g "$HOST_GID" tester || true
               useradd -m -u "$HOST_UID" -g "$HOST_GID" -o tester
               su -s /bin/bash tester -c "LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-el8-package.sh /src/dist/$TARBALL_NAME /src/target/linux-el8/ibus/e2e_ibus"
+              LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-el8-package.sh --system-only /src/dist/$TARBALL_NAME /src/target/linux-el8/ibus/e2e_ibus
             '
       - uses: actions/upload-artifact@v4
         with:

@@ -36,8 +36,8 @@ while [[ $# -gt 0 ]]; do
 done
 # Script nằm ở <prefix>/share/textvn/ khi đã cài.
 [[ -z "$PREFIX" ]] && PREFIX="$(cd "$HERE/../.." && pwd)"
+[[ "$PREFIX" == / ]] || PREFIX="${PREFIX%/}"
 MANIFEST="$PREFIX/share/textvn/install-manifest.txt"
-ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/60-textvn.conf"
 if [[ ! -f "$MANIFEST" ]]; then
     tv_err "Không tìm thấy $MANIFEST — TextVN chưa được cài ở $PREFIX?"
     exit 1
@@ -59,6 +59,10 @@ grep -q 'libtextvn-fcitx5.so$' "$MANIFEST" && had_fcitx5=1
 # lệnh để người dùng tự chạy trong phiên của mình.
 PER_USER_STEPS=1
 [[ $EUID -eq 0 ]] && PER_USER_STEPS=0
+ENV_FILE=""
+if [[ "$PER_USER_STEPS" == 1 ]]; then
+    ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/60-textvn.conf"
+fi
 
 # Bỏ khỏi danh sách bộ gõ trước — đối xứng với tv_activate_ibus của install.sh
 # (chỉ chạy khi không phải root, như install.sh).
@@ -82,7 +86,7 @@ done
 
 if [[ "$PER_USER_STEPS" == 0 ]]; then
     if [[ "$had_ibus" == 1 && "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
-        ibus write-cache --system >/dev/null 2>&1 || true
+        env -u IBUS_COMPONENT_PATH ibus write-cache --system >/dev/null 2>&1 || true
     fi
     tv_say "Chạy bằng root: KHÔNG sửa danh sách bộ gõ, daemon hay cấu hình của người dùng."
     echo "  Mỗi người dùng chạy trong phiên của mình (không dùng sudo):"
@@ -98,7 +102,7 @@ if [[ "$PER_USER_STEPS" == 0 ]]; then
     fi
 else
     if [[ "$had_ibus" == 1 ]]; then
-        pkill -u "$(id -u)" -f 'textvn-ibus-engine.*--wait-bus' 2>/dev/null || true
+        tv_stop_wait_bus_engine "$PREFIX/lib/textvn/textvn-ibus-engine"
     fi
     [[ "$had_ibus" == 1 && "$PREFIX" != /usr ]] && tv_ibus_clear_cache
     if [[ "$RESTART" == 1 ]]; then

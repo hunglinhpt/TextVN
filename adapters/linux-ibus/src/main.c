@@ -7,11 +7,13 @@
  * `<name>` của component; tên lệch = daemon timeout, engine không bao giờ dùng được.
  */
 
+#include <fcntl.h>
 #include <glib-unix.h>
 #include <ibus.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "textvn_ibus_engine.h"
 
@@ -59,6 +61,7 @@ int main(int argc, char *argv[]) {
     gboolean launched_by_ibus = FALSE;
     gboolean wait_bus = FALSE;
     const char *setup_path = NULL;
+    const char *ready_file = NULL;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--check-abi") == 0) {
             /* E67: kiểm tra loader (glibc/libibus/libglib) mà không cần ibus-daemon. */
@@ -74,6 +77,8 @@ int main(int argc, char *argv[]) {
             wait_bus = TRUE;
         } else if (strcmp(argv[i], "--setup") == 0 && i + 1 < argc) {
             setup_path = argv[++i];
+        } else if (strcmp(argv[i], "--ready-file") == 0 && i + 1 < argc) {
+            ready_file = argv[++i];
         }
     }
 
@@ -97,10 +102,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     if (wait_bus && !launched_by_ibus) {
-        /* Nếu ibus-daemon đã có engine textvn (vd. cài --system hoặc IBus >= 1.5.20),
-         * thoát êm để không đăng ký trùng tiến trình. */
-        GList *engines = ibus_bus_list_engines(bus);
+        /* Nếu ibus-daemon đã có engine textvn (từ XML hệ thống/user HOẶC tiến trình
+         * live-register đang chạy trong register_engine_list), thoát êm để không trùng. */
         gboolean exists = FALSE;
+        GList *engines = ibus_bus_list_engines(bus);
         for (GList *p = engines; p != NULL; p = p->next) {
             IBusEngineDesc *d = (IBusEngineDesc *)p->data;
             if (d && g_strcmp0(ibus_engine_desc_get_name(d), TEXTVN_IBUS_ENGINE) == 0) {
@@ -109,6 +114,19 @@ int main(int argc, char *argv[]) {
             }
         }
         g_list_free_full(engines, g_object_unref);
+        if (!exists) {
+            G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+            GList *active = ibus_bus_list_active_engines(bus);
+            G_GNUC_END_IGNORE_DEPRECATIONS
+            for (GList *p = active; p != NULL; p = p->next) {
+                IBusEngineDesc *d = (IBusEngineDesc *)p->data;
+                if (d && g_strcmp0(ibus_engine_desc_get_name(d), TEXTVN_IBUS_ENGINE) == 0) {
+                    exists = TRUE;
+                    break;
+                }
+            }
+            g_list_free_full(active, g_object_unref);
+        }
         if (exists) {
             g_object_unref(bus);
             lc_log_close();
@@ -119,7 +137,14 @@ int main(int argc, char *argv[]) {
     g_unix_signal_add(SIGTERM, on_term_signal, NULL);
     g_unix_signal_add(SIGINT, on_term_signal, NULL);
 
-    IBusFactory *factory = ibus_factory_new(ibus_bus_get_connection(bus));
+    GDBusConnection *conn = ibus_bus_get_connection(bus);
+    IBusFactory *factory = conn ? ibus_factory_new(conn) : NULL;
+    if (!factory) {
+        lc_log(LC_LOG_ERROR, "Main", "Cannot create IBusFactory");
+        g_object_unref(bus);
+        lc_log_close();
+        return 1;
+    }
     g_object_ref_sink(factory);
     ibus_factory_add_engine(factory, TEXTVN_IBUS_ENGINE, TEXTVN_TYPE_IBUS_ENGINE);
 
@@ -138,6 +163,15 @@ int main(int argc, char *argv[]) {
             g_object_unref(bus);
             lc_log_close();
             return 1;
+        }
+        if (ready_file && ready_file[0]) {
+            int fd = open(ready_file, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
+            if (fd >= 0) {
+                if (write(fd, "ready\n", 6) < 0) {
+                    lc_log(LC_LOG_WARN, "Main", "Cannot write ready file");
+                }
+                close(fd);
+            }
         }
     }
 

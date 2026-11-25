@@ -119,7 +119,7 @@ tv_shell_quote() {
 }
 
 # Trích một đường dẫn cho trường Exec= trong file .desktop (FreeDesktop Desktop Entry Spec:
-# dùng dấu ngoặc kép "...", escape \, ", `, $ và nhân đôi %).
+# hai lớp unescape — GKeyFile giải mã \\ trước, sau đó Exec= giải mã trích dẫn "..." và %%).
 tv_desktop_quote() {
     local s="$1"
     if [[ -n "$s" && "$s" != *[![:alnum:]_./+:@,=-]* ]]; then
@@ -131,6 +131,8 @@ tv_desktop_quote() {
     s=${s//\`/\\\`}
     s=${s//\$/\\\$}
     s=${s//%/%%}
+    # Lớp chuỗi GKeyFile: nhân đôi mọi dấu \ để GKeyFile giữ nguyên chuỗi escape cho Exec=.
+    s=${s//\\/\\\\}
     printf '"%s"' "$s"
 }
 
@@ -206,11 +208,44 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
             return 1
             ;;
     esac
-    [[ -n "$env_file" && "$path" == "$env_file" ]] && return 0
-    local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/textvn-ibus-autostart.desktop"
-    [[ "$path" == "$autostart_file" ]] && return 0
+    if [[ -n "$env_file" ]]; then
+        [[ "$path" == "$env_file" ]] && return 0
+        local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/textvn-ibus-autostart.desktop"
+        [[ "$path" == "$autostart_file" ]] && return 0
+    fi
     addon_dir="$(tv_fcitx5_system_addon_dir)"
     [[ -n "$addon_dir" && "$path" == "$addon_dir/libtextvn-fcitx5.so" ]]
+}
+
+# Dừng chính xác tiến trình `textvn-ibus-engine --wait-bus` của đúng đường dẫn cài đặt
+# và đúng người dùng hiện tại (tránh dùng `pkill -f` giết nhầm shell cha hoặc prefix khác).
+tv_stop_wait_bus_engine() { # <engine_path>
+    local target="$1" p comm pid i a has_wait
+    local -a cmd_args
+    for p in /proc/[0-9]*; do
+        [[ -O "$p" && -r "$p/comm" && -r "$p/cmdline" ]] || continue
+        comm="$(cat "$p/comm" 2>/dev/null || true)"
+        [[ "$comm" == textvn-ibus-eng* ]] || continue
+        cmd_args=()
+        while IFS= read -r -d '' a; do
+            cmd_args+=("$a")
+        done < "$p/cmdline" 2>/dev/null || true
+        [[ "${cmd_args[0]:-}" == "$target" ]] || continue
+        has_wait=0
+        for a in "${cmd_args[@]:1}"; do
+            [[ "$a" == "--wait-bus" ]] && { has_wait=1; break; }
+        done
+        [[ "$has_wait" == 1 ]] || continue
+        pid="${p#/proc/}"
+        kill -TERM "$pid" 2>/dev/null || continue
+        for i in $(seq 1 30); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.1
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+    done
 }
 
 # E67: IBus 1.5.19 (RHEL 8.10 / Rocky 8 / AlmaLinux 8) kiểm tra cache HỆ THỐNG
@@ -306,7 +341,7 @@ tv_restart_ibus() { # <component_path | "">
         args=("${args[@]:1}")
     fi
     [[ ${#args[@]} -eq 0 ]] && args=(--xim)
-    local keep=() had_xim=0 skip_next=0
+    local keep=() had_xim=0 skip_next=0 a
     for a in "${args[@]}"; do
         if [[ "$skip_next" == 1 ]]; then
             skip_next=0

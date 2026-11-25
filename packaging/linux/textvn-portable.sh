@@ -316,8 +316,9 @@ if [[ "$FW" == ibus ]]; then
         # đăng ký component sống qua ibus_bus_register_component() mà KHÔNG restart ibus-daemon
         # (giữ nguyên socket Wayland IM và không đóng terminal).
         runtime_put ibus-mode live
+        rm -f -- "$RUNTIME/live.ready"
         XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
-            nohup "$PKG_DIR/lib/textvn/textvn-ibus-engine" --setup "$SETTINGS" </dev/null >/dev/null 2>&1 &
+            nohup "$PKG_DIR/lib/textvn/textvn-ibus-engine" --setup "$SETTINGS" --ready-file "$RUNTIME/live.ready" </dev/null >/dev/null 2>&1 &
         eng_pid=$!
         disown "$eng_pid" 2>/dev/null || true
         runtime_put ibus-engine.pid "$eng_pid"
@@ -334,19 +335,31 @@ if [[ "$FW" == ibus ]]; then
             tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
             rollback_start ibus "Không thể khởi động lại IBus cho TextVN portable."
     fi
-    # Bắt buộc: daemon đã nạp engine TextVN từ component portable — sai component
-    # path mới là lỗi thật cần rollback.
+    # Bắt buộc: daemon đã nạp engine TextVN — chế độ live kiểm file ready do engine ghi
+    # ngay sau ibus_bus_register_component() thành công (vì IBus 1.5.19 lưu component live
+    # trong register_engine_list, không hiện trong `ibus list-engine`); chế độ component
+    # kiểm `ibus list-engine`.
     registered=0
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-        if [[ "$(runtime_get ibus-mode || true)" == live ]] && ! kill -0 "${eng_pid:-0}" 2>/dev/null; then
-            break
-        fi
-        if ibus list-engine 2>/dev/null | grep -qw textvn; then
-            registered=1
-            break
-        fi
-        sleep 1
-    done
+    if [[ "$(runtime_get ibus-mode || true)" == live ]]; then
+        for _ in $(seq 1 50); do
+            if ! kill -0 "${eng_pid:-0}" 2>/dev/null; then
+                break
+            fi
+            if [[ -f "$RUNTIME/live.ready" ]]; then
+                registered=1
+                break
+            fi
+            sleep 0.2
+        done
+    else
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if ibus list-engine 2>/dev/null | grep -qw textvn; then
+                registered=1
+                break
+            fi
+            sleep 1
+        done
+    fi
     if [[ "$registered" != 1 ]]; then
         rollback_start ibus "IBus không nạp được engine TextVN; không đánh dấu phiên portable là thành công."
     fi

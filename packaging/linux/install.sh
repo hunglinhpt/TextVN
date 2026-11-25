@@ -117,7 +117,7 @@ if [[ -f "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
     if [[ "$MODE" == user ]]; then
         tv_ibus_refresh_cache "$SHARE/ibus/component:/usr/share/ibus/component"
     elif [[ "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
-        ibus write-cache --system >/dev/null 2>&1 || true
+        env -u IBUS_COMPONENT_PATH ibus write-cache --system >/dev/null 2>&1 || true
     fi
 fi
 if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
@@ -234,7 +234,8 @@ elif [[ "$HAS_IBUS" == 1 ]]; then
         if [[ "$MODE" == user ]]; then
             if tv_ibus_needs_live_register && tv_ibus_has_system_cache_bug; then
                 # E67: GNOME 3.32 Wayland (RHEL 8.10) không restart ibus-daemon —
-                # đăng ký live ngay cho phiên hiện tại để không phải đăng xuất.
+                # dừng bản cũ (nếu đang nâng cấp) rồi đăng ký live ngay cho phiên hiện tại.
+                tv_stop_wait_bus_engine "$LIBDIR/textvn-ibus-engine"
                 nohup "$LIBDIR/textvn-ibus-engine" --wait-bus --setup "$BIN/textvn-settings" </dev/null >/dev/null 2>&1 &
                 disown "$!" 2>/dev/null || true
                 sleep 1
