@@ -24,13 +24,23 @@ tv_check_package() {
         tv_err "Gói không có adapter IBus lẫn Fcitx5."
         return 1
     fi
-    # E64: kiểm tra tương thích glibc/loader TRƯỚC khi cài hoặc restart IBus — tránh
-    # ghi đè bản binary không chạy được trên Ubuntu 22.04 (glibc 2.35) làm hỏng phiên IBus.
+    # E64/E67: kiểm tra tương thích glibc/loader TRƯỚC khi cài hoặc restart IBus — tránh
+    # ghi đè bản binary không chạy được trên máy cũ làm hỏng phiên IBus.
     if ! err="$("$d/bin/textvn" --help 2>&1 >/dev/null)"; then
-        tv_err "Binary dựng sẵn không tương thích thư viện hệ thống trên máy này (ví dụ Ubuntu 22.04 có glibc cũ hơn Ubuntu 24.04):"
+        tv_err "Binary textvn không tương thích thư viện hệ thống trên máy này:"
         [[ -n "$err" ]] && tv_err "  $err"
         tv_err "Hãy dựng trực tiếp từ mã nguồn cho máy bạn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
         return 1
+    fi
+    if [[ -x "$d/lib/textvn/textvn-ibus-engine" ]]; then
+        if ! err="$("$d/lib/textvn/textvn-ibus-engine" --check-abi 2>&1 >/dev/null)"; then
+            tv_err "Binary textvn-ibus-engine thiếu thư viện hệ thống (ví dụ ibus / glib):"
+            [[ -n "$err" ]] && tv_err "  $err"
+            tv_err "  • RHEL / Rocky / Alma / Fedora : sudo dnf install -y ibus ibus-libs gtk3"
+            tv_err "  • Ubuntu / Debian              : sudo apt install -y ibus libibus-1.0-5"
+            tv_err "Hoặc dựng từ mã nguồn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
+            return 1
+        fi
     fi
 }
 
@@ -156,6 +166,8 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
     case "$path" in
         "$base/bin/textvn"|"$base/bin/textvn-settings"|\
         "$base/lib/textvn/textvn-ibus-engine"|\
+        "$base/lib/textvn/textvn-settings-gtk4"|\
+        "$base/lib/textvn/textvn-settings-gtk3"|\
         "$base/lib/textvn/fcitx5/libtextvn-fcitx5.so"|\
         "$base/share/ibus/component/textvn.xml"|\
         "$base/share/fcitx5/addon/textvn.conf"|\
@@ -194,6 +206,21 @@ tv_systemd_user_ok() {
     command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
 }
 
+# E67: GNOME Wayland cũ hơn GNOME 43 (RHEL 8.10 GNOME 3.32, Ubuntu 22.04 GNOME 42)
+# không có systemd unit cho IBus — gnome-shell tự giữ socket Wayland IM với ibus-daemon.
+# Trả 0 khi đang ở phiên đó (KHÔNG được `ibus-daemon --replace`; portable dùng live-register).
+tv_ibus_needs_live_register() {
+    [[ "${TV_FORCE_IBUS_REPLACE:-0}" != 1 ]] || return 1
+    [[ "${XDG_SESSION_TYPE:-}" == wayland && "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]] || return 1
+    tv_running ibus-daemon || return 1
+    if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]] && tv_systemd_user_ok; then
+        local unit
+        unit="$(systemctl --user list-units --state=active --no-legend 'org.freedesktop.IBus.session.*' 2>/dev/null | awk '{print $1; exit}')"
+        [[ -z "$unit" ]] || return 1
+    fi
+    return 0
+}
+
 # Khởi động lại ibus-daemon với IBUS_COMPONENT_PATH — giữ nguyên tham số của daemon đang
 # chạy (GNOME: `--panel disable`). Phiên systemd (GNOME ≥ 43): đổi môi trường của user
 # manager rồi restart đúng unit; GNOME Wayland không có unit systemd (Ubuntu 22.04 GNOME 42):
@@ -202,30 +229,38 @@ tv_systemd_user_ok() {
 tv_restart_ibus() { # <component_path | "">
     local comp="$1" unit pid args=()
     tv_ibus_clear_cache
-    if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]] && tv_systemd_user_ok; then
-        if [[ -n "$comp" ]]; then
-            systemctl --user set-environment "IBUS_COMPONENT_PATH=$comp" 2>/dev/null || true
-            command -v dbus-update-activation-environment >/dev/null 2>&1 &&
-                IBUS_COMPONENT_PATH="$comp" dbus-update-activation-environment --systemd IBUS_COMPONENT_PATH 2>/dev/null || true
-        else
-            systemctl --user unset-environment IBUS_COMPONENT_PATH 2>/dev/null || true
+    if tv_systemd_user_ok; then
+        if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]]; then
+            if [[ -n "$comp" ]]; then
+                systemctl --user set-environment "IBUS_COMPONENT_PATH=$comp" 2>/dev/null || true
+                command -v dbus-update-activation-environment >/dev/null 2>&1 &&
+                    IBUS_COMPONENT_PATH="$comp" dbus-update-activation-environment --systemd IBUS_COMPONENT_PATH 2>/dev/null || true
+            else
+                systemctl --user unset-environment IBUS_COMPONENT_PATH 2>/dev/null || true
+            fi
         fi
         unit="$(systemctl --user list-units --state=active --no-legend 'org.freedesktop.IBus.session.*' 2>/dev/null | awk '{print $1; exit}')"
         if [[ -n "$unit" ]]; then
             systemctl --user restart "$unit" && tv_ok "Đã khởi động lại IBus ($unit)." && return 0
         fi
     fi
-    # E64: trên GNOME Wayland cũ hơn GNOME 43 (như Ubuntu 22.04 GNOME 42) không có systemd unit
-    # cho IBus — gnome-shell tự giữ socket Wayland IM với ibus-daemon. Dùng `ibus-daemon --replace`
-    # từ terminal dễ làm đứt kết nối IM của gnome-terminal/GTK3. Chỉ làm mới cache & nhắc đăng xuất.
+    # E64/E67: trên GNOME Wayland cũ hơn GNOME 43 (RHEL 8.10 GNOME 3.32, Ubuntu 22.04 GNOME 42)
+    # không có systemd unit cho IBus — gnome-shell tự giữ socket Wayland IM với ibus-daemon.
+    # Chỉ giữ nguyên khi ibus-daemon ĐANG chạy; làm mới cache với đúng IBUS_COMPONENT_PATH.
     if [[ "${TV_FORCE_IBUS_REPLACE:-0}" != 1 && "${XDG_SESSION_TYPE:-}" == wayland &&
-          "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]]; then
-        command -v ibus >/dev/null 2>&1 && ibus write-cache >/dev/null 2>&1 || true
-        tv_say "GNOME Wayland (không có systemd IBus unit, vd. Ubuntu 22.04): giữ nguyên ibus-daemon để không làm gián đoạn terminal."
+          "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]] && tv_running ibus-daemon; then
+        if command -v ibus >/dev/null 2>&1; then
+            if [[ -n "$comp" ]]; then
+                IBUS_COMPONENT_PATH="$comp" ibus write-cache >/dev/null 2>&1 || true
+            else
+                ibus write-cache >/dev/null 2>&1 || true
+            fi
+        fi
+        tv_say "GNOME Wayland (không có systemd IBus unit, vd. RHEL 8.10 / Ubuntu 22.04): giữ nguyên ibus-daemon để không làm gián đoạn terminal."
         tv_say "Hãy đăng xuất và đăng nhập lại 1 lần để GNOME nạp TextVN an toàn."
         return 0
     fi
-    pid="$(pgrep -x -u "$(id -u)" ibus-daemon | head -n1)"
+    pid="$(pgrep -x -u "$(id -u)" ibus-daemon 2>/dev/null | sed -n '1p' || true)"
     if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
         mapfile -d '' args < "/proc/$pid/cmdline"
         args=("${args[@]:1}")
@@ -294,7 +329,7 @@ tv_restart_fcitx5() { # <addon_dirs | ""> <extra_xdg_data_dir | ""> <profile_act
     if tv_running fcitx5; then
         was_running=1
         # Giữ tham số của tiến trình đang chạy (ví dụ --disable/--enable của phiên).
-        pid="$(pgrep -x -u "$(id -u)" fcitx5 | head -n1)"
+        pid="$(pgrep -x -u "$(id -u)" fcitx5 2>/dev/null | sed -n '1p' || true)"
         if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
             mapfile -d '' args < "/proc/$pid/cmdline"
             for a in "${args[@]:1}"; do

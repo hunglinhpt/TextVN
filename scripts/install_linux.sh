@@ -22,8 +22,9 @@ ADAPTERS="$ROOT/target/linux-adapters"
 
 for tool in cargo cmake pkg-config; do
     command -v "$tool" >/dev/null 2>&1 || {
-        echo "Thiếu '$tool'. Ubuntu/Debian: sudo apt install -y cargo cmake pkg-config g++ \\" >&2
-        echo "  libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev libgtk-4-dev" >&2
+        echo "Thiếu '$tool'." >&2
+        echo "  • Ubuntu / Debian              : sudo apt install -y cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev" >&2
+        echo "  • RHEL 8/9 / Rocky / Alma / Fed: sudo dnf install -y cmake pkgconf-pkg-config gcc gcc-c++ ibus-devel gtk3-devel (RHEL 8 cần bật CodeReady Builder / Alma-Rocky 8 thêm --enablerepo=powertools; Rust qua rustup.rs)" >&2
         exit 1
     }
 done
@@ -40,12 +41,12 @@ if pkg-config --exists Fcitx5Core; then
     cmake --build "$ADAPTERS/fcitx5" -j"$(nproc)"
     built=1
 fi
-if pkg-config --exists gtk4; then
+if pkg-config --exists gtk4 || pkg-config --exists gtk+-3.0; then
     cmake -S "$ROOT/adapters/linux-settings" -B "$ADAPTERS/settings" -DCMAKE_BUILD_TYPE=Release >/dev/null
     cmake --build "$ADAPTERS/settings" -j"$(nproc)"
 fi
 if [[ "$built" == 0 ]]; then
-    echo "Không có header IBus (libibus-1.0-dev) hay Fcitx5 (libfcitx5core-dev fcitx5-modules-dev) → không có adapter nào để cài." >&2
+    echo "Không có header IBus (libibus-1.0-dev / ibus-devel) hay Fcitx5 (libfcitx5core-dev fcitx5-modules-dev) → không có adapter nào để cài." >&2
     exit 1
 fi
 

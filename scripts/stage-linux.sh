@@ -18,7 +18,8 @@ STAGE="${1:?cần thư mục stage}"
 ADAPTERS="${2:-$ROOT/target/linux-adapters}"
 VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "$ROOT/Cargo.toml" | head -n1)"
 
-[[ -x "$ROOT/target/release/textvn-cli" ]] || { echo "thiếu target/release/textvn-cli" >&2; exit 1; }
+CLI_BIN="${TEXTVN_CLI_BIN:-$ROOT/target/release/textvn-cli}"
+[[ -x "$CLI_BIN" ]] || { echo "thiếu $CLI_BIN" >&2; exit 1; }
 # C9 (audit): guard rm -rf con lo hong — realpath -m chua chuan hoa symlink that.
 # Chan them: STAGE rong, khong tuyet doi, la '/', la HOME, la ROOT, la to tien cua
 # ROOT/CWD, hoac thu muc he thong. Dung realpath -m (chua ton tai van resolve duoc).
@@ -36,9 +37,20 @@ mkdir -p "$STAGE_ABS"
 STAGE="$STAGE_ABS"
 inst() { install -D -m "$1" "$2" "$STAGE/$3"; }
 
-inst 0755 "$ROOT/target/release/textvn-cli" bin/textvn
-[[ -x "$ADAPTERS/settings/textvn-settings" ]] &&
+inst 0755 "$CLI_BIN" bin/textvn
+if [[ -x "$ADAPTERS/settings-gtk4/textvn-settings" && -x "$ADAPTERS/settings-gtk3/textvn-settings" ]]; then
+    # E67: gói Linux đa distro — kèm cả GTK4 (Ubuntu 24.04/Fedora/Arch) lẫn GTK3 (RHEL 8.10 / EL8)
+    # với trình khởi chạy POSIX tự chọn đúng bản theo ABI máy đích.
+    inst 0755 "$ADAPTERS/settings-gtk4/textvn-settings" lib/textvn/textvn-settings-gtk4
+    inst 0755 "$ADAPTERS/settings-gtk3/textvn-settings" lib/textvn/textvn-settings-gtk3
+    inst 0755 "$ROOT/packaging/linux/textvn-settings-launcher.sh" bin/textvn-settings
+elif [[ -x "$ADAPTERS/settings/textvn-settings" ]]; then
     inst 0755 "$ADAPTERS/settings/textvn-settings" bin/textvn-settings
+elif [[ -x "$ADAPTERS/settings-gtk4/textvn-settings" ]]; then
+    inst 0755 "$ADAPTERS/settings-gtk4/textvn-settings" bin/textvn-settings
+elif [[ -x "$ADAPTERS/settings-gtk3/textvn-settings" ]]; then
+    inst 0755 "$ADAPTERS/settings-gtk3/textvn-settings" bin/textvn-settings
+fi
 if [[ -x "$ADAPTERS/ibus/textvn-ibus-engine" ]]; then
     inst 0755 "$ADAPTERS/ibus/textvn-ibus-engine" lib/textvn/textvn-ibus-engine
     inst 0644 "$ROOT/packaging/linux/ibus/textvn.xml" share/ibus/component/textvn.xml

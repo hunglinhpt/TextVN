@@ -114,9 +114,30 @@ session_framework() {
 }
 
 restore_ibus() {
-    local was original
+    local mode was original pid comm i force_rep
+    mode="$(runtime_get ibus-mode || true)"
+    if [[ "$mode" == live ]]; then
+        # E67: chế độ live-register (GNOME Wayland RHEL 8.10 / Ubuntu 22.04) —
+        # chỉ dừng tiến trình textvn-ibus-engine đã khởi chạy, KHÔNG đụng ibus-daemon.
+        pid="$(runtime_get ibus-engine.pid || true)"
+        if [[ -n "$pid" && -r "/proc/$pid/comm" ]]; then
+            comm="$(cat "/proc/$pid/comm" 2>/dev/null || true)"
+            if [[ "$comm" == textvn-ibus-eng* ]]; then
+                kill -TERM "$pid" 2>/dev/null || true
+                for i in $(seq 1 30); do
+                    kill -0 "$pid" 2>/dev/null || break
+                    sleep 0.1
+                done
+                if kill -0 "$pid" 2>/dev/null; then
+                    kill -KILL "$pid" 2>/dev/null || true
+                fi
+            fi
+        fi
+        return 0
+    fi
     was="$(runtime_get was-running)"
     original="$(runtime_get original-ibus-environment)"
+    force_rep="$(runtime_get force-replace || true)"
     case "$was" in
         0)
             tv_stop_ibus
@@ -126,7 +147,7 @@ restore_ibus() {
             # Khôi phục biến manager trước khi restart unit; fallback không dùng
             # manager nhận đúng biến môi trường của daemon trước portable.
             restore_manager_environment IBUS_COMPONENT_PATH
-            TV_SKIP_MANAGER_ENV=1 tv_restart_ibus "$original"
+            TV_SKIP_MANAGER_ENV=1 TV_FORCE_IBUS_REPLACE="${force_rep:-0}" tv_restart_ibus "$original"
             ;;
         *) tv_err "Không đọc được trạng thái IBus trước portable."; return 1 ;;
     esac
@@ -290,19 +311,36 @@ chmod -R u+w "$RUNTIME/data/icons"
 if [[ "$FW" == ibus ]]; then
     [[ -x "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]] || { tv_err "Gói không có engine IBus."; exit 1; }
     snapshot_portable_state ibus
-    mkdir -p "$RUNTIME/ibus/component"
-    tv_ibus_component "$PKG_DIR" "$PKG_DIR/lib/textvn/textvn-ibus-engine" "$SETTINGS" \
-        > "$RUNTIME/ibus/component/textvn.xml"
-    # Icon "textvn_v" resolve được cho cây tiến trình ibus-daemon khởi động lại
-    # bên dưới (nhánh systemd dùng IBUS_COMPONENT_PATH riêng, nhánh fallback kế
-    # thừa env này).
-    XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
-        tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
-        rollback_start ibus "Không thể khởi động lại IBus cho TextVN portable."
+    if tv_ibus_needs_live_register; then
+        # E67: GNOME Wayland không có systemd IBus unit (RHEL 8.10 GNOME 3.32, Ubuntu 22.04 GNOME 42):
+        # đăng ký component sống qua ibus_bus_register_component() mà KHÔNG restart ibus-daemon
+        # (giữ nguyên socket Wayland IM và không đóng terminal).
+        runtime_put ibus-mode live
+        XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
+            nohup "$PKG_DIR/lib/textvn/textvn-ibus-engine" --setup "$SETTINGS" </dev/null >/dev/null 2>&1 &
+        eng_pid=$!
+        disown "$eng_pid" 2>/dev/null || true
+        runtime_put ibus-engine.pid "$eng_pid"
+    else
+        runtime_put ibus-mode component
+        [[ "${TV_FORCE_IBUS_REPLACE:-0}" == 1 ]] && runtime_put force-replace 1
+        mkdir -p "$RUNTIME/ibus/component"
+        tv_ibus_component "$PKG_DIR" "$PKG_DIR/lib/textvn/textvn-ibus-engine" "$SETTINGS" \
+            > "$RUNTIME/ibus/component/textvn.xml"
+        # Icon "textvn_v" resolve được cho cây tiến trình ibus-daemon khởi động lại
+        # bên dưới (nhánh systemd dùng IBUS_COMPONENT_PATH riêng, nhánh fallback kế
+        # thừa env này).
+        XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
+            tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
+            rollback_start ibus "Không thể khởi động lại IBus cho TextVN portable."
+    fi
     # Bắt buộc: daemon đã nạp engine TextVN từ component portable — sai component
     # path mới là lỗi thật cần rollback.
     registered=0
     for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if [[ "$(runtime_get ibus-mode || true)" == live ]] && ! kill -0 "${eng_pid:-0}" 2>/dev/null; then
+            break
+        fi
         if ibus list-engine 2>/dev/null | grep -qw textvn; then
             registered=1
             break

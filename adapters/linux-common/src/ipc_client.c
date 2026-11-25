@@ -75,8 +75,7 @@ int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custo
     if (!out_path || max_len == 0) return -1;
 
     if (custom_path && custom_path[0] != '\0') {
-        strncpy(out_path, custom_path, max_len - 1);
-        out_path[max_len - 1] = '\0';
+        snprintf(out_path, max_len, "%s", custom_path);
         return 0;
     }
 
@@ -433,7 +432,7 @@ lc_ipc_client *lc_ipc_client_new(const char *app_id, const char *custom_sock_pat
     c->app_enabled_override = 1;
 
     if (app_id) {
-        strncpy(c->app_id, app_id, sizeof(c->app_id) - 1);
+        snprintf(c->app_id, sizeof(c->app_id), "%s", app_id);
     }
 
     lc_ipc_resolve_socket_path(c->sock_path, sizeof(c->sock_path), custom_sock_path);

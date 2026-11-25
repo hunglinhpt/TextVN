@@ -2466,6 +2466,7 @@ pub fn tip_registration_ok() -> bool {
 
 /// E66: tóm tắt scope COM (`HKCU`/`HKLM`), đường dẫn DLL và category `TIP_KEYBOARD`
 /// để `textvn-cli doctor` chẩn đoán nhanh trên mọi bản Windows 10/11 End-user & Enterprise.
+#[cfg(windows)]
 pub fn tip_registration_summary() -> Option<String> {
     #[cfg(windows)]
     {

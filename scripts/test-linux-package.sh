@@ -109,6 +109,7 @@ scenario_install() {
              share/textvn/install-manifest.txt; do
         [[ -e "$pre/$f" ]] || fail "thiếu $pre/$f sau khi cài"
     done
+    "$pre/bin/textvn-settings" --check-abi || fail "textvn-settings --check-abi thất bại sau cài"
     grep -q "<exec>$pre/lib/textvn/textvn-ibus-engine --ibus</exec>" "$pre/share/ibus/component/textvn.xml" ||
         fail "component IBus không trỏ vào engine đã cài"
     local envf="$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
@@ -466,8 +467,8 @@ G
     grep -q 'ibus-unikey' <<<"$out" || fail "E64: thiếu cảnh báo đồng tồn tại ibus-unikey: $out"
     grep -Fq "('ibus', 'Unikey'), ('ibus', 'textvn')" "$HOME/.fake-gsettings" ||
         fail "E64: danh sách nguồn nhập GNOME sau cài sai: $(cat "$HOME/.fake-gsettings")"
-    # 3. GNOME Wayland (không systemd IBus unit — Ubuntu 22.04): không replace thô ibus-daemon.
-    out="$(XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=ubuntu:GNOME TV_SKIP_MANAGER_ENV=1 tv_restart_ibus "" 2>&1)"
+    # 3. GNOME Wayland (không systemd IBus unit — RHEL 8.10 / Ubuntu 22.04): không replace thô ibus-daemon đang chạy.
+    out="$( ( tv_running() { return 0; }; XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=ubuntu:GNOME TV_SKIP_MANAGER_ENV=1 tv_restart_ibus "" ) 2>&1)"
     grep -q 'GNOME Wayland' <<<"$out" || fail "E64: không kích hoạt nhánh an toàn GNOME Wayland: $out"
     rm -rf "$t"
     echo "PASS đơn vị: E64 source-guard, tương thích ibus-unikey và bảo vệ GNOME Wayland Ubuntu 22.04"

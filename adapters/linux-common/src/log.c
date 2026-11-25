@@ -57,10 +57,7 @@ static void ensure_parent_dirs(const char *file_path) {
 
 void lc_log_init(const char *app_tag) {
     if (app_tag && app_tag[0] != '\0') {
-        /* C9 (audit): cat theo sizeof-1 roi tu ket thuc — tranh am tham cat ma
-         * khong co NUL. */
-        strncpy(s_app_tag, app_tag, sizeof(s_app_tag) - 1);
-        s_app_tag[sizeof(s_app_tag) - 1] = '\0';
+        snprintf(s_app_tag, sizeof(s_app_tag), "%s", app_tag);
     }
 
     if (s_log_file) return;

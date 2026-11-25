@@ -107,6 +107,7 @@ fn main() -> ExitCode {
         "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
         "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
         "check-ibus-component" => linux_tools::check_ibus_component(&args[1..]),
+        "check-elf-abi" => linux_tools::check_elf_abi(&args[1..]),
         // Port tools/assist/*.py (E59) — đo recall/FPR + sinh corpus assist.
         "assist-kappa"
         | "assist-score"

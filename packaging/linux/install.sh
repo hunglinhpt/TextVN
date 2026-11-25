@@ -47,6 +47,7 @@ done
 if [[ -z "$PREFIX" ]]; then
     if [[ "$MODE" == system ]]; then PREFIX=/usr; else PREFIX="$HOME/.local"; fi
 fi
+[[ "$PREFIX" == / ]] || PREFIX="${PREFIX%/}"
 if [[ "$MODE" == system && $EUID -ne 0 ]]; then
     tv_err "--system cần quyền root: sudo $0 --system"
     exit 1
@@ -84,11 +85,12 @@ tv_say "Cài TextVN $(tv_version "$PKG_DIR") ($MODE) vào $PREFIX"
 mkdir -p "$SHARE/textvn"
 MANIFEST_NEW="$MANIFEST.new"
 OLD_MANIFEST=""
+XML_TMP=""
 if [[ -f "$MANIFEST" ]]; then
     OLD_MANIFEST="$(mktemp "$SHARE/textvn/.install-manifest.old.XXXXXX")"
     cp -- "$MANIFEST" "$OLD_MANIFEST"
 fi
-trap 'rm -f -- "$MANIFEST_NEW" "${OLD_MANIFEST:-}"' EXIT
+trap 'rm -f -- "$MANIFEST_NEW" "${OLD_MANIFEST:-}" "${XML_TMP:-}"' EXIT
 : > "$MANIFEST_NEW"
 put() { # put <mode> <src> <dst>
     install -D -m "$1" "$2" "$3"
@@ -97,15 +99,20 @@ put() { # put <mode> <src> <dst>
 
 put 0755 "$PKG_DIR/bin/textvn" "$BIN/textvn"
 [[ -f "$PKG_DIR/bin/textvn-settings" ]] && put 0755 "$PKG_DIR/bin/textvn-settings" "$BIN/textvn-settings"
+[[ -f "$PKG_DIR/lib/textvn/textvn-settings-gtk4" ]] &&
+    put 0755 "$PKG_DIR/lib/textvn/textvn-settings-gtk4" "$LIBDIR/textvn-settings-gtk4"
+[[ -f "$PKG_DIR/lib/textvn/textvn-settings-gtk3" ]] &&
+    put 0755 "$PKG_DIR/lib/textvn/textvn-settings-gtk3" "$LIBDIR/textvn-settings-gtk3"
 
 HAS_IBUS=0
 HAS_FCITX5=0
 if [[ -f "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
     put 0755 "$PKG_DIR/lib/textvn/textvn-ibus-engine" "$LIBDIR/textvn-ibus-engine"
-    xml_tmp="$(mktemp)"
-    tv_ibus_component "$PKG_DIR" "$LIBDIR/textvn-ibus-engine" "$BIN/textvn-settings" > "$xml_tmp"
-    put 0644 "$xml_tmp" "$SHARE/ibus/component/textvn.xml"
-    rm -f "$xml_tmp"
+    XML_TMP="$(mktemp)"
+    tv_ibus_component "$PKG_DIR" "$LIBDIR/textvn-ibus-engine" "$BIN/textvn-settings" > "$XML_TMP"
+    put 0644 "$XML_TMP" "$SHARE/ibus/component/textvn.xml"
+    rm -f -- "$XML_TMP"
+    XML_TMP=""
     HAS_IBUS=1
     [[ "$MODE" == user ]] && tv_ibus_clear_cache
 fi
@@ -183,6 +190,12 @@ trap - EXIT
 
 command -v gtk-update-icon-cache >/dev/null 2>&1 &&
     gtk-update-icon-cache -q -t -f "$SHARE/icons/hicolor" 2>/dev/null || true
+if [[ "$MODE" == system ]] && command -v restorecon >/dev/null 2>&1; then
+    # E67: RHEL/Rocky/Alma SELinux Enforcing — chuẩn hoá label cho binary cài hệ thống.
+    rc_paths=("$BIN/textvn" "$BIN/textvn-settings" "$LIBDIR" "$SHARE/ibus/component/textvn.xml")
+    [[ "$HAS_FCITX5" == 1 ]] && rc_paths+=("$FCITX_LIB/libtextvn-fcitx5.so")
+    restorecon -RF "${rc_paths[@]}" 2>/dev/null || true
+fi
 
 # Áp dụng ngay cho phiên hiện tại (không cần đăng xuất): khởi động lại framework đang
 # chạy với đúng biến môi trường; thêm TextVN vào danh sách bộ gõ (trừ --no-activate).

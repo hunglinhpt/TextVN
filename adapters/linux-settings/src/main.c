@@ -12,6 +12,10 @@
 
 #include "settings_window.h"
 
+#ifndef TEXTVN_VERSION
+#define TEXTVN_VERSION "dev"
+#endif
+
 static const char *g_custom_config = NULL;
 
 static void on_app_activate(GtkApplication *app, gpointer user_data) {
@@ -22,6 +26,14 @@ static void on_app_activate(GtkApplication *app, gpointer user_data) {
 
 int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--check-abi") == 0) {
+            /* E67: xác minh loader (glibc + GTK3/GTK4) mà không cần X11/Wayland display. */
+            return 0;
+        }
+        if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
+            g_print("textvn-settings %s (GTK%d)\n", TEXTVN_VERSION, GTK_MAJOR_VERSION);
+            return 0;
+        }
         if ((strcmp(argv[i], "--config") == 0 || strcmp(argv[i], "-c") == 0) && i + 1 < argc) {
             g_custom_config = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {

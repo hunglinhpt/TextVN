@@ -908,9 +908,18 @@ static void forget_word(TextVNIbusEngine *self) {
     if (self->inst) ime_reset(self->inst);
 }
 
+/* E67: truyền con trỏ hợp lệ thay vì NULL để tránh g_return_if_fail trên IBus 1.5.19 (RHEL 8.10). */
+static void request_surrounding_text(IBusEngine *engine) {
+    IBusText *text = NULL;
+    guint cursor_pos = 0;
+    guint anchor_pos = 0;
+    ibus_engine_get_surrounding_text(engine, &text, &cursor_pos, &anchor_pos);
+    if (text) g_object_unref(text);
+}
+
 static void engine_enable(IBusEngine *engine) {
     /* Đăng ký yêu cầu surrounding text với ibus-daemon và client application */
-    ibus_engine_get_surrounding_text(engine, NULL, NULL, NULL);
+    request_surrounding_text(engine);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->enable(engine);
 }
 
@@ -933,7 +942,7 @@ static void engine_focus_in(IBusEngine *engine) {
          * app truoc. */
         s_vi_enabled = s_base_vi;
     }
-    ibus_engine_get_surrounding_text(engine, NULL, NULL, NULL);
+    request_surrounding_text(engine);
     ibus_engine_register_properties(engine, self->props);
     update_mode_prop(self);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->focus_in(engine);

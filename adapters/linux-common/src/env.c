@@ -48,10 +48,10 @@ int lc_env_check(lc_env_info *out_info, char *out_report, size_t report_len) {
     const char *xmod = getenv("XMODIFIERS");
     const char *desktop = getenv("XDG_CURRENT_DESKTOP");
 
-    if (gtk_im) strncpy(out_info->gtk_im_module, gtk_im, sizeof(out_info->gtk_im_module) - 1);
-    if (qt_im) strncpy(out_info->qt_im_module, qt_im, sizeof(out_info->qt_im_module) - 1);
-    if (xmod) strncpy(out_info->xmodifiers, xmod, sizeof(out_info->xmodifiers) - 1);
-    if (desktop) strncpy(out_info->xdg_current_desktop, desktop, sizeof(out_info->xdg_current_desktop) - 1);
+    if (gtk_im) snprintf(out_info->gtk_im_module, sizeof(out_info->gtk_im_module), "%s", gtk_im);
+    if (qt_im) snprintf(out_info->qt_im_module, sizeof(out_info->qt_im_module), "%s", qt_im);
+    if (xmod) snprintf(out_info->xmodifiers, sizeof(out_info->xmodifiers), "%s", xmod);
+    if (desktop) snprintf(out_info->xdg_current_desktop, sizeof(out_info->xdg_current_desktop), "%s", desktop);
 
     out_info->detected_framework = lc_detect_active_framework();
 

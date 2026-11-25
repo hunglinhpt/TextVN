@@ -75,10 +75,56 @@ jobs:
             libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
             libgtk-4-dev ibus fcitx5 fcitx5-modules dbus libdbus-1-dev
       - run: scripts/e2e-linux.sh
-      # Tarball thật + 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng
-      # textvn-portable.sh) × IBus + Fcitx5 thật, trong HOME tạm.
-      - run: scripts/build-linux.sh --skip-tests
+      # E67: dựng binary EL8 (AlmaLinux 8 = RHEL 8.10 ABI: glibc 2.28, IBus 1.5.19, GTK3 3.22)
+      # để gói tarball duy nhất chạy mượt từ RHEL 8.10 / Rocky 8 / Ubuntu 20-22 tới Ubuntu 24 / Arch.
+      - name: Build EL8 baseline (RHEL 8.10 glibc 2.28 + GTK3)
+        run: |
+          cargo fetch --locked
+          RUSTUP_DIR="$(rustup show home)"
+          CARGO_DIR="${CARGO_HOME:-$HOME/.cargo}"
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          docker run --rm \
+            -v "$PWD:/src" \
+            -v "$RUSTUP_DIR:/rustup:ro" \
+            -v "$CARGO_DIR:/cargo" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            almalinux:8 bash -euo pipefail -c '
+              dnf --enablerepo=powertools install -y --setopt=install_weak_deps=False \
+                gcc make cmake pkgconf-pkg-config ibus-devel gtk3-devel ibus dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config >/dev/null
+              groupadd -f -g "$HOST_GID" builder || true
+              useradd -m -u "$HOST_UID" -g "$HOST_GID" -o builder
+              mkdir -p /tmp/target-el8 && chown -R "$HOST_UID:$HOST_GID" /tmp/target-el8
+              su -s /bin/bash builder -c "
+                export PATH=/cargo/bin:\$PATH
+                export RUSTUP_HOME=/rustup CARGO_HOME=/cargo CARGO_TARGET_DIR=/tmp/target-el8
+                export LC_ALL=C.UTF-8 LANG=C.UTF-8
+                bash /src/scripts/build-linux-el8.sh /src/target/linux-el8
+              "
+            '
+      # Tarball đa distro (EL8 CLI + EL8 IBus + GTK3/GTK4 settings + Fcitx5) + kiểm ELF ABI ≤ glibc 2.28.
+      - run: scripts/build-linux.sh --skip-tests --el8-dir target/linux-el8
+      # 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng textvn-portable.sh) × IBus + Fcitx5 trên Ubuntu 24.04.
       - run: scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      # E67: kiểm thử ĐÚNG gói phát hành đó bên trong AlmaLinux 8 (RHEL 8.10: glibc 2.28, Bash 4.4, IBus 1.5.19, không GTK4).
+      - name: E2E final tarball on AlmaLinux 8 (RHEL 8.10)
+        run: |
+          TARBALL_NAME="$(basename "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)")"
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          docker run --rm \
+            -v "$PWD:/src:ro" \
+            -e TARBALL_NAME="$TARBALL_NAME" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            almalinux:8 bash -euo pipefail -c '
+              dnf install -y --setopt=install_weak_deps=False \
+                ibus gtk3 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip >/dev/null
+              groupadd -f -g "$HOST_GID" tester || true
+              useradd -m -u "$HOST_UID" -g "$HOST_GID" -o tester
+              su -s /bin/bash tester -c "LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-el8-package.sh /src/dist/$TARBALL_NAME /src/target/linux-el8/ibus/e2e_ibus"
+            '
       - uses: actions/upload-artifact@v4
         with:
           name: textvn-linux-x86_64

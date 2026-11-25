@@ -176,6 +176,297 @@ pub fn check_ibus_component(args: &[String]) -> Result<(), String> {
     }
 }
 
+/// Đọc số nguyên little-endian từ lát cắt byte có kiểm tra biên và chống tràn offset.
+fn read_u16_le(buf: &[u8], off: usize) -> Option<u16> {
+    let end = off.checked_add(2)?;
+    let s = buf.get(off..end)?;
+    Some(u16::from_le_bytes([s[0], s[1]]))
+}
+
+fn read_u32_le(buf: &[u8], off: usize) -> Option<u32> {
+    let end = off.checked_add(4)?;
+    let s = buf.get(off..end)?;
+    Some(u32::from_le_bytes([s[0], s[1], s[2], s[3]]))
+}
+
+fn read_u64_le(buf: &[u8], off: usize) -> Option<u64> {
+    let end = off.checked_add(8)?;
+    let s = buf.get(off..end)?;
+    Some(u64::from_le_bytes([
+        s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+    ]))
+}
+
+fn u64_to_usize(v: u64, label: &str) -> Result<usize, String> {
+    usize::try_from(v).map_err(|_| format!("{label} vượt phạm vi usize: {v}"))
+}
+
+fn format_ver_tuple(v: (u32, u32, u32)) -> String {
+    if v.2 == 0 {
+        format!("{}.{}", v.0, v.1)
+    } else {
+        format!("{}.{}.{}", v.0, v.1, v.2)
+    }
+}
+
+fn read_cstr(strtab: &[u8], off: usize) -> Option<&str> {
+    let rest = strtab.get(off..)?;
+    let nul = rest.iter().position(|&b| b == 0)?;
+    std::str::from_utf8(&rest[..nul]).ok()
+}
+
+/// Phân tích chuỗi phiên bản `major.minor[.patch]` thành `(major, minor, patch)`.
+fn parse_ver_tuple(s: &str) -> Option<(u32, u32, u32)> {
+    let mut parts = s.split('.');
+    let major = parts.next()?.parse::<u32>().ok()?;
+    let minor = parts.next()?.parse::<u32>().ok()?;
+    let patch = match parts.next() {
+        Some(p) => p.parse::<u32>().ok()?,
+        None => 0,
+    };
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((major, minor, patch))
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct ElfAbiInfo {
+    glibc_versions: Vec<(u32, u32, u32)>,
+    has_glibc_private: bool,
+    has_gnu_stack: bool,
+    exec_stack: bool,
+    is_dynamic: bool,
+}
+
+/// Kiểm tra ELF64 little-endian (thuần Rust, không cần `readelf` ngoài):
+/// 1. Quét `SHT_GNU_verneed` (0x6ffffffe) lấy mọi yêu cầu `GLIBC_X.Y[.Z]` (và chặn `GLIBC_PRIVATE`).
+/// 2. Quét `PT_GNU_STACK` (0x6474e551) đảm bảo có header NX-stack và KHÔNG có cờ PF_X (SELinux RHEL 8).
+fn inspect_elf64_abi(buf: &[u8]) -> Result<ElfAbiInfo, String> {
+    if buf.len() < 64 || &buf[0..4] != b"\x7fELF" {
+        return Err("không phải file ELF hợp lệ".into());
+    }
+    if buf[4] != 2 || buf[5] != 1 {
+        return Err(format!(
+            "chỉ hỗ trợ ELF64 little-endian (class={}, data={})",
+            buf[4], buf[5]
+        ));
+    }
+
+    let mut info = ElfAbiInfo::default();
+
+    // Program headers -> PT_DYNAMIC (2) và PT_GNU_STACK (0x6474e551, PF_X = 0x1).
+    let e_phoff = u64_to_usize(read_u64_le(buf, 32).ok_or("header phoff thiếu")?, "e_phoff")?;
+    let e_phentsize = read_u16_le(buf, 54).ok_or("header phentsize thiếu")? as usize;
+    let e_phnum = read_u16_le(buf, 56).ok_or("header phnum thiếu")? as usize;
+    if e_phnum > 0 {
+        if e_phoff == 0 || e_phentsize < 56 {
+            return Err("program header table không hợp lệ".into());
+        }
+        for i in 0..e_phnum {
+            let off = i
+                .checked_mul(e_phentsize)
+                .and_then(|d| e_phoff.checked_add(d))
+                .ok_or("tràn offset program header")?;
+            let p_type = read_u32_le(buf, off).ok_or("program header bị cắt")?;
+            let p_flags = read_u32_le(buf, off.checked_add(4).ok_or("tràn offset p_flags")?)
+                .ok_or("program header flags bị cắt")?;
+            if p_type == 2 {
+                info.is_dynamic = true;
+            } else if p_type == 0x6474_e551 {
+                info.has_gnu_stack = true;
+                if (p_flags & 0x1) != 0 {
+                    info.exec_stack = true;
+                }
+            }
+        }
+    }
+
+    // Section headers -> SHT_GNU_verneed (0x6ffffffe).
+    let e_shoff = u64_to_usize(read_u64_le(buf, 40).ok_or("header shoff thiếu")?, "e_shoff")?;
+    let e_shentsize = read_u16_le(buf, 58).ok_or("header shentsize thiếu")? as usize;
+    let mut e_shnum = read_u16_le(buf, 60).ok_or("header shnum thiếu")? as usize;
+    if e_shoff == 0 {
+        if info.is_dynamic {
+            return Err(
+                "ELF động bị cắt bỏ section header — không thể xác minh phiên bản GLIBC".into(),
+            );
+        }
+        return Ok(info);
+    }
+    if e_shentsize < 64 {
+        return Err("section header entry size < 64".into());
+    }
+    if e_shnum == 0 {
+        // ELF64 extended numbering: số section nằm ở sh_size của section 0.
+        let ext = read_u64_le(buf, e_shoff.checked_add(32).ok_or("tràn offset sh0")?)
+            .ok_or("section 0 bị cắt")?;
+        e_shnum = u64_to_usize(ext, "sh0.sh_size")?;
+    }
+
+    let sh_at = |idx: usize| -> Result<(u32, usize, usize, usize), String> {
+        if idx >= e_shnum {
+            return Err(format!("section index {idx} vượt quá shnum={e_shnum}"));
+        }
+        let off = idx
+            .checked_mul(e_shentsize)
+            .and_then(|d| e_shoff.checked_add(d))
+            .ok_or("tràn offset section header")?;
+        let sh_type = read_u32_le(buf, off.checked_add(4).ok_or("tràn sh_type")?)
+            .ok_or("section header bị cắt")?;
+        let sh_offset = u64_to_usize(
+            read_u64_le(buf, off.checked_add(24).ok_or("tràn sh_offset")?)
+                .ok_or("sh_offset thiếu")?,
+            "sh_offset",
+        )?;
+        let sh_size = u64_to_usize(
+            read_u64_le(buf, off.checked_add(32).ok_or("tràn sh_size")?).ok_or("sh_size thiếu")?,
+            "sh_size",
+        )?;
+        let sh_link = read_u32_le(buf, off.checked_add(40).ok_or("tràn sh_link")?)
+            .ok_or("sh_link thiếu")? as usize;
+        Ok((sh_type, sh_offset, sh_size, sh_link))
+    };
+
+    for i in 0..e_shnum {
+        let (sh_type, vn_off, vn_size, sh_link) = sh_at(i)?;
+        if sh_type != 0x6fff_fffe || vn_size == 0 {
+            continue;
+        }
+        let (_, str_off, str_size, _) = sh_at(sh_link)?;
+        let str_end = str_off.checked_add(str_size).ok_or("tràn bảng .dynstr")?;
+        let strtab = buf.get(str_off..str_end).ok_or("bảng .dynstr bị cắt")?;
+        let vn_end = vn_off
+            .checked_add(vn_size)
+            .ok_or("tràn section SHT_GNU_verneed")?;
+        let verneed = buf
+            .get(vn_off..vn_end)
+            .ok_or("section SHT_GNU_verneed bị cắt")?;
+
+        let mut pos = 0usize;
+        let mut guard = 0usize;
+        loop {
+            guard += 1;
+            if guard > 4096 {
+                return Err("section SHT_GNU_verneed quá lớn hoặc lặp vòng".into());
+            }
+            let entry_end = pos.checked_add(16).ok_or("tràn offset Elf64_Verneed")?;
+            if entry_end > verneed.len() {
+                return Err("Elf64_Verneed bị cắt".into());
+            }
+            let vn_cnt = read_u16_le(verneed, pos + 2).ok_or("vn_cnt thiếu")? as usize;
+            let vn_aux = read_u32_le(verneed, pos + 8).ok_or("vn_aux thiếu")? as usize;
+            let vn_next = read_u32_le(verneed, pos + 12).ok_or("vn_next thiếu")? as usize;
+
+            let mut aux_pos = pos.checked_add(vn_aux).ok_or("tràn offset Elf64_Vernaux")?;
+            for _ in 0..vn_cnt {
+                let aux_end = aux_pos
+                    .checked_add(16)
+                    .ok_or("tràn kết thúc Elf64_Vernaux")?;
+                if aux_end > verneed.len() {
+                    return Err("Elf64_Vernaux bị cắt".into());
+                }
+                let vna_name = read_u32_le(verneed, aux_pos + 8).ok_or("vna_name thiếu")? as usize;
+                let vna_next = read_u32_le(verneed, aux_pos + 12).ok_or("vna_next thiếu")? as usize;
+                if let Some(name) = read_cstr(strtab, vna_name) {
+                    if name == "GLIBC_PRIVATE" {
+                        info.has_glibc_private = true;
+                    } else if let Some(rest) = name.strip_prefix("GLIBC_") {
+                        if let Some(v) = parse_ver_tuple(rest) {
+                            info.glibc_versions.push(v);
+                        }
+                    }
+                }
+                if vna_next == 0 {
+                    break;
+                }
+                aux_pos = aux_pos
+                    .checked_add(vna_next)
+                    .ok_or("tràn bước nhảy vna_next")?;
+            }
+
+            if vn_next == 0 {
+                break;
+            }
+            pos = pos.checked_add(vn_next).ok_or("tràn bước nhảy vn_next")?;
+        }
+    }
+
+    info.glibc_versions.sort_unstable();
+    info.glibc_versions.dedup();
+    Ok(info)
+}
+
+/// CLI: `cargo xtask check-elf-abi [--max-glibc <X.Y>] <elf>...`
+/// Gate E67: bảo đảm binary Linux phát hành chạy được trên RHEL 8.10 (glibc 2.28)
+/// và có `PT_GNU_STACK` không thực thi (SELinux `execstack`).
+pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
+    let mut max_glibc = (2u32, 28u32, 0u32);
+    let mut files: Vec<&str> = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--max-glibc" {
+            let val = args
+                .get(i + 1)
+                .ok_or("--max-glibc cần giá trị kiểu X.Y (ví dụ 2.28)")?;
+            max_glibc = parse_ver_tuple(val)
+                .ok_or_else(|| format!("phiên bản glibc không hợp lệ: {val}"))?;
+            i += 2;
+        } else {
+            files.push(&args[i]);
+            i += 1;
+        }
+    }
+    if files.is_empty() {
+        return Err("cách dùng: cargo xtask check-elf-abi [--max-glibc 2.28] <elf>...".into());
+    }
+
+    let mut errs = Vec::new();
+    for path in files {
+        let data = fs::read(path).map_err(|e| format!("không đọc được {path}: {e}"))?;
+        let info = inspect_elf64_abi(&data).map_err(|e| format!("{path}: {e}"))?;
+        let mut bad: Vec<String> = Vec::new();
+        for &v in &info.glibc_versions {
+            if v > max_glibc {
+                bad.push(format!("GLIBC_{}", format_ver_tuple(v)));
+            }
+        }
+        if info.has_glibc_private {
+            bad.push("GLIBC_PRIVATE".into());
+        }
+        if !bad.is_empty() {
+            errs.push(format!(
+                "{path}: yêu cầu symbol vượt trần GLIBC_{}: {}",
+                format_ver_tuple(max_glibc),
+                bad.join(", ")
+            ));
+        }
+        if !info.has_gnu_stack {
+            errs.push(format!(
+                "{path}: thiếu PT_GNU_STACK (mặc định executable stack — bị SELinux RHEL 8 chặn)"
+            ));
+        } else if info.exec_stack {
+            errs.push(format!(
+                "{path}: PT_GNU_STACK có cờ PF_X (executable stack — bị SELinux RHEL 8 chặn)"
+            ));
+        }
+        if bad.is_empty() && info.has_gnu_stack && !info.exec_stack {
+            let top = info
+                .glibc_versions
+                .last()
+                .map(|&v| format_ver_tuple(v))
+                .unwrap_or_else(|| "static".into());
+            println!("check-elf-abi: OK {path} (max GLIBC={top}, nx-stack=OK)");
+        }
+    }
+
+    if errs.is_empty() {
+        Ok(())
+    } else {
+        Err(errs.join("\n"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,5 +559,133 @@ mod tests {
             let _ = std::fs::remove_dir_all(&dir);
             assert!(r.is_ok(), "base {base:?} phải pass: {r:?}");
         }
+    }
+
+    /// Dựng một ảnh ELF64 tối giản trong bộ nhớ với `PT_GNU_STACK` + `SHT_GNU_verneed`
+    /// để kiểm tra `inspect_elf64_abi` và `check_elf_abi` trên mọi hệ điều hành.
+    fn synthetic_elf64(glibc_tags: &[&str], exec_stack: bool) -> Vec<u8> {
+        let mut buf = vec![0u8; 64];
+        buf[0..4].copy_from_slice(b"\x7fELF");
+        buf[4] = 2; // ELFCLASS64
+        buf[5] = 1; // ELFDATA2LSB
+        buf[6] = 1; // EV_CURRENT
+
+        // Program header: 1 entry PT_GNU_STACK (56 bytes) ngay sau ELF header.
+        let phoff = buf.len() as u64;
+        buf[32..40].copy_from_slice(&phoff.to_le_bytes());
+        buf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        buf[56..58].copy_from_slice(&1u16.to_le_bytes());
+        let mut ph = [0u8; 56];
+        ph[0..4].copy_from_slice(&0x6474_e551u32.to_le_bytes()); // PT_GNU_STACK
+        let p_flags: u32 = if exec_stack { 0x7 } else { 0x6 }; // RWX vs RW
+        ph[4..8].copy_from_slice(&p_flags.to_le_bytes());
+        buf.extend_from_slice(&ph);
+
+        // .dynstr (section 1)
+        let str_off = buf.len();
+        buf.push(0); // empty string at 0
+        let lib_name_off = (buf.len() - str_off) as u32;
+        buf.extend_from_slice(b"libc.so.6\0");
+        let mut tag_offs = Vec::new();
+        for tag in glibc_tags {
+            tag_offs.push((buf.len() - str_off) as u32);
+            buf.extend_from_slice(tag.as_bytes());
+            buf.push(0);
+        }
+        let str_size = buf.len() - str_off;
+
+        // SHT_GNU_verneed (section 2): 1 Verneed + N Vernaux (16 bytes mỗi mục)
+        let vn_off = buf.len();
+        let mut vn = [0u8; 16];
+        vn[0..2].copy_from_slice(&1u16.to_le_bytes()); // vn_version
+        vn[2..4].copy_from_slice(&(tag_offs.len() as u16).to_le_bytes()); // vn_cnt
+        vn[4..8].copy_from_slice(&lib_name_off.to_le_bytes()); // vn_file
+        vn[8..12].copy_from_slice(&16u32.to_le_bytes()); // vn_aux
+        vn[12..16].copy_from_slice(&0u32.to_le_bytes()); // vn_next
+        buf.extend_from_slice(&vn);
+        for (idx, &toff) in tag_offs.iter().enumerate() {
+            let mut va = [0u8; 16];
+            va[8..12].copy_from_slice(&toff.to_le_bytes()); // vna_name
+            let next: u32 = if idx + 1 < tag_offs.len() { 16 } else { 0 };
+            va[12..16].copy_from_slice(&next.to_le_bytes()); // vna_next
+            buf.extend_from_slice(&va);
+        }
+        let vn_size = buf.len() - vn_off;
+
+        // Section headers: 0=NULL, 1=.dynstr, 2=.gnu.version_r
+        let shoff = buf.len() as u64;
+        buf[40..48].copy_from_slice(&shoff.to_le_bytes());
+        buf[58..60].copy_from_slice(&64u16.to_le_bytes());
+        buf[60..62].copy_from_slice(&3u16.to_le_bytes());
+        buf.extend_from_slice(&[0u8; 64]); // section 0: SHT_NULL
+        let mut sh1 = [0u8; 64];
+        sh1[4..8].copy_from_slice(&3u32.to_le_bytes()); // SHT_STRTAB
+        sh1[24..32].copy_from_slice(&(str_off as u64).to_le_bytes());
+        sh1[32..40].copy_from_slice(&(str_size as u64).to_le_bytes());
+        buf.extend_from_slice(&sh1);
+        let mut sh2 = [0u8; 64];
+        sh2[4..8].copy_from_slice(&0x6fff_fffeu32.to_le_bytes()); // SHT_GNU_verneed
+        sh2[24..32].copy_from_slice(&(vn_off as u64).to_le_bytes());
+        sh2[32..40].copy_from_slice(&(vn_size as u64).to_le_bytes());
+        sh2[40..44].copy_from_slice(&1u32.to_le_bytes()); // sh_link = 1 (.dynstr)
+        buf.extend_from_slice(&sh2);
+        buf
+    }
+
+    #[test]
+    fn e67_check_elf_abi_accepts_glibc_228_and_blocks_newer_or_execstack() {
+        let dir = std::env::temp_dir().join(format!("textvn-elf-abi-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let ok_bin = dir.join("ok_el8");
+        let bad_glibc = dir.join("bad_u24");
+        let bad_stack = dir.join("bad_stack");
+        std::fs::write(
+            &ok_bin,
+            synthetic_elf64(&["GLIBC_2.2.5", "GLIBC_2.17", "GLIBC_2.28"], false),
+        )
+        .unwrap();
+        std::fs::write(
+            &bad_glibc,
+            synthetic_elf64(&["GLIBC_2.2.5", "GLIBC_2.28", "GLIBC_2.34"], false),
+        )
+        .unwrap();
+        std::fs::write(&bad_stack, synthetic_elf64(&["GLIBC_2.28"], true)).unwrap();
+
+        assert!(check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.28".into(),
+            ok_bin.to_string_lossy().into_owned(),
+        ])
+        .is_ok());
+        let err_glibc = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.28".into(),
+            bad_glibc.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_glibc.contains("GLIBC_2.34"), "{err_glibc}");
+        let err_stack = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.28".into(),
+            bad_stack.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_stack.contains("PT_GNU_STACK"), "{err_stack}");
+
+        let bad_priv = dir.join("bad_priv");
+        std::fs::write(
+            &bad_priv,
+            synthetic_elf64(&["GLIBC_2.28", "GLIBC_PRIVATE"], false),
+        )
+        .unwrap();
+        let err_priv = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.28".into(),
+            bad_priv.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_priv.contains("GLIBC_PRIVATE"), "{err_priv}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

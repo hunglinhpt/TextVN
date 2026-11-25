@@ -25,12 +25,14 @@ pub struct DoctorReport {
     pub context_size: usize,
     pub config_path: Option<PathBuf>,
     pub config_status: String,
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub data_dir_exists: bool,
     pub pipe_listening: bool,
     pub hook_running: bool,
     pub tray_running: bool,
     pub tip_registered: bool,
     /// Windows giữ Ctrl + Shift để đổi bàn phím (tranh phím chuyển V/E). `None` ngoài Windows.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub ctrl_shift_taken: Option<bool>,
     pub problems: Vec<String>,
 }
@@ -139,7 +141,14 @@ pub fn collect_report() -> DoctorReport {
 
 impl DoctorReport {
     pub fn print_text(&self) {
-        println!("TextVN doctor (Windows)");
+        let os_label = if cfg!(target_os = "windows") {
+            "Windows"
+        } else if cfg!(target_os = "macos") {
+            "macOS"
+        } else {
+            "Linux"
+        };
+        println!("TextVN doctor ({os_label})");
         println!(
             "  ABI         : key={} result={} context={} (kỳ vọng 20/532) — {}",
             self.key_size,
@@ -155,72 +164,81 @@ impl DoctorReport {
                 .unwrap_or_else(|| "(không xác định)".into())
         );
         println!("  config      : {}", self.config_status);
-        println!(
-            "  data/       : {}",
-            if self.data_dir_exists {
-                "tồn tại"
-            } else {
-                "chưa có"
-            }
-        );
-        // Vòng 16 (A7): tên pipe theo phiên — không in cứng tên cũ `textvn-ipc-v1`.
-        println!(
-            "  IPC pipe    : {}",
-            if self.pipe_listening {
-                "đang lắng nghe"
-            } else {
-                "chưa kết nối (tray chưa chạy)"
-            }
-        );
-        println!(
-            "  Tray proc   : {}",
-            if self.tray_running {
-                "đang chạy"
-            } else {
-                "không hoạt động"
-            }
-        );
-        println!(
-            "  Hook proc   : {}",
-            if self.hook_running {
-                "đang chạy"
-            } else {
-                "không hoạt động"
-            }
-        );
-        println!(
-            "  TIP registry: {}",
-            if self.tip_registered {
-                "đã đăng ký"
-            } else {
-                "chưa đăng ký"
-            }
-        );
-        if let Some(detail) = crate::register::tip_registration_summary() {
-            println!("  TIP detail  : {detail}");
-        }
-        if let Some(taken) = self.ctrl_shift_taken {
+        #[cfg(target_os = "windows")]
+        {
             println!(
-                "  Ctrl+Shift  : {}",
-                if taken {
-                    "Windows đang dùng để đổi bàn phím — bật \"Dành Ctrl + Shift cho TextVN\" \
-                     trong Bảng điều khiển (hoặc `TextVN.exe --free-ctrl-shift`)"
+                "  data/       : {}",
+                if self.data_dir_exists {
+                    "tồn tại"
                 } else {
-                    "dành cho TextVN"
+                    "chưa có"
                 }
             );
+            // Vòng 16 (A7): tên pipe theo phiên — không in cứng tên cũ `textvn-ipc-v1`.
+            println!(
+                "  IPC pipe    : {}",
+                if self.pipe_listening {
+                    "đang lắng nghe"
+                } else {
+                    "chưa kết nối (tray chưa chạy)"
+                }
+            );
+            println!(
+                "  Tray proc   : {}",
+                if self.tray_running {
+                    "đang chạy"
+                } else {
+                    "không hoạt động"
+                }
+            );
+            println!(
+                "  Hook proc   : {}",
+                if self.hook_running {
+                    "đang chạy"
+                } else {
+                    "không hoạt động"
+                }
+            );
+            println!(
+                "  TIP registry: {}",
+                if self.tip_registered {
+                    "đã đăng ký"
+                } else {
+                    "chưa đăng ký"
+                }
+            );
+            if let Some(detail) = crate::register::tip_registration_summary() {
+                println!("  TIP detail  : {detail}");
+            }
+            if let Some(taken) = self.ctrl_shift_taken {
+                println!(
+                    "  Ctrl+Shift  : {}",
+                    if taken {
+                        "Windows đang dùng để đổi bàn phím — bật \"Dành Ctrl + Shift cho TextVN\" \
+                         trong Bảng điều khiển (hoặc `TextVN.exe --free-ctrl-shift`)"
+                    } else {
+                        "dành cho TextVN"
+                    }
+                );
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            print_linux_env_summary();
         }
     }
 
     pub fn to_json(&self) -> String {
+        let escaped_status =
+            serde_json::to_string(&self.config_status).unwrap_or_else(|_| "\"\"".into());
         format!(
-            "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":\"{}\",\"pipe\":{},\"tray\":{},\"hook\":{},\"tip\":{},\"problems\":{}}}",
+            "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"pipe\":{},\"tray\":{},\"hook\":{},\"tip\":{},\"problems\":{}}}",
             self.abi_version,
             self.sizes_ok,
             self.key_size,
             self.result_size,
             self.context_size,
-            self.config_status,
+            escaped_status,
             self.pipe_listening,
             self.tray_running,
             self.hook_running,
@@ -306,19 +324,32 @@ pub fn redact_user_content(raw: &str) -> String {
                 *v = serde_json::Value::String(format!("<REDACTED: {n} mục>"));
             }
         }
+        // G8/S2: style_profile chứa từ và cặp sửa đã học của người dùng -> ẩn nội dung, giữ số đếm.
+        if let Some(sp) = map.get_mut("style_profile").and_then(|v| v.as_object_mut()) {
+            for sub in ["words", "corrections"] {
+                if let Some(v) = sp.get_mut(sub) {
+                    let n = v
+                        .as_object()
+                        .map_or_else(|| v.as_array().map_or(0, Vec::len), serde_json::Map::len);
+                    *v = serde_json::Value::String(format!("<REDACTED: {n} mục>"));
+                }
+            }
+        }
     }
     let mut out = serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".into());
     out.push('\n');
     out
 }
 
-/// Redact đường dẫn người dùng (`C:\Users\<username>` -> `C:\Users\<REDACTED>`) theo Rule S2.
+/// Redact đường dẫn người dùng (`C:\Users\<username>`, `/home/<user>`) theo Rule S2.
 pub fn redact_sensitive_paths(input: &str) -> String {
     let mut out = input.to_string();
-    if let Some(username) = std::env::var_os("USERNAME") {
-        if let Some(name_str) = username.to_str() {
-            if !name_str.is_empty() {
-                out = out.replace(name_str, "<REDACTED_USER>");
+    for env_key in ["USERNAME", "USER", "LOGNAME"] {
+        if let Some(username) = std::env::var_os(env_key) {
+            if let Some(name_str) = username.to_str() {
+                if name_str.len() >= 2 {
+                    out = out.replace(name_str, "<REDACTED_USER>");
+                }
             }
         }
     }
@@ -328,14 +359,29 @@ pub fn redact_sensitive_paths(input: &str) -> String {
 /// Lấy 200 dòng cuối từ log TSF / TextVN (không log text gõ - S2).
 fn collect_log_tail(max_lines: usize) -> String {
     let mut log_path = None;
+    #[cfg(target_os = "windows")]
     if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
         let root = PathBuf::from(local_appdata);
         let primary = root.join("TextVN").join("logs").join("tsf-min.log");
-        let legacy = root.join("TextVN").join("logs").join("tsf-min.log");
         if primary.exists() {
             log_path = Some(primary);
-        } else if legacy.exists() {
-            log_path = Some(legacy);
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(xdg) = std::env::var_os("XDG_STATE_HOME") {
+            let p = PathBuf::from(xdg).join("TextVN/log/textvn.log");
+            if p.exists() {
+                log_path = Some(p);
+            }
+        }
+        if log_path.is_none() {
+            if let Some(home) = std::env::var_os("HOME") {
+                let p = PathBuf::from(home).join(".local/state/TextVN/log/textvn.log");
+                if p.exists() {
+                    log_path = Some(p);
+                }
+            }
         }
     }
 
@@ -373,7 +419,60 @@ pub fn config_path() -> Option<PathBuf> {
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
+        if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+            let p = PathBuf::from(xdg);
+            if p.is_absolute() {
+                return Some(p.join("TextVN/config.json"));
+            }
+        }
         std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/TextVN/config.json"))
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn print_linux_env_summary() {
+    let os_pretty = std::fs::read_to_string("/etc/os-release")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find_map(|l| l.strip_prefix("PRETTY_NAME="))
+                .map(|v| v.trim_matches(&['"', '\''][..]).to_string())
+        })
+        .unwrap_or_else(|| "Linux".into());
+    let env_or = |k: &str| std::env::var(k).unwrap_or_else(|_| "<chưa đặt>".into());
+    println!("  OS          : {os_pretty}");
+    println!(
+        "  session     : {} ({})",
+        env_or("XDG_SESSION_TYPE"),
+        env_or("XDG_CURRENT_DESKTOP")
+    );
+    println!("  IBUS_COMP   : {}", env_or("IBUS_COMPONENT_PATH"));
+    println!(
+        "  IM env      : GTK={} · QT={} · XMOD={}",
+        env_or("GTK_IM_MODULE"),
+        env_or("QT_IM_MODULE"),
+        env_or("XMODIFIERS")
+    );
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(bin_dir) = exe.parent() {
+            let ibus_ok = [
+                bin_dir.join("../lib/textvn/textvn-ibus-engine"),
+                bin_dir.join("../lib64/textvn/textvn-ibus-engine"),
+                bin_dir.join("../libexec/ibus-engine-textvn"),
+            ]
+            .iter()
+            .any(|p| p.exists());
+            let settings_bin = bin_dir.join("textvn-settings");
+            println!(
+                "  adapters    : ibus={} · settings={}",
+                if ibus_ok { "OK" } else { "thiếu" },
+                if settings_bin.exists() {
+                    "OK"
+                } else {
+                    "thiếu"
+                }
+            );
+        }
     }
 }
 
@@ -526,9 +625,18 @@ mod tests {
         let raw = r#"{"config_version":1,"method":"vni",
             "macros":[{"trigger":"dc","expand":"12 Lê Lợi, 0912345678"}],
             "emoji":[{"trigger":":x","glyph":"❌"}],
-            "english_words":["secretword"]}"#;
+            "english_words":["secretword"],
+            "style_profile":{"enabled":true,"words":{"matkhau":5},"corrections":{"sai->dung":2}}}"#;
         let out = redact_user_content(raw);
-        for leaked in ["Lê Lợi", "0912345678", "secretword", "❌", "\"dc\""] {
+        for leaked in [
+            "Lê Lợi",
+            "0912345678",
+            "secretword",
+            "❌",
+            "\"dc\"",
+            "matkhau",
+            "sai->dung",
+        ] {
             assert!(!out.contains(leaked), "lộ `{leaked}` trong: {out}");
         }
         assert!(

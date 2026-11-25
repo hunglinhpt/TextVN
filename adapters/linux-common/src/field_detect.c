@@ -90,10 +90,10 @@ int lc_classify_field(const char *app_id,
     memset(out, 0, sizeof(*out));
 
     if (app_id) {
-        strncpy(out->app_id, app_id, sizeof(out->app_id) - 1);
+        snprintf(out->app_id, sizeof(out->app_id), "%s", app_id);
     }
     if (name) {
-        strncpy(out->element_name, name, sizeof(out->element_name) - 1);
+        snprintf(out->element_name, sizeof(out->element_name), "%s", name);
     }
 
     /* R1: PASSWORD detection (P3-4 §2 R1)
