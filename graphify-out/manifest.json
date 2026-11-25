@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795503981.812182,
-    "seen": 1795507309.2459526,
-    "ast_hash": "c0b3a5e2e531460abeb0e204a18eb004",
+    "mtime": 1795575866.5978706,
+    "seen": 1795576028.3358157,
+    "ast_hash": "64df12a562b439260e78e517f236ba37",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -834,9 +834,9 @@
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
-    "mtime": 1795486690.2270367,
-    "seen": 1795491322.2748904,
-    "ast_hash": "6e2b660949618c1afcd96b2ec5053d3d",
+    "mtime": 1795575918.9042923,
+    "seen": 1795576028.320809,
+    "ast_hash": "4f89ff685f2743aacb3849f2145e9287",
     "semantic_hash": ""
   },
   "tray/src/menu.rs": {
@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "docs/release/parity-checklist.md": {
-    "mtime": 1795313934.0218325,
-    "seen": 1795314565.7932308,
-    "ast_hash": "e7aa792eccf8b3118b25cd56e37ac98a",
+    "mtime": 1795575863.2394435,
+    "seen": 1795576028.3338146,
+    "ast_hash": "85e478742f2c3319e9e3c72593de21d2",
     "semantic_hash": ""
   },
   "installer/windows/build_installer.ps1": {
@@ -906,9 +906,9 @@
     "semantic_hash": ""
   },
   "cli/src/register.rs": {
-    "mtime": 1795313933.7701614,
-    "seen": 1795314565.7932308,
-    "ast_hash": "a339eefd5597429d4e31023c746fcb75",
+    "mtime": 1795575577.722357,
+    "seen": 1795576028.3017926,
+    "ast_hash": "436b229a8d73ac9ff0a9ca274b7f030e",
     "semantic_hash": ""
   },
   "tools/appcomptest/targets/chrome.json": {
@@ -1008,9 +1008,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795504216.8882704,
-    "seen": 1795507309.1748636,
-    "ast_hash": "bcf80c42dd30b187b070ae669541ee46",
+    "mtime": 1795575901.3087745,
+    "seen": 1795576028.32481,
+    "ast_hash": "7b941bc4afde93230bc3594b755292b0",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1044,9 +1044,9 @@
     "semantic_hash": ""
   },
   "tray/src/settings_dialog.rs": {
-    "mtime": 1795325776.841724,
-    "seen": 1795326380.8041961,
-    "ast_hash": "cc617fbb7873faa70de5aad45bece5e6",
+    "mtime": 1795575918.8714914,
+    "seen": 1795576028.320809,
+    "ast_hash": "38fe4fb4a64a949eaeb7d62a8310c84b",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/linux_common.h": {
@@ -1572,9 +1572,9 @@
     "semantic_hash": ""
   },
   "installer/windows/portable/install.ps1": {
-    "mtime": 1795313935.4275782,
-    "seen": 1795314565.7932308,
-    "ast_hash": "c9fe65d256b271e2a2b355608ea0032b",
+    "mtime": 1795575853.6918223,
+    "seen": 1795576028.3108087,
+    "ast_hash": "0d70bf8616f06df1b1022b6bd9f6c491",
     "semantic_hash": ""
   },
   "installer/windows/portable/uninstall.ps1": {
@@ -1848,9 +1848,9 @@
     "semantic_hash": ""
   },
   "docs/release/ui-spec.md": {
-    "mtime": 1795370413.4119725,
-    "seen": 1795370745.099879,
-    "ast_hash": "615b91c489806b2c0310930fc4c9f2a0",
+    "mtime": 1795575860.1625216,
+    "seen": 1795576028.3348153,
+    "ast_hash": "cb7ed1287e19e09acd5a602f7f0c556e",
     "semantic_hash": ""
   },
   "docs/specs/reference-parity.md": {
@@ -1866,15 +1866,15 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1795503631.701968,
-    "seen": 1795507309.250964,
-    "ast_hash": "2a1dfaea7caa06efb4c9e5b7e298fb28",
+    "mtime": 1795575856.5744667,
+    "seen": 1795576028.3368175,
+    "ast_hash": "88a1429e5813be255879b007116952a1",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
-    "mtime": 1795313935.4150467,
-    "seen": 1795314565.7932308,
-    "ast_hash": "e67dec18cf7c0aaf272558a73c5cab3b",
+    "mtime": 1795575849.7141283,
+    "seen": 1795576028.3368175,
+    "ast_hash": "5619a9c3d42ca6cf90074556069be013",
     "semantic_hash": ""
   },
   "tools/mac/README.md": {
