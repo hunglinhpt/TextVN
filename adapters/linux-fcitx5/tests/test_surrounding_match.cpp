@@ -88,12 +88,10 @@ int main() {
      *         phần sau caret — sẽ khớp nhầm rồi xoá nhầm vùng khác) ---- */
     assert(!textBeforeCaretMatches(&ic, kLastWord));
 
-    /* ---- 6) Caret nằm NGOÀI text: trên Fcitx5 5.0.x `setText` bỏ qua mà không ghi đè
-     *         giá trị cũ, còn 5.1+ tự invalidate (`length < cursor`) ⇒ invalidate trước
-     *         để kiểm nhất quán cả 5.0.14 (Ubuntu 22.04) lẫn 5.1+ (Ubuntu 24.04/Arch). ---- */
-    ic.surroundingText().invalidate();
+    /* ---- 6) Caret nằm NGOÀI text: Fcitx5 5.1+ tự invalidate, còn Fcitx5 5.0.14
+     *         (Ubuntu 22.04) vẫn giữ valid=true với cursor > length ⇒ hàm bảo vệ của
+     *         chính TextVN (`textBeforeCaretMatches`) PHẢI từ chối trên cả hai bản. ---- */
     ic.surroundingText().setText(kSentence, 25, 25);
-    assert(!ic.surroundingText().isValid());
     assert(!textBeforeCaretMatches(&ic, kSentence));
 
     /* ---- 7) Surrounding text không hợp lệ ⇒ lệch ---- */
