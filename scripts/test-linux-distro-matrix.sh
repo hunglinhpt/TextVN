@@ -141,6 +141,7 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
         tail -n1 "$t/e2e.log"
 
         "$pre/share/textvn/uninstall.sh" --no-restart >"$t/un.log" 2>&1 || { cat "$t/un.log"; fail "uninstall.sh"; }
+        ! grep -q "'textvn'" "$HOME/.fake-gsettings-ibus" || fail "uninstall.sh không gỡ textvn khỏi org.freedesktop.ibus.general"
         [[ ! -e "$HOME/.xprofile" ]] || fail "uninstall.sh để sót ~/.xprofile"
         local left
         left="$(find "$HOME" \( -path "$HOME/.config/TextVN" -o -path "$HOME/.local/state/TextVN" \) -prune \

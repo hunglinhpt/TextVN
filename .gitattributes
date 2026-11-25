@@ -10,4 +10,5 @@
 *.swift text eol=lf
 *.tsv   text eol=lf
 *.md    text eol=lf
+*.desktop text eol=lf
 packaging/macos/pkg-scripts/postinstall text eol=lf

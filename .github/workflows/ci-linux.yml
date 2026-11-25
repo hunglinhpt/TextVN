@@ -143,12 +143,14 @@ jobs:
           name: textvn-linux-x86_64
           path: dist/TextVN-*-linux-*.tar.gz*
           if-no-files-found: error
+      - run: |
+          mkdir -p target/e2e-helpers
+          cp -f target/linux-el8/ibus/e2e_ibus target/e2e-helpers/e2e_ibus
+          cp -f target/linux-compat/fcitx5/e2e_fcitx5 target/e2e-helpers/e2e_fcitx5
       - uses: actions/upload-artifact@v4
         with:
           name: linux-e2e-helpers
-          path: |
-            target/linux-el8/ibus/e2e_ibus
-            target/linux-compat/fcitx5/e2e_fcitx5
+          path: target/e2e-helpers/*
           if-no-files-found: error
 
   # E67/E68: kiểm thử ĐÚNG gói tarball phát hành song song trên 6 distro doanh nghiệp & phổ thông hàng đầu
@@ -219,15 +221,15 @@ jobs:
               case "$DISTRO_TAG" in
                 almalinux-8|almalinux-9)
                   dnf install -y --setopt=install_weak_deps=False \
-                    ibus gtk3 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip >/dev/null
+                    ibus gtk3 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
                   ;;
                 fedora-41)
                   dnf install -y --setopt=install_weak_deps=False \
-                    ibus fcitx5 gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip >/dev/null
+                    ibus fcitx5 gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
                   ;;
                 opensuse-leap-15-6)
                   zypper --non-interactive install --no-recommends \
-                    ibus libgtk-3-0 dbus-1 procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools >/dev/null
+                    ibus libgtk-3-0 dbus-1 dbus-1-tools procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
                   ;;
                 ubuntu-22-04|debian-12)
                   export DEBIAN_FRONTEND=noninteractive

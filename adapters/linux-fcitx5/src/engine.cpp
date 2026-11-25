@@ -179,7 +179,7 @@ static bool performSelectionConvert(TextVNState *st) {
         return false;
     }
     /* Chụp MỘT lần surrounding: text/anchor/cursor phải cùng chụp. */
-    const fcitx::SurroundingText surrounding = st->ic->surroundingText();
+    const fcitx::SurroundingText &surrounding = st->ic->surroundingText();
     if (!surrounding.isValid()) return false;
     const unsigned anchor = surrounding.anchor();
     const unsigned cursor = surrounding.cursor();
@@ -201,7 +201,7 @@ static bool performSelectionConvert(TextVNState *st) {
     if (out == sel) return true; /* không đổi gì */
 
     /* Recheck chống TOCTOU: lệch ⇒ KHÔNG ghi document (R-2). */
-    const fcitx::SurroundingText recheck = st->ic->surroundingText();
+    const fcitx::SurroundingText &recheck = st->ic->surroundingText();
     if (!recheck.isValid() || recheck.text() != text || recheck.anchor() != anchor ||
         recheck.cursor() != cursor) {
         return true;

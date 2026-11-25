@@ -161,6 +161,7 @@ if [[ -f "$PKG_DIR/share/applications/textvn-settings.desktop" ]]; then
     DESK_TMP="$(mktemp)"
     desk_exec="Exec=$(tv_desktop_quote "$BIN/textvn-settings")"
     while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"
         if [[ "$line" == "Exec=textvn-settings" ]]; then
             printf '%s\n' "$desk_exec"
         else

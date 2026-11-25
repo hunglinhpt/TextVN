@@ -540,22 +540,24 @@ tv_deactivate_ibus() {
     command -v gsettings >/dev/null 2>&1 || return 0
     local cur new
     if gsettings list-schemas 2>/dev/null | grep -qx org.gnome.desktop.input-sources; then
-        cur="$(gsettings get org.gnome.desktop.input-sources sources 2>/dev/null)" || return 0
-        [[ "$cur" == *"('ibus', 'textvn')"* ]] || return 0
-        new="${cur//, (\'ibus\', \'textvn\')/}"
-        new="${new//(\'ibus\', \'textvn\'), /}"
-        new="${new//(\'ibus\', \'textvn\')/}"
-        [[ "$new" == "[]" ]] && new="@a(ss) []"
-        gsettings set org.gnome.desktop.input-sources sources "$new" || true
+        if cur="$(gsettings get org.gnome.desktop.input-sources sources 2>/dev/null)" &&
+           [[ "$cur" == *"('ibus', 'textvn')"* ]]; then
+            new="${cur//, (\'ibus\', \'textvn\')/}"
+            new="${new//(\'ibus\', \'textvn\'), /}"
+            new="${new//(\'ibus\', \'textvn\')/}"
+            [[ "$new" == "[]" ]] && new="@a(ss) []"
+            gsettings set org.gnome.desktop.input-sources sources "$new" || true
+        fi
     fi
     if gsettings list-schemas 2>/dev/null | grep -qx org.freedesktop.ibus.general; then
-        cur="$(gsettings get org.freedesktop.ibus.general preload-engines 2>/dev/null)" || return 0
-        [[ "$cur" == *"'textvn'"* ]] || return 0
-        new="${cur//, \'textvn\'/}"
-        new="${new//\'textvn\', /}"
-        new="${new//\'textvn\'/}"
-        [[ "$new" == "[]" ]] && new="@as []"
-        gsettings set org.freedesktop.ibus.general preload-engines "$new" || true
+        if cur="$(gsettings get org.freedesktop.ibus.general preload-engines 2>/dev/null)" &&
+           [[ "$cur" == *"'textvn'"* ]]; then
+            new="${cur//, \'textvn\'/}"
+            new="${new//\'textvn\', /}"
+            new="${new//\'textvn\'/}"
+            [[ "$new" == "[]" ]] && new="@as []"
+            gsettings set org.freedesktop.ibus.general preload-engines "$new" || true
+        fi
     fi
 }
 
@@ -603,9 +605,12 @@ tv_activate_fcitx5() {
 # openSUSE/SLES X11) không đọc ~/.config/environment.d mà đọc ~/.xprofile. Ghi khối
 # đánh dấu có quản lý và gỡ sạch (kể cả xóa file nếu trống) trong uninstall.sh.
 tv_xprofile_install() { # <ibus_comp | ""> <fcitx_dirs | "">
-    local ibus_comp="$1" fcitx_dirs="$2" xp="$HOME/.xprofile" tmp
+    local ibus_comp="$1" fcitx_dirs="$2" xp="$HOME/.xprofile"
     tv_xprofile_remove
     [[ -n "$ibus_comp" || -n "$fcitx_dirs" ]] || return 0
+    if [[ -s "$xp" && -n "$(tail -c 1 "$xp" 2>/dev/null || true)" ]]; then
+        printf '\n' >> "$xp"
+    fi
     {
         echo "# BEGIN TextVN (per-user X11 env — managed by install.sh / uninstall.sh)"
         if [[ -n "$ibus_comp" ]]; then
@@ -621,18 +626,20 @@ tv_xprofile_install() { # <ibus_comp | ""> <fcitx_dirs | "">
 tv_xprofile_remove() {
     local xp="$HOME/.xprofile" tmp
     [[ -f "$xp" ]] || return 0
-    grep -Fq '# BEGIN TextVN' "$xp" || return 0
+    grep -Fq '# BEGIN TextVN' "$xp" && grep -Fqx '# END TextVN' "$xp" || return 0
     tmp="$(mktemp)"
-    awk '
+    if awk '
         /^# BEGIN TextVN/ { skip = 1; next }
         /^# END TextVN$/  { skip = 0; next }
         !skip { print }
-    ' "$xp" > "$tmp"
-    if [[ ! -s "$tmp" ]]; then
-        rm -f -- "$tmp" "$xp"
-    else
-        mv -- "$tmp" "$xp"
+    ' "$xp" > "$tmp"; then
+        if [[ ! -s "$tmp" && ! -L "$xp" ]]; then
+            rm -f -- "$xp"
+        else
+            cat "$tmp" > "$xp"
+        fi
     fi
+    rm -f -- "$tmp"
 }
 
 tv_deactivate_fcitx5() {

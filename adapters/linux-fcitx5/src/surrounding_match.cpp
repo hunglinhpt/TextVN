@@ -93,7 +93,7 @@ bool surroundingTextBeforeCaretMatches(const std::string &text, unsigned int cur
 
 bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &expected) {
     if (!ic || expected.empty()) return false;
-    fcitx::SurroundingText surrounding = ic->surroundingText();
+    const fcitx::SurroundingText &surrounding = ic->surroundingText();
     if (!surrounding.isValid()) return false;
     return surroundingTextBeforeCaretMatches(surrounding.text(), surrounding.cursor(),
                                              expected);

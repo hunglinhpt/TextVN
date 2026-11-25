@@ -234,14 +234,10 @@ impl DoctorReport {
         #[cfg(target_os = "linux")]
         {
             let env = collect_linux_env_summary();
-            let os_j = serde_json::to_string(&env.os_pretty).unwrap_or_else(|_| "\"\"".into());
-            let glibc_j = serde_json::to_string(&env.glibc).unwrap_or_else(|_| "\"\"".into());
-            let sess_j = serde_json::to_string(&env.session).unwrap_or_else(|_| "\"\"".into());
-            let desk_j = serde_json::to_string(&env.desktop).unwrap_or_else(|_| "\"\"".into());
-            let set_j =
-                serde_json::to_string(&env.settings_backend).unwrap_or_else(|_| "\"\"".into());
-            let sec_j = serde_json::to_string(&env.lsm).unwrap_or_else(|_| "\"\"".into());
-            return format!(
+            let jstr = |s: &str| {
+                serde_json::to_string(&redact_sensitive_paths(s)).unwrap_or_else(|_| "\"\"".into())
+            };
+            format!(
                 "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"os\":{},\"glibc\":{},\"session\":{},\"desktop\":{},\"ibus_adapter\":{},\"fcitx5_adapter\":{},\"settings_backend\":{},\"lsm\":{},\"problems\":{}}}",
                 self.abi_version,
                 self.sizes_ok,
@@ -249,16 +245,16 @@ impl DoctorReport {
                 self.result_size,
                 self.context_size,
                 escaped_status,
-                os_j,
-                glibc_j,
-                sess_j,
-                desk_j,
+                jstr(&env.os_pretty),
+                jstr(&env.glibc),
+                jstr(&env.session),
+                jstr(&env.desktop),
                 env.ibus_found,
                 env.fcitx5_found,
-                set_j,
-                sec_j,
+                jstr(&env.settings_backend),
+                jstr(&env.lsm),
                 self.problems.len()
-            );
+            )
         }
         #[cfg(not(target_os = "linux"))]
         format!(
@@ -319,22 +315,25 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
     #[cfg(target_os = "linux")]
     {
         let env = collect_linux_env_summary();
-        let linux_json = redact_sensitive_paths(&format!(
+        let jstr = |s: &str| {
+            serde_json::to_string(&redact_sensitive_paths(s)).unwrap_or_else(|_| "\"\"".into())
+        };
+        let linux_json = format!(
             "{{\n  \"os\": {},\n  \"glibc\": {},\n  \"session\": {},\n  \"desktop\": {},\n  \"lsm\": {},\n  \"ibus_found\": {},\n  \"fcitx5_found\": {},\n  \"settings_backend\": {},\n  \"ibus_running\": {},\n  \"fcitx5_running\": {},\n  \"env_d_present\": {},\n  \"el8_system_cache\": {},\n  \"el8_autostart\": {}\n}}\n",
-            serde_json::to_string(&env.os_pretty).unwrap_or_else(|_| "\"\"".into()),
-            serde_json::to_string(&env.glibc).unwrap_or_else(|_| "\"\"".into()),
-            serde_json::to_string(&env.session).unwrap_or_else(|_| "\"\"".into()),
-            serde_json::to_string(&env.desktop).unwrap_or_else(|_| "\"\"".into()),
-            serde_json::to_string(&env.lsm).unwrap_or_else(|_| "\"\"".into()),
+            jstr(&env.os_pretty),
+            jstr(&env.glibc),
+            jstr(&env.session),
+            jstr(&env.desktop),
+            jstr(&env.lsm),
             env.ibus_found,
             env.fcitx5_found,
-            serde_json::to_string(&env.settings_backend).unwrap_or_else(|_| "\"\"".into()),
+            jstr(&env.settings_backend),
             env.ibus_running,
             env.fcitx5_running,
             env.env_d_present,
             env.el8_system_cache,
             env.el8_autostart,
-        ));
+        );
         zip_entries.push(("linux_env.json".to_string(), linux_json.into_bytes()));
     }
 
@@ -514,7 +513,7 @@ struct LinuxEnvSummary {
     el8_autostart: bool,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 fn detect_linux_glibc() -> String {
     extern "C" {
         fn gnu_get_libc_version() -> *const std::os::raw::c_char;
@@ -527,6 +526,11 @@ fn detect_linux_glibc() -> String {
             std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
         }
     }
+}
+
+#[cfg(all(target_os = "linux", not(target_env = "gnu")))]
+fn detect_linux_glibc() -> String {
+    "non-glibc".into()
 }
 
 #[cfg(target_os = "linux")]
@@ -631,7 +635,7 @@ fn collect_linux_env_summary() -> LinuxEnvSummary {
                         settings_backend = "lỗi ABI (thiếu GTK3/GTK4)".into();
                     }
                 } else {
-                    settings_backend = "OK".into();
+                    settings_backend = "lỗi thực thi".into();
                 }
             }
         }

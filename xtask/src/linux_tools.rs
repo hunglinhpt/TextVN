@@ -234,6 +234,8 @@ fn parse_ver_tuple(s: &str) -> Option<(u32, u32, u32)> {
 struct ElfAbiInfo {
     glibc_versions: Vec<(u32, u32, u32)>,
     glibcxx_versions: Vec<(u32, u32, u32)>,
+    cxxabi_versions: Vec<(u32, u32, u32)>,
+    unknown_abi_tags: Vec<String>,
     has_glibc_private: bool,
     has_glibcxx_private: bool,
     has_gnu_stack: bool,
@@ -378,10 +380,21 @@ fn inspect_elf64_abi(buf: &[u8]) -> Result<ElfAbiInfo, String> {
                     } else if let Some(rest) = name.strip_prefix("GLIBC_") {
                         if let Some(v) = parse_ver_tuple(rest) {
                             info.glibc_versions.push(v);
+                        } else {
+                            // Fail-closed cho tag phi-tuple (vd. GLIBC_ABI_DT_RELR yêu cầu glibc >= 2.36).
+                            info.unknown_abi_tags.push(name.to_string());
                         }
                     } else if let Some(rest) = name.strip_prefix("GLIBCXX_") {
                         if let Some(v) = parse_ver_tuple(rest) {
                             info.glibcxx_versions.push(v);
+                        } else {
+                            info.unknown_abi_tags.push(name.to_string());
+                        }
+                    } else if let Some(rest) = name.strip_prefix("CXXABI_") {
+                        if let Some(v) = parse_ver_tuple(rest) {
+                            info.cxxabi_versions.push(v);
+                        } else {
+                            info.unknown_abi_tags.push(name.to_string());
                         }
                     }
                 }
@@ -404,16 +417,21 @@ fn inspect_elf64_abi(buf: &[u8]) -> Result<ElfAbiInfo, String> {
     info.glibc_versions.dedup();
     info.glibcxx_versions.sort_unstable();
     info.glibcxx_versions.dedup();
+    info.cxxabi_versions.sort_unstable();
+    info.cxxabi_versions.dedup();
+    info.unknown_abi_tags.sort_unstable();
+    info.unknown_abi_tags.dedup();
     Ok(info)
 }
 
-/// CLI: `cargo xtask check-elf-abi [--max-glibc <X.Y>] [--max-glibcxx <X.Y.Z>] <elf>...`
-/// Gate E67/E68: bảo đảm binary Linux phát hành tương thích đúng trần glibc/GLIBCXX
-/// (EL8 glibc 2.28; compat GTK4/Fcitx5 glibc 2.35 + GLIBCXX 3.4.30) và có
+/// CLI: `cargo xtask check-elf-abi [--max-glibc <X.Y>] [--max-glibcxx <X.Y.Z>] [--max-cxxabi <X.Y.Z>] <elf>...`
+/// Gate E67/E68: bảo đảm binary Linux phát hành tương thích đúng trần glibc/GLIBCXX/CXXABI
+/// (EL8 glibc 2.28; compat GTK4/Fcitx5 glibc 2.35 + GLIBCXX 3.4.30 + CXXABI 1.3.13) và có
 /// `PT_GNU_STACK` không thực thi (SELinux `execstack`).
 pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
     let mut max_glibc = (2u32, 28u32, 0u32);
     let mut max_glibcxx: Option<(u32, u32, u32)> = None;
+    let mut max_cxxabi: Option<(u32, u32, u32)> = None;
     let mut files: Vec<&str> = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -433,14 +451,26 @@ pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
                     .ok_or_else(|| format!("phiên bản GLIBCXX không hợp lệ: {val}"))?,
             );
             i += 2;
+        } else if args[i] == "--max-cxxabi" {
+            let val = args
+                .get(i + 1)
+                .ok_or("--max-cxxabi cần giá trị kiểu X.Y.Z (ví dụ 1.3.13)")?;
+            max_cxxabi = Some(
+                parse_ver_tuple(val)
+                    .ok_or_else(|| format!("phiên bản CXXABI không hợp lệ: {val}"))?,
+            );
+            i += 2;
         } else {
             files.push(&args[i]);
             i += 1;
         }
     }
+    if max_cxxabi.is_none() && max_glibcxx.is_some_and(|v| v <= (3, 4, 30)) {
+        max_cxxabi = Some((1, 3, 13));
+    }
     if files.is_empty() {
         return Err(
-            "cách dùng: cargo xtask check-elf-abi [--max-glibc 2.28] [--max-glibcxx 3.4.30] <elf>..."
+            "cách dùng: cargo xtask check-elf-abi [--max-glibc 2.28] [--max-glibcxx 3.4.30] [--max-cxxabi 1.3.13] <elf>..."
                 .into(),
         );
     }
@@ -461,10 +491,20 @@ pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
         if info.has_glibcxx_private {
             bad.push("GLIBCXX_PRIVATE".into());
         }
+        for tag in &info.unknown_abi_tags {
+            bad.push(tag.clone());
+        }
         if let Some(cap) = max_glibcxx {
             for &v in &info.glibcxx_versions {
                 if v > cap {
                     bad.push(format!("GLIBCXX_{}", format_ver_tuple(v)));
+                }
+            }
+        }
+        if let Some(cap) = max_cxxabi {
+            for &v in &info.cxxabi_versions {
+                if v > cap {
+                    bad.push(format!("CXXABI_{}", format_ver_tuple(v)));
                 }
             }
         }
@@ -761,6 +801,36 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err_cxx.contains("GLIBCXX_3.4.32"), "{err_cxx}");
+
+        let bad_relr = dir.join("bad_relr");
+        std::fs::write(
+            &bad_relr,
+            synthetic_elf64(&["GLIBC_2.28", "GLIBC_ABI_DT_RELR"], false),
+        )
+        .unwrap();
+        let err_relr = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.28".into(),
+            bad_relr.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_relr.contains("GLIBC_ABI_DT_RELR"), "{err_relr}");
+
+        let bad_cxxabi = dir.join("bad_cxxabi.so");
+        std::fs::write(
+            &bad_cxxabi,
+            synthetic_elf64(&["GLIBC_2.35", "GLIBCXX_3.4.30", "CXXABI_1.3.15"], false),
+        )
+        .unwrap();
+        let err_cxxabi = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.35".into(),
+            "--max-glibcxx".into(),
+            "3.4.30".into(),
+            bad_cxxabi.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_cxxabi.contains("CXXABI_1.3.15"), "{err_cxxabi}");
 
         let _ = std::fs::remove_dir_all(&dir);
     }
