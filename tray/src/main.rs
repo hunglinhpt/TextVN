@@ -306,12 +306,14 @@ fn is_process_elevated() -> bool {
 /// hoàn tất mãi mãi. Đòi thêm LanguageProfile HKLM cho cả VI và EN (khớp
 /// `machine_profile_metadata_ok` của CLI).
 #[cfg(windows)]
-fn machine_registration_present() -> bool {
+fn machine_registration_matches_dll(dll: &std::path::Path) -> bool {
     let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
     let com_ok = match read_registry_string(HKEY_LOCAL_MACHINE, &inproc) {
         Some(path) => {
             let trimmed = path.trim().trim_matches('"');
-            !trimmed.is_empty() && std::path::Path::new(trimmed).is_file()
+            !trimmed.is_empty()
+                && trimmed.eq_ignore_ascii_case(&dll.to_string_lossy())
+                && std::path::Path::new(trimmed).is_file()
         }
         None => false,
     };
@@ -416,7 +418,17 @@ fn offer_machine_registration_if_needed(store_channel: bool) {
     if textvn_tray::store_win::refuse_if_packaged("đăng ký phạm vi máy") {
         return;
     }
-    if machine_registration_present() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let dll = ["textvn-tsf.dll", "textvn_win_tsf.dll"]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|p| p.is_file());
+    if dll.as_deref().is_some_and(machine_registration_matches_dll) {
         return;
     }
     // Chỉ hỏi MỘT lần cho cả máy/người dùng — người dùng bấm Cancel thì tôn
@@ -431,12 +443,6 @@ fn offer_machine_registration_if_needed(store_channel: bool) {
             return;
         }
     }
-    let Ok(exe) = std::env::current_exe() else {
-        return;
-    };
-    let Some(dir) = exe.parent() else {
-        return;
-    };
     let cli = dir.join("textvn-cli.exe");
     if !cli.is_file() {
         return;

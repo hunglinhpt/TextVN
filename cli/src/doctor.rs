@@ -196,6 +196,9 @@ impl DoctorReport {
                 "chưa đăng ký"
             }
         );
+        if let Some(detail) = crate::register::tip_registration_summary() {
+            println!("  TIP detail  : {detail}");
+        }
         if let Some(taken) = self.ctrl_shift_taken {
             println!(
                 "  Ctrl+Shift  : {}",

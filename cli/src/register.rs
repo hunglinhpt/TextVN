@@ -409,6 +409,19 @@ pub fn layout_install_accepted(vi_ok: bool, en_ok: bool) -> bool {
     vi_ok || en_ok
 }
 
+/// E66: bản portable / per-user (`!is_machine_scope`) khi không dùng chung bản
+/// cài máy (`!activate_machine_for_user`) và API TSF không ghi được HKLM thì
+/// LUÔN phải ghi fallback `HKCU\Software\Microsoft\CTF\TIP` — không bỏ qua chỉ
+/// vì HKLM còn metadata từ một bản cài khác/cũ trên máy Win10/11 Enterprise.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn should_write_hkcu_ctf_fallback(
+    is_machine_scope: bool,
+    activate_machine_for_user: bool,
+    api_profiles_ok: bool,
+) -> bool {
+    !is_machine_scope && !activate_machine_for_user && !api_profiles_ok
+}
+
 /// Hive của LocalSystem/LocalService/NetworkService — không có người dùng gõ phím.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn is_service_profile_sid(sid: &str) -> bool {
@@ -1895,11 +1908,11 @@ mod win_impl {
             say("FAIL: đăng ký profile/category TSF phạm vi máy chưa hoàn tất");
             return 3;
         }
-        let machine_registered = machine_profile_metadata_ok();
-        let (profiles_ok, used_ctf_fallback) = if !api_profiles_ok && !machine_registered {
-            if scope == Scope::Machine {
-                return 3;
-            }
+        let (profiles_ok, used_ctf_fallback) = if should_write_hkcu_ctf_fallback(
+            scope == Scope::Machine,
+            activate_machine_for_user,
+            api_profiles_ok,
+        ) {
             (register_ctf_per_user("TextVN", &icon), true)
         } else {
             (true, false)
@@ -2451,6 +2464,45 @@ pub fn tip_registration_ok() -> bool {
     }
 }
 
+/// E66: tóm tắt scope COM (`HKCU`/`HKLM`), đường dẫn DLL và category `TIP_KEYBOARD`
+/// để `textvn-cli doctor` chẩn đoán nhanh trên mọi bản Windows 10/11 End-user & Enterprise.
+pub fn tip_registration_summary() -> Option<String> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+        let inproc = format!(r"Software\Classes\CLSID\{CLSID_STR}\InprocServer32");
+        let (scope, path) = match win_impl::reg_read_string(HKEY_CURRENT_USER, &inproc) {
+            Some(p) => ("HKCU", Some(p)),
+            None => match win_impl::reg_read_string(HKEY_LOCAL_MACHINE, &inproc) {
+                Some(p) => ("HKLM", Some(p)),
+                None => ("NONE", None),
+            },
+        };
+        let cat_key = ctf_category_keys(CAT_TIP_KEYBOARD)[0].clone();
+        let cat_ok = win_impl::reg_key_exists(HKEY_CURRENT_USER, &cat_key)
+            || win_impl::reg_key_exists(HKEY_LOCAL_MACHINE, &cat_key);
+        let dll_info = match path {
+            Some(p) => {
+                let state = if Path::new(&p).is_file() {
+                    "OK"
+                } else {
+                    "MISSING"
+                };
+                format!("{p} ({state})")
+            }
+            None => "chưa ghi InprocServer32".to_string(),
+        };
+        Some(format!(
+            "scope={scope} · dll={dll_info} · cat_keyboard={}",
+            if cat_ok { "OK" } else { "MISSING" }
+        ))
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
 /// Windows có đang giữ Ctrl + Shift cho việc đổi ngôn ngữ/bố cục bàn phím không
 /// (`HKCU\Keyboard Layout\Toggle`; thiếu `Layout Hotkey` = mặc định = Ctrl + Shift).
 /// Cùng quy tắc với `tray/src/hotkey.rs` (tray sửa được; doctor chỉ báo). `None` ngoài Windows.
@@ -2791,6 +2843,17 @@ mod tests {
         assert!(layout_install_accepted(true, false));
         assert!(layout_install_accepted(false, true));
         assert!(!layout_install_accepted(false, false));
+    }
+
+    /// E66: bản portable / per-user chạy song song trên máy Win10/11 Enterprise có sẵn
+    /// HKLM cũ vẫn phải ghi HKCU CTF fallback — chỉ bỏ qua khi dùng chung bản cài máy
+    /// (`activate_machine_for_user`) hoặc API TSF đã ghi thành công.
+    #[test]
+    fn e66_portable_writes_hkcu_ctf_fallback_even_with_stale_hklm() {
+        assert!(should_write_hkcu_ctf_fallback(false, false, false));
+        assert!(!should_write_hkcu_ctf_fallback(false, true, false));
+        assert!(!should_write_hkcu_ctf_fallback(false, false, true));
+        assert!(!should_write_hkcu_ctf_fallback(true, false, false));
     }
 
     /// R2-115: lệnh RunOnce dọn file khoá ≤ 260 ký tự (R2-94); rmdir không `/s`.

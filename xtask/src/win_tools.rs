@@ -227,8 +227,18 @@ fn is_crt_runtime_dll(name: &str) -> bool {
         || stem.starts_with("api-ms-win-crt-")
 }
 
+/// E66: `d2d1.dll`, `dwrite.dll`, `dwmapi.dll` PHẢI nạp lười lúc chạy
+/// (`LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)`) — không bao giờ link tĩnh
+/// vào PE (đặc biệt `textvn-tsf.dll` nạp vào mọi tiến trình Win10/11 Enterprise/VDI/sandbox).
+fn is_forbidden_eager_graphics_dll(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "d2d1.dll" | "dwrite.dll" | "dwmapi.dll"
+    )
+}
+
 /// CLI: `xtask check-pe-imports <files>...` — Err khi PE nào phụ thuộc
-/// VC++ runtime hoặc không đọc được.
+/// VC++ runtime, link tĩnh DLL đồ họa nặng (E66), hoặc không đọc được.
 pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
     if files.is_empty() {
         return Err("cách dùng: cargo xtask check-pe-imports <file.exe|file.dll> [...]".into());
@@ -249,21 +259,34 @@ pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
                 bad += 1;
             }
             Ok(dlls) => {
-                let hits: Vec<&str> = dlls
+                let crt_hits: Vec<&str> = dlls
                     .iter()
                     .map(String::as_str)
                     .filter(|d| is_crt_runtime_dll(d))
                     .collect();
-                if hits.is_empty() {
+                let gfx_hits: Vec<&str> = dlls
+                    .iter()
+                    .map(String::as_str)
+                    .filter(|d| is_forbidden_eager_graphics_dll(d))
+                    .collect();
+                if crt_hits.is_empty() && gfx_hits.is_empty() {
                     println!(
-                        "OK   {path}: {} DLL import, không có VC++ runtime",
+                        "OK   {path}: {} DLL import, không có VC++ runtime hay link tĩnh d2d1/dwrite/dwmapi",
                         dlls.len()
                     );
                 } else {
-                    println!(
-                        "FAIL {path}: phụ thuộc VC++ runtime {} — cần +crt-static",
-                        hits.join(", ")
-                    );
+                    if !crt_hits.is_empty() {
+                        println!(
+                            "FAIL {path}: phụ thuộc VC++ runtime {} — cần +crt-static",
+                            crt_hits.join(", ")
+                        );
+                    }
+                    if !gfx_hits.is_empty() {
+                        println!(
+                            "FAIL {path}: link tĩnh {} (E66) — phải nạp lười qua LoadLibraryExW(System32)",
+                            gfx_hits.join(", ")
+                        );
+                    }
                     bad += 1;
                 }
             }
@@ -273,7 +296,7 @@ pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "{bad} file phụ thuộc VC++ runtime hoặc không đọc được PE"
+            "{bad} file vi phạm kiểm tra PE imports (VC++ runtime / eager graphics DLL / lỗi đọc PE)"
         ))
     }
 }

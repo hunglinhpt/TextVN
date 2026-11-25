@@ -126,7 +126,7 @@ mod win {
     use super::*;
     use std::cell::RefCell;
 
-    use windows::core::{w, PCWSTR};
+    use windows::core::{s, w, Interface, GUID, HRESULT, PCWSTR};
     use windows::Win32::Foundation::{
         COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM,
     };
@@ -134,20 +134,18 @@ mod win {
         D2D1_ALPHA_MODE_PREMULTIPLIED, D2D1_COLOR_F, D2D1_PIXEL_FORMAT, D2D_RECT_F,
     };
     use windows::Win32::Graphics::Direct2D::{
-        D2D1CreateFactory, ID2D1DCRenderTarget, ID2D1Factory,
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        ID2D1DCRenderTarget, ID2D1Factory, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
+        D2D1_FACTORY_OPTIONS, D2D1_FACTORY_TYPE, D2D1_FACTORY_TYPE_SINGLE_THREADED,
         D2D1_FEATURE_LEVEL_DEFAULT, D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
         D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
     };
     use windows::Win32::Graphics::DirectWrite::{
-        DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat, DWRITE_FACTORY_TYPE_SHARED,
+        IDWriteFactory, IDWriteTextFormat, DWRITE_FACTORY_TYPE, DWRITE_FACTORY_TYPE_SHARED,
         DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_MEASURING_MODE_NATURAL, DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
         DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_LEADING,
     };
-    use windows::Win32::Graphics::Dwm::{
-        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
-    };
+    use windows::Win32::Graphics::Dwm::{DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
     use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
     use windows::Win32::Graphics::Gdi::{
         BeginPaint, CreateFontW, CreateSolidBrush, DeleteObject, DrawTextW, EndPaint, FillRect,
@@ -156,8 +154,9 @@ mod win {
         DT_SINGLELINE, DT_VCENTER, FF_DONTCARE, FW_NORMAL, HDC, MONITORINFO,
         MONITOR_DEFAULTTONEAREST, OUT_DEFAULT_PRECIS, PAINTSTRUCT, TRANSPARENT,
     };
-    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-    use windows::Win32::UI::HiDpi::GetDpiForWindow;
+    use windows::Win32::System::LibraryLoader::{
+        GetModuleHandleW, GetProcAddress, LoadLibraryExW, LOAD_LIBRARY_SEARCH_SYSTEM32,
+    };
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE,
         VIRTUAL_KEY,
@@ -172,6 +171,105 @@ mod win {
 
     const CLASS_NAME: PCWSTR = w!("TextVNTrayEmojiPopup");
 
+    /// E66: nạp động `GetDpiForWindow` (Win10 1607+) — Win10 1507/LTSB 2015 rơi về 96 DPI.
+    fn window_dpi_safe(hwnd: HWND) -> i32 {
+        type FnType = unsafe extern "system" fn(HWND) -> u32;
+        static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+        let f = *FN.get_or_init(|| unsafe {
+            let h = GetModuleHandleW(w!("user32.dll")).ok()?;
+            let p = GetProcAddress(h, s!("GetDpiForWindow"))?;
+            Some(std::mem::transmute::<
+                unsafe extern "system" fn() -> isize,
+                FnType,
+            >(p))
+        });
+        f.map_or(96, |call| unsafe { call(hwnd) }).max(96) as i32
+    }
+
+    /// E66: nạp lười `d2d1.dll` từ System32 chỉ khi mở Emoji Popup.
+    fn lazy_d2d1_create_factory() -> Option<ID2D1Factory> {
+        type FnType = unsafe extern "system" fn(
+            D2D1_FACTORY_TYPE,
+            *const GUID,
+            *const D2D1_FACTORY_OPTIONS,
+            *mut *mut core::ffi::c_void,
+        ) -> HRESULT;
+        static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+        let f = (*FN.get_or_init(|| unsafe {
+            let h = LoadLibraryExW(w!("d2d1.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32).ok()?;
+            let p = GetProcAddress(h, s!("D2D1CreateFactory"))?;
+            Some(std::mem::transmute::<
+                unsafe extern "system" fn() -> isize,
+                FnType,
+            >(p))
+        }))?;
+        let mut raw: *mut core::ffi::c_void = std::ptr::null_mut();
+        let hr = unsafe {
+            f(
+                D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                &ID2D1Factory::IID,
+                std::ptr::null(),
+                &mut raw,
+            )
+        };
+        if hr.is_ok() && !raw.is_null() {
+            Some(unsafe { ID2D1Factory::from_raw(raw) })
+        } else {
+            None
+        }
+    }
+
+    /// E66: nạp lười `dwrite.dll` từ System32 chỉ khi mở Emoji Popup.
+    fn lazy_dwrite_create_factory() -> Option<IDWriteFactory> {
+        type FnType = unsafe extern "system" fn(
+            DWRITE_FACTORY_TYPE,
+            *const GUID,
+            *mut *mut core::ffi::c_void,
+        ) -> HRESULT;
+        static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+        let f = (*FN.get_or_init(|| unsafe {
+            let h = LoadLibraryExW(w!("dwrite.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32).ok()?;
+            let p = GetProcAddress(h, s!("DWriteCreateFactory"))?;
+            Some(std::mem::transmute::<
+                unsafe extern "system" fn() -> isize,
+                FnType,
+            >(p))
+        }))?;
+        let mut raw: *mut core::ffi::c_void = std::ptr::null_mut();
+        let hr = unsafe { f(DWRITE_FACTORY_TYPE_SHARED, &IDWriteFactory::IID, &mut raw) };
+        if hr.is_ok() && !raw.is_null() {
+            Some(unsafe { IDWriteFactory::from_raw(raw) })
+        } else {
+            None
+        }
+    }
+
+    /// E66: bo góc Win11 qua `dwmapi.dll` nạp lười (Win10 bỏ qua êm).
+    fn lazy_dwm_round_corners(hwnd: HWND) {
+        type FnType =
+            unsafe extern "system" fn(HWND, u32, *const core::ffi::c_void, u32) -> HRESULT;
+        static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+        let Some(f) = *FN.get_or_init(|| unsafe {
+            let h = LoadLibraryExW(w!("dwmapi.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32).ok()?;
+            let p = GetProcAddress(h, s!("DwmSetWindowAttribute"))?;
+            Some(std::mem::transmute::<
+                unsafe extern "system" fn() -> isize,
+                FnType,
+            >(p))
+        }) else {
+            return;
+        };
+        let pref = DWMWCP_ROUND;
+        let _ = unsafe {
+            f(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE.0 as u32,
+                (&pref as *const _) as *const core::ffi::c_void,
+                std::mem::size_of_val(&pref) as u32,
+            )
+        };
+    }
+
     struct D2d {
         rt: ID2D1DCRenderTarget,
         emoji_fmt: IDWriteTextFormat,
@@ -182,8 +280,7 @@ mod win {
     impl D2d {
         fn new() -> Option<Self> {
             unsafe {
-                let d2d: ID2D1Factory =
-                    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, None).ok()?;
+                let d2d = lazy_d2d1_create_factory()?;
                 let props = D2D1_RENDER_TARGET_PROPERTIES {
                     r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
                     pixelFormat: D2D1_PIXEL_FORMAT {
@@ -196,7 +293,7 @@ mod win {
                     minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
                 };
                 let rt = d2d.CreateDCRenderTarget(&props).ok()?;
-                let dw: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED).ok()?;
+                let dw = lazy_dwrite_create_factory()?;
                 let emoji_fmt = dw
                     .CreateTextFormat(
                         w!("Segoe UI Emoji"),
@@ -287,7 +384,7 @@ mod win {
             unsafe {
                 let _ = GetCursorPos(&mut pt);
             }
-            let dpi = unsafe { GetDpiForWindow(p.hwnd) }.max(96) as i32;
+            let dpi = window_dpi_safe(p.hwnd);
             let w_px = (POPUP_WIDTH * dpi) / 96;
             let h_px = (POPUP_HEIGHT * dpi) / 96;
             let (x, y) = clamp_near_point(pt.x, pt.y, w_px, h_px);
@@ -354,13 +451,7 @@ mod win {
                 None,
             )
             .ok()?;
-            let pref = DWMWCP_ROUND;
-            let _ = DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_WINDOW_CORNER_PREFERENCE,
-                (&pref as *const _) as *const std::ffi::c_void,
-                std::mem::size_of_val(&pref) as u32,
-            );
+            lazy_dwm_round_corners(hwnd);
             Some(hwnd)
         }
     }
@@ -433,7 +524,7 @@ mod win {
                 LRESULT(0)
             }
             WM_MOUSEMOVE => {
-                let dpi = GetDpiForWindow(hwnd).max(96) as i32;
+                let dpi = window_dpi_safe(hwnd);
                 let lx = ((lparam.0 as i16) as i32 * 96) / dpi;
                 let ly = (((lparam.0 >> 16) as i16) as i32 * 96) / dpi;
                 POPUP.with(|cell| {
@@ -462,7 +553,7 @@ mod win {
                 LRESULT(0)
             }
             WM_LBUTTONDOWN => {
-                let dpi = GetDpiForWindow(hwnd).max(96) as i32;
+                let dpi = window_dpi_safe(hwnd);
                 let lx = ((lparam.0 as i16) as i32 * 96) / dpi;
                 let ly = (((lparam.0 >> 16) as i16) as i32 * 96) / dpi;
                 let mut picked: Option<&'static str> = None;
@@ -500,7 +591,7 @@ mod win {
     }
 
     unsafe fn paint(hwnd: HWND, hdc: HDC, p: &PopupSlot) {
-        let dpi = GetDpiForWindow(hwnd).max(96) as i32;
+        let dpi = window_dpi_safe(hwnd);
         let rc = RECT {
             left: 0,
             top: 0,

@@ -29,9 +29,7 @@ use windows::Win32::Foundation::*;
 #[cfg(windows)]
 use windows::Win32::Graphics::Gdi::*;
 #[cfg(windows)]
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-#[cfg(windows)]
-use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
+use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
 #[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
@@ -229,14 +227,45 @@ fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
 
-/// DPI để ước lượng TRƯỚC khi có cửa sổ. Dùng `GetDpiForSystem` (thật theo
-/// phiên PerMonitorV2); `GetDeviceCaps(LOGPIXELSX)` chỉ là fallback vì trên
-/// máy có scaling theo màn hình nó trả system-DPI CŨ (96) — nguồn của lỗi
-/// "dialog mở trên màn 200%, hình học tính cho 96% → chữ to gấp đôi, bị cắt"
-/// (báo cáo chủ repo 2026-10-03, B9/B10).
+/// Nạp động `GetDpiForSystem` từ `user32.dll` (chỉ có từ Windows 10 1607 — E66):
+/// tránh lỗi loader `STATUS_ENTRYPOINT_NOT_FOUND` trên Windows 10 1507/1511/LTSB 2015.
+#[cfg(windows)]
+fn dynamic_get_dpi_for_system() -> u32 {
+    type FnType = unsafe extern "system" fn() -> u32;
+    static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+    let f = *FN.get_or_init(|| unsafe {
+        let h = GetModuleHandleW(w!("user32.dll")).ok()?;
+        let p = GetProcAddress(h, s!("GetDpiForSystem"))?;
+        Some(std::mem::transmute::<
+            unsafe extern "system" fn() -> isize,
+            FnType,
+        >(p))
+    });
+    f.map_or(0, |call| unsafe { call() })
+}
+
+/// Nạp động `GetDpiForWindow` từ `user32.dll` (Windows 10 1607+ — E66).
+#[cfg(windows)]
+fn dynamic_get_dpi_for_window(hwnd: HWND) -> u32 {
+    type FnType = unsafe extern "system" fn(HWND) -> u32;
+    static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+    let f = *FN.get_or_init(|| unsafe {
+        let h = GetModuleHandleW(w!("user32.dll")).ok()?;
+        let p = GetProcAddress(h, s!("GetDpiForWindow"))?;
+        Some(std::mem::transmute::<
+            unsafe extern "system" fn() -> isize,
+            FnType,
+        >(p))
+    });
+    f.map_or(0, |call| unsafe { call(hwnd) })
+}
+
+/// DPI để ước lượng TRƯỚC khi có cửa sổ. Dùng `GetDpiForSystem` (nạp động cho
+/// Win10 1607+ / Win11, PerMonitorV2); `GetDeviceCaps(LOGPIXELSX)` là fallback
+/// cho Win10 1507/1511/LTSB 2015 (B9/B10/E66).
 #[cfg(windows)]
 fn system_dpi() -> i32 {
-    let dpi = unsafe { GetDpiForSystem() } as i32;
+    let dpi = dynamic_get_dpi_for_system() as i32;
     if dpi > 0 {
         return dpi;
     }
@@ -259,7 +288,7 @@ fn system_dpi() -> i32 {
 /// control SAU khi cửa sổ được tạo (PerMonitorV2: DPI theo monitor).
 #[cfg(windows)]
 fn window_dpi(hwnd: HWND) -> i32 {
-    let dpi = unsafe { GetDpiForWindow(hwnd) } as i32;
+    let dpi = dynamic_get_dpi_for_window(hwnd) as i32;
     if dpi > 0 {
         dpi
     } else {

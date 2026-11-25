@@ -41,9 +41,7 @@ use windows::Win32::Foundation::*;
 #[cfg(windows)]
 use windows::Win32::Graphics::Gdi::*;
 #[cfg(windows)]
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-#[cfg(windows)]
-use windows::Win32::UI::HiDpi::GetDpiForWindow;
+use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
 #[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 #[cfg(windows)]
@@ -147,10 +145,27 @@ struct Metrics {
     btn_pad: i32,
 }
 
+/// Nạp động `GetDpiForWindow` từ `user32.dll` (Win10 1607+ — E66);
+/// Win10 1507/1511/LTSB 2015 rơi về 96 DPI không lỗi loader.
+#[cfg(windows)]
+fn window_dpi_safe(hwnd: HWND) -> u32 {
+    type FnType = unsafe extern "system" fn(HWND) -> u32;
+    static FN: std::sync::OnceLock<Option<FnType>> = std::sync::OnceLock::new();
+    let f = *FN.get_or_init(|| unsafe {
+        let h = GetModuleHandleW(w!("user32.dll")).ok()?;
+        let p = GetProcAddress(h, s!("GetDpiForWindow"))?;
+        Some(std::mem::transmute::<
+            unsafe extern "system" fn() -> isize,
+            FnType,
+        >(p))
+    });
+    f.map_or(96, |call| unsafe { call(hwnd) }).max(96)
+}
+
 #[cfg(windows)]
 fn metrics_for_hwnd(hwnd: HWND) -> Metrics {
-    // Panel luôn PerMonitorV2-aware qua manifest host; fail → 96 (như cũ).
-    let dpi = unsafe { GetDpiForWindow(hwnd) }.max(96);
+    // Panel luôn PerMonitorV2-aware qua manifest host; fail/Win10-1507 → 96.
+    let dpi = window_dpi_safe(hwnd);
     let s = |v: i32| (((v as i64) * (dpi as i64) + 48) / 96) as i32;
     Metrics {
         pad: s(PAD),

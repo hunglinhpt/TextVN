@@ -444,32 +444,36 @@ begin
     Result := False;
     Exit;
   end;
-  // Cai PER-USER ({autopf} = %LOCALAPPDATA%\Programs, khong elevation): dang ky
-  // per-user la du va dung — khong goi --scope machine (CLI tra exit 3 khi
-  // khong co quyen, truoc day lam toan bo nhanh per-user bao "Windows tu choi
-  // dang ky" va ep nguoi dung phai chay bang admin).
+  // Cai PER-USER ({autopf} = %LOCALAPPDATA%\Programs, khong elevation): goi truc
+  // tiep Exec (khong can ExecAsOriginalUser — tren Win10/11 Enterprise khi GPO
+  // han che token handoff, ExecAsOriginalUser co the fail du installer da chay o
+  // dung ngu canh user; E66).
   if not IsAdminInstallMode then
   begin
     ResultCode := -1;
-    Result := ExecAsOriginalUser(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
-      (ResultCode = 0);
+    Result := Exec(CliPath(), 'register --dll "' + ExpandConstant('{app}\textvn-tsf.dll') + '"', '',
+                   SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
     if not Result then
       Log(Format('TextVN per-user TSF registration failed (exit code %d).', [ResultCode]));
     Exit;
   end;
   ResultCode := -1;
-  Result := Exec(CliPath(), 'register --scope machine', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
-    (ResultCode = 0);
+  Result := Exec(CliPath(), 'register --scope machine --dll "' + ExpandConstant('{app}\textvn-tsf.dll') + '"', '',
+                 SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
   if not Result then
   begin
     Log(Format('TextVN machine TSF registration failed (exit code %d).', [ResultCode]));
     Exit;
   end;
+  // E66: tren Win10/11 Enterprise khi IT Admin nhap UAC cho user thuong (over-the-shoulder)
+  // hoac trien khai SCCM/Intune, buoc machine HKLM da thanh cong 100%, nhung ExecAsOriginalUser
+  // co the khong kich hoat duoc ngay trong token cua user. Ghi log canh bao va van cho mo
+  // TextVN.exe de tray tu kich hoat user profile ngay luc khoi dong (R2-25).
   ResultCode := -1;
-  Result := ExecAsOriginalUser(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
-    (ResultCode = 0);
-  if not Result then
-    Log(Format('TextVN user TSF activation failed (exit code %d).', [ResultCode]));
+  if not (ExecAsOriginalUser(CliPath(), 'register --dll "' + ExpandConstant('{app}\textvn-tsf.dll') + '"', '',
+                             SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0)) then
+    Log(Format('WARN (E66): machine TSF registration succeeded, but ExecAsOriginalUser activation returned %d; TextVN tray will complete per-user activation on first launch.', [ResultCode]));
+  Result := True;
 end;
 
 function RegistrationSucceeded(): Boolean;
@@ -505,9 +509,9 @@ begin
         // Inno Setup khong co 'SetErrorFlag' - ban truoc khong compile duoc.
         if not WizardSilent then
           SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
-            'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
-            'Xem %LOCALAPPDATA%\TextVN\logs\register.log de biet buoc loi. ' +
-            'Neu TSF profile bi chan boi chinh sach may, lien he quan tri vien.',
+            'TextVN chua duoc mo tu dong. Ban co the mo TextVN -> Bang dieu khien -> Huong dan -> [Cai & bat TSF] de xem nguyen nhan, ' +
+            'hoac dung bo cai cho moi nguoi dung TextVN-setup-*-windows-x64-machine.exe (Program Files, HKLM).' + #13#10 +
+            'Chi tiet: %LOCALAPPDATA%\TextVN\logs\register.log.',
             mbError, MB_OK, IDOK);
       end;
     end;
