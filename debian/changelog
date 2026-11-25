@@ -1,3 +1,23 @@
+textvn (0.2.89-0ppa1) noble; urgency=medium
+
+  * E69 — Automatic Linux dependency check & installer (`ibus`/`fcitx5`/`gtk3`/`gtk4`),
+    cross-OS conflicting IME detector, and 1-click diagnostic export across all 3 OSes:
+    - Linux `install.sh`, `textvn-portable.sh`, and `scripts/install_linux.sh` detect
+      `apt`/`dnf`/`yum`/`zypper`/`pacman` & distro family, automatically pull and install
+      missing runtime/build dependencies (`--install-deps` or interactive `[Y/n]`) without
+      force-installing Fcitx5 on GNOME/IBus machines, and re-verify ABI after installation.
+    - Detects conflicting IMEs with specific error codes & exit instructions across Linux
+      (dual `ibus-daemon`+`fcitx5`, `fcitx` v4/`scim`/`uim`/`xvnkb`, `ibus-engine-unikey`/
+      `bamboo`/`bogo`/`teni`, Fcitx5 profile conflicts, `GTK_IM_MODULE`/`XMODIFIERS`
+      mismatch), Windows (`UniKey`/`EVKey`/`OpenKey`/`GoTiengViet`/`VietKey`), and macOS.
+    - Persistent G8-redacted Linux install diagnostic log (`install-diag.log`), upgraded
+      `textvn doctor` (`--report`, `--export auto`, `report_summary.md`, `register_tail.log`,
+      `install_diag_tail.log`, case-insensitive `USERPROFILE`/`HOME` redaction), and a
+      1-click `[Xuất log chẩn đoán]` button in the Help dialog on Windows, Linux GTK4/GTK3,
+      and macOS.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Wed, 25 Nov 2026 21:40:00 +0700
+
 textvn (0.2.88-0ppa1) noble; urgency=medium
 
   * E65 — Fixed Windows 11 Enterprise 23H2 portable TSF non-admin registration

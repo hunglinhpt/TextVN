@@ -7,6 +7,59 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.89] — 2026-11-25
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Tính năng mới & Sửa lỗi / Added, Changed & Fixed
+
+- **E69 — Tự động kiểm tra & cài phụ thuộc Linux (`ibus`/`fcitx5`/`gtk`), phát hiện xung đột bộ gõ cũ trên 3 OS & xuất gói log chẩn đoán 1 chạm**:
+  - **Tự động kiểm tra & kéo cài phụ thuộc Linux (`packaging/linux/textvn-common.sh`, `install.sh`, `textvn-portable.sh`, `scripts/install_linux.sh`)**:
+    - Kiểm tra đủ cả daemon lẫn ABI runtime cho `IBus` (`ibus-daemon` + `--check-abi`), `Fcitx5` (`fcitx5` + `textvn check-dlopen`), và `GTK` (`textvn-settings-gtk4`/`gtk3 --check-abi`).
+    - Tự nhận diện trình quản lý gói (`apt`, `dnf`, `yum`, `zypper`, `pacman`) và đúng họ distro (`el8`, `el9`, `fedora`, `suse`, `debian`, `arch`) để kéo đúng gói còn thiếu (hỗ trợ `--install-deps` tự cài không hỏi, `--no-install-deps` chỉ kiểm tra, hoặc hỏi `[Y/n]` tương tác qua `sudo`/`pkexec`), rồi kiểm lại ABI ngay sau khi cài — không bao giờ tự ý cài đè `fcitx5` lên máy GNOME đang dùng IBus.
+    - `scripts/install_linux.sh` cũng tự kiểm & cài các công cụ/header biên dịch thiếu (`cmake`, `pkg-config`, `ibus-devel`/`libibus-1.0-dev`, `gtk4-devel` fallback `gtk3-devel`).
+  - **Phát hiện xung đột bộ gõ cũ & hướng dẫn thoát cụ thể trên cả 3 hệ điều hành**:
+    - **Linux**: vượt giới hạn 15 ký tự của `/proc/<pid>/comm` + cô lập đúng UID và `DBUS_SESSION_BUS_ADDRESS`; phát hiện `[CONFLICT_DUAL_IM_DAEMON]` (`ibus-daemon` + `fcitx5` chạy song song), `[CONFLICT_LEGACY_IME]` (`fcitx` v4/`scim`/`uim`), `[CONFLICT_STANDALONE_VI_IME]` (`xvnkb`/`xvnhook`), `[CONFLICT_IBUS_VI_IME]` (`ibus-engine-unikey`/`bamboo`/`bogo`/`teni`), `[CONFLICT_FCITX5_VI_IME]` (`unikey`/`bamboo`/`m17n_vi_*` trong profile Fcitx5) và `[CONFLICT_IM_ENV_MISMATCH]` (lệch `GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS`) kèm lệnh thoát/sửa chính xác.
+    - **Windows**: kiểm tra an toàn không diệt/duyệt process list (`OpenMutexW` + `HKCU`/`HKLM\...\Run`) để phát hiện `UniKey`, `EVKey`, `OpenKey`, `GoTiengViet`, `VietKey` đang chạy hoặc tự khởi động (`W_CONFLICT_VI_IME`).
+    - **macOS**: phát hiện `OpenKey.app`, `EVKey.app`, `GoTiengViet.app` đã cài và nhắc thoát khỏi menu bar / tắt Accessibility khi dùng TextVN.
+  - **Cơ chế nhật ký chẩn đoán bền vững & nút 1 chạm `[Xuất log chẩn đoán]` (G8/S2 — không chứa chữ đã gõ)**:
+    - Linux ghi nhật ký cài đặt & xung đột ẩn PII vào `~/.local/state/TextVN/log/install-diag.log` (chống symlink, xoay vòng 256 KiB).
+    - Nâng cấp `textvn doctor` (`cli/src/doctor.rs`, `cli/src/main.rs`): cấu trúc `DiagnosticItem` gắn mã lỗi/cảnh báo + gợi ý xử lý, thu thập thông tin OS chi tiết (Windows Build/Edition, Linux kernel/glibc/pkg_mgr/LSM/IM env, macOS `SystemVersion.plist`), thêm cờ `--report` (báo cáo Markdown sẵn dán GitHub Issues) và `--export auto` xuất ZIP gồm `report_summary.md`, `version.json`, `system_info.json`, `config.redacted.json`, `linux_env.json`/`windows_env.json`/`macos_env.json`, `tsf_tail.log` (gồm `im-*.log` mới nhất trên macOS), `register_tail.log` (Windows) và `install_diag_tail.log` (Linux) — ẩn `USERPROFILE`/`HOME`/`USERNAME`/`USER`/`LOGNAME` không phân biệt hoa thường trên Windows/macOS.
+    - Thêm nút 1 chạm **`[Xuất log chẩn đoán]`** trong cửa sổ **Hướng dẫn** trên cả 3 hệ điều hành (`tray/src/settings_dialog.rs`, `adapters/linux-settings/src/settings_window.c`, `settings_window_gtk3.c`, `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift`), chạy ở luồng nền không treo UI.
+
+### Kiểm thử / Testing
+
+- Audit phản biện xử lý 10/10 phát hiện (15-char `/proc/<pid>/comm`, cô lập DBus/UID, strict-aliasing C `-O3 -Werror`, macOS `im-*.log`, Windows Registry `div_ceil(2)` + `ERROR_MORE_DATA`, redact `USERPROFILE`/`HOME` không phân biệt hoa thường, fallback `libgtk-3-dev`).
+- `textvn-cli`: **57 pass** (`e69_*`), `textvn-tray`: **85+3 pass** (parity `[Xuất log chẩn đoán]` 3 OS), `unit_e69_deps_conflicts_diag` trong `scripts/test-linux-package.sh`, `doctor --report/--export` trên toàn bộ 8 dòng distro Linux, Dream RSI (G19) giữ vững 22% (`72/318`, `36` accepts), REUSE 3.3 **1042/1042**, CI xanh **7/7 workflow** (`ci-linux` **8/8 job**).
+
+---
+
+**English** — 0.2.89:
+
+### Added, Changed & Fixed
+
+- **E69 — Automatic Linux Dependency Installer (`ibus`/`fcitx5`/`gtk`), Cross-OS Conflicting IME Detector & 1-Click 3-OS Diagnostic Export**:
+  - **Automatic Linux dependency check & installer (`packaging/linux/textvn-common.sh`, `install.sh`, `textvn-portable.sh`, `scripts/install_linux.sh`)**:
+    - Verifies both daemons and runtime ABIs for `IBus` (`ibus-daemon` + `--check-abi`), `Fcitx5` (`fcitx5` + `textvn check-dlopen`), and `GTK` (`textvn-settings-gtk4`/`gtk3 --check-abi`).
+    - Auto-detects the package manager (`apt`, `dnf`, `yum`, `zypper`, `pacman`) and distro family (`el8`, `el9`, `fedora`, `suse`, `debian`, `arch`) to pull the exact missing packages (`--install-deps` unattended, `--no-install-deps` check-only, or interactive `[Y/n]` prompt via `sudo`/`pkexec`) and re-verifies ABI afterward — without ever force-installing `fcitx5` onto a GNOME IBus machine.
+    - `scripts/install_linux.sh` also checks and installs missing build tools/headers (`cmake`, `pkg-config`, `ibus-devel`/`libibus-1.0-dev`, `gtk4-devel` falling back to `gtk3-devel`).
+  - **Cross-OS conflicting IME detection with explicit error codes & exit instructions**:
+    - **Linux**: handles >15-char process names beyond Linux `/proc/<pid>/comm` truncation and scopes checks to current UID and `DBUS_SESSION_BUS_ADDRESS`; detects `[CONFLICT_DUAL_IM_DAEMON]` (`ibus-daemon` + `fcitx5` running together), `[CONFLICT_LEGACY_IME]` (`fcitx` v4/`scim`/`uim`), `[CONFLICT_STANDALONE_VI_IME]` (`xvnkb`/`xvnhook`), `[CONFLICT_IBUS_VI_IME]` (`ibus-engine-unikey`/`bamboo`/`bogo`/`teni`), `[CONFLICT_FCITX5_VI_IME]` (`unikey`/`bamboo`/`m17n_vi_*` in Fcitx5 profile), and `[CONFLICT_IM_ENV_MISMATCH]` (`GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS` mismatch) with exact remediation commands.
+    - **Windows**: AV-safe detection (`OpenMutexW` + `HKCU`/`HKLM\...\Run`, zero process-list enumeration) catching `UniKey`, `EVKey`, `OpenKey`, `GoTiengViet`, and `VietKey` (`W_CONFLICT_VI_IME`).
+    - **macOS**: detects installed `OpenKey.app`, `EVKey.app`, and `GoTiengViet.app` with clear guidance to quit them before typing with TextVN.
+  - **Persistent diagnostic logging & 1-click `[Xuất log chẩn đoán]` across all 3 OSes (G8/S2 zero keylogging)**:
+    - Linux writes PII-redacted install/conflict events to `~/.local/state/TextVN/log/install-diag.log` (symlink-safe, 256 KiB rotation).
+    - Upgraded `textvn doctor` (`cli/src/doctor.rs`, `cli/src/main.rs`): structured `DiagnosticItem` entries with error codes and actionable fixes, detailed OS info (Windows Build/Edition, Linux kernel/glibc/pkg_mgr/LSM/IM env, macOS `SystemVersion.plist`), new `--report` (GitHub-ready Markdown) and `--export auto` producing a ZIP with `report_summary.md`, `version.json`, `system_info.json`, `config.redacted.json`, `linux_env.json`/`windows_env.json`/`macos_env.json`, `tsf_tail.log` (including newest macOS `im-*.log`), `register_tail.log` (Windows), and `install_diag_tail.log` (Linux) — with case-insensitive `USERPROFILE`/`HOME`/`USERNAME` redaction on Windows/macOS.
+    - Added a 1-click **`[Xuất log chẩn đoán]`** button inside the **Help (*Hướng dẫn*)** dialog on all 3 OSes (`tray/src/settings_dialog.rs`, `adapters/linux-settings/src/settings_window.c`, `settings_window_gtk3.c`, `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift`), running asynchronously off the UI thread.
+
+### Testing
+
+- Adversarial audit closed 10/10 findings (15-char `/proc/<pid>/comm`, DBus/UID scoping, C `-O3 -Werror` strict-aliasing, macOS `im-*.log`, Windows Registry `div_ceil(2)` + `ERROR_MORE_DATA`, case-insensitive `USERPROFILE`/`HOME` redaction, `libgtk-3-dev` fallback).
+- `textvn-cli`: **57 pass** (`e69_*`), `textvn-tray`: **85+3 pass** (3-OS `[Xuất log chẩn đoán]` parity), `unit_e69_deps_conflicts_diag` in `scripts/test-linux-package.sh`, `doctor --report/--export` verified across all 8 Linux distro families, Dream RSI (G19) steady at 22% (`72/318`, `36` accepts), REUSE 3.3 **1042/1042**, and **7/7 CI workflows** green (`ci-linux` **8/8 jobs**).
+
+---
+
 ## [0.2.88] — 2026-11-25
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3769,7 +3822,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...HEAD
+[0.2.89]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...v0.2.89
 [0.2.88]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...v0.2.88
 [0.2.87]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...v0.2.87
 [0.2.86]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...v0.2.86
