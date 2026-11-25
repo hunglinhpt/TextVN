@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "cli/src/main.rs": {
-    "mtime": 1795595068.4915888,
-    "seen": 1795614073.9107382,
-    "ast_hash": "8cfaad425ed83e1a99159f4a8e804a4b",
+    "mtime": 1795614831.3621342,
+    "seen": 1795617390.423474,
+    "ast_hash": "a92dab09cc898dd08a741ce29fdfe06e",
     "semantic_hash": ""
   },
   "cli/src/replay.rs": {
@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795595766.0081348,
-    "seen": 1795614073.9409585,
-    "ast_hash": "2e22fa08160da9abc1a9788afab708a2",
+    "mtime": 1795615549.629802,
+    "seen": 1795617390.456119,
+    "ast_hash": "4a273051c9fd32dd24ea3864b961fa73",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -858,9 +858,9 @@
     "semantic_hash": ""
   },
   "cli/src/doctor.rs": {
-    "mtime": 1795596640.7613554,
-    "seen": 1795614073.9107382,
-    "ast_hash": "24ec97750fc14021006d31638dd472ca",
+    "mtime": 1795616231.090798,
+    "seen": 1795617390.423474,
+    "ast_hash": "2672f96b09596186b9f8f480251f3597",
     "semantic_hash": ""
   },
   "tools/win/lib/win32-uia.lib.ps1": {
@@ -1044,9 +1044,9 @@
     "semantic_hash": ""
   },
   "tray/src/settings_dialog.rs": {
-    "mtime": 1795576826.2241056,
-    "seen": 1795577240.0063307,
-    "ast_hash": "eea9416cec6006553d0486077ef0c322",
+    "mtime": 1795615400.8803227,
+    "seen": 1795617390.4416397,
+    "ast_hash": "c298af3c67e350fec68612a7f71a9b4c",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/linux_common.h": {
@@ -1152,9 +1152,9 @@
     "semantic_hash": ""
   },
   "scripts/install_linux.sh": {
-    "mtime": 1795595363.3643577,
-    "seen": 1795614073.920942,
-    "ast_hash": "022e8a712968c6fa0b7d8f2efe2b2771",
+    "mtime": 1795616075.747027,
+    "seen": 1795617390.4351065,
+    "ast_hash": "c8455773f46ae7c6da87eb869f057f91",
     "semantic_hash": ""
   },
   "scripts/uninstall_linux.sh": {
@@ -1236,9 +1236,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-settings/src/settings_window.c": {
-    "mtime": 1795595165.7987454,
-    "seen": 1795614073.9007208,
-    "ast_hash": "a00bc3bc3450c982bf0898e8670fb640",
+    "mtime": 1795616091.192394,
+    "seen": 1795617390.4129267,
+    "ast_hash": "8c9e8f7565bf403bfa9104a432a058a2",
     "semantic_hash": ""
   },
   "adapters/linux-settings/src/settings_window.h": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
-    "mtime": 1795324499.6301785,
-    "seen": 1795324525.699334,
-    "ast_hash": "d3242cb7d7941e737a5fdc317a392f92",
+    "mtime": 1795616106.0703888,
+    "seen": 1795617390.4139223,
+    "ast_hash": "fed7681cb2479eb605114679b6e1e825",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNApp/main.swift": {
@@ -1608,21 +1608,21 @@
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
-    "mtime": 1795596587.5561867,
-    "seen": 1795614073.920942,
-    "ast_hash": "b31a6950f32b163d952b0b5f486f0c98",
+    "mtime": 1795614695.7375636,
+    "seen": 1795617390.4341083,
+    "ast_hash": "00576edd1105b90a64aaa74fdcc69eaf",
     "semantic_hash": ""
   },
   "packaging/linux/textvn-common.sh": {
-    "mtime": 1795596596.250908,
-    "seen": 1795614073.920942,
-    "ast_hash": "c9f897d3e927cfb227f60261105819ea",
+    "mtime": 1795616072.612633,
+    "seen": 1795617390.4341083,
+    "ast_hash": "4c534ca4bc237746312c824b7e14a0ec",
     "semantic_hash": ""
   },
   "packaging/linux/textvn-portable.sh": {
-    "mtime": 1795596839.2802315,
-    "seen": 1795614073.920942,
-    "ast_hash": "bf264debd17bd339287c6206eaf1edbb",
+    "mtime": 1795614704.4393284,
+    "seen": 1795617390.4341083,
+    "ast_hash": "26fef8c3678081cfa2b93fe788a942be",
     "semantic_hash": ""
   },
   "packaging/linux/uninstall.sh": {
@@ -1680,9 +1680,9 @@
     "semantic_hash": ""
   },
   "scripts/test-linux-package.sh": {
-    "mtime": 1795580333.413817,
-    "seen": 1795614073.9224463,
-    "ast_hash": "c8b6c4e7bb2a4c4a1dab81df238b8169",
+    "mtime": 1795615480.851017,
+    "seen": 1795617390.4351065,
+    "ast_hash": "e0f13efc4e07e2617f70dce95aa8f814",
     "semantic_hash": ""
   },
   "scripts/uninstall_macos.sh": {
@@ -1866,9 +1866,9 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1795610568.788081,
-    "seen": 1795614073.9409585,
-    "ast_hash": "9fb69dab7bba2fee1e1596bf9acf17a8",
+    "mtime": 1795616160.7295094,
+    "seen": 1795617390.456119,
+    "ast_hash": "681ff6f135143ebb45e7d17a167af56c",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
@@ -3420,15 +3420,15 @@
     "semantic_hash": ""
   },
   "adapters/linux-settings/src/settings_window_gtk3.c": {
-    "mtime": 1795579406.736031,
-    "seen": 1795614073.9007208,
-    "ast_hash": "66ba0c5e4ea49050cb2bcf416e6fe626",
+    "mtime": 1795616102.5076792,
+    "seen": 1795617390.4129267,
+    "ast_hash": "4b0b5aa71ac7f7eadc3caf328754ba39",
     "semantic_hash": ""
   },
   "packaging/linux/textvn-settings-launcher.sh": {
-    "mtime": 1795595351.1147566,
-    "seen": 1795614073.920942,
-    "ast_hash": "10c24845082678127ddc0cef796166bd",
+    "mtime": 1795614707.981092,
+    "seen": 1795617390.4341083,
+    "ast_hash": "48f0d3405d55cfb79d2551ec977e80d2",
     "semantic_hash": ""
   },
   "scripts/build-linux-compat.sh": {
@@ -3444,9 +3444,9 @@
     "semantic_hash": ""
   },
   "scripts/test-linux-distro-matrix.sh": {
-    "mtime": 1795600826.5995183,
-    "seen": 1795614073.9224463,
-    "ast_hash": "20f3a0c8348d223e40d2b0382e2c554a",
+    "mtime": 1795616080.4959323,
+    "seen": 1795617390.4351065,
+    "ast_hash": "8def3829a992f5beab0712a2b1f1bf8c",
     "semantic_hash": ""
   },
   "scripts/test-linux-el8-package.sh": {
