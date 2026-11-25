@@ -183,7 +183,7 @@ static bool performSelectionConvert(TextVNState *st) {
     if (!surrounding.isValid()) return false;
     const unsigned anchor = surrounding.anchor();
     const unsigned cursor = surrounding.cursor();
-    const std::string &text = surrounding.text();
+    const std::string text = surrounding.text();
     lc_selection_info info{};
     if (!lc_selection_slice(text.c_str(), cursor, anchor, kMaxTranscodeChars, &info)) {
         return false; /* không selection / trần / UTF-8 lỗi */

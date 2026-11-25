@@ -306,6 +306,11 @@ if [[ "$FW" == fcitx5 ]] && ! tv_fcitx5_abi_ok "$PKG_DIR"; then
     tv_err "Thử dùng IBus ('./textvn-portable.sh --ibus') hoặc dựng từ nguồn ('./scripts/install_linux.sh')."
     exit 1
 fi
+if [[ "$FW" == fcitx5 ]] && tv_fcitx5_is_kwin_wayland; then
+    tv_err "KDE Plasma Wayland đang quản lý Fcitx5 trực tiếp qua WAYLAND_SOCKET — bản portable không thể restart fcitx5 mà không ngắt bàn phím ảo."
+    tv_err "Hãy cài đặt bằng './install.sh' (hoặc dùng IBus: './textvn-portable.sh --ibus')."
+    exit 1
+fi
 
 prepare_runtime
 SETTINGS="$PKG_DIR/bin/textvn-settings"
@@ -388,11 +393,6 @@ if [[ "$FW" == ibus ]]; then
     fi
 else
     [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]] || { tv_err "Gói không có addon Fcitx5."; exit 1; }
-    if tv_fcitx5_is_kwin_wayland; then
-        tv_err "KDE Plasma Wayland đang quản lý Fcitx5 trực tiếp qua WAYLAND_SOCKET — bản portable không thể restart fcitx5 mà không ngắt bàn phím ảo."
-        tv_err "Hãy cài đặt bằng './install.sh' (hoặc dùng IBus: './textvn-portable.sh --ibus')."
-        exit 1
-    fi
     snapshot_portable_state fcitx5
     mkdir -p "$RUNTIME/data/fcitx5/addon" "$RUNTIME/data/fcitx5/inputmethod"
     cp "$PKG_DIR/share/fcitx5/addon/textvn.conf" "$RUNTIME/data/fcitx5/addon/"
