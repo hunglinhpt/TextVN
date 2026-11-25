@@ -256,12 +256,19 @@ int main(void) {
     g_signal_connect(ic, "update-auxiliary-text", G_CALLBACK(on_update_auxiliary), NULL);
     ibus_input_context_focus_in(ic);
 
-    /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s. */
+    /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s.
+     * E68: Fedora 41 (IBus 1.5.31) bật use-global-engine mặc định nên SetEngine trên IC
+     * bị từ chối — ưu tiên ibus_bus_set_global_engine trước, fallback SetEngine trên IC. */
     IBusEngineDesc *desc = NULL;
     for (int i = 0; i < 60 && !desc; ++i) {
-        ibus_input_context_set_engine(ic, "textvn");
+        ibus_bus_set_global_engine(bus, "textvn");
         pump();
         desc = ibus_input_context_get_engine(ic);
+        if (!desc || g_strcmp0(ibus_engine_desc_get_name(desc), "textvn") != 0) {
+            ibus_input_context_set_engine(ic, "textvn");
+            pump();
+            desc = ibus_input_context_get_engine(ic);
+        }
         if (desc && g_strcmp0(ibus_engine_desc_get_name(desc), "textvn") != 0) desc = NULL;
     }
     if (!desc) {

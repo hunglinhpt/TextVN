@@ -129,15 +129,14 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
         . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
         set +a
         local rc=0
-        ibus-daemon --panel=disable --xim=false --config=default --cache=refresh --replace --single --verbose >"$t/d.log" 2>&1 &
+        ibus-daemon --panel=disable --xim=false --config=default --cache=refresh --replace --single >"$t/d.log" 2>&1 &
         daemon_pid=$!
-        sleep 3
+        sleep 2
         "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
         if [[ $rc -ne 0 ]]; then
             echo "--- ibus list-engine ($DISTRO debug) ---"
-            ibus list-engine 2>&1 | head -n 40 || true
+            ibus list-engine 2>&1 | grep -i -C 1 textvn || true
             echo "--- IBUS_COMPONENT_PATH=$IBUS_COMPONENT_PATH ---"
-            cat "$pre/share/ibus/component/textvn.xml" 2>&1 || true
         fi
         ibus exit >/dev/null 2>&1 || true
         [[ -n "$daemon_pid" ]] && kill "$daemon_pid" 2>/dev/null || true
@@ -217,6 +216,18 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
             export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
             unset IBUS_COMPONENT_PATH FCITX_ADDON_DIRS
             mkdir -p "$t/x" "$XDG_CONFIG_HOME/fcitx5"
+            # E68: Fcitx5 5.0.x (Ubuntu 22.04 / Debian 12) mặc định gắn Ctrl+Shift vào
+            # EnumerateForwardKeys (đổi IM của Fcitx5 trước khi phím tới TextVN).
+            # Tắt phím đổi IM mặc định trong phiên test để e2e_fcitx5 kiểm đúng Ctrl+Shift của TextVN.
+            cat >"$XDG_CONFIG_HOME/fcitx5/config" <<'C'
+[Hotkey/EnumerateForwardKeys]
+
+[Hotkey/EnumerateBackwardKeys]
+
+[Hotkey/EnumerateGroupForwardKeys]
+
+[Hotkey/EnumerateGroupBackwardKeys]
+C
             cat >"$XDG_CONFIG_HOME/fcitx5/profile" <<'P'
 [Groups/0]
 Name=Default
