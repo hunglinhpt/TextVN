@@ -7,6 +7,135 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.88] — 2026-11-25
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Tính năng mới & Sửa lỗi / Added, Changed & Fixed
+
+- **E65 — Khắc phục bản Windows portable trên Windows 11 Enterprise 23H2 & nút `[Cài & bật TSF]` trong Hướng dẫn**:
+  - Sửa trình tự đăng ký TSF không cần admin trong `cli/src/register.rs`: cấp AppContainer ACL cho cả
+    `textvn-tsf-x86.dll`, ghi `GUID_TFCAT_TIP_KEYBOARD` vào HKCU cả trước lẫn sau `InstallLayoutOrTip`,
+    bổ sung fallback `ILOT_DEFPROFILE` → `flags = 0`, chấp nhận `vi-VN` hoặc `en-US` đạt và luôn ghi đủ
+    `ensure_modern_language_list()` / `Enable=1` / WOW64 trước khi báo lỗi.
+  - Bổ sung nút **`[Cài & bật TSF]`** ngay trong cửa sổ **Hướng dẫn** (giữ nguyên hàng 7 nút gọn của
+    Bảng điều khiển): chạy đăng ký & kích hoạt TSF trên luồng nền, phân tách rõ trạng thái `Activated` /
+    `RegisteredNeedsManualActivate` (B7 Win11 Enterprise 23H2/24H2+) / `Failed` kèm trích đoạn
+    `register.log` và khuyến nghị đúng nguyên nhân.
+  - Báo rõ ở khay hệ thống khi `ensure_tsf_tip_registered` lỗi và hiển thị thông báo khi cửa sổ cài đặt
+    bị UIPI chặn bởi phiên bản đang chạy quyền quản trị.
+- **E66 — Tương thích toàn dải Windows 10 (1507/LTSB–22H2) & Windows 11 (21H2–24H2) cho cả bản cài đặt & portable**:
+  - Chuyển `GetDpiForSystem`/`GetDpiForWindow` sang nạp động từ `user32.dll` (fallback `GetDeviceCaps`/96,
+    chạy mượt từ Windows 10 1507/LTSB 2015 không lỗi loader `0xC0000139`) và nạp lười `d2d1.dll`,
+    `dwrite.dll`, `dwmapi.dll` (`LOAD_LIBRARY_SEARCH_SYSTEM32`) chỉ khi mở Emoji Picker — xác nhận 0 link
+    tĩnh trong `textvn-tsf.dll` và `TextVN.exe` (tương thích hoàn toàn AppContainer & Enterprise VDI).
+  - Xử lý tình huống máy Enterprise đã có bản đăng ký HKLM cũ ở thư mục khác (`should_write_hkcu_ctf_fallback`,
+    `machine_registration_matches_dll`), khắc phục `ExecAsOriginalUser` khi IT Admin cài bằng UAC
+    over-the-shoulder trong `TextVN-setup.iss`, và mở rộng `textvn-cli doctor` hiển thị `TIP detail`.
+- **E67 — Tương thích trọn vẹn Red Hat Enterprise Linux 8.10 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8 (EL8)**:
+  - Dựng baseline EL8 (`scripts/build-linux-el8.sh` trong container `almalinux:8`, `glibc 2.28`, IBus 1.5.19,
+    GTK 3.22) cho `bin/textvn`, `textvn-ibus-engine` và `textvn-settings-gtk3`, đóng gói chung vào **một
+    tarball Linux x86_64 duy nhất** kèm trình khởi chạy `bin/textvn-settings` tự chọn GTK 4 hoặc GTK 3.
+  - Bổ sung giao diện bảng cài đặt GTK 3 đầy đủ 100% tính năng (`adapters/linux-settings/src/settings_window_gtk3.c`)
+    và tự fallback sang GTK 3 khi dựng từ mã nguồn trên hệ thống không có GTK 4.
+  - Khắc phục triệt để bug cache hệ thống của IBus 1.5.19 (`--cache=auto`) trên cả 3 chế độ:
+    `sudo ./install.sh --system` chạy `ibus write-cache --system` + `restorecon` SELinux; `./install.sh`
+    per-user tạo XDG autostart (`--wait-bus`) + gỡ sạch khi uninstall; `./textvn-portable.sh` hỗ trợ
+    **live-register** (`ibus_bus_register_component` + `--ready-file`) ngay trên GNOME Wayland không systemd
+    IBus unit (RHEL 8.10 GNOME 3.32 / Ubuntu 22.04 GNOME 42) mà không khởi động lại `ibus-daemon`.
+- **E68 — Một tarball đa distro duy nhất cho toàn bộ 8 dòng Linux doanh nghiệp & phổ thông + Ma trận E2E 6 container trong CI/Release**:
+  - Bổ sung `scripts/build-linux-compat.sh` (`ubuntu:22.04`, `≤ GLIBC_2.35`, `≤ GLIBCXX_3.4.30`, `≤ CXXABI_1.3.13`,
+    GTK 4.6, Fcitx5 5.0.14) cho `textvn-settings-gtk4` & `libtextvn-fcitx5.so`, kèm cổng kiểm ABI
+    `cargo xtask check-elf-abi --max-glibc --max-glibcxx --max-cxxabi` (fail-closed với non-tuple tags
+    như `GLIBC_ABI_DT_RELR`, bắt buộc NX-stack và `-Wl,-z,now`) áp cho cả 5 tệp ELF phát hành.
+  - Tách kiểm ABI IBus và Fcitx5 độc lập qua `textvn check-dlopen <path.so>` (`dlopen(RTLD_NOW)`): máy
+    **KDE / Fcitx5-only** không cài `libibus` cài đặt và chạy mượt mà; bảo vệ `WAYLAND_SOCKET` của KWin trên
+    KDE Plasma Wayland; quản lý khối `# BEGIN/END TextVN` trong `~/.xprofile` cho phiên X11/LightDM (Linux
+    Mint, Pop!_OS, Debian Xfce/MATE, SLES/openSUSE); ghi `Exec=` tuyệt đối trong `textvn-settings.desktop`;
+    sửa `lc_find_settings_binary` cho Fcitx5; tự chọn `C++17`/`C++20` theo phiên bản Fcitx5 khi build từ nguồn;
+    mở rộng `textvn doctor` trên Linux (OS, glibc, session/desktop, SELinux/AppArmor, IBus/Fcitx5, GTK4/GTK3,
+    `--json` và `linux_env.json` trong `--export` đã ẩn đường dẫn nhạy cảm trước khi mã hóa JSON).
+  - Kiểm thử E2E thực tế song song trên toàn bộ **8 dòng distro Linux**: `almalinux:8` (RHEL 8.10),
+    `almalinux:9` (RHEL 9), `opensuse/leap:15.6` (SLES 15 SP6), `ubuntu:22.04` (Ubuntu 22.04 / Mint 21),
+    `debian:12` (Debian 12 Bookworm), `ubuntu-24.04` (Ubuntu 24.04 LTS), `fedora:41` (Fedora 41 / RHEL 10
+    upstream) và `archlinux` (`ci-aur`) trong cả `ci-linux.yml` lẫn `release.yml`.
+
+### Kiểm thử / Testing
+
+- `cargo xtask check-elf-abi` (cả 5 tệp ELF phát hành) + 92 test `xtask` + 52 test `textvn-cli` + toàn bộ
+  workspace Rust pass 100%, Dream RSI (G19) giữ nguyên chuẩn 22% (`72/318`, `36` accepts), bảo mật G8 zero
+  keylogging xác nhận qua các lượt audit.
+- `ci-linux` & `release-candidate`: E2E container thật xanh 100% trên toàn bộ 8 dòng distro Linux
+  (`almalinux:8`, `almalinux:9`, `opensuse/leap:15.6`, `ubuntu:22.04`, `debian:12`, `ubuntu-24.04`,
+  `fedora:41`, `archlinux`) + `ci-windows` (portable + per-user + `-machine.exe` + MSIX sideload) +
+  `ci-macos` + `ci-shared` + `ci-deb` + `repo-hygiene` xanh 100%.
+
+---
+
+**English** — 0.2.88:
+
+### Added, Changed & Fixed
+
+- **E65 — Windows 11 Enterprise 23H2 Portable Fix & `[Cài & bật TSF]` Button in Help Dialog**:
+  - Fixed non-admin TSF registration ordering in `cli/src/register.rs`: grant AppContainer ACL on
+    `textvn-tsf-x86.dll` as well, write HKCU `GUID_TFCAT_TIP_KEYBOARD` both before and after
+    `InstallLayoutOrTip`, add `ILOT_DEFPROFILE` → `flags = 0` fallback, accept `vi-VN` or `en-US`
+    success, and always populate `ensure_modern_language_list()` / `Enable=1` / WOW64 before returning
+    any ILOT failure.
+  - Added a **`[Cài & bật TSF]`** button inside the **Help (*Hướng dẫn*)** dialog (keeping the main
+    7-button bar uncluttered): runs TSF register + activate on a background thread and reports
+    `Activated` / `RegisteredNeedsManualActivate` (Win11 Enterprise 23H2/24H2+ policy B7) / `Failed`
+    with `register.log` tail and targeted guidance.
+  - Surfaced interactive tray warnings when `ensure_tsf_tip_registered` fails and clear feedback when
+    a single-instance settings activation message is blocked by UIPI against an elevated instance.
+- **E66 — Full Windows 10 (1507/LTSB–22H2) & Windows 11 (21H2–24H2) End-User & Enterprise Compatibility**:
+  - Dynamically resolved `GetDpiForSystem`/`GetDpiForWindow` from `user32.dll` (fallback `GetDeviceCaps`/96,
+    eliminating loader `0xC0000139` on Windows 10 1507/1511/LTSB 2015) and lazy-loaded `d2d1.dll`,
+    `dwrite.dll`, and `dwmapi.dll` via `LOAD_LIBRARY_SEARCH_SYSTEM32` only when opening the Emoji Picker —
+    verified 0 static imports in `textvn-tsf.dll` and `TextVN.exe` (AppContainer & Enterprise VDI safe).
+  - Handled machines with stale HKLM registrations pointing to another directory
+    (`should_write_hkcu_ctf_fallback`, `machine_registration_matches_dll`), hardened `TextVN-setup.iss`
+    for per-user GPO environments and IT Admin UAC over-the-shoulder machine installs, and added `TIP detail`
+    diagnostics to `textvn-cli doctor`.
+- **E67 — Full Red Hat Enterprise Linux 8.10 / Rocky 8 / AlmaLinux 8 / Oracle Linux 8 (EL8) Compatibility**:
+  - Built the EL8 baseline (`scripts/build-linux-el8.sh` inside `almalinux:8`, `glibc 2.28`, IBus 1.5.19,
+    GTK 3.22) for `bin/textvn`, `textvn-ibus-engine`, and `textvn-settings-gtk3`, bundled into a **single
+    universal Linux x86_64 tarball** with a POSIX `bin/textvn-settings` launcher auto-selecting GTK 4 or GTK 3.
+  - Added a full 1:1 parity GTK 3 settings window (`adapters/linux-settings/src/settings_window_gtk3.c`)
+    and automatic CMake fallback to GTK 3 when building from source on systems without GTK 4.
+  - Completely resolved IBus 1.5.19's `--cache=auto` system-cache precedence bug across all 3 install modes:
+    `sudo ./install.sh --system` runs `ibus write-cache --system` + SELinux `restorecon`; per-user
+    `./install.sh` creates an XDG `--wait-bus` autostart cleanly removed by `uninstall.sh`; and
+    `./textvn-portable.sh` uses **live-register** (`ibus_bus_register_component` + `--ready-file`) on
+    non-systemd GNOME Wayland (RHEL 8.10 GNOME 3.32 / Ubuntu 22.04 GNOME 42) without restarting `ibus-daemon`.
+- **E68 — Single Universal Tarball Verified Across All 8 Enterprise & Mainstream Linux Distro Families**:
+  - Added `scripts/build-linux-compat.sh` (`ubuntu:22.04`, `≤ GLIBC_2.35`, `≤ GLIBCXX_3.4.30`, `≤ CXXABI_1.3.13`,
+    GTK 4.6, Fcitx5 5.0.14) for `textvn-settings-gtk4` & `libtextvn-fcitx5.so`, gated by
+    `cargo xtask check-elf-abi --max-glibc --max-glibcxx --max-cxxabi` (fail-closed on non-tuple tags like
+    `GLIBC_ABI_DT_RELR`, NX-stack, and `-Wl,-z,now`) across all 5 shipped ELFs.
+  - Decoupled IBus and Fcitx5 ABI verification via `textvn check-dlopen <path.so>` (`dlopen(RTLD_NOW)`):
+    **KDE / Fcitx5-only** machines without `libibus` install and run cleanly; protected KDE Plasma Wayland's
+    KWin `WAYLAND_SOCKET`; added managed `# BEGIN/END TextVN` blocks in `~/.xprofile` for X11/LightDM
+    (Linux Mint, Pop!_OS, Debian Xfce/MATE, SLES/openSUSE); wrote absolute `Exec=` paths in
+    `textvn-settings.desktop`; fixed `lc_find_settings_binary` for Fcitx5; auto-selected `C++17`/`C++20`
+    by Fcitx5 version; and expanded `textvn doctor` on Linux (OS, glibc, session/desktop, SELinux/AppArmor,
+    IBus/Fcitx5, GTK4/GTK3, `--json`, and per-field redacted `linux_env.json` inside `--export`).
+  - Added parallel 6-container E2E verification (`almalinux:8`, `almalinux:9`, `opensuse/leap:15.6`,
+    `ubuntu:22.04`, `debian:12`, `fedora:41`) alongside `ubuntu-24.04` and `archlinux` (`ci-aur`) gating
+    both `ci-linux.yml` and `release.yml`.
+
+### Testing
+
+- `cargo xtask check-elf-abi` (all 5 shipped ELFs) + 92 `xtask` unit tests + 52 `textvn-cli` tests + full
+  Rust workspace passing 100%, Dream RSI (G19) steady at 22% (`72/318`, `36` accepts), G8 zero keylogging
+  confirmed across adversarial audits.
+- `ci-linux` & `release-candidate`: real container E2E passing 100% on all 8 Linux distro families
+  (`almalinux:8`, `almalinux:9`, `opensuse/leap:15.6`, `ubuntu:22.04`, `debian:12`, `ubuntu-24.04`,
+  `fedora:41`, `archlinux`) plus `ci-windows`, `ci-macos`, `ci-shared`, `ci-deb`, and `repo-hygiene` 100% green.
+
+---
+
 ## [0.2.87] — 2026-11-24
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3640,7 +3769,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...HEAD
+[0.2.88]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...v0.2.88
 [0.2.87]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...v0.2.87
 [0.2.86]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...v0.2.86
 [0.2.85]: https://github.com/hunglinhpt/TextVN/compare/v0.2.84...v0.2.85

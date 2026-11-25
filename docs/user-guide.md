@@ -114,9 +114,27 @@ khỏi System Settings → Keyboard → Input Sources nếu còn. Bản cài qua
 > `.pkg`/`TextVN.app`: vào System Settings → Privacy & Security → **Open Anyway** (macOS 15
 > không còn cách click phải → Open).
 
-### Linux
+### Linux (Toàn bộ distro doanh nghiệp & phổ thông: RHEL 8.10/9 · SLES 15 · Ubuntu 22.04/24.04 · Debian 12 · Fedora 40–42 · Arch)
 
-Tải `TextVN-<phiên bản>-linux-x86_64.tar.gz`, giải nén:
+Từ bản **0.2.88**, một gói nén duy nhất `TextVN-<phiên bản>-linux-x86_64.tar.gz` chạy trực tiếp
+trên toàn bộ **8 dòng distro Linux x86_64** doanh nghiệp và phổ thông:
+
+| Dòng distro | Đại diện đã kiểm E2E trong CI | Framework & Giao diện tự chọn |
+|---|---|---|
+| **EL8** (glibc 2.28) | RHEL 8.10 · Rocky 8 · AlmaLinux 8 · Oracle Linux 8 | IBus 1.5.19+ · **GTK 3** (đầy đủ 100% tính năng) |
+| **EL9** (glibc 2.34) | RHEL 9 · Rocky 9 · AlmaLinux 9 · Oracle Linux 9 | IBus 1.5.25+ · **GTK 3** (tự fallback, SELinux `restorecon`) |
+| **SUSE Enterprise** | SLES 15 SP6 · openSUSE Leap 15.6 | IBus / Fcitx5 · **GTK 3** (`zypper`, `/usr/lib64`, `~/.xprofile`) |
+| **Ubuntu 22.04 LTS** | Ubuntu 22.04 · Linux Mint 21 · Pop!_OS 22.04 | IBus 1.5.26+ & **Fcitx5 5.0+** · **GTK 4** native (`~/.xprofile` X11/LightDM) |
+| **Debian 12** | Debian 12 Bookworm (GNOME / KDE / Xfce / MATE) | IBus 1.5.27+ & **Fcitx5 5.0+** · **GTK 4** native |
+| **Ubuntu 24.04 LTS** | Ubuntu 24.04 Noble | IBus 1.5.29+ & **Fcitx5 5.1+** · **GTK 4** native |
+| **Fedora / RHEL 10** | Fedora 40–42 Workstation (GNOME) & KDE Spin | IBus 1.5.31+ & **Fcitx5 5.1+** · **GTK 4** native (`/usr/lib64`, SELinux) |
+| **Arch Linux** | Arch Linux · Manjaro · EndeavourOS (`paru -S textvn`) | IBus & Fcitx5 · **GTK 4** native (build từ mã nguồn) |
+
+Trình khởi chạy `bin/textvn-settings` tự động chọn **GTK 4** trên distro hỗ trợ `glibc ≥ 2.35` + `libgtk-4`
+hoặc **GTK 3** trên RHEL 8/9, SLES 15 / openSUSE Leap 15.6. Máy chỉ dùng **KDE / Fcitx5** (không cài
+`libibus`) cài đặt và chạy portable trực tiếp mà không yêu cầu cài IBus.
+
+Tải `TextVN-<phiên bản>-linux-x86_64.tar.gz`, giải nén (luôn chạy trực tiếp script — **không** dùng `source` hay `.`):
 
 ```bash
 tar xzf TextVN-*-linux-x86_64.tar.gz
@@ -125,26 +143,42 @@ cd TextVN-*-linux-x86_64
 
 | Cách | Lệnh | Ghi chú |
 |---|---|---|
-| **Cài đặt** (khuyến nghị) | `./install.sh` | Cài vào `~/.local`, không cần root, dùng được ngay; tự thêm TextVN vào danh sách bộ gõ (GNOME, IBus, Fcitx5). Cho mọi người dùng: `sudo ./install.sh --system`. |
-| **Chạy ngay** | `./textvn-portable.sh` | Không cài gì; tắt bằng `./textvn-portable.sh stop` (đăng xuất cũng tự tắt). Thư mục giải nén có thể chỉ đọc. |
+| **Cài cho tài khoản** | `./install.sh` | Cài vào `~/.local`, không cần root; tự phát hiện & kiểm ABI độc lập cho IBus / Fcitx5, ghi đường dẫn tuyệt đối trong `textvn-settings.desktop`, tạo `~/.xprofile` cho phiên X11/LightDM (Mint, Pop!_OS, Xfce, SUSE), bảo vệ `WAYLAND_SOCKET` của KWin trên KDE Plasma Wayland, và trên RHEL 8.10 (IBus 1.5.19) tự tạo XDG autostart + live-register trên GNOME 3.32 Wayland. |
+| **Cài cho cả máy** *(khuyên dùng trên RHEL 8/9, SLES 15, Enterprise)* | `sudo ./install.sh --system` | Cài vào `/usr` (tự chọn `/usr/lib64` trên RHEL/Fedora/SUSE và `/usr/lib` trên Debian/Ubuntu/Arch), cập nhật `/var/cache/ibus/bus/registry` (`ibus write-cache --system`) và chuẩn hoá nhãn SELinux (`restorecon` cả `lib*` lẫn `share/`). Mọi tài khoản dùng ngay TextVN qua daemon gốc. |
+| **Chạy ngay (portable)** | `./textvn-portable.sh` | Không cài gì vào hệ thống; tự chọn IBus hoặc Fcitx5 theo ABI chạy được trên máy; trên GNOME Wayland (RHEL 8/9 / Ubuntu 22.04) tự bật **live-register** không khởi động lại `ibus-daemon` (không làm đóng terminal). *(Lưu ý KDE Plasma Wayland: KWin quản lý `fcitx5` qua `WAYLAND_SOCKET`, hãy dùng `./install.sh` thay vì portable).* Tắt sạch bằng `./textvn-portable.sh stop`. |
 
-Gỡ bản cài: `~/.local/share/textvn/uninstall.sh` (hoặc `sudo /usr/share/textvn/uninstall.sh`).
-Thêm `--purge` nếu muốn xoá cả cấu hình.
+Gỡ bản cài: `~/.local/share/textvn/uninstall.sh` (hoặc `sudo /usr/share/textvn/uninstall.sh`) — tự dọn
+sạch khối `# BEGIN TextVN` trong `~/.xprofile`, XDG autostart và cache IBus/desktop. Thêm `--purge`
+nếu muốn xoá cả cấu hình.
 
-Yêu cầu: IBus ≥ 1.5 hoặc Fcitx5 ≥ 5.0, glibc tương đương Ubuntu 24.04 trở lên cho bản dựng
-sẵn. **Ubuntu 22.04 LTS** (glibc 2.35): dựng trực tiếp từ mã nguồn cho IBus (không cài thêm `fcitx5`
-nếu đang dùng IBus/ibus-unikey mặc định của Ubuntu, luôn chạy trực tiếp `./scripts/install_linux.sh`
-— **không** dùng `source` hay `.`):
+**Yêu cầu runtime tối thiểu:**
+- **RHEL / Rocky / Alma / Oracle 8–9**: `sudo dnf install -y ibus ibus-libs gtk3`
+- **SLES 15 / openSUSE Leap 15.6**: `sudo zypper install -y ibus libgtk-3-0` (hoặc `fcitx5`)
+- **Ubuntu 22.04–24.04 / Mint 21 / Pop!_OS / Debian 12**: `sudo apt install -y ibus libibus-1.0-5` (hoặc `fcitx5`)
+- **Fedora 40–42**: `sudo dnf install -y ibus gtk4` (Workstation) hoặc `sudo dnf install -y fcitx5 gtk4` (KDE Spin)
+
+**Dựng từ mã nguồn** (nếu muốn tự biên dịch trên kiến trúc khác hoặc tuỳ chỉnh):
 
 ```bash
+# Ubuntu / Debian (chỉ cài gói IBus nếu máy đang dùng IBus / ibus-unikey — không cài đè fcitx5):
 sudo apt install cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev ibus dbus libdbus-1-dev
+./scripts/install_linux.sh
+
+# RHEL 8.10 / Rocky 8 / AlmaLinux 8 / RHEL 9 (CMake tự fallback sang GTK 3 khi máy không có GTK 4):
+# (RHEL 8: --enablerepo=codeready-builder-for-rhel-8-x86_64-rpms; Alma/Rocky 8: powertools; EL9: crb)
+sudo dnf --enablerepo=powertools install -y gcc make cmake pkgconf-pkg-config ibus-devel gtk3-devel ibus dbus-daemon
+./scripts/install_linux.sh
+
+# SLES 15 / openSUSE Leap 15.6 (CMake tự chọn C++17 cho Fcitx5 < 5.1.12 và GTK 3):
+sudo zypper install -y gcc-c++ cmake pkg-config ibus-devel gtk3-devel ibus
 ./scripts/install_linux.sh
 ```
 
-Nếu máy đã cài sẵn `ibus-unikey`: giữ nguyên IBus, đăng xuất và đăng nhập lại 1 lần (đặc biệt trên
-Ubuntu 22.04 GNOME Wayland để không ngắt kết nối `ibus-daemon` của phiên đang chạy), sau đó chọn
-**Vietnamese (TextVN)** bằng `Super + Space` (hoặc bỏ *Unikey* trong *Cài đặt → Bàn phím → Nguồn
-nhập* để tránh nhầm hai bộ gõ). Bảng điều khiển cần GTK 4.
+Nếu máy đã cài sẵn `ibus-unikey`: giữ nguyên IBus, đăng xuất và đăng nhập lại 1 lần (nếu chưa thấy trong
+menu), sau đó chọn **Vietnamese (TextVN)** bằng `Super + Space` (hoặc bỏ *Unikey* trong *Cài đặt → Bàn
+phím → Nguồn nhập* để tránh nhầm hai bộ gõ). Kiểm tra môi trường Linux (OS, glibc, session/desktop,
+SELinux/AppArmor, IBus/Fcitx5, GTK4/GTK3) nhanh bằng lệnh `textvn doctor` (hỗ trợ `--json` và xuất gói
+chẩn đoán an toàn không chứa chữ đã gõ: `textvn doctor --export diag.zip`).
 
 
 
@@ -350,9 +384,9 @@ chính xác gate nào đang chặn (**chỉ log cờ và số đếm — không 
 dung câu bạn gõ**):
 
 ```bash
-# IBus (Ubuntu/GNOME mặc định): chạy trực tiếp engine với log debug trong terminal riêng
-# (KHÔNG dùng `killall` hay `ibus-daemon --replace` trên GNOME Wayland 22.04)
-pkill -x -u "$(id -u)" textvn-ibus-engine 2>/dev/null || true
+# IBus (Ubuntu/RHEL/GNOME mặc định): chạy trực tiếp engine với log debug trong terminal riêng
+# (KHÔNG dùng `killall` hay `ibus-daemon --replace` trên GNOME Wayland; dùng `-f` vì /proc/comm giới hạn 15 ký tự)
+pkill -f -u "$(id -u)" 'textvn-ibus-engine' 2>/dev/null || true
 TEXTVN_ASSIST_DEBUG=1 "${HOME}/.local/lib/textvn/textvn-ibus-engine" --ibus &
 journalctl --user -f | grep "assist"
 ```
@@ -399,7 +433,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Windows: chọn TextVN xong vẫn gõ ra tiếng Anh/không ra chữ, hoặc TextVN không có trong Win+Space | (1) Win11 24H2+ có thể từ chối kích hoạt bộ gõ chỉ đăng ký cho tài khoản (HKCU) — bản cài cho tài khoản, portable và Store không tự xin UAC; (2) TextVN từng bị mất khỏi danh sách Win+Space sau nâng cấp liên tục. Cách xử lý: chạy **bộ cài cho mọi người dùng** `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần) — luồng `/ALLUSERS` được CI kiểm chứng đầy đủ; sau cài, đăng xuất/đăng nhập nếu vẫn chưa thấy. Kiểm tra nhanh: PowerShell `Get-WinUserLanguageList` phải thấy dòng chứa `{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}`. |
 | Windows: phần mềm diệt virus / SmartScreen cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Bản phát hành chưa có chữ ký Authenticode (đang chờ SignPath Foundation) — kiểm `checks.authenticode` trong `RELEASE_REPORT.json` của gói; tính toàn vẹn kiểm bằng chữ ký GPG/Sigstore (`release/signing.md`). Bản Store: gói được Microsoft ký, nhưng ở lần mở đầu app chép chương trình (chưa ký Authenticode) ra `%LOCALAPPDATA%\Programs\TextVN-Store` để đăng ký bộ gõ — Kaspersky từng cách ly các tệp này (2026-10-11); khôi phục từ khu cách ly + thêm ngoại lệ, và gửi báo nhầm theo `antivirus-false-positive.md` §10. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
-| Linux (Ubuntu 22.04 + IBus / `ibus-unikey`): đóng mất terminal khi chạy lệnh cài hoặc gõ trong `gnome-terminal` | (1) Không dùng `source` / `.` với `install.sh` hay `scripts/install_linux.sh` (từ 0.2.87 script đã chặn tự động); luôn chạy trực tiếp `./install.sh` hoặc `./scripts/install_linux.sh`. (2) Ubuntu 22.04 dùng glibc 2.35 nên bản tarball 24.04 không chạy được — `install.sh` từ 0.2.87 tự kiểm tra glibc trước khi đụng IBus; hãy dựng từ nguồn chỉ với gói IBus (không cài thêm `fcitx5` đè lên `ibus`). (3) Trên GNOME 42 Wayland (Ubuntu 22.04), TextVN không còn gọi `ibus-daemon --replace` làm đứt socket IM của `gnome-terminal` — chỉ cần đăng xuất/đăng nhập lại 1 lần rồi chọn **Vietnamese (TextVN)** thay cho *Unikey* trong *Cài đặt → Bàn phím → Nguồn nhập*. |
+| Linux (RHEL 8/9 · SLES 15 · Ubuntu 22.04/Mint · Debian 12 · Fedora 40–42): không chạy được hoặc đóng terminal | (1) Từ **0.2.88**, một tarball `TextVN-<ver>-linux-x86_64.tar.gz` duy nhất tương thích **glibc 2.28+** (EL8/EL9/SLES 15) với **GTK 3** tự động và **glibc 2.35+ / GLIBCXX 3.4.30** (Ubuntu 22.04+, Debian 12, Fedora 40–42) với **GTK 4 + Fcitx5 5.0+**; máy KDE Fcitx5-only không cần cài `libibus`. (2) Không dùng `source` / `.` với `install.sh` hay `scripts/install_linux.sh` (script tự chặn); luôn chạy trực tiếp `./install.sh` hoặc `sudo ./install.sh --system`. (3) Trên RHEL 8/9 & SLES 15 Enterprise, khuyến nghị `sudo ./install.sh --system` để cập nhật `/var/cache/ibus/bus/registry` và nhãn SELinux; trên KDE Plasma Wayland dùng `./install.sh` (để không đứt `WAYLAND_SOCKET` của KWin); trên GNOME Wayland không systemd unit, `./textvn-portable.sh` dùng chế độ **live-register** không restart `ibus-daemon`. (4) Chạy `textvn doctor` (hoặc `textvn doctor --json`) để kiểm tra OS, glibc, SELinux/AppArmor, IBus/Fcitx5 và biến môi trường. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
 | Windows: không thấy panel của Trợ lý ngữ pháp | (1) Bản ≤ 0.2.45 không neo được panel trong một số ứng dụng (Notepad Win11…) nên chỉ hiện toast "Phát hiện N lỗi" — bản sau 0.2.45 luôn hiện panel và **bỏ toast phát hiện** (R2-125/R2-126). (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** rồi hiện toast "Đã tự sửa…" (tối đa 1 lần/60 giây, do **TextVN.exe** ở khay hiển thị) — muốn thấy panel gợi ý, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ. Từ bản sau 0.2.45 bộ cài **tự quét bản cũ**: cài cho mọi người dùng tự gỡ bản cho tài khoản; cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ (cần quyền quản trị); nâng cấp tại chỗ dọn sạch file của bản cũ (giữ cài đặt và bộ gõ). |
@@ -424,8 +458,8 @@ file này không chứa nội dung bạn gõ.
 
 | Nền tảng | Trạng thái |
 |---|---|
-| Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho bộ cài, bản portable và gói MSIX (cài thử thật). Còn chờ chữ ký **Authenticode** qua SignPath Foundation (đang chờ duyệt) — trước đó SmartScreen/AV có thể cảnh báo. **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** từ 2026-10-11 (gói MSIX do Microsoft ký). |
-| Linux IBus / Fcitx5 | Bản thử nghiệm phát hành: tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; kiểm thử tự động với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. Chưa có `.deb`/`.rpm`. |
+| Windows 10/11 x64 (Home / Pro / Enterprise / LTSC — TSF) | Bản thử nghiệm phát hành (release candidate): tương thích toàn dải Windows 10 (1507–22H2) & Windows 11 (21H2–24H2) cả End-user lẫn Enterprise/LTSC; gõ thật qua TSF được kiểm thử tự động trên Windows cho bộ cài (per-user + `-machine.exe`), bản portable (có nút **[Cài & bật TSF]** trong Hướng dẫn) và gói MSIX. Còn chờ chữ ký **Authenticode** qua SignPath Foundation — trước đó SmartScreen/AV có thể cảnh báo. **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** từ 2026-10-11 (gói MSIX do Microsoft ký). |
+| Linux IBus / Fcitx5 (8 dòng distro doanh nghiệp & phổ thông) | Bản thử nghiệm phát hành: một tarball đa distro duy nhất (dual-baseline EL8 `glibc ≥ 2.28` + Ubuntu 22.04 `glibc 2.35 / GLIBCXX 3.4.30`, tự chọn bảng cài đặt GTK 4 hoặc GTK 3, hỗ trợ KDE Fcitx5-only), hỗ trợ `install.sh` (per-user hoặc `sudo --system`) và `textvn-portable.sh` (kể cả live-register trên GNOME Wayland); kiểm thử E2E tự động trong CI trên toàn bộ **8 dòng distro thật**: **RHEL 8.10 / AlmaLinux 8**, **RHEL 9 / AlmaLinux 9**, **SLES 15 / openSUSE Leap 15.6**, **Ubuntu 22.04 LTS / Mint 21**, **Debian 12 Bookworm**, **Ubuntu 24.04 LTS**, **Fedora 41 / RHEL 10 upstream** và **Arch Linux**. |
 | macOS 13+ (IMK) | Bản thử nghiệm phát hành: bộ gõ IMK, app menu bar, gói `.pkg`; CI build 2 kiến trúc và chạy test. **Chưa** ký Apple Developer ID/notarize — xem lưu ý Gatekeeper ở §1. |
 
 Mọi file phát hành (cả 3 nền tảng) đều có chữ ký GPG `.asc` + Sigstore `.cosign.sig`/`.cosign.cert`.

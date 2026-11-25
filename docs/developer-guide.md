@@ -121,7 +121,7 @@ swift test --arch x86_64          # x86_64 — chỉ trên máy Intel/Rosetta; r
 **Vấn đề đã biết (MAC-031)**: `Package.swift` dùng `String.components(separatedBy:)`
 thay `URL` vì `Foundation` không khả dụng trong `PackageDescription` scope trên Xcode 26.6+.
 
-### Linux (Ubuntu/Debian)
+### Linux (8 dòng distro doanh nghiệp & phổ thông: EL8 · EL9 · SLES 15 · Ubuntu 22.04/24.04 · Debian 12 · Fedora 41 · Arch)
 
 ```bash
 # Ubuntu mặc định dùng IBus (kể cả máy đang cài sẵn ibus / ibus-unikey — KHÔNG cài đè fcitx5):
@@ -130,9 +130,20 @@ sudo apt install cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev ibus db
 # (Tuỳ chọn) Chỉ cài thêm nếu bạn dùng Fcitx5 hoặc chạy full e2e cả 2 framework:
 # sudo apt install libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev fcitx5-modules fcitx5
 
-./scripts/install_linux.sh      # build từ nguồn rồi cài per-user (chạy trực tiếp, KHÔNG dùng `source`/`.`)
-./scripts/e2e-linux.sh          # build adapter + ctest + e2e IBus/Fcitx5 thật
-./scripts/build-linux.sh        # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha256)
+# RHEL 8.10 / Rocky 8 / AlmaLinux 8 / RHEL 9 (CMake tự fallback sang GTK 3 khi không có GTK 4):
+# sudo dnf --enablerepo=powertools install -y gcc make cmake pkgconf-pkg-config ibus-devel gtk3-devel ibus dbus-daemon
+
+# SLES 15 / openSUSE Leap 15.6 (CMake tự chọn C++17 cho Fcitx5 < 5.1.12 và GTK 3):
+# sudo zypper install -y gcc-c++ cmake pkg-config ibus-devel gtk3-devel ibus
+
+./scripts/install_linux.sh          # build từ nguồn rồi cài per-user (chạy trực tiếp, KHÔNG dùng `source`/`.`)
+./scripts/e2e-linux.sh              # build adapter + ctest + e2e IBus/Fcitx5 thật
+./scripts/build-linux-el8.sh        # dựng baseline glibc 2.28 + GTK3 trong container almalinux:8 (E67)
+./scripts/build-linux-compat.sh     # dựng baseline glibc 2.35 + GLIBCXX 3.4.30 (GTK4 + Fcitx5 5.0) trong ubuntu:22.04 (E68)
+./scripts/build-linux.sh --el8-dir target/linux-el8 --compat-dir target/linux-compat   # đóng gói tarball đa distro + gate check-elf-abi cả 5 ELF
+./scripts/test-linux-el8-package.sh dist/TextVN-*.tar.gz target/linux-el8/ibus/e2e_ibus  # E2E 5/5 trên AlmaLinux 8.10
+./scripts/test-linux-distro-matrix.sh <almalinux-9|opensuse-leap-15-6|ubuntu-22-04|debian-12|fedora-41> \
+  dist/TextVN-*.tar.gz target/linux-el8/ibus/e2e_ibus target/linux-compat/fcitx5/e2e_fcitx5  # E2E đa distro (E68)
 ```
 
 ## 3. Kiểm thử

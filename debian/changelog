@@ -1,3 +1,30 @@
+textvn (0.2.88-0ppa1) noble; urgency=medium
+
+  * E65 — Fixed Windows 11 Enterprise 23H2 portable TSF non-admin registration
+    ordering (AppContainer ACL on x86 DLL, HKCU TIP_KEYBOARD category written
+    before and after InstallLayoutOrTip, fallback flags=0, vi-VN/en-US accept)
+    and added an in-Help [Cài & bật TSF] button with register.log diagnostics.
+  * E66 — Full Windows 10 (1507/LTSB-22H2) and Windows 11 (21H2-24H2)
+    End-user & Enterprise compatibility: dynamic GetDpiForSystem/GetDpiForWindow
+    lookup, lazy-loaded d2d1/dwrite/dwmapi (0 static imports), stale HKLM
+    handling, and hardened TextVN-setup.iss for GPO and UAC over-the-shoulder.
+  * E67 — Full Red Hat Enterprise Linux 8.10 / Rocky 8 / AlmaLinux 8 / Oracle 8
+    compatibility: dual-baseline EL8 glibc 2.28 build, full-parity GTK 3
+    settings window (`settings_window_gtk3.c`), auto-selecting GTK4/GTK3
+    launcher, IBus 1.5.19 cache workaround (--system write-cache + per-user
+    XDG autostart + GNOME Wayland live-register without restarting ibus-daemon).
+  * E68 — Universal single Linux x86_64 tarball verified across all 8 major
+    enterprise & mainstream distro families (RHEL 8.10, RHEL 9, SLES 15 /
+    openSUSE Leap 15.6, Ubuntu 22.04 / Mint 21, Debian 12, Ubuntu 24.04,
+    Fedora 41, Arch): Ubuntu 22.04 compat baseline (glibc 2.35, GLIBCXX 3.4.30,
+    GTK 4.6, Fcitx5 5.0.14), `cargo xtask check-elf-abi --max-glibcxx`,
+    `textvn check-dlopen` for KDE Fcitx5-only machines without libibus, KWin
+    Wayland WAYLAND_SOCKET protection, managed ~/.xprofile block for X11/LightDM,
+    absolute Exec= in .desktop, auto C++17/C++20 selection, SELinux restorecon,
+    and expanded Linux `textvn doctor` (--json and redacted --export).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Wed, 25 Nov 2026 19:45:00 +0700
+
 textvn (0.2.87-0ppa1) noble; urgency=medium
 
   * E61 — Deep UniKey-style tone undo & VI/EN bilingual restore: repeating a
