@@ -269,6 +269,9 @@ jobs:
             image: ubuntu:20.04
           - label: Debian 11 Bullseye
             image: debian:11
+            # E71: Debian 11 hết LTS (2026-08) — pool debian-security trên deb.debian.org
+            # trả 404 trong khi index vẫn còn; gói thật chỉ còn ở archive.debian.org.
+            apt_archive: bullseye
     steps:
       - uses: actions/checkout@v4
         with:
@@ -280,6 +283,7 @@ jobs:
       - name: Run container smoke on ${{ matrix.label }}
         env:
           DISTRO_IMAGE: ${{ matrix.image }}
+          APT_ARCHIVE: ${{ matrix.apt_archive || '' }}
         run: |
           TARBALL_NAME="$(basename "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)")"
           docker run --rm \
@@ -287,8 +291,15 @@ jobs:
             -e TARBALL_NAME="$TARBALL_NAME" \
             -e HOST_UID="$(id -u)" \
             -e HOST_GID="$(id -g)" \
+            -e APT_ARCHIVE="$APT_ARCHIVE" \
             "$DISTRO_IMAGE" bash -euo pipefail -c '
               export DEBIAN_FRONTEND=noninteractive
+              if [[ -n "$APT_ARCHIVE" ]]; then
+                rm -f /etc/apt/sources.list.d/*
+                printf "deb http://archive.debian.org/debian %s main\ndeb http://archive.debian.org/debian-security %s-security main\n" \
+                  "$APT_ARCHIVE" "$APT_ARCHIVE" > /etc/apt/sources.list
+                echo "Acquire::Check-Valid-Until \"false\";" > /etc/apt/apt.conf.d/99textvn-archive
+              fi
               apt-get update -qq
               apt-get install -y -qq --no-install-recommends \
                 ibus libgtk-3-0 dbus dbus-x11 procps gawk dconf-cli xkb-data diffutils findutils tar gzip libdbus-1-3 ca-certificates >/dev/null
