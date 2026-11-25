@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 
+pub mod crash;
 pub mod doc;
 pub mod macro_text;
 

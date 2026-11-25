@@ -222,6 +222,21 @@ pub fn collect_report() -> DoctorReport {
         });
     }
 
+    if let Some(tail) = textvn_config::crash::default_log_dir()
+        .and_then(|d| textvn_config::crash::read_panic_log_tail(&d, 64 * 1024))
+    {
+        let n = count_panic_records(&tail);
+        if n > 0 {
+            diagnostics.push(DiagnosticItem {
+                code: "W_RECENT_PANIC",
+                severity: "warning",
+                category: "runtime",
+                message: format!("Có {n} bản ghi panic trong panic.log (ERR_PANIC)."),
+                suggestion: "Xuất gói chẩn đoán (`textvn-cli --export-log`) và đính kèm khi báo lỗi tại https://github.com/hunglinhpt/TextVN/issues — panic.log không chứa nội dung gõ (G8).".into(),
+            });
+        }
+    }
+
     #[cfg(target_os = "windows")]
     collect_windows_diagnostics(&mut diagnostics);
 
@@ -596,14 +611,18 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
     ));
 
     // 1. version.json
-    let version_info = format!(
-        "{{\n  \"app_version\": \"{}\",\n  \"abi_version\": {},\n  \"os\": \"{}\",\n  \"arch\": \"{}\",\n  \"build\": \"{}\"\n}}\n",
-        env!("CARGO_PKG_VERSION"),
-        report.abi_version,
-        std::env::consts::OS,
-        std::env::consts::ARCH,
-        if cfg!(debug_assertions) { "debug" } else { "release" }
-    );
+    let mut version_info = serde_json::to_string_pretty(&serde_json::json!({
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "abi_version": report.abi_version,
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "build": if cfg!(debug_assertions) { "debug" } else { "release" },
+        "git_sha": BUILD_GIT_SHA,
+        "target": BUILD_TARGET,
+        "distribution": current_distribution(),
+    }))
+    .unwrap_or_else(|_| "{}".into());
+    version_info.push('\n');
     zip_entries.push(("version.json".to_string(), version_info.into_bytes()));
 
     // 2. config.redacted.json — gõ tắt/emoji/từ điển là NỘI DUNG người dùng tự soạn
@@ -724,6 +743,13 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
             zip_entries.push(("hook_stats.json".to_string(), content));
         }
     }
+
+    // 4b. panic_tail.log (E70) — chỉ vị trí + ký hiệu backtrace, không payload động (G8).
+    let panic_tail = textvn_config::crash::default_log_dir()
+        .and_then(|d| textvn_config::crash::read_panic_log_tail(&d, 32 * 1024))
+        .map(|t| redact_sensitive_paths(&t))
+        .unwrap_or_else(|| "# Không có panic.log (chưa ghi nhận panic nào).\n".into());
+    zip_entries.push(("panic_tail.log".to_string(), panic_tail.into_bytes()));
 
     // 5. tsf_tail.log (200 dòng cuối từ log runtime — đã ẩn tên người dùng S2)
     let log_tail = redact_sensitive_paths(&collect_log_tail(200));
@@ -1006,6 +1032,152 @@ pub fn detect_windows_conflict_name(value: &str) -> Option<&'static str> {
     }
 }
 
+/// CLSID TIP TextVN (trùng `register::CLSID_STR`, viết hoa).
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub const TEXTVN_TIP_CLSID: &str = "{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+/// CLSID bộ gõ tiếng Việt có sẵn của Microsoft (Windows 10 2004+/11: "Vietnamese Telex" /
+/// "Vietnamese Number Key-Based") — kiểm chứng trên máy dev 2026-11-25 qua
+/// `HKLM\SOFTWARE\Microsoft\CTF\TIP\{C2CB2CF0-…}\LanguageProfile\0x0000042a`.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub const MS_VI_IME_CLSID: &str = "{C2CB2CF0-AF47-413E-9780-8BC3A3C16068}";
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+const MS_VI_TELEX_PROFILE: &str = "{5FB02EC5-0A77-4684-B4FA-DEF8A2195628}";
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+const MS_VI_VNI_PROFILE: &str = "{591AE943-56BE-48F6-8966-06B43915CC5A}";
+
+/// E70: từ danh sách tên giá trị trong `HKCU\Control Panel\International\User Profile\<lang>`
+/// (dạng `042A:{CLSID}{PROFILE}` = TIP; `042A:0000042A` = bố cục bàn phím thường), trả các
+/// bộ gõ TSF tiếng Việt (LANGID 0x042A) KHÁC TextVN đang được bật trong danh sách ngôn ngữ.
+/// Bố cục bàn phím thường (không có `{`) không phải bộ gõ → bỏ qua.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub fn detect_other_vi_tips(value_names: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in value_names {
+        let upper = name.trim().to_ascii_uppercase();
+        let Some(rest) = upper.strip_prefix("042A:") else {
+            continue;
+        };
+        // `get` (không cắt `[..38]`): tên giá trị có ký tự non-ASCII thì byte 38 có thể
+        // nằm giữa một ký tự UTF-8 → cắt trực tiếp sẽ panic (audit E70 vòng 1).
+        if !rest.starts_with('{') {
+            continue;
+        }
+        let Some(clsid) = rest.get(..38) else {
+            continue;
+        };
+        if clsid == TEXTVN_TIP_CLSID {
+            continue;
+        }
+        let label = if clsid == MS_VI_IME_CLSID {
+            let profile = rest.get(38..76).unwrap_or("");
+            if profile == MS_VI_TELEX_PROFILE {
+                "Microsoft Vietnamese Telex".to_string()
+            } else if profile == MS_VI_VNI_PROFILE {
+                "Microsoft Vietnamese Number Key-Based (VNI)".to_string()
+            } else {
+                "Microsoft Vietnamese IME".to_string()
+            }
+        } else {
+            format!("TSF tiếng Việt khác {clsid}")
+        };
+        if !out.contains(&label) {
+            out.push(label);
+        }
+    }
+    out
+}
+
+/// E70: từ output `defaults read com.apple.HIToolbox AppleEnabledInputSources` (plist ASCII),
+/// trả các bộ gõ tiếng Việt có sẵn của Apple đang bật (Telex / VNI / Simple Telex / VIQR).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn detect_apple_vi_input_sources(defaults_output: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw in
+        defaults_output.split(|c: char| c == '"' || c.is_whitespace() || c == ';' || c == '=')
+    {
+        let lower = raw.to_ascii_lowercase();
+        if !lower.starts_with("com.apple.inputmethod.vietnamese") {
+            continue;
+        }
+        let label = if lower.ends_with("simpletelex") {
+            "Apple Vietnamese Simple Telex"
+        } else if lower.ends_with("telex") {
+            "Apple Vietnamese Telex"
+        } else if lower.ends_with("vni") {
+            "Apple Vietnamese VNI"
+        } else if lower.ends_with("viqr") {
+            "Apple Vietnamese VIQR"
+        } else {
+            continue; // bundle id gốc `…VietnameseIM` không phải một chế độ gõ cụ thể
+        };
+        if !out.iter().any(|x| x == label) {
+            out.push(label.to_string());
+        }
+    }
+    out
+}
+
+/// E70: loại bản phân phối của binary đang chạy (để RCA khác biệt installer/portable/store).
+/// Thuần (nhận `exe_dir` + hàm kiểm tồn tại) để unit test được trên mọi OS.
+pub fn classify_distribution(
+    os: &str,
+    exe_dir: &str,
+    file_exists: &dyn Fn(&str) -> bool,
+) -> &'static str {
+    let norm = exe_dir.replace('\\', "/");
+    let lower = norm.to_ascii_lowercase();
+    match os {
+        "windows" => {
+            if lower.contains("/textvn-store/") || lower.contains("/windowsapps/") {
+                "store"
+            } else if file_exists(&format!("{norm}/unins000.exe")) {
+                if lower.contains("/program files") {
+                    "installer-machine"
+                } else {
+                    "installer-user"
+                }
+            } else {
+                "portable"
+            }
+        }
+        "macos" => {
+            if lower.contains(".app/contents/") {
+                "app-bundle"
+            } else {
+                "cli"
+            }
+        }
+        _ => {
+            if lower.starts_with("/usr/") || lower.starts_with("/opt/") {
+                "system-package"
+            } else if lower.contains("/.local/") {
+                "user-install"
+            } else {
+                "portable"
+            }
+        }
+    }
+}
+
+/// Mã commit lúc build (`build.rs` → `TEXTVN_GIT_SHA`).
+pub const BUILD_GIT_SHA: &str = env!("TEXTVN_GIT_SHA");
+/// Target triple lúc build (`build.rs` → `TEXTVN_BUILD_TARGET`).
+pub const BUILD_TARGET: &str = env!("TEXTVN_BUILD_TARGET");
+
+/// Loại bản phân phối của tiến trình hiện tại.
+pub fn current_distribution() -> &'static str {
+    let dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_string_lossy().into_owned()))
+        .unwrap_or_default();
+    classify_distribution(std::env::consts::OS, &dir, &|p| Path::new(p).is_file())
+}
+
+/// Số bản ghi panic trong `panic.log` (E70).
+pub fn count_panic_records(text: &str) -> usize {
+    text.matches("=== TextVN panic").count()
+}
+
 /// Chuẩn hoá hiển thị phiên bản Windows (Build >= 22000 → Windows 11).
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub fn format_windows_version(
@@ -1281,8 +1453,109 @@ fn collect_windows_env_summary() -> WindowsEnvSummary {
     }
 }
 
+/// E70: tên giá trị của mọi ngôn ngữ trong `HKCU\Control Panel\International\User Profile`.
+#[cfg(target_os = "windows")]
+fn enum_user_profile_value_names() -> Vec<String> {
+    use windows::core::{HSTRING, PWSTR};
+    use windows::Win32::Foundation::ERROR_NO_MORE_ITEMS;
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegEnumKeyExW, RegEnumValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
+    };
+    const ROOT: &str = r"Control Panel\International\User Profile";
+    let mut names = Vec::new();
+    unsafe {
+        let mut root = HKEY::default();
+        if RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            &HSTRING::from(ROOT),
+            Some(0),
+            KEY_READ,
+            &mut root,
+        )
+        .is_err()
+        {
+            return names;
+        }
+        let mut ki: u32 = 0;
+        while ki < 64 {
+            let mut kbuf = [0u16; 128];
+            let mut klen = kbuf.len() as u32;
+            let st = RegEnumKeyExW(
+                root,
+                ki,
+                Some(PWSTR(kbuf.as_mut_ptr())),
+                &mut klen,
+                None,
+                None,
+                None,
+                None,
+            );
+            if st == ERROR_NO_MORE_ITEMS || st.is_err() {
+                break;
+            }
+            ki += 1;
+            let lang = String::from_utf16_lossy(&kbuf[..(klen as usize).min(kbuf.len())]);
+            let mut sub = HKEY::default();
+            if RegOpenKeyExW(
+                root,
+                &HSTRING::from(lang.as_str()),
+                Some(0),
+                KEY_READ,
+                &mut sub,
+            )
+            .is_err()
+            {
+                continue;
+            }
+            let mut vi: u32 = 0;
+            while vi < 256 {
+                let mut nbuf = [0u16; 160];
+                let mut nlen = nbuf.len() as u32;
+                let st = RegEnumValueW(
+                    sub,
+                    vi,
+                    Some(PWSTR(nbuf.as_mut_ptr())),
+                    &mut nlen,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
+                if st == ERROR_NO_MORE_ITEMS {
+                    break;
+                }
+                vi += 1;
+                if st.is_err() {
+                    continue;
+                }
+                names.push(String::from_utf16_lossy(
+                    &nbuf[..(nlen as usize).min(nbuf.len())],
+                ));
+            }
+            let _ = RegCloseKey(sub);
+        }
+        let _ = RegCloseKey(root);
+    }
+    names
+}
+
 #[cfg(target_os = "windows")]
 fn collect_windows_diagnostics(diagnostics: &mut Vec<DiagnosticItem>) {
+    let vi_tips = detect_other_vi_tips(&enum_user_profile_value_names());
+    if !vi_tips.is_empty() {
+        diagnostics.push(DiagnosticItem {
+            code: "W_CONFLICT_VI_TIP",
+            severity: "warning",
+            category: "conflict",
+            message: format!(
+                "Bộ gõ tiếng Việt khác đang được bật trong danh sách ngôn ngữ Windows: {}",
+                vi_tips.join(", ")
+            ),
+            suggestion:
+                "Win+Space / Alt+Shift có thể chuyển sang bộ gõ này thay vì TextVN (gõ sai kiểu, phím V/E không phản hồi). Gỡ nó tại Cài đặt › Thời gian & ngôn ngữ › Ngôn ngữ & vùng › Tiếng Việt › Tùy chọn ngôn ngữ › Bàn phím › Xóa."
+                    .into(),
+        });
+    }
     let win = collect_windows_env_summary();
     if !win.conflicts.is_empty() {
         diagnostics.push(DiagnosticItem {
@@ -1363,6 +1636,27 @@ fn collect_macos_env_summary() -> MacOsEnvSummary {
 
 #[cfg(target_os = "macos")]
 fn collect_macos_diagnostics(diagnostics: &mut Vec<DiagnosticItem>) {
+    let apple_vi = std::process::Command::new("/usr/bin/defaults")
+        .args(["read", "com.apple.HIToolbox", "AppleEnabledInputSources"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| detect_apple_vi_input_sources(&String::from_utf8_lossy(&o.stdout)))
+        .unwrap_or_default();
+    if !apple_vi.is_empty() {
+        diagnostics.push(DiagnosticItem {
+            code: "W_CONFLICT_APPLE_VI_IM",
+            severity: "warning",
+            category: "conflict",
+            message: format!(
+                "Bộ gõ tiếng Việt có sẵn của macOS đang bật song song: {}",
+                apple_vi.join(", ")
+            ),
+            suggestion:
+                "Ctrl+Space / Fn có thể chuyển sang bộ gõ Apple thay vì TextVN. Gỡ nó tại System Settings › Keyboard › Text Input › Edit… › chọn bộ gõ Vietnamese của Apple › nút −."
+                    .into(),
+        });
+    }
     let mac = collect_macos_env_summary();
     if !mac.conflicts.is_empty() {
         diagnostics.push(DiagnosticItem {
@@ -2270,6 +2564,157 @@ mod tests {
         assert_eq!(
             parse_plist_string_value(xml, "ProductBuildVersion").as_deref(),
             Some("24B83")
+        );
+    }
+
+    #[test]
+    fn e70_detect_other_vi_tips_from_user_profile_values() {
+        // Giá trị thật đọc trên máy dev Windows 11 (2026-11-25): TextVN + Microsoft Telex.
+        let names: Vec<String> = [
+            "0409:00000409",
+            "0409:{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}",
+            "042A:{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}",
+            "042A:{C2CB2CF0-AF47-413E-9780-8BC3A3C16068}{5FB02EC5-0A77-4684-B4FA-DEF8A2195628}",
+            "CachedLanguageName",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(
+            detect_other_vi_tips(&names),
+            vec!["Microsoft Vietnamese Telex".to_string()]
+        );
+        // VNI + bố cục 042A:0000042A (không phải bộ gõ) + chữ thường + TIP lạ.
+        let names: Vec<String> = [
+            "042A:0000042A",
+            "042a:{c2cb2cf0-af47-413e-9780-8bc3a3c16068}{591ae943-56be-48f6-8966-06b43915cc5a}",
+            "042A:{11111111-2222-3333-4444-555555555555}{66666666-7777-8888-9999-000000000000}",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let got = detect_other_vi_tips(&names);
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert_eq!(got[0], "Microsoft Vietnamese Number Key-Based (VNI)");
+        assert!(got[1].contains("{11111111-2222-3333-4444-555555555555}"));
+        // Tên giá trị lạ có ký tự non-ASCII quanh byte 38 → bỏ qua, không panic.
+        let odd: Vec<String> = vec![
+            "042A:{ĐĐĐĐĐĐĐĐĐĐĐĐĐĐĐĐĐĐĐ}".into(),
+            "042A:{".into(),
+            "042A:".into(),
+        ];
+        assert!(detect_other_vi_tips(&odd).iter().all(|s| s.contains("TSF")));
+        // Chỉ TextVN → không cảnh báo.
+        let only: Vec<String> = vec![
+            "042A:{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}"
+                .into(),
+        ];
+        assert!(detect_other_vi_tips(&only).is_empty());
+    }
+
+    #[test]
+    fn e70_detect_apple_vi_input_sources() {
+        let out = r#"(
+        {
+        InputSourceKind = "Keyboard Layout";
+        "KeyboardLayout ID" = 0;
+        "KeyboardLayout Name" = "U.S.";
+    },
+        {
+        "Bundle ID" = "com.apple.inputmethod.VietnameseIM";
+        InputSourceKind = "Keyboard Input Method";
+    },
+        {
+        "Bundle ID" = "com.apple.inputmethod.VietnameseIM";
+        "Input Mode" = "com.apple.inputmethod.VietnameseSimpleTelex";
+        InputSourceKind = "Input Mode";
+    },
+        {
+        "Bundle ID" = "com.apple.inputmethod.VietnameseIM";
+        "Input Mode" = "com.apple.inputmethod.VietnameseVNI";
+        InputSourceKind = "Input Mode";
+    },
+        {
+        "Bundle ID" = "com.hunglinhpt.inputmethod.TextVN";
+        InputSourceKind = "Keyboard Input Method";
+    }
+)"#;
+        assert_eq!(
+            detect_apple_vi_input_sources(out),
+            vec![
+                "Apple Vietnamese Simple Telex".to_string(),
+                "Apple Vietnamese VNI".to_string()
+            ]
+        );
+        assert!(detect_apple_vi_input_sources(
+            "( { \"Bundle ID\" = \"com.apple.keylayout.US\"; } )"
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn e70_classify_distribution_all_os() {
+        let none = |_: &str| false;
+        let unins = |p: &str| p.ends_with("/unins000.exe");
+        assert_eq!(
+            classify_distribution("windows", r"D:\Tools\Gõ Việt\TextVN", &none),
+            "portable"
+        );
+        assert_eq!(
+            classify_distribution("windows", r"C:\Program Files\TextVN", &unins),
+            "installer-machine"
+        );
+        assert_eq!(
+            classify_distribution(
+                "windows",
+                r"C:\Users\a\AppData\Local\Programs\TextVN",
+                &unins
+            ),
+            "installer-user"
+        );
+        assert_eq!(
+            classify_distribution(
+                "windows",
+                r"C:\Users\a\AppData\Local\Programs\TextVN-Store\0.2.90",
+                &unins
+            ),
+            "store"
+        );
+        assert_eq!(
+            classify_distribution("linux", "/usr/bin", &none),
+            "system-package"
+        );
+        assert_eq!(
+            classify_distribution("linux", "/home/a/.local/bin", &none),
+            "user-install"
+        );
+        assert_eq!(
+            classify_distribution("linux", "/tmp/TextVN-0.2.90-linux-x86_64/bin", &none),
+            "portable"
+        );
+        assert_eq!(
+            classify_distribution("macos", "/Applications/TextVN.app/Contents/MacOS", &none),
+            "app-bundle"
+        );
+        assert!(!BUILD_TARGET.is_empty());
+        assert!(!BUILD_GIT_SHA.is_empty());
+    }
+
+    #[test]
+    fn e70_export_contains_panic_tail_and_build_identity() {
+        let report = collect_report();
+        let out = std::env::temp_dir().join(format!("textvn-e70-{}.zip", std::process::id()));
+        export_diagnostics_zip(&report, &out).expect("export");
+        let bytes = std::fs::read(&out).unwrap();
+        let _ = std::fs::remove_file(&out);
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("panic_tail.log"));
+        assert!(text.contains("\"git_sha\""));
+        assert!(text.contains("\"distribution\""));
+        assert!(text.contains("\"target\""));
+        assert_eq!(
+            count_panic_records("=== TextVN panic a\n=== TextVN panic b\n"),
+            2
         );
     }
 

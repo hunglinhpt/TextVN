@@ -15,6 +15,8 @@
 
 pub mod assist;
 pub mod autostart;
+pub mod conflict_notice;
+pub mod diag_summary;
 pub mod emoji_popup;
 pub mod foreground;
 pub mod hotkey;

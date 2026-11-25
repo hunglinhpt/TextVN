@@ -5,6 +5,7 @@
 //! `config.math` (textvn-config) sang [`MathConfig`] rồi nạp vào [`MathEngine`].
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// Chế độ kết xuất math (`ime.math.mode`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
@@ -110,9 +111,11 @@ impl Discipline {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HotkeySpec {
     /// Chuỗi như "Ctrl+Alt+M" — adapter đăng ký theo nền tảng.
-    pub combo: String,
+    /// E70: `Cow<'static, str>` — 4 hotkey mặc định là hằng chuỗi (`Borrowed`) nên
+    /// `MathConfig::default()`/`clone()` không cấp phát; giá trị đọc từ JSON là `Owned`.
+    pub combo: Cow<'static, str>,
     /// Tên hành động: `cycle_mode` | `toggle_sticky` | `smart_paste` | `palette`.
-    pub action: String,
+    pub action: Cow<'static, str>,
 }
 
 /// Cấu hình math (`config.math`) — mọi field có default nên config cũ
@@ -170,20 +173,20 @@ impl Default for MathConfig {
 pub fn default_hotkeys() -> Vec<HotkeySpec> {
     vec![
         HotkeySpec {
-            combo: "Ctrl+Alt+M".into(),
-            action: "cycle_mode".into(),
+            combo: Cow::Borrowed("Ctrl+Alt+M"),
+            action: Cow::Borrowed("cycle_mode"),
         },
         HotkeySpec {
-            combo: "Ctrl+Shift+M".into(),
-            action: "toggle_sticky".into(),
+            combo: Cow::Borrowed("Ctrl+Shift+M"),
+            action: Cow::Borrowed("toggle_sticky"),
         },
         HotkeySpec {
-            combo: "Ctrl+Alt+V".into(),
-            action: "smart_paste".into(),
+            combo: Cow::Borrowed("Ctrl+Alt+V"),
+            action: Cow::Borrowed("smart_paste"),
         },
         HotkeySpec {
-            combo: "Ctrl+Alt+Space".into(),
-            action: "palette".into(),
+            combo: Cow::Borrowed("Ctrl+Alt+Space"),
+            action: Cow::Borrowed("palette"),
         },
     ]
 }
@@ -265,31 +268,65 @@ const PROTECTED_COMBOS: &[&str] = &[
     "Ctrl+Alt+Del",
 ];
 
-/// Chuẩn hoá combo cho so khớp không phân biệt thứ tự modifier:
-/// "alt+ctrl+M" == "Ctrl+Alt+M".
-pub fn normalize_combo(combo: &str) -> String {
-    let mut parts: Vec<String> = combo
-        .split('+')
-        .map(|p| {
-            let p = p.trim();
-            if p.eq_ignore_ascii_case("ctrl")
-                || p.eq_ignore_ascii_case("alt")
-                || p.eq_ignore_ascii_case("shift")
-            {
-                p.to_ascii_uppercase()
-            } else {
-                p.to_string()
+/// Bit modifier cho [`combo_signature`].
+const MOD_CTRL: u8 = 1;
+const MOD_ALT: u8 = 2;
+const MOD_SHIFT: u8 = 4;
+
+/// E70: chữ ký so khớp combo = (mặt nạ modifier, phím chính viết HOA ASCII). Một lần
+/// cấp phát duy nhất (phím chính). Không phân biệt thứ tự modifier lẫn HOA/thường của
+/// phím chính — trước đây `"Ctrl+v"` lọt qua lớp bảo vệ `Ctrl+V` vì chỉ modifier được
+/// chuẩn hoá hoa/thường.
+fn combo_signature(combo: &str) -> (u8, String) {
+    let mut mods = 0u8;
+    let mut key = String::new();
+    for part in combo.split('+') {
+        let p = part.trim();
+        if p.eq_ignore_ascii_case("ctrl") {
+            mods |= MOD_CTRL;
+        } else if p.eq_ignore_ascii_case("alt") {
+            mods |= MOD_ALT;
+        } else if p.eq_ignore_ascii_case("shift") {
+            mods |= MOD_SHIFT;
+        } else {
+            if !key.is_empty() {
+                key.push('+');
             }
-        })
-        .collect();
-    // Sort modifier trước, phím chính sau (giữ nguyên thứ tự tương đối khi cùng loại)
-    parts.sort_by_key(|p| match p.as_str() {
-        "CTRL" => 0,
-        "ALT" => 1,
-        "SHIFT" => 2,
-        _ => 3,
-    });
-    parts.join("+")
+            key.extend(p.chars().map(|c| c.to_ascii_uppercase()));
+        }
+    }
+    (mods, key)
+}
+
+/// Chữ ký của [`PROTECTED_COMBOS`] — tính MỘT lần cho cả tiến trình (E70: trước đây mỗi
+/// lần `parse_config` chuẩn hoá lại 10 combo × mỗi hotkey ≈ 200+ cấp phát heap, làm
+/// `parse_config` chậm 1,5 µs → 10 µs từ 0.2.83).
+fn protected_signatures() -> &'static [(u8, String)] {
+    static SIGS: std::sync::OnceLock<Vec<(u8, String)>> = std::sync::OnceLock::new();
+    SIGS.get_or_init(|| {
+        PROTECTED_COMBOS
+            .iter()
+            .map(|c| combo_signature(c))
+            .collect()
+    })
+}
+
+/// Chuẩn hoá combo cho so khớp không phân biệt thứ tự modifier và HOA/thường:
+/// "alt+ctrl+m" == "Ctrl+Alt+M" → `"CTRL+ALT+M"`.
+pub fn normalize_combo(combo: &str) -> String {
+    let (mods, key) = combo_signature(combo);
+    let mut out = String::with_capacity(16 + key.len());
+    for (bit, name) in [(MOD_CTRL, "CTRL"), (MOD_ALT, "ALT"), (MOD_SHIFT, "SHIFT")] {
+        if mods & bit != 0 {
+            out.push_str(name);
+            out.push('+');
+        }
+    }
+    out.push_str(&key);
+    if key.is_empty() && out.ends_with('+') {
+        out.pop();
+    }
+    out
 }
 
 impl MathConfig {
@@ -304,9 +341,10 @@ impl MathConfig {
         {
             return Err(ConfigError::InvalidLeader);
         }
+        let protected = protected_signatures();
         for hk in &self.hotkeys {
-            let norm = normalize_combo(&hk.combo);
-            if PROTECTED_COMBOS.iter().any(|p| normalize_combo(p) == norm) {
+            let sig = combo_signature(&hk.combo);
+            if protected.contains(&sig) {
                 return Err(ConfigError::ProtectedHotkeyConflict);
             }
         }
@@ -400,6 +438,29 @@ mod tests {
         };
         assert_eq!(cfg.validate(), Ok(()));
         assert_eq!(normalize_combo("alt+CTRL+M"), "CTRL+ALT+M");
+        assert_eq!(normalize_combo("ctrl + alt + space"), "CTRL+ALT+SPACE");
+        assert_eq!(normalize_combo("Shift"), "SHIFT");
+    }
+
+    #[test]
+    fn e70_protected_hotkeys_case_insensitive() {
+        // Trước E70: "Ctrl+v" / "alt+f4" / "del+alt+ctrl" lọt qua lớp bảo vệ.
+        for combo in ["Ctrl+v", "ctrl+V", "alt+f4", "del+alt+ctrl", " CTRL + c "] {
+            let cfg = MathConfig {
+                hotkeys: vec![HotkeySpec {
+                    combo: combo.into(),
+                    action: "smart_paste".into(),
+                }],
+                ..MathConfig::default()
+            };
+            assert_eq!(
+                cfg.validate(),
+                Err(ConfigError::ProtectedHotkeyConflict),
+                "{combo} phải bị chặn"
+            );
+        }
+        // Mặc định vẫn hợp lệ (Ctrl+Alt+V ≠ Ctrl+V).
+        assert_eq!(MathConfig::default().validate(), Ok(()));
     }
 
     #[test]

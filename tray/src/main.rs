@@ -628,6 +628,66 @@ fn elevated_register_succeeded(result: Option<Option<u32>>) -> bool {
     matches!(result, Some(Some(0)))
 }
 
+/// E70: chạy `textvn-cli --check-env --json` (ẩn cửa sổ) rồi hiện balloon MỘT lần cho
+/// mỗi tập xung đột mới (`conflict_notice`). Tắt được bằng `TEXTVN_SKIP_CONFLICT_CHECK`.
+#[cfg(windows)]
+fn notify_ime_conflicts_at_startup() {
+    use std::os::windows::process::CommandExt;
+    use textvn_tray::conflict_notice;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    if std::env::var_os("TEXTVN_SKIP_CONFLICT_CHECK").is_some() {
+        return;
+    }
+    let Some(cli) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("textvn-cli.exe")))
+        .filter(|p| p.is_file())
+    else {
+        return;
+    };
+    let Ok(out) = std::process::Command::new(&cli)
+        .args(["--check-env", "--json"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+    else {
+        return;
+    };
+    let marker = std::env::var_os("APPDATA")
+        .filter(|v| !v.is_empty())
+        .map(|d| {
+            std::path::PathBuf::from(d)
+                .join("TextVN")
+                .join(conflict_notice::MARKER_FILE)
+        });
+    match conflict_notice::summarize(&String::from_utf8_lossy(&out.stdout)) {
+        Some(summary) => {
+            let prev = marker
+                .as_ref()
+                .and_then(|m| std::fs::read_to_string(m).ok());
+            if conflict_notice::should_notify(prev.as_deref(), &summary) {
+                textvn_tray::show_tray_notification(
+                    "TextVN — phát hiện xung đột bộ gõ",
+                    &conflict_notice::balloon_text(&summary),
+                );
+                if let Some(m) = &marker {
+                    if let Some(dir) = m.parent() {
+                        let _ = std::fs::create_dir_all(dir);
+                    }
+                    let _ = std::fs::write(m, summary.signature.as_bytes());
+                }
+            }
+        }
+        None => {
+            if let Some(m) = &marker {
+                let _ = std::fs::remove_file(m);
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn notify_ime_conflicts_at_startup() {}
+
 #[cfg(windows)]
 fn ensure_tsf_tip_registered(first_run: bool, interactive: bool) {
     // Chốt chặn cứng: còn package identity thì mọi ghi đăng ký bị ảo hoá (R2-02).
@@ -774,6 +834,8 @@ fn read_registry_dword(root: HKEY, path: &str, name: &str) -> Option<u32> {
 }
 
 fn main() {
+    // E70: panic → `%LOCALAPPDATA%\TextVN\logs\panic.log` (không payload động — G8).
+    textvn_config::crash::install_panic_hook("tray", env!("CARGO_PKG_VERSION"));
     let args: Vec<String> = std::env::args().collect();
     // Kênh Store (MSIX): `--msix-relay`/`--msix-install` và MỌI lần chạy có package
     // identity đi đường bootstrap rồi thoát — tiến trình trong package không bao giờ
@@ -1209,6 +1271,8 @@ Hãy bấm chuột phải biểu tượng TextVN ở khay hệ thống › [Tho�
             // được. Đề nghị đăng ký phạm vi máy (chỉ khi nằm trong Program Files) hoặc
             // thông báo hướng dẫn (bản portable). Kênh Store: không bao giờ xin UAC (R2-07).
             offer_machine_registration_if_needed(store_channel);
+            // E70: báo xung đột bộ gõ (UniKey/EVKey/OpenKey/Microsoft Telex…) ngay khi chạy.
+            notify_ime_conflicts_at_startup();
         });
     }
 

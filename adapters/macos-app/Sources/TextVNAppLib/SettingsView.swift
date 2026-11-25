@@ -144,6 +144,10 @@ public struct SettingsView: View {
                 conflicts.append("\(name) (đã cài)")
             }
         }
+        // E70 (W_CONFLICT_APPLE_VI_IM): bộ gõ Vietnamese có sẵn của Apple đang bật song song.
+        for mode in ConflictScan.appleVietnameseModes(ConflictScan.enabledInputSourceIDs()) {
+            conflicts.append("\(mode) (đang bật — System Settings › Keyboard › Text Input › Edit… › nút −)")
+        }
 
         let logDir = home.appendingPathComponent("Library/Logs/TextVN", isDirectory: true)
         var logUrl: URL? = nil

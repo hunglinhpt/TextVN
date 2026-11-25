@@ -360,7 +360,9 @@ pub struct ime_instance {
     spell_provider: Option<ime_os_spell_v1>,
 }
 
-fn options_from_config(cfg: &Config) -> EngineOptions {
+/// Nhận `Config` theo giá trị (E70): khối `math` (Vec hotkey 8 `String`) được MOVE sang
+/// `EngineOptions` thay vì clone — `parse_config`/`ime_instance_new` bỏ được một lượt cấp phát.
+fn options_from_config(cfg: Config) -> EngineOptions {
     EngineOptions {
         method: match cfg.method {
             textvn_config::Method::Telex => textvn_core::Method::Telex,
@@ -406,7 +408,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         english_words: cfg.english_words.clone(),
         // P11 — Math Engine: reuse nguyên khối `math` của config (serde default
         // đủ; MathConfig: Clone + PartialEq cho set_options so-sánh).
-        math: cfg.math.clone(),
+        math: cfg.math,
         // P7 (vòng 54): User Style Profile — từ cá nhân (boost) + cặp sai→đúng
         // (suggestion-only). Rỗng khi `style_profile.enabled == false`.
         style_words: if cfg.style_profile.effective_enabled() {
@@ -493,7 +495,7 @@ pub extern "C" fn ime_instance_new(
     };
 
     let (options, status, err_msg) = match cfg_result {
-        Ok(cfg) => (options_from_config(&cfg), IME_OK, ""),
+        Ok(cfg) => (options_from_config(cfg), IME_OK, ""),
         // Non-fatal: default config + IME_ERR_CONFIG (P0-2 §1/§5)
         Err(()) => (
             EngineOptions::default(),
@@ -812,7 +814,7 @@ pub extern "C" fn ime_reload_config(inst: *mut ime_instance, cfg: *const u8, len
         Err(_) => Err(textvn_config::ConfigError::Schema),
     };
     match parsed {
-        Ok(c) => match guarded(|| inst.engine.set_options(options_from_config(&c))) {
+        Ok(c) => match guarded(|| inst.engine.set_options(options_from_config(c))) {
             Some(()) => IME_OK,
             None => IME_ERR_INTERNAL,
         },

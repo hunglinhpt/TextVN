@@ -33,9 +33,40 @@ fn find_rc_exe() -> Option<PathBuf> {
     None
 }
 
+/// E70: mã commit + target triple nhúng vào `doctor` / gói chẩn đoán (`version.json`).
+/// Ưu tiên `GITHUB_SHA` (CI/release) → `git rev-parse` → `"unknown"` (tarball nguồn).
+fn emit_build_identity() {
+    println!("cargo:rerun-if-env-changed=GITHUB_SHA");
+    println!("cargo:rerun-if-env-changed=TEXTVN_GIT_SHA");
+    // `.git/logs/HEAD` đổi mỗi commit/checkout → SHA nhúng không bị cũ khi build local.
+    let reflog = Path::new("../.git/logs/HEAD");
+    if reflog.is_file() {
+        println!("cargo:rerun-if-changed=../.git/logs/HEAD");
+    }
+    let sha = std::env::var("TEXTVN_GIT_SHA")
+        .ok()
+        .or_else(|| std::env::var("GITHUB_SHA").ok())
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        })
+        .filter(|s| s.len() >= 7 && s.bytes().all(|b| b.is_ascii_hexdigit()))
+        .map(|s| s[..12.min(s.len())].to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    println!("cargo:rustc-env=TEXTVN_GIT_SHA={sha}");
+    let target = std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string());
+    println!("cargo:rustc-env=TEXTVN_BUILD_TARGET={target}");
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=cli.rc");
     println!("cargo:rerun-if-changed=cli.manifest");
+    emit_build_identity();
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os != "windows" {

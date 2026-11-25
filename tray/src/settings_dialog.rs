@@ -2127,7 +2127,9 @@ static TSF_SETUP_RESULT: Mutex<Option<TsfSetupOutcome>> = Mutex::new(None);
 #[cfg(windows)]
 static DIAG_EXPORT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
-static DIAG_EXPORT_RESULT: Mutex<Option<std::result::Result<String, String>>> = Mutex::new(None);
+/// `Ok((nội dung hiển thị, tóm tắt dán GitHub Issues đã ẩn PII))` — E70.
+static DIAG_EXPORT_RESULT: Mutex<Option<std::result::Result<(String, String), String>>> =
+    Mutex::new(None);
 
 /// Cửa sổ "Hướng dẫn": nội dung + nút [Cài & bật TSF] [Math & Science] [Thảo luận] [Báo lỗi] [Xuất log chẩn đoán] [Đóng]
 /// (TaskDialog; manifest đã bật Common Controls 6). Nút [Cài & bật TSF] (E65) và [Xuất log chẩn đoán] (E69)
@@ -2249,8 +2251,15 @@ fn start_diag_export(hwnd: HWND) {
     }
 }
 
+/// E70: menu khay › Sức khỏe › Xuất log chẩn đoán — không có cửa sổ chủ; kết quả hiện
+/// thẳng từ luồng nền (`IsWindow(NULL)` = false → `present_diag_export_outcome`).
 #[cfg(windows)]
-fn run_diag_export_cli() -> std::result::Result<String, String> {
+pub fn start_diag_export_detached() {
+    start_diag_export(HWND::default());
+}
+
+#[cfg(windows)]
+fn run_diag_export_cli() -> std::result::Result<(String, String), String> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -2300,7 +2309,20 @@ fn run_diag_export_cli() -> std::result::Result<String, String> {
                 msg.push_str("\r\n");
             }
         }
-        Ok(msg)
+        let zip_path = line
+            .trim_start_matches("Đã xuất file chẩn đoán:")
+            .split(" (")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let summary = crate::diag_summary::build_issue_summary(
+            env!("CARGO_PKG_VERSION"),
+            &zip_path,
+            &highlights,
+            &crate::diag_summary::current_user_tokens(),
+        );
+        Ok((msg, summary))
     } else {
         Err(format!(
             "textvn-cli doctor --export thất bại (exit {:?}).\r\n{}",
@@ -2319,10 +2341,131 @@ fn handle_diag_export_done(hwnd: HWND) {
 }
 
 #[cfg(windows)]
-fn present_diag_export_outcome(hwnd: HWND, outcome: std::result::Result<String, String>) {
+fn present_diag_export_outcome(hwnd: HWND, outcome: std::result::Result<(String, String), String>) {
     match outcome {
-        Ok(msg) => show_information(hwnd, "Đã xuất log chẩn đoán TextVN", &msg),
+        Ok((msg, summary)) => present_diag_export_success(hwnd, &msg, &summary),
         Err(err) => show_information(hwnd, "Không xuất được log chẩn đoán", &err),
+    }
+}
+
+#[cfg(windows)]
+const DIAG_BTN_COPY: i32 = 2001;
+#[cfg(windows)]
+const DIAG_BTN_REPORT: i32 = 2002;
+#[cfg(windows)]
+const DIAG_BTN_CLOSE: i32 = 2003;
+
+/// E70: kết quả xuất log với [Copy tóm tắt lỗi] [Mở trang báo lỗi] [Đóng]. Copy chỉ chép
+/// tóm tắt ĐÃ ẨN PII (`diag_summary`) — không có đường dẫn thư mục người dùng.
+#[cfg(windows)]
+fn present_diag_export_success(owner: HWND, msg: &str, summary: &str) {
+    use windows::Win32::UI::Controls::{
+        TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
+    };
+    let title = w("Đã xuất log chẩn đoán TextVN");
+    let content = w(&msg.replace("\r\n", "\n"));
+    let b_copy = w("Copy tóm tắt lỗi");
+    let b_report = w("Mở trang báo lỗi");
+    let b_close = w("Đóng");
+    let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: DIAG_BTN_COPY,
+            pszButtonText: PCWSTR(b_copy.as_ptr()),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: DIAG_BTN_REPORT,
+            pszButtonText: PCWSTR(b_report.as_ptr()),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: DIAG_BTN_CLOSE,
+            pszButtonText: PCWSTR(b_close.as_ptr()),
+        },
+    ];
+    let cfg = TASKDIALOGCONFIG {
+        cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as u32,
+        hwndParent: owner,
+        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION,
+        pszWindowTitle: PCWSTR(title.as_ptr()),
+        pszContent: PCWSTR(content.as_ptr()),
+        cButtons: buttons.len() as u32,
+        pButtons: buttons.as_ptr(),
+        nDefaultButton: DIAG_BTN_COPY,
+        ..Default::default()
+    };
+    loop {
+        let mut pressed: i32 = 0;
+        // SAFETY: mọi buffer/mảng trên stack sống suốt lời gọi modal đồng bộ.
+        let ok = unsafe { TaskDialogIndirect(&cfg, Some(&mut pressed), None, None) }.is_ok();
+        if !ok {
+            show_information(owner, "Đã xuất log chẩn đoán TextVN", msg);
+            return;
+        }
+        match pressed {
+            DIAG_BTN_COPY => {
+                if copy_text_to_clipboard(owner, summary) {
+                    show_information(
+                        owner,
+                        "Đã copy tóm tắt lỗi",
+                        "Đã chép tóm tắt (đã ẩn tên người dùng) vào clipboard — dán vào ô mô tả khi mở báo lỗi, rồi kéo thả tệp ZIP vào.",
+                    );
+                } else {
+                    show_information(
+                        owner,
+                        "Không copy được",
+                        "Clipboard đang bị ứng dụng khác giữ — thử lại sau.",
+                    );
+                }
+                // Quay lại hộp thoại để người dùng bấm tiếp [Mở trang báo lỗi].
+            }
+            DIAG_BTN_REPORT => {
+                open_url(REPORT_ISSUE_URL);
+                return;
+            }
+            _ => return,
+        }
+    }
+}
+
+/// Chép văn bản Unicode vào clipboard (CF_UNICODETEXT = 13). Chỉ gọi khi người dùng bấm
+/// [Copy tóm tắt lỗi] — không bao giờ đọc clipboard (G8).
+#[cfg(windows)]
+fn copy_text_to_clipboard(owner: HWND, text: &str) -> bool {
+    use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    const CF_UNICODETEXT: u32 = 13;
+    let wide: Vec<u16> = text.encode_utf16().chain(Some(0)).collect();
+    // SAFETY: chuỗi Win32 clipboard chuẩn; vùng nhớ HGLOBAL chuyển quyền sở hữu cho hệ
+    // thống khi SetClipboardData thành công, tự giải phóng khi thất bại.
+    unsafe {
+        let owner_opt = if owner.0.is_null() { None } else { Some(owner) };
+        if OpenClipboard(owner_opt).is_err() {
+            return false;
+        }
+        let _ = EmptyClipboard();
+        let ok = match GlobalAlloc(GMEM_MOVEABLE, wide.len() * 2) {
+            Ok(h) => {
+                let p = GlobalLock(h) as *mut u16;
+                if p.is_null() {
+                    let _ = GlobalFree(Some(h));
+                    false
+                } else {
+                    std::ptr::copy_nonoverlapping(wide.as_ptr(), p, wide.len());
+                    let _ = GlobalUnlock(h);
+                    if SetClipboardData(CF_UNICODETEXT, Some(HANDLE(h.0))).is_ok() {
+                        true
+                    } else {
+                        let _ = GlobalFree(Some(HGLOBAL(h.0)));
+                        false
+                    }
+                }
+            }
+            Err(_) => false,
+        };
+        let _ = CloseClipboard();
+        ok
     }
 }
 

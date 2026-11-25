@@ -1009,4 +1009,26 @@ final class IpcServerAssistTests: XCTestCase {
         XCTAssertEqual(state["com.apple.safari"], false)
         XCTAssertEqual(IpcServer.assistAppID, "assist")
     }
+
+    // MARK: - E70 Apple Vietnamese input-source conflict scan
+
+    func testE70AppleVietnameseModesDetection() {
+        let ids = [
+            "com.apple.keylayout.US",
+            "com.apple.inputmethod.VietnameseIM",
+            "com.apple.inputmethod.VietnameseIM.VietnameseSimpleTelex",
+            "com.apple.inputmethod.VietnameseIM.VietnameseVNI",
+            "com.apple.inputmethod.VietnameseIM.VietnameseVNI",
+            "com.hunglinhpt.inputmethod.TextVN",
+        ]
+        XCTAssertEqual(
+            ConflictScan.appleVietnameseModes(ids),
+            ["Apple Vietnamese Simple Telex", "Apple Vietnamese VNI"]
+        )
+        XCTAssertEqual(
+            ConflictScan.appleVietnameseModes(["com.apple.inputmethod.VietnameseIM.VietnameseTelex"]),
+            ["Apple Vietnamese Telex"]
+        )
+        XCTAssertTrue(ConflictScan.appleVietnameseModes(["com.apple.keylayout.ABC"]).isEmpty)
+    }
 }

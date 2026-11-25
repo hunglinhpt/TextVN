@@ -446,10 +446,12 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
 Thảo luận / hỏi đáp hoặc báo lỗi trực tiếp từ app (cả 3 hệ điều hành): mở bảng điều khiển → **Hướng dẫn** → bấm
 **[Xuất log chẩn đoán]** (tự động lưu tệp `textvn-diag-*.zip` trên Windows/Linux hoặc `textvn-diag-*.md` trên macOS ra Desktop, chứa sẵn `report_summary.md`, thông tin hệ điều hành/glibc/build, danh sách xung đột bộ gõ, `config.redacted.json`, `register.log`/`install-diag.log`/`textvn.log`), rồi bấm **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/issues`) và đính kèm tệp đó.
-Hoặc chạy nhanh từ dòng lệnh trên mọi OS:
-- `textvn doctor` (Windows: `textvn-cli doctor --pause`) — hiển thị trạng thái hệ thống, phụ thuộc và **xung đột bộ gõ cũ** (`UniKey`, `EVKey`, `OpenKey`, `GoTiengViet`, `ibus-unikey`/`bamboo`, `fcitx5-unikey`, chạy song song `ibus-daemon`+`fcitx5`, lệch `GTK_IM_MODULE`) kèm gợi ý xử lý cụ thể.
-- `textvn doctor --report` — in báo cáo Markdown sẵn sàng dán lên GitHub Issues.
-- `textvn doctor --export auto` (hoặc `--export diag.zip`) — đóng gói đầy đủ log & thông tin hệ thống vào một tệp `.zip`.
+Trên Windows còn có thể chuột phải biểu tượng khay → **Sức khỏe / Trạng thái → Xuất log chẩn đoán (Diagnostic Log)...**; sau khi xuất, bấm **[Copy tóm tắt lỗi]** (tóm tắt đã ẩn tên người dùng) rồi **[Mở trang báo lỗi]**. Từ 0.2.90, tray Windows tự kiểm tra xung đột bộ gõ (UniKey/EVKey/OpenKey/GoTiengViet/VietKey, **Microsoft Vietnamese Telex/VNI** đang bật trong danh sách ngôn ngữ) mỗi lần khởi động và báo một lần cho mỗi tập xung đột mới.
+Hoặc chạy nhanh từ dòng lệnh (Windows: `textvn-cli` cạnh `TextVN.exe`; Linux: `textvn`):
+- `--check-env` (= `doctor`; Windows shortcut: `textvn-cli doctor --pause`) — hiển thị trạng thái hệ thống, phụ thuộc và **xung đột bộ gõ cũ** (`UniKey`, `EVKey`, `OpenKey`, `GoTiengViet`, Microsoft Vietnamese Telex/VNI, `ibus-unikey`/`bamboo`, `fcitx5-unikey`, chạy song song `ibus-daemon`+`fcitx5`, lệch `GTK_IM_MODULE`; macOS: bộ gõ Vietnamese có sẵn của Apple) kèm gợi ý xử lý cụ thể.
+- `--diagnose` (= `doctor --report`) — in báo cáo Markdown sẵn sàng dán lên GitHub Issues.
+- `--export-log [diag.zip]` (= `doctor --export auto`) — đóng gói đầy đủ log & thông tin hệ thống (kể cả `version.json` có commit build và loại bản cài/portable, `panic_tail.log`) vào một tệp `.zip`.
+Bảng mã lỗi đầy đủ, cách thoát từng bộ gõ xung đột, phụ thuộc theo distro và lưu ý doanh nghiệp/portable: **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 Mọi tệp chẩn đoán đều tự động ẩn tên người dùng và **tuyệt đối không chứa nội dung bạn đã gõ hay từ vựng cá nhân (G8/S2)**.
 
 ## Trạng thái từng nền tảng

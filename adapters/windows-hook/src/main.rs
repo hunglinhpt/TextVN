@@ -924,6 +924,8 @@ mod hook_app {
 }
 
 fn main() {
+    // E70: panic → panic.log trong thư mục log TextVN (không payload động — G8).
+    textvn_config::crash::install_panic_hook("hook", env!("CARGO_PKG_VERSION"));
     #[cfg(windows)]
     {
         if let Err(e) = hook_app::run() {

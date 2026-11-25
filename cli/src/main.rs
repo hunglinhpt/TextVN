@@ -24,6 +24,9 @@ Usage:
   textvn-cli config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
   textvn-cli config validate <file.json>     # validate config.v1 (P0-3 §1)
   textvn-cli doctor [--json] [--report] [--pause] [--export [auto|<path.zip>]] # chẩn đoán môi trường / xuất báo cáo lỗi (WIN-058 / E69)
+  textvn-cli --diagnose [--json]             # = doctor --report (báo cáo Markdown dán GitHub Issues; --json = JSON)
+  textvn-cli --export-log [<path.zip>]       # = doctor --export (gói ZIP chẩn đoán đã ẩn PII, mặc định Desktop/HOME)
+  textvn-cli --check-env [--json]            # = doctor (kiểm tra môi trường/phụ thuộc/xung đột; exit 1 nếu có lỗi)
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   textvn-cli unregister [--scope user|machine] [--if-owned-by <dir>] # hủy đăng ký TSF TIP (--if-owned-by: chỉ khi TIP thuộc <dir>)
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
@@ -45,8 +48,14 @@ Exit codes:
 "#;
 
 fn main() {
+    // E70: panic → panic.log trong thư mục log TextVN (không payload động — G8).
+    textvn_config::crash::install_panic_hook("cli", env!("CARGO_PKG_VERSION"));
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
+        // E70: lối tắt chẩn đoán cấp cao (khớp tài liệu hỗ trợ / installer).
+        Some("--diagnose") => exit(cmd_doctor(&diagnose_alias_args(&args[2..]))),
+        Some("--export-log") => exit(cmd_doctor(&export_log_alias_args(&args[2..]))),
+        Some("--check-env") => exit(cmd_doctor(&args[2..])),
         Some("replay") => exit(cmd_replay(&args[2..])),
         Some("verify") => exit(cmd_verify(&args[2..])),
         Some("sizes") => exit(cmd_sizes(&args[2..])),
@@ -337,6 +346,34 @@ fn config_path() -> Option<PathBuf> {
 }
 
 /// `doctor` — chẩn đoán môi trường, phát hiện xung đột bộ gõ và xuất báo cáo (WIN-058 / E69).
+/// `--diagnose [--json]` → `doctor --report` (hoặc `doctor --json`). Tham số khác giữ nguyên
+/// để `cmd_doctor` báo lỗi dùng như bình thường.
+fn diagnose_alias_args(rest: &[String]) -> Vec<String> {
+    if rest.iter().any(|a| a == "--json") {
+        rest.to_vec()
+    } else {
+        std::iter::once("--report".to_string())
+            .chain(rest.iter().cloned())
+            .collect()
+    }
+}
+
+/// `--export-log [<path>]` → `doctor --export <path|auto>`.
+fn export_log_alias_args(rest: &[String]) -> Vec<String> {
+    let mut out = vec!["--export".to_string()];
+    match rest.first() {
+        Some(p) if !p.starts_with("--") => {
+            out.push(p.clone());
+            out.extend(rest[1..].iter().cloned());
+        }
+        _ => {
+            out.push("auto".to_string());
+            out.extend(rest.iter().cloned());
+        }
+    }
+    out
+}
+
 fn cmd_doctor(rest: &[String]) -> i32 {
     let mut json_out = false;
     let mut report_out = false;
@@ -575,5 +612,35 @@ mod tests {
     fn cmd_unregister_invalid_scope_returns_2() {
         let args = vec!["--scope".to_string(), "invalid_scope".to_string()];
         assert_eq!(cmd_unregister(&args), 2);
+    }
+
+    fn v(a: &[&str]) -> Vec<String> {
+        a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn e70_diagnose_alias_maps_to_report_or_json() {
+        assert_eq!(diagnose_alias_args(&[]), v(&["--report"]));
+        assert_eq!(diagnose_alias_args(&v(&["--json"])), v(&["--json"]));
+    }
+
+    #[test]
+    fn e70_export_log_alias_maps_path_or_auto() {
+        assert_eq!(export_log_alias_args(&[]), v(&["--export", "auto"]));
+        assert_eq!(
+            export_log_alias_args(&v(&["D:/Tools/Gõ tiếng Việt/diag.zip"])),
+            v(&["--export", "D:/Tools/Gõ tiếng Việt/diag.zip"])
+        );
+        assert_eq!(
+            export_log_alias_args(&v(&["--json"])),
+            v(&["--export", "auto", "--json"])
+        );
+    }
+
+    #[test]
+    fn e70_usage_documents_aliases() {
+        for flag in ["--diagnose", "--export-log", "--check-env"] {
+            assert!(USAGE.contains(flag), "USAGE thiếu {flag}");
+        }
     }
 }

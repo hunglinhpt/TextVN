@@ -42,6 +42,8 @@ pub const ID_TOGGLE_MATH: u32 = 1046;
 pub const ID_OPEN_EMOJI_PICKER: u32 = 1047;
 pub const ID_OPEN_SETTINGS: u32 = 1050;
 pub const ID_HEALTH_STATUS: u32 = 1060;
+/// E70: Sức khỏe › Xuất log chẩn đoán (cùng luồng nút trong Hướng dẫn).
+pub const ID_EXPORT_DIAG: u32 = 1061;
 pub const ID_UNINSTALL: u32 = 1070;
 pub const ID_EXIT: u32 = 1080;
 
@@ -255,6 +257,13 @@ impl TrayMenu {
                 0,
                 PCWSTR(w(&ver_label).as_ptr()),
             );
+            let _ = AppendMenuW(health_menu, MF_SEPARATOR, 0, PCWSTR::null());
+            let _ = AppendMenuW(
+                health_menu,
+                MF_STRING,
+                ID_EXPORT_DIAG as usize,
+                PCWSTR(w("Xuất log chẩn đoán (Diagnostic Log)...").as_ptr()),
+            );
             let _ = AppendMenuW(
                 menu,
                 MF_POPUP,
@@ -380,6 +389,10 @@ impl TrayMenu {
             }
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
+            }
+            ID_EXPORT_DIAG => {
+                #[cfg(windows)]
+                crate::settings_dialog::start_diag_export_detached();
             }
             ID_UNINSTALL => uninstall(&self.ipc),
             ID_EXIT => {
@@ -535,6 +548,7 @@ mod tests {
             ID_TOGGLE_MATH,
             ID_OPEN_SETTINGS,
             ID_HEALTH_STATUS,
+            ID_EXPORT_DIAG,
             ID_UNINSTALL,
             ID_EXIT,
         ];
@@ -542,6 +556,6 @@ mod tests {
         for id in ids {
             assert!(set.insert(id), "Duplicate menu ID: {id}");
         }
-        assert_eq!(ids.len(), 15);
+        assert_eq!(ids.len(), 16);
     }
 }
