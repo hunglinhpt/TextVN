@@ -226,7 +226,10 @@ jobs:
                 fedora-41)
                   dnf install -y --setopt=install_weak_deps=False \
                     ibus fcitx5 gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
-                  [[ -s /etc/machine-id ]] || dbus-uuidgen --ensure=/etc/machine-id
+                  if [[ ! -s /etc/machine-id ]]; then
+                    dbus-uuidgen > /etc/machine-id
+                    chmod 0444 /etc/machine-id
+                  fi
                   ;;
                 opensuse-leap-15-6)
                   zypper --non-interactive install --no-recommends \
