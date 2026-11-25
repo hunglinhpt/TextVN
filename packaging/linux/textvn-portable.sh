@@ -278,18 +278,33 @@ if [[ "$ACTION" == stop ]]; then
 fi
 
 if [[ -z "$FW" ]]; then
-    if tv_running fcitx5 && [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
+    if tv_running fcitx5 && tv_fcitx5_abi_ok "$PKG_DIR"; then
         FW=fcitx5
-    elif tv_running ibus-daemon && [[ -x "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
+    elif tv_running ibus-daemon && tv_ibus_abi_ok "$PKG_DIR"; then
         FW=ibus
-    elif command -v fcitx5 >/dev/null 2>&1 && [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
+    elif command -v fcitx5 >/dev/null 2>&1 && tv_fcitx5_abi_ok "$PKG_DIR"; then
         FW=fcitx5
-    elif command -v ibus-daemon >/dev/null 2>&1; then
+    elif command -v ibus-daemon >/dev/null 2>&1 && tv_ibus_abi_ok "$PKG_DIR"; then
         FW=ibus
     else
-        tv_err "Không thấy IBus hay Fcitx5. Cài một trong hai (ví dụ: sudo apt install ibus) rồi chạy lại."
+        tv_err "Không thấy IBus hay Fcitx5 khả dụng (hoặc thiếu thư viện runtime)."
+        tv_err "  • RHEL 8/9 / Rocky / Alma / Fedora : sudo dnf install -y ibus ibus-libs gtk3"
+        tv_err "  • SLES 15 / openSUSE Leap          : sudo zypper install -y ibus libibus-1_0-5 gtk3"
+        tv_err "  • Ubuntu / Debian / Mint           : sudo apt install -y ibus libibus-1.0-5"
+        tv_err "  • Arch / Manjaro                   : sudo pacman -S ibus (hoặc fcitx5)"
         exit 1
     fi
+fi
+if [[ "$FW" == ibus ]] && ! tv_ibus_abi_ok "$PKG_DIR"; then
+    err="$("$PKG_DIR/lib/textvn/textvn-ibus-engine" --check-abi 2>&1 >/dev/null || true)"
+    tv_err "Engine IBus không nạp được trên máy này: ${err:-thiếu libibus}"
+    exit 1
+fi
+if [[ "$FW" == fcitx5 ]] && ! tv_fcitx5_abi_ok "$PKG_DIR"; then
+    err="$("$PKG_DIR/bin/textvn" check-dlopen "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" 2>&1 || true)"
+    tv_err "Addon Fcitx5 không nạp được trên máy này: ${err:-thiếu libFcitx5Core}"
+    tv_err "Thử dùng IBus ('./textvn-portable.sh --ibus') hoặc dựng từ nguồn ('./scripts/install_linux.sh')."
+    exit 1
 fi
 
 prepare_runtime

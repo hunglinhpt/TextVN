@@ -15,10 +15,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKIP_TESTS=0
 EL8_DIR=""
+COMPAT_DIR=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-tests) SKIP_TESTS=1 ;;
         --el8-dir) EL8_DIR="${2:?--el8-dir cần thư mục đầu ra của build-linux-el8.sh}"; shift ;;
+        --compat-dir) COMPAT_DIR="${2:?--compat-dir cần thư mục đầu ra của build-linux-compat.sh}"; shift ;;
         *) echo "Tuỳ chọn không hợp lệ: $1" >&2; exit 1 ;;
     esac
     shift
@@ -62,15 +64,28 @@ if [[ -n "$EL8_DIR" ]]; then
     mkdir -p "$STAGE_ADAPTERS/ibus" "$STAGE_ADAPTERS/settings-gtk3"
     cp -f "$EL8_DIR/ibus/textvn-ibus-engine" "$STAGE_ADAPTERS/ibus/textvn-ibus-engine"
     cp -f "$EL8_DIR/settings-gtk3/textvn-settings" "$STAGE_ADAPTERS/settings-gtk3/textvn-settings"
-    if [[ -f "$ADAPTERS/fcitx5/libtextvn-fcitx5.so" ]]; then
-        mkdir -p "$STAGE_ADAPTERS/fcitx5"
-        cp -f "$ADAPTERS/fcitx5/libtextvn-fcitx5.so" "$STAGE_ADAPTERS/fcitx5/libtextvn-fcitx5.so"
-    fi
-    if [[ -x "$ADAPTERS/settings/textvn-settings" ]]; then
-        host_set_ver="$("$ADAPTERS/settings/textvn-settings" --version 2>/dev/null || true)"
-        if grep -q "GTK4" <<<"$host_set_ver"; then
-            mkdir -p "$STAGE_ADAPTERS/settings-gtk4"
-            cp -f "$ADAPTERS/settings/textvn-settings" "$STAGE_ADAPTERS/settings-gtk4/textvn-settings"
+    if [[ -n "$COMPAT_DIR" ]]; then
+        echo "=== E68: ghép binary compat (Ubuntu 22.04: glibc 2.35 + GLIBCXX 3.4.30 + GTK 4.6 + Fcitx5 5.0) ==="
+        [[ -x "$COMPAT_DIR/settings-gtk4/textvn-settings" ]] || { echo "thiếu $COMPAT_DIR/settings-gtk4/textvn-settings" >&2; exit 1; }
+        [[ -f "$COMPAT_DIR/fcitx5/libtextvn-fcitx5.so" ]] || { echo "thiếu $COMPAT_DIR/fcitx5/libtextvn-fcitx5.so" >&2; exit 1; }
+        cargo run -q -p xtask --manifest-path "$ROOT/Cargo.toml" -- check-elf-abi \
+            --max-glibc 2.35 --max-glibcxx 3.4.30 \
+            "$COMPAT_DIR/settings-gtk4/textvn-settings" \
+            "$COMPAT_DIR/fcitx5/libtextvn-fcitx5.so"
+        mkdir -p "$STAGE_ADAPTERS/fcitx5" "$STAGE_ADAPTERS/settings-gtk4"
+        cp -f "$COMPAT_DIR/fcitx5/libtextvn-fcitx5.so" "$STAGE_ADAPTERS/fcitx5/libtextvn-fcitx5.so"
+        cp -f "$COMPAT_DIR/settings-gtk4/textvn-settings" "$STAGE_ADAPTERS/settings-gtk4/textvn-settings"
+    else
+        if [[ -f "$ADAPTERS/fcitx5/libtextvn-fcitx5.so" ]]; then
+            mkdir -p "$STAGE_ADAPTERS/fcitx5"
+            cp -f "$ADAPTERS/fcitx5/libtextvn-fcitx5.so" "$STAGE_ADAPTERS/fcitx5/libtextvn-fcitx5.so"
+        fi
+        if [[ -x "$ADAPTERS/settings/textvn-settings" ]]; then
+            host_set_ver="$("$ADAPTERS/settings/textvn-settings" --version 2>/dev/null || true)"
+            if grep -q "GTK4" <<<"$host_set_ver"; then
+                mkdir -p "$STAGE_ADAPTERS/settings-gtk4"
+                cp -f "$ADAPTERS/settings/textvn-settings" "$STAGE_ADAPTERS/settings-gtk4/textvn-settings"
+            fi
         fi
     fi
 fi

@@ -733,7 +733,9 @@ static int try_candidate(char *out, size_t max_len, const char *dir, const char 
 int lc_find_settings_binary(char *out, size_t max_len, const char *self_dir) {
     if (!out || max_len == 0) return -1;
     if (try_candidate(out, max_len, self_dir, "textvn-settings") == 0) return 0;
+    if (try_candidate(out, max_len, self_dir, "../bin/textvn-settings") == 0) return 0;
     if (try_candidate(out, max_len, self_dir, "../../bin/textvn-settings") == 0) return 0;
+    if (try_candidate(out, max_len, self_dir, "../../../bin/textvn-settings") == 0) return 0;
 
     const char *path = getenv("PATH");
     if (path) {

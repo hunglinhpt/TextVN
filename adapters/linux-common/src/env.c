@@ -33,7 +33,11 @@ int lc_detect_active_framework(void) {
     /* Fallback by desktop environment default */
     if (desktop) {
         if (strstr(desktop, "KDE")) return LC_FRAMEWORK_FCITX5;
-        if (strstr(desktop, "GNOME") || strstr(desktop, "Ubuntu")) return LC_FRAMEWORK_IBUS;
+        if (strstr(desktop, "GNOME") || strstr(desktop, "Ubuntu") ||
+            strstr(desktop, "Cinnamon") || strstr(desktop, "XFCE") ||
+            strstr(desktop, "MATE") || strstr(desktop, "COSMIC")) {
+            return LC_FRAMEWORK_IBUS;
+        }
     }
 
     return LC_FRAMEWORK_UNKNOWN;
@@ -47,6 +51,8 @@ int lc_env_check(lc_env_info *out_info, char *out_report, size_t report_len) {
     const char *qt_im = getenv("QT_IM_MODULE");
     const char *xmod = getenv("XMODIFIERS");
     const char *desktop = getenv("XDG_CURRENT_DESKTOP");
+    const char *session = getenv("XDG_SESSION_TYPE");
+    bool is_wayland = (session && strcmp(session, "wayland") == 0);
 
     if (gtk_im) snprintf(out_info->gtk_im_module, sizeof(out_info->gtk_im_module), "%s", gtk_im);
     if (qt_im) snprintf(out_info->qt_im_module, sizeof(out_info->qt_im_module), "%s", qt_im);
@@ -55,7 +61,8 @@ int lc_env_check(lc_env_info *out_info, char *out_report, size_t report_len) {
 
     out_info->detected_framework = lc_detect_active_framework();
 
-    /* Check consistency */
+    /* Check consistency (trên Wayland, GNOME/KDE dùng Wayland IM protocol trực tiếp
+     * nên không bắt buộc đặt GTK_IM_MODULE / QT_IM_MODULE — E68). */
     int is_fcitx = (out_info->detected_framework == LC_FRAMEWORK_FCITX5);
     int is_ibus = (out_info->detected_framework == LC_FRAMEWORK_IBUS);
 
@@ -64,13 +71,13 @@ int lc_env_check(lc_env_info *out_info, char *out_report, size_t report_len) {
     bool xmod_ok = false;
 
     if (is_fcitx) {
-        gtk_ok = (gtk_im && strstr(gtk_im, "fcitx"));
-        qt_ok = (qt_im && strstr(qt_im, "fcitx"));
-        xmod_ok = (xmod && strstr(xmod, "fcitx"));
+        gtk_ok = (gtk_im && strstr(gtk_im, "fcitx")) || (is_wayland && (!gtk_im || !gtk_im[0]));
+        qt_ok = (qt_im && strstr(qt_im, "fcitx")) || (is_wayland && (!qt_im || !qt_im[0]));
+        xmod_ok = (xmod && strstr(xmod, "fcitx")) || (is_wayland && (!xmod || !xmod[0]));
     } else if (is_ibus) {
-        gtk_ok = (gtk_im && strstr(gtk_im, "ibus"));
-        qt_ok = (qt_im && strstr(qt_im, "ibus"));
-        xmod_ok = (xmod && strstr(xmod, "ibus"));
+        gtk_ok = (gtk_im && strstr(gtk_im, "ibus")) || (is_wayland && (!gtk_im || !gtk_im[0]));
+        qt_ok = (qt_im && strstr(qt_im, "ibus")) || (is_wayland && (!qt_im || !qt_im[0]));
+        xmod_ok = (xmod && strstr(xmod, "ibus")) || (is_wayland && (!xmod || !xmod[0]));
     } else {
         gtk_ok = qt_ok = xmod_ok = true;
     }

@@ -30,6 +30,7 @@ Usage:
   textvn-cli schedule-delete <path...>                     # xoá ngay hoặc hẹn xoá trước lần khởi động kế tiếp (uninstaller dùng cho DLL bị khoá)
   textvn-cli assist check "<câu>" [--json] [--fix] [--sentence]  # kiểm tra câu tiếng Việt offline (P4-1); --fix = áp lỗi objective, --sentence = coi chuỗi là câu trọn vẹn
   textvn-cli assist check --file <path> [--json] [--fix]  # kiểm tra nội dung file
+  textvn-cli check-dlopen <path.so>          # kiểm tra khả năng nạp thư viện .so (Linux ABI/soname)
   textvn-cli --help
 
 Exit codes:
@@ -58,6 +59,7 @@ fn main() {
             &args[2..].iter().map(|s| s.to_string()).collect::<Vec<_>>(),
         )),
         Some("assist") => exit(assist::cmd_assist(&args[2..])),
+        Some("check-dlopen") => exit(cmd_check_dlopen(&args[2..])),
         Some("--help") | Some("-h") => print!("{USAGE}"),
         Some(other) => {
             eprintln!("error: lệnh lạ `{other}`");
@@ -481,6 +483,55 @@ fn cmd_unregister(rest: &[String]) -> i32 {
     }
 
     register::unregister_tip(&scope, owned_by.as_deref())
+}
+
+/// `check-dlopen <path.so>` (Linux) — thử nạp thực tế một `.so` (như `libtextvn-fcitx5.so`)
+/// bằng `dlopen(RTLD_NOW | RTLD_LOCAL)` để phát hiện thiếu thư viện, sai SONAME hay
+/// lệch GLIBC/GLIBCXX trước khi cài/khởi động Fcitx5 (E68).
+#[cfg(target_os = "linux")]
+fn cmd_check_dlopen(rest: &[String]) -> i32 {
+    use std::ffi::{CStr, CString};
+    use std::os::raw::{c_char, c_int, c_void};
+
+    #[link(name = "dl")]
+    extern "C" {
+        fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void;
+        fn dlclose(handle: *mut c_void) -> c_int;
+        fn dlerror() -> *const c_char;
+    }
+
+    let Some(path) = rest.first() else {
+        eprintln!("error: check-dlopen cần đường dẫn file .so");
+        return 2;
+    };
+    let Ok(cpath) = CString::new(path.as_str()) else {
+        eprintln!("error: đường dẫn chứa byte NUL");
+        return 2;
+    };
+    // RTLD_NOW = 2, RTLD_LOCAL = 0 trên Linux glibc.
+    const RTLD_NOW: c_int = 2;
+    unsafe {
+        let _ = dlerror();
+        let h = dlopen(cpath.as_ptr(), RTLD_NOW);
+        if h.is_null() {
+            let err = dlerror();
+            let msg = if err.is_null() {
+                "dlopen thất bại".to_string()
+            } else {
+                CStr::from_ptr(err).to_string_lossy().into_owned()
+            };
+            eprintln!("{msg}");
+            return 1;
+        }
+        let _ = dlclose(h);
+    }
+    0
+}
+
+#[cfg(not(target_os = "linux"))]
+fn cmd_check_dlopen(_rest: &[String]) -> i32 {
+    eprintln!("error: check-dlopen chỉ hỗ trợ trên Linux");
+    2
 }
 
 #[cfg(test)]

@@ -233,7 +233,9 @@ fn parse_ver_tuple(s: &str) -> Option<(u32, u32, u32)> {
 #[derive(Debug, Default, PartialEq, Eq)]
 struct ElfAbiInfo {
     glibc_versions: Vec<(u32, u32, u32)>,
+    glibcxx_versions: Vec<(u32, u32, u32)>,
     has_glibc_private: bool,
+    has_glibcxx_private: bool,
     has_gnu_stack: bool,
     exec_stack: bool,
     is_dynamic: bool,
@@ -371,9 +373,15 @@ fn inspect_elf64_abi(buf: &[u8]) -> Result<ElfAbiInfo, String> {
                 if let Some(name) = read_cstr(strtab, vna_name) {
                     if name == "GLIBC_PRIVATE" {
                         info.has_glibc_private = true;
+                    } else if name == "GLIBCXX_PRIVATE" || name == "CXXABI_PRIVATE" {
+                        info.has_glibcxx_private = true;
                     } else if let Some(rest) = name.strip_prefix("GLIBC_") {
                         if let Some(v) = parse_ver_tuple(rest) {
                             info.glibc_versions.push(v);
+                        }
+                    } else if let Some(rest) = name.strip_prefix("GLIBCXX_") {
+                        if let Some(v) = parse_ver_tuple(rest) {
+                            info.glibcxx_versions.push(v);
                         }
                     }
                 }
@@ -394,14 +402,18 @@ fn inspect_elf64_abi(buf: &[u8]) -> Result<ElfAbiInfo, String> {
 
     info.glibc_versions.sort_unstable();
     info.glibc_versions.dedup();
+    info.glibcxx_versions.sort_unstable();
+    info.glibcxx_versions.dedup();
     Ok(info)
 }
 
-/// CLI: `cargo xtask check-elf-abi [--max-glibc <X.Y>] <elf>...`
-/// Gate E67: bảo đảm binary Linux phát hành chạy được trên RHEL 8.10 (glibc 2.28)
-/// và có `PT_GNU_STACK` không thực thi (SELinux `execstack`).
+/// CLI: `cargo xtask check-elf-abi [--max-glibc <X.Y>] [--max-glibcxx <X.Y.Z>] <elf>...`
+/// Gate E67/E68: bảo đảm binary Linux phát hành tương thích đúng trần glibc/GLIBCXX
+/// (EL8 glibc 2.28; compat GTK4/Fcitx5 glibc 2.35 + GLIBCXX 3.4.30) và có
+/// `PT_GNU_STACK` không thực thi (SELinux `execstack`).
 pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
     let mut max_glibc = (2u32, 28u32, 0u32);
+    let mut max_glibcxx: Option<(u32, u32, u32)> = None;
     let mut files: Vec<&str> = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -412,13 +424,25 @@ pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
             max_glibc = parse_ver_tuple(val)
                 .ok_or_else(|| format!("phiên bản glibc không hợp lệ: {val}"))?;
             i += 2;
+        } else if args[i] == "--max-glibcxx" {
+            let val = args
+                .get(i + 1)
+                .ok_or("--max-glibcxx cần giá trị kiểu X.Y.Z (ví dụ 3.4.30)")?;
+            max_glibcxx = Some(
+                parse_ver_tuple(val)
+                    .ok_or_else(|| format!("phiên bản GLIBCXX không hợp lệ: {val}"))?,
+            );
+            i += 2;
         } else {
             files.push(&args[i]);
             i += 1;
         }
     }
     if files.is_empty() {
-        return Err("cách dùng: cargo xtask check-elf-abi [--max-glibc 2.28] <elf>...".into());
+        return Err(
+            "cách dùng: cargo xtask check-elf-abi [--max-glibc 2.28] [--max-glibcxx 3.4.30] <elf>..."
+                .into(),
+        );
     }
 
     let mut errs = Vec::new();
@@ -434,29 +458,51 @@ pub fn check_elf_abi(args: &[String]) -> Result<(), String> {
         if info.has_glibc_private {
             bad.push("GLIBC_PRIVATE".into());
         }
+        if info.has_glibcxx_private {
+            bad.push("GLIBCXX_PRIVATE".into());
+        }
+        if let Some(cap) = max_glibcxx {
+            for &v in &info.glibcxx_versions {
+                if v > cap {
+                    bad.push(format!("GLIBCXX_{}", format_ver_tuple(v)));
+                }
+            }
+        }
         if !bad.is_empty() {
+            let cap_desc = match max_glibcxx {
+                Some(cap) => format!(
+                    "GLIBC_{}/GLIBCXX_{}",
+                    format_ver_tuple(max_glibc),
+                    format_ver_tuple(cap)
+                ),
+                None => format!("GLIBC_{}", format_ver_tuple(max_glibc)),
+            };
             errs.push(format!(
-                "{path}: yêu cầu symbol vượt trần GLIBC_{}: {}",
-                format_ver_tuple(max_glibc),
+                "{path}: yêu cầu symbol vượt trần {cap_desc}: {}",
                 bad.join(", ")
             ));
         }
         if !info.has_gnu_stack {
             errs.push(format!(
-                "{path}: thiếu PT_GNU_STACK (mặc định executable stack — bị SELinux RHEL 8 chặn)"
+                "{path}: thiếu PT_GNU_STACK (mặc định executable stack — bị SELinux RHEL 8/9/Fedora chặn)"
             ));
         } else if info.exec_stack {
             errs.push(format!(
-                "{path}: PT_GNU_STACK có cờ PF_X (executable stack — bị SELinux RHEL 8 chặn)"
+                "{path}: PT_GNU_STACK có cờ PF_X (executable stack — bị SELinux RHEL 8/9/Fedora chặn)"
             ));
         }
         if bad.is_empty() && info.has_gnu_stack && !info.exec_stack {
-            let top = info
+            let top_c = info
                 .glibc_versions
                 .last()
                 .map(|&v| format_ver_tuple(v))
                 .unwrap_or_else(|| "static".into());
-            println!("check-elf-abi: OK {path} (max GLIBC={top}, nx-stack=OK)");
+            let top_cxx = info
+                .glibcxx_versions
+                .last()
+                .map(|&v| format!(", max GLIBCXX={}", format_ver_tuple(v)))
+                .unwrap_or_default();
+            println!("check-elf-abi: OK {path} (max GLIBC={top_c}{top_cxx}, nx-stack=OK)");
         }
     }
 
@@ -685,6 +731,36 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err_priv.contains("GLIBC_PRIVATE"), "{err_priv}");
+
+        let ok_cxx = dir.join("ok_cxx.so");
+        let bad_cxx = dir.join("bad_cxx.so");
+        std::fs::write(
+            &ok_cxx,
+            synthetic_elf64(&["GLIBC_2.34", "GLIBCXX_3.4.29", "GLIBCXX_3.4.30"], false),
+        )
+        .unwrap();
+        std::fs::write(
+            &bad_cxx,
+            synthetic_elf64(&["GLIBC_2.35", "GLIBCXX_3.4.32"], false),
+        )
+        .unwrap();
+        assert!(check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.35".into(),
+            "--max-glibcxx".into(),
+            "3.4.30".into(),
+            ok_cxx.to_string_lossy().into_owned(),
+        ])
+        .is_ok());
+        let err_cxx = check_elf_abi(&[
+            "--max-glibc".into(),
+            "2.35".into(),
+            "--max-glibcxx".into(),
+            "3.4.30".into(),
+            bad_cxx.to_string_lossy().into_owned(),
+        ])
+        .unwrap_err();
+        assert!(err_cxx.contains("GLIBCXX_3.4.32"), "{err_cxx}");
 
         let _ = std::fs::remove_dir_all(&dir);
     }

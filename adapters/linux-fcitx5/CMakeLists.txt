@@ -4,13 +4,19 @@ project(fcitx5-textvn LANGUAGES C CXX)
 # C++20 (R2-117): header Fcitx5 6.x (Arch/rolling) dùng std::ranges/std::span/
 # starts_with trong template body — C++17 không biên dịch được. Ubuntu cũ vẫn
 # được: chỉ cần libstdc++ 11+ (gcc 11) là đủ mọi tính năng header dùng.
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 include(GNUInstallDirs)
 
 find_package(Fcitx5Core 5.0.14 REQUIRED)
 find_package(Fcitx5Utils REQUIRED)
+
+# E68/R2-117: header Fcitx5 >= 5.1.12 (Arch/Fedora) can C++20; SLES 15 / Leap 15.6
+# (GCC 7.5) & Ubuntu 22.04 / Debian 12 (Fcitx5 5.0.x) build clean voi C++17.
+if(Fcitx5Core_VERSION VERSION_GREATER_EQUAL "5.1.12")
+    set(CMAKE_CXX_STANDARD 20)
+else()
+    set(CMAKE_CXX_STANDARD 17)
+endif()
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Engine Rust (staticlib, P0-2 §1): `cargo build --release -p textvn-ffi`.
 set(TEXTVN_FFI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release" CACHE PATH "Rust target/release")

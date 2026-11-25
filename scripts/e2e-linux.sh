@@ -14,7 +14,7 @@ echo "== build engine (staticlib)"
 cargo build --release -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
 
 PARTS="common ibus fcitx5"
-if pkg-config --exists gtk4 2>/dev/null; then PARTS="$PARTS settings"; fi
+if pkg-config --exists gtk4 2>/dev/null || pkg-config --exists gtk+-3.0 2>/dev/null; then PARTS="$PARTS settings"; fi
 for a in $PARTS; do
     echo "== build + ctest linux-$a"
     cmake -S "$ROOT/adapters/linux-$a" -B "$BUILD/$a" -DCMAKE_BUILD_TYPE=Release >/dev/null

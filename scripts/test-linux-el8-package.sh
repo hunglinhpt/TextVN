@@ -119,7 +119,11 @@ el8_install() {
 
     # Chạy uninstall.sh KHI --wait-bus đang sống: phải dừng chính xác tiến trình --wait-bus!
     "$pre/share/textvn/uninstall.sh" --no-restart >"$t/un.log" 2>&1 || { cat "$t/un.log"; fail "uninstall.sh"; }
-    ! kill -0 "$autostart_pid" 2>/dev/null || fail "uninstall.sh không dừng textvn-ibus-engine --wait-bus"
+    # Nếu tiến trình con đã thoát nhưng chưa được shell cha thu dọn (State: Z), đợi thu dọn.
+    if kill -0 "$autostart_pid" 2>/dev/null && ! grep -q '^State:[[:space:]]*Z' "/proc/$autostart_pid/status" 2>/dev/null; then
+        fail "uninstall.sh không dừng textvn-ibus-engine --wait-bus"
+    fi
+    wait "$autostart_pid" 2>/dev/null || true
     autostart_pid=""
     [[ ! -e "$autostart" ]] || fail "uninstall.sh để sót $autostart"
     ibus exit >/dev/null 2>&1 || true
@@ -209,7 +213,7 @@ el8_wayland_live_portable() {
     tail -n1 "$t/e2e.log"
     "$pkg/textvn-portable.sh" stop >"$t/s.log" 2>&1 || { cat "$t/s.log"; fail "Wayland live portable stop"; }
     kill -0 "$daemon_pid" 2>/dev/null || fail "Wayland live portable stop đã giết ibus-daemon gốc!"
-    ! pgrep -f -u "$(id -u)" 'textvn-ibus-engine' >/dev/null 2>&1 || fail "Wayland live portable stop để sót textvn-ibus-engine"
+    ! pgrep -u "$(id -u)" '^textvn-ibus-eng' >/dev/null 2>&1 || fail "Wayland live portable stop để sót textvn-ibus-engine"
     cleanup
     rm -rf "$t"
     trap - EXIT

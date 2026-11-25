@@ -13,9 +13,25 @@ tv_err() { echo "${TV_C_ERR}✗ $*${TV_C_OFF}" >&2; }
 
 tv_version() { cat "$1/VERSION" 2>/dev/null || echo "?"; }
 
-# Gói hợp lệ: có CLI, chạy được trên glibc máy hiện tại và có ít nhất một adapter.
+# E68: kiểm tra ABI độc lập cho từng adapter để máy chỉ dùng Fcitx5 (Fedora KDE,
+# Arch KDE, openSUSE KDE, Kubuntu, Debian KDE — không cài libibus) vẫn cài/chạy được,
+# đồng thời phát hiện ngay libtextvn-fcitx5.so lệch ABI/SONAME trước khi nạp.
+tv_ibus_abi_ok() { # <pkg_dir>
+    local d="$1"
+    [[ -x "$d/lib/textvn/textvn-ibus-engine" ]] &&
+        "$d/lib/textvn/textvn-ibus-engine" --check-abi >/dev/null 2>&1
+}
+
+tv_fcitx5_abi_ok() { # <pkg_dir>
+    local d="$1"
+    [[ -f "$d/lib/textvn/fcitx5/libtextvn-fcitx5.so" && -x "$d/bin/textvn" ]] &&
+        "$d/bin/textvn" check-dlopen "$d/lib/textvn/fcitx5/libtextvn-fcitx5.so" >/dev/null 2>&1
+}
+
+# Gói hợp lệ: có CLI chạy được trên glibc máy hiện tại và ít nhất một adapter (IBus hoặc Fcitx5)
+# có đủ thư viện runtime.
 tv_check_package() {
-    local d="$1" err=""
+    local d="$1" err="" ibus_ok=0 fcitx_ok=0
     if [[ ! -x "$d/bin/textvn" ]]; then
         tv_err "Không phải thư mục gói TextVN (thiếu bin/textvn): $d"
         return 1
@@ -24,23 +40,31 @@ tv_check_package() {
         tv_err "Gói không có adapter IBus lẫn Fcitx5."
         return 1
     fi
-    # E64/E67: kiểm tra tương thích glibc/loader TRƯỚC khi cài hoặc restart IBus — tránh
-    # ghi đè bản binary không chạy được trên máy cũ làm hỏng phiên IBus.
+    # E64/E67: kiểm tra tương thích glibc/loader TRƯỚC khi cài hoặc restart IME.
     if ! err="$("$d/bin/textvn" --help 2>&1 >/dev/null)"; then
         tv_err "Binary textvn không tương thích thư viện hệ thống trên máy này:"
         [[ -n "$err" ]] && tv_err "  $err"
         tv_err "Hãy dựng trực tiếp từ mã nguồn cho máy bạn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
         return 1
     fi
-    if [[ -x "$d/lib/textvn/textvn-ibus-engine" ]]; then
-        if ! err="$("$d/lib/textvn/textvn-ibus-engine" --check-abi 2>&1 >/dev/null)"; then
-            tv_err "Binary textvn-ibus-engine thiếu thư viện hệ thống (ví dụ ibus / glib):"
-            [[ -n "$err" ]] && tv_err "  $err"
-            tv_err "  • RHEL / Rocky / Alma / Fedora : sudo dnf install -y ibus ibus-libs gtk3"
-            tv_err "  • Ubuntu / Debian              : sudo apt install -y ibus libibus-1.0-5"
-            tv_err "Hoặc dựng từ mã nguồn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
-            return 1
+    tv_ibus_abi_ok "$d" && ibus_ok=1
+    tv_fcitx5_abi_ok "$d" && fcitx_ok=1
+    if [[ "$ibus_ok" == 0 && "$fcitx_ok" == 0 ]]; then
+        tv_err "Không có adapter IBus hay Fcitx5 nào nạp được trên máy này (thiếu thư viện hệ thống):"
+        if [[ -x "$d/lib/textvn/textvn-ibus-engine" ]]; then
+            err="$("$d/lib/textvn/textvn-ibus-engine" --check-abi 2>&1 >/dev/null || true)"
+            [[ -n "$err" ]] && tv_err "  IBus  : $err"
         fi
+        if [[ -f "$d/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
+            err="$("$d/bin/textvn" check-dlopen "$d/lib/textvn/fcitx5/libtextvn-fcitx5.so" 2>&1 >/dev/null || true)"
+            [[ -n "$err" ]] && tv_err "  Fcitx5: $err"
+        fi
+        tv_err "  • RHEL 8/9 / Rocky / Alma / Fedora : sudo dnf install -y ibus ibus-libs gtk3"
+        tv_err "  • SLES 15 / openSUSE Leap          : sudo zypper install -y ibus libibus-1_0-5 gtk3"
+        tv_err "  • Ubuntu / Debian / Mint           : sudo apt install -y ibus libibus-1.0-5"
+        tv_err "  • Arch / Manjaro                   : sudo pacman -S ibus (hoặc fcitx5)"
+        tv_err "Hoặc dựng từ mã nguồn: ./scripts/install_linux.sh (xem docs/user-guide.md)."
+        return 1
     fi
 }
 
@@ -71,7 +95,7 @@ tv_fcitx5_addon_candidates() {
     {
         [[ -n "$libdir" ]] && echo "$libdir/fcitx5"
         [[ -n "$triplet" ]] && echo "/usr/lib/$triplet/fcitx5"
-        printf '%s\n' /usr/lib64/fcitx5 /usr/lib/fcitx5 /usr/local/lib/fcitx5
+        printf '%s\n' /usr/lib64/fcitx5 /usr/lib/fcitx5 /usr/local/lib64/fcitx5 /usr/local/lib/fcitx5
     } | awk '!seen[$0]++'
 }
 
@@ -79,7 +103,7 @@ tv_fcitx5_addon_candidates() {
 tv_fcitx5_system_addon_dir() {
     local d
     while IFS= read -r d; do
-        if compgen -G "$d/lib*.so" >/dev/null 2>&1; then
+        if compgen -G "$d/*.so" >/dev/null 2>&1; then
             echo "$d"
             return 0
         fi
@@ -213,8 +237,11 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
         local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/textvn-ibus-autostart.desktop"
         [[ "$path" == "$autostart_file" ]] && return 0
     fi
-    addon_dir="$(tv_fcitx5_system_addon_dir)"
-    [[ -n "$addon_dir" && "$path" == "$addon_dir/libtextvn-fcitx5.so" ]]
+    # E68: đối chiếu MỌI ứng viên libdir Fcitx5 (tránh lệch /usr/lib64 <-> /usr/lib trên Arch khi đổi pkgconf).
+    while IFS= read -r addon_dir; do
+        [[ -n "$addon_dir" && "$path" == "$addon_dir/libtextvn-fcitx5.so" ]] && return 0
+    done < <(tv_fcitx5_addon_candidates)
+    return 1
 }
 
 # Dừng chính xác tiến trình `textvn-ibus-engine --wait-bus` của đúng đường dẫn cài đặt
@@ -227,9 +254,11 @@ tv_stop_wait_bus_engine() { # <engine_path>
         comm="$(cat "$p/comm" 2>/dev/null || true)"
         [[ "$comm" == textvn-ibus-eng* ]] || continue
         cmd_args=()
-        while IFS= read -r -d '' a; do
-            cmd_args+=("$a")
-        done < "$p/cmdline" 2>/dev/null || true
+        {
+            while IFS= read -r -d '' a; do
+                cmd_args+=("$a")
+            done < "$p/cmdline"
+        } 2>/dev/null || true
         [[ "${cmd_args[0]:-}" == "$target" ]] || continue
         has_wait=0
         for a in "${cmd_args[@]:1}"; do
@@ -240,9 +269,10 @@ tv_stop_wait_bus_engine() { # <engine_path>
         kill -TERM "$pid" 2>/dev/null || continue
         for i in $(seq 1 30); do
             kill -0 "$pid" 2>/dev/null || break
+            grep -q '^State:[[:space:]]*Z' "/proc/$pid/status" 2>/dev/null && break
             sleep 0.1
         done
-        if kill -0 "$pid" 2>/dev/null; then
+        if kill -0 "$pid" 2>/dev/null && ! grep -q '^State:[[:space:]]*Z' "/proc/$pid/status" 2>/dev/null; then
             kill -KILL "$pid" 2>/dev/null || true
         fi
     done
@@ -337,7 +367,7 @@ tv_restart_ibus() { # <component_path | "">
     fi
     pid="$(pgrep -x -u "$(id -u)" ibus-daemon 2>/dev/null | sed -n '1p' || true)"
     if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
-        mapfile -d '' args < "/proc/$pid/cmdline"
+        mapfile -d '' args < "/proc/$pid/cmdline" 2>/dev/null || true
         args=("${args[@]:1}")
     fi
     [[ ${#args[@]} -eq 0 ]] && args=(--xim)
@@ -403,18 +433,42 @@ tv_stop_fcitx5() {
     return 1
 }
 
+# E68: Trên KDE Plasma Wayland (Fedora KDE, Arch/Manjaro KDE, openSUSE KDE, Debian 12 KDE),
+# KWin trực tiếp khởi chạy fcitx5 với WAYLAND_SOCKET riêng. Giết rồi chạy `setsid fcitx5 -d`
+# sẽ cắt đứt WAYLAND_SOCKET khiến ứng dụng Wayland mất bộ gõ.
+tv_fcitx5_is_kwin_wayland() {
+    [[ "${TV_FORCE_FCITX5_RESTART:-0}" != 1 ]] || return 1
+    tv_running fcitx5 || return 1
+    if [[ "${XDG_SESSION_TYPE:-}" == wayland && "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]]; then
+        return 0
+    fi
+    [[ -n "$(tv_process_environment fcitx5 WAYLAND_SOCKET || true)" ]]
+}
+
 # Dừng fcitx5 (nếu chạy), tuỳ chọn sửa profile, rồi chạy lại với FCITX_ADDON_DIRS và thư
 # mục dữ liệu thêm. Profile phải sửa khi fcitx5 đã dừng: fcitx5 ghi đè profile khi thoát.
 tv_restart_fcitx5() { # <addon_dirs | ""> <extra_xdg_data_dir | ""> <profile_action: add|remove|"">
     local addons="$1" extra="$2" action="${3:-}" data="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
     local was_running=0 i pid args=() keep=() a
     [[ -n "$extra" ]] && data="$extra:$data"
+    if tv_fcitx5_is_kwin_wayland; then
+        if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]] && tv_systemd_user_ok; then
+            if [[ -n "$addons" ]]; then
+                systemctl --user set-environment "FCITX_ADDON_DIRS=$addons" 2>/dev/null || true
+            else
+                systemctl --user unset-environment FCITX_ADDON_DIRS 2>/dev/null || true
+            fi
+        fi
+        tv_say "KDE Plasma Wayland đang quản lý Fcitx5 (WAYLAND_SOCKET): giữ nguyên fcitx5 để không ngắt bàn phím ảo."
+        tv_say "Hãy mở System Settings → Keyboard → Virtual Keyboard → áp dụng lại Fcitx 5 (hoặc đăng xuất/đăng nhập lại 1 lần)."
+        return 0
+    fi
     if tv_running fcitx5; then
         was_running=1
         # Giữ tham số của tiến trình đang chạy (ví dụ --disable/--enable của phiên).
         pid="$(pgrep -x -u "$(id -u)" fcitx5 2>/dev/null | sed -n '1p' || true)"
         if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
-            mapfile -d '' args < "/proc/$pid/cmdline"
+            mapfile -d '' args < "/proc/$pid/cmdline" 2>/dev/null || true
             for a in "${args[@]:1}"; do
                 case "$a" in -d|-r|-rd|-dr|--replace) ;; *) keep+=("$a") ;; esac
             done
@@ -446,8 +500,13 @@ tv_restart_fcitx5() { # <addon_dirs | ""> <extra_xdg_data_dir | ""> <profile_act
 # Chỉ sửa khi định dạng giá trị đúng như mong đợi; không có gsettings/schema thì bỏ qua.
 tv_activate_ibus() {
     command -v gsettings >/dev/null 2>&1 || return 0
-    local cur new
-    if gsettings list-schemas 2>/dev/null | grep -qx org.gnome.desktop.input-sources; then
+    local cur new use_gnome=0
+    # E68: gsettings-desktop-schemas thường cài sẵn cả trên Cinnamon/Xfce/MATE/KDE —
+    # chỉ dùng org.gnome.desktop.input-sources khi đang ở GNOME (hoặc phiên headless chưa đặt desktop).
+    if [[ -z "${XDG_CURRENT_DESKTOP:-}" || "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]]; then
+        gsettings list-schemas 2>/dev/null | grep -qx org.gnome.desktop.input-sources && use_gnome=1
+    fi
+    if [[ "$use_gnome" == 1 ]]; then
         cur="$(gsettings get org.gnome.desktop.input-sources sources 2>/dev/null)" || return 0
         [[ "$cur" == *"'textvn'"* ]] && return 0
         case "$cur" in
@@ -529,12 +588,51 @@ tv_fcitx5_active_group() { # <profile>
 tv_activate_fcitx5() {
     local p gid n
     p="$(tv_fcitx5_profile)"
-    [[ -f "$p" ]] || return 0
+    if [[ ! -f "$p" ]]; then
+        tv_say "Chưa có file profile Fcitx5 ($p) — mở fcitx5-configtool sau khi khởi động Fcitx5 để thêm 'TextVN'."
+        return 0
+    fi
     grep -qx 'Name=textvn' "$p" && return 0
     gid="$(tv_fcitx5_active_group "$p")"
     n="$(grep -c "^\[Groups/${gid}/Items/[0-9]*\]$" "$p" || true)"
     printf '\n[Groups/%s/Items/%s]\nName=textvn\nLayout=\n' "$gid" "$n" >> "$p"
     tv_ok "Đã thêm TextVN vào nhóm bộ gõ Fcitx5 (Ctrl+Space để chuyển)."
+}
+
+# E68: Phiên X11 cổ điển (Linux Mint Cinnamon/LightDM, Pop!_OS X11, Debian Xfce/MATE,
+# openSUSE/SLES X11) không đọc ~/.config/environment.d mà đọc ~/.xprofile. Ghi khối
+# đánh dấu có quản lý và gỡ sạch (kể cả xóa file nếu trống) trong uninstall.sh.
+tv_xprofile_install() { # <ibus_comp | ""> <fcitx_dirs | "">
+    local ibus_comp="$1" fcitx_dirs="$2" xp="$HOME/.xprofile" tmp
+    tv_xprofile_remove
+    [[ -n "$ibus_comp" || -n "$fcitx_dirs" ]] || return 0
+    {
+        echo "# BEGIN TextVN (per-user X11 env — managed by install.sh / uninstall.sh)"
+        if [[ -n "$ibus_comp" ]]; then
+            printf 'export IBUS_COMPONENT_PATH=%s"${IBUS_COMPONENT_PATH:+:$IBUS_COMPONENT_PATH}"\n' "$(tv_shell_quote "$ibus_comp")"
+        fi
+        if [[ -n "$fcitx_dirs" ]]; then
+            printf 'export FCITX_ADDON_DIRS=%s"${FCITX_ADDON_DIRS:+:$FCITX_ADDON_DIRS}"\n' "$(tv_shell_quote "$fcitx_dirs")"
+        fi
+        echo "# END TextVN"
+    } >> "$xp"
+}
+
+tv_xprofile_remove() {
+    local xp="$HOME/.xprofile" tmp
+    [[ -f "$xp" ]] || return 0
+    grep -Fq '# BEGIN TextVN' "$xp" || return 0
+    tmp="$(mktemp)"
+    awk '
+        /^# BEGIN TextVN/ { skip = 1; next }
+        /^# END TextVN$/  { skip = 0; next }
+        !skip { print }
+    ' "$xp" > "$tmp"
+    if [[ ! -s "$tmp" ]]; then
+        rm -f -- "$tmp" "$xp"
+    else
+        mv -- "$tmp" "$xp"
+    fi
 }
 
 tv_deactivate_fcitx5() {

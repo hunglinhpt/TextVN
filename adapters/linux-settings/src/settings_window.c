@@ -264,6 +264,7 @@ static void on_style_clear(GtkButton *b, TvWin *w) {
     gtk_box_append(GTK_BOX(box), row);
     gtk_window_set_child(GTK_WINDOW(dlg), box);
     gtk_window_set_default_widget(GTK_WINDOW(dlg), no);
+    add_escape_closes(dlg);
     gtk_window_present(GTK_WINDOW(dlg));
 }
 
@@ -552,6 +553,7 @@ static void tv_win_free(gpointer data) {
         w->macro_window = NULL;
     }
     if (w->monitor) {
+        g_signal_handlers_disconnect_by_data(w->monitor, w);
         g_file_monitor_cancel(w->monitor);
         g_object_unref(w->monitor);
     }

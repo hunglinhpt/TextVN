@@ -4,7 +4,8 @@
 # (một đường cài duy nhất cho mã nguồn và tarball).
 #
 #   scripts/install_linux.sh                 # per-user (~/.local), không cần root
-#   sudo -E scripts/install_linux.sh --system
+#   scripts/install_linux.sh --no-restart    # build với user thường, rồi cài hệ thống:
+#   sudo target/linux-stage/install.sh --system
 #
 # Mọi tuỳ chọn được chuyển nguyên cho install.sh (--no-restart, --no-activate, --prefix).
 # Cần: cargo, cmake, pkg-config, gcc/g++ và header IBus (libibus-1.0-dev) và/hoặc Fcitx5
@@ -20,15 +21,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ADAPTERS="$ROOT/target/linux-adapters"
 
-for tool in cargo cmake pkg-config; do
+for tool in cargo cmake pkg-config cc make; do
     command -v "$tool" >/dev/null 2>&1 || {
         echo "Thiếu '$tool'." >&2
-        echo "  • Ubuntu / Debian              : sudo apt install -y cargo cmake pkg-config g++ libibus-1.0-dev libgtk-4-dev" >&2
-        echo "  • RHEL 8/9 / Rocky / Alma / Fed: sudo dnf install -y cmake pkgconf-pkg-config gcc gcc-c++ ibus-devel gtk3-devel (RHEL 8 cần bật CodeReady Builder / Alma-Rocky 8 thêm --enablerepo=powertools; Rust qua rustup.rs)" >&2
+        echo "  • Ubuntu / Debian / Mint           : sudo apt install -y cargo cmake pkg-config build-essential libibus-1.0-dev libgtk-4-dev" >&2
+        echo "  • RHEL 8 / Rocky 8 / Alma 8        : sudo dnf --enablerepo=powertools install -y gcc make cmake pkgconf-pkg-config ibus-devel gtk3-devel (RHEL 8 dùng codeready-builder; Rust qua rustup.rs)" >&2
+        echo "  • RHEL 9 / Rocky 9 / Alma 9 / Fed  : sudo dnf --enablerepo=crb install -y gcc gcc-c++ make cmake pkgconf-pkg-config ibus-devel gtk4-devel (Fedora không cần --enablerepo)" >&2
+        echo "  • SLES 15 / openSUSE Leap 15.6     : sudo zypper install -y gcc gcc-c++ make cmake pkg-config ibus-devel gtk3-devel" >&2
+        echo "  • Arch / Manjaro                   : sudo pacman -S base-devel rust cmake pkgconf ibus gtk4" >&2
+        [[ $EUID -eq 0 && "$tool" == cargo ]] && echo "  (Lưu ý: không chạy scripts/install_linux.sh bằng sudo; build bằng user thường rồi chạy: sudo target/linux-stage/install.sh --system)" >&2
         exit 1
     }
 done
 
+rm -rf "$ADAPTERS"
 cargo build --release -p textvn-ffi -p textvn-cli --manifest-path "$ROOT/Cargo.toml"
 built=0
 if pkg-config --exists ibus-1.0; then
@@ -36,10 +42,16 @@ if pkg-config --exists ibus-1.0; then
     cmake --build "$ADAPTERS/ibus" -j"$(nproc)"
     built=1
 fi
-if pkg-config --exists Fcitx5Core; then
-    cmake -S "$ROOT/adapters/linux-fcitx5" -B "$ADAPTERS/fcitx5" -DCMAKE_BUILD_TYPE=Release >/dev/null
-    cmake --build "$ADAPTERS/fcitx5" -j"$(nproc)"
-    built=1
+if pkg-config --exists Fcitx5Core && pkg-config --exists Fcitx5Utils && command -v g++ >/dev/null 2>&1; then
+    if cmake -S "$ROOT/adapters/linux-fcitx5" -B "$ADAPTERS/fcitx5" -DCMAKE_BUILD_TYPE=Release >/dev/null &&
+       cmake --build "$ADAPTERS/fcitx5" -j"$(nproc)"; then
+        built=1
+    elif [[ "$built" == 1 ]]; then
+        echo "Cảnh báo: build adapter Fcitx5 thất bại (có thể do compiler C++ cũ) — tiếp tục cài IBus." >&2
+        rm -rf "$ADAPTERS/fcitx5"
+    else
+        exit 1
+    fi
 fi
 if pkg-config --exists gtk4 || pkg-config --exists gtk+-3.0; then
     cmake -S "$ROOT/adapters/linux-settings" -B "$ADAPTERS/settings" -DCMAKE_BUILD_TYPE=Release >/dev/null

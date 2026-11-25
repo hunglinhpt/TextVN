@@ -86,11 +86,12 @@ mkdir -p "$SHARE/textvn"
 MANIFEST_NEW="$MANIFEST.new"
 OLD_MANIFEST=""
 XML_TMP=""
+DESK_TMP=""
 if [[ -f "$MANIFEST" ]]; then
     OLD_MANIFEST="$(mktemp "$SHARE/textvn/.install-manifest.old.XXXXXX")"
     cp -- "$MANIFEST" "$OLD_MANIFEST"
 fi
-trap 'rm -f -- "$MANIFEST_NEW" "${OLD_MANIFEST:-}" "${XML_TMP:-}"' EXIT
+trap 'rm -f -- "$MANIFEST_NEW" "${OLD_MANIFEST:-}" "${XML_TMP:-}" "${DESK_TMP:-}"' EXIT
 : > "$MANIFEST_NEW"
 put() { # put <mode> <src> <dst>
     install -D -m "$1" "$2" "$3"
@@ -106,6 +107,11 @@ put 0755 "$PKG_DIR/bin/textvn" "$BIN/textvn"
 
 HAS_IBUS=0
 HAS_FCITX5=0
+IBUS_ABI_OK=0
+FCITX5_ABI_OK=0
+tv_ibus_abi_ok "$PKG_DIR" && IBUS_ABI_OK=1
+tv_fcitx5_abi_ok "$PKG_DIR" && FCITX5_ABI_OK=1
+
 if [[ -f "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
     put 0755 "$PKG_DIR/lib/textvn/textvn-ibus-engine" "$LIBDIR/textvn-ibus-engine"
     XML_TMP="$(mktemp)"
@@ -114,10 +120,16 @@ if [[ -f "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
     rm -f -- "$XML_TMP"
     XML_TMP=""
     HAS_IBUS=1
-    if [[ "$MODE" == user ]]; then
-        tv_ibus_refresh_cache "$SHARE/ibus/component:/usr/share/ibus/component"
-    elif [[ "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
-        env -u IBUS_COMPONENT_PATH ibus write-cache --system >/dev/null 2>&1 || true
+    if [[ "$IBUS_ABI_OK" == 1 ]]; then
+        if [[ "$MODE" == user ]]; then
+            tv_ibus_refresh_cache "$SHARE/ibus/component:/usr/share/ibus/component"
+        elif [[ "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
+            env -u IBUS_COMPONENT_PATH ibus write-cache --system >/dev/null 2>&1 || true
+        elif [[ "$MODE" == system ]]; then
+            tv_say "Cài --system vào $PREFIX (khác /usr): IBus mặc định chỉ quét /usr/share/ibus/component — cần IBUS_COMPONENT_PATH=$SHARE/ibus/component:/usr/share/ibus/component."
+        fi
+    elif tv_running ibus-daemon || command -v ibus-daemon >/dev/null 2>&1; then
+        tv_say "Lưu ý: thiếu thư viện runtime IBus (libibus) — đã chép file IBus nhưng bỏ qua khởi động lại IBus."
     fi
 fi
 if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
@@ -125,6 +137,11 @@ if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
     put 0644 "$PKG_DIR/share/fcitx5/addon/textvn.conf" "$SHARE/fcitx5/addon/textvn.conf"
     put 0644 "$PKG_DIR/share/fcitx5/inputmethod/textvn.conf" "$SHARE/fcitx5/inputmethod/textvn.conf"
     HAS_FCITX5=1
+    if [[ "$FCITX5_ABI_OK" == 0 ]] && (tv_running fcitx5 || command -v fcitx5 >/dev/null 2>&1); then
+        fc_err="$("$PKG_DIR/bin/textvn" check-dlopen "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" 2>&1 || true)"
+        tv_err "Cảnh báo: addon Fcitx5 không nạp được trên máy này (bỏ qua restart Fcitx5): $fc_err"
+        tv_err "  Hãy dùng IBus hoặc dựng Fcitx5 từ mã nguồn cho distro này: ./scripts/install_linux.sh"
+    fi
     if [[ "$MODE" == system && -z "$SYS_FCITX_ADDONS" ]]; then
         # Distro ngoài danh sách multiarch: addon nằm ở $LIBDIR/fcitx5 mà bản hệ
         # thống không khai báo FCITX_ADDON_DIRS → Fcitx5 sẽ không nạp (review R3 minor 11).
@@ -135,9 +152,25 @@ if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
 fi
 for f in icons/hicolor/scalable/apps/textvn_v.svg icons/hicolor/scalable/apps/textvn_e.svg \
          icons/hicolor/128x128/apps/textvn_v.png icons/hicolor/128x128/apps/textvn_e.png \
-         applications/textvn-settings.desktop metainfo/io.github.hunglinhpt.textvn.metainfo.xml; do
+         metainfo/io.github.hunglinhpt.textvn.metainfo.xml; do
     [[ -f "$PKG_DIR/share/$f" ]] && put 0644 "$PKG_DIR/share/$f" "$SHARE/$f"
 done
+if [[ -f "$PKG_DIR/share/applications/textvn-settings.desktop" ]]; then
+    # E68: ghi đường dẫn tuyệt đối vào Exec= để menu ứng dụng chạy được cả khi ~/.local/bin
+    # không nằm trong PATH của phiên đồ họa (Arch, SUSE, Debian GDM/SDDM, EL8/EL9, --prefix).
+    DESK_TMP="$(mktemp)"
+    desk_exec="Exec=$(tv_desktop_quote "$BIN/textvn-settings")"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == "Exec=textvn-settings" ]]; then
+            printf '%s\n' "$desk_exec"
+        else
+            printf '%s\n' "$line"
+        fi
+    done < "$PKG_DIR/share/applications/textvn-settings.desktop" > "$DESK_TMP"
+    put 0644 "$DESK_TMP" "$SHARE/applications/textvn-settings.desktop"
+    rm -f -- "$DESK_TMP"
+    DESK_TMP=""
+fi
 for f in "$PKG_DIR"/share/doc/textvn/*; do
     [[ -f "$f" ]] && put 0644 "$f" "$SHARE/doc/textvn/$(basename "$f")"
 done
@@ -156,7 +189,7 @@ if [[ "$MODE" == user ]]; then
     {
         echo "# TextVN (cài per-user) — tạo bởi install.sh, gỡ bởi uninstall.sh"
         if [[ "$HAS_IBUS" == 1 ]]; then
-            echo "IBUS_COMPONENT_PATH=$SHARE/ibus/component:/usr/share/ibus/component"
+            printf 'IBUS_COMPONENT_PATH=%s${IBUS_COMPONENT_PATH:+:$IBUS_COMPONENT_PATH}\n' "$SHARE/ibus/component:/usr/share/ibus/component"
         fi
         if [[ "$HAS_FCITX5" == 1 ]]; then
             # FCITX_DIRS luôn có thư mục addon gốc của Fcitx5 (hoặc mọi ứng viên
@@ -167,6 +200,13 @@ if [[ "$MODE" == user ]]; then
         fi
     } > "$ENV_FILE"
     echo "$ENV_FILE" >> "$MANIFEST_NEW"
+    if [[ "$PER_USER_STEPS" == 1 ]]; then
+        xp_ibus=""
+        xp_fcitx=""
+        [[ "$HAS_IBUS" == 1 ]] && xp_ibus="$SHARE/ibus/component:/usr/share/ibus/component"
+        [[ "$HAS_FCITX5" == 1 ]] && xp_fcitx="$FCITX_DIRS"
+        tv_xprofile_install "$xp_ibus" "$xp_fcitx"
+    fi
     if [[ "$HAS_IBUS" == 1 ]] && tv_ibus_has_system_cache_bug; then
         # E67: RHEL 8.10 (IBus 1.5.19) luôn nạp /var/cache/ibus/bus/registry trước
         # IBUS_COMPONENT_PATH khi chạy --cache=auto. Tạo XDG autostart đăng ký component
@@ -213,10 +253,19 @@ trap - EXIT
 
 command -v gtk-update-icon-cache >/dev/null 2>&1 &&
     gtk-update-icon-cache -q -t -f "$SHARE/icons/hicolor" 2>/dev/null || true
+command -v update-desktop-database >/dev/null 2>&1 &&
+    update-desktop-database -q "$SHARE/applications" 2>/dev/null || true
 if [[ "$MODE" == system ]] && command -v restorecon >/dev/null 2>&1; then
-    # E67: RHEL/Rocky/Alma SELinux Enforcing — chuẩn hoá label cho binary cài hệ thống.
-    rc_paths=("$BIN/textvn" "$BIN/textvn-settings" "$LIBDIR" "$SHARE/ibus/component/textvn.xml")
-    [[ "$HAS_FCITX5" == 1 ]] && rc_paths+=("$FCITX_LIB/libtextvn-fcitx5.so")
+    # E67/E68: RHEL 8/9 / Rocky / Alma / Fedora SELinux Enforcing — chuẩn hoá label đủ cả bin/lib/share.
+    rc_paths=(
+        "$BIN/textvn" "$BIN/textvn-settings" "$LIBDIR"
+        "$SHARE/ibus/component/textvn.xml"
+        "$SHARE/applications/textvn-settings.desktop"
+        "$SHARE/icons/hicolor"
+        "$SHARE/metainfo/io.github.hunglinhpt.textvn.metainfo.xml"
+        "$SHARE/textvn"
+    )
+    [[ "$HAS_FCITX5" == 1 ]] && rc_paths+=("$FCITX_LIB/libtextvn-fcitx5.so" "$SHARE/fcitx5")
     restorecon -RF "${rc_paths[@]}" 2>/dev/null || true
 fi
 
@@ -229,11 +278,12 @@ if [[ "$PER_USER_STEPS" == 0 ]]; then
         echo "    • IBus  : ibus restart — rồi thêm 'TextVN' trong Cài đặt → Bàn phím → Nguồn nhập."
     [[ "$HAS_FCITX5" == 1 ]] &&
         echo "    • Fcitx5: fcitx5 -r -d — rồi thêm 'TextVN' trong fcitx5-configtool."
-elif [[ "$HAS_IBUS" == 1 ]]; then
+elif [[ "$HAS_IBUS" == 1 && "$IBUS_ABI_OK" == 1 ]]; then
     if [[ "$RESTART" == 1 ]] && tv_running ibus-daemon; then
         if [[ "$MODE" == user ]]; then
-            if tv_ibus_needs_live_register && tv_ibus_has_system_cache_bug; then
-                # E67: GNOME 3.32 Wayland (RHEL 8.10) không restart ibus-daemon —
+            if tv_ibus_needs_live_register; then
+                # E67/E68: GNOME Wayland không systemd IBus unit (RHEL 8.10 GNOME 3.32,
+                # RHEL 9 GNOME 40, Ubuntu 22.04 GNOME 42) — không restart ibus-daemon;
                 # dừng bản cũ (nếu đang nâng cấp) rồi đăng ký live ngay cho phiên hiện tại.
                 tv_stop_wait_bus_engine "$LIBDIR/textvn-ibus-engine"
                 nohup "$LIBDIR/textvn-ibus-engine" --wait-bus --setup "$BIN/textvn-settings" </dev/null >/dev/null 2>&1 &
@@ -248,7 +298,7 @@ elif [[ "$HAS_IBUS" == 1 ]]; then
     fi
     [[ "$ACTIVATE" == 1 ]] && tv_activate_ibus
 fi
-if [[ "$PER_USER_STEPS" == 1 && "$HAS_FCITX5" == 1 ]]; then
+if [[ "$PER_USER_STEPS" == 1 && "$HAS_FCITX5" == 1 && "$FCITX5_ABI_OK" == 1 ]]; then
     action=""
     [[ "$ACTIVATE" == 1 ]] && action=add
     if [[ "$RESTART" == 1 ]]; then

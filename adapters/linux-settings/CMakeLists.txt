@@ -76,6 +76,8 @@ if(TEXTVN_GTK_SRC)
     target_compile_definitions(textvn-settings PRIVATE TEXTVN_VERSION="${TEXTVN_VERSION}")
     target_compile_options(textvn-settings PRIVATE ${TEXTVN_SETTINGS_WARN} ${TEXTVN_GTK_CFLAGS_OTHER})
     target_link_libraries(textvn-settings PRIVATE textvn-settings-model ${TEXTVN_GTK_LDFLAGS})
+    # E68: bind eagerly (-z,now) để --check-abi phát hiện ngay symbol GTK4/GTK3/GLib thiếu.
+    target_link_options(textvn-settings PRIVATE -Wl,-z,now)
     install(TARGETS textvn-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
 else()
     message(STATUS "gtk4/gtk3 không có — chỉ build logic + test (không có textvn-settings)")

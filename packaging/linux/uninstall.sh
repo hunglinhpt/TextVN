@@ -101,6 +101,7 @@ if [[ "$PER_USER_STEPS" == 0 ]]; then
         PURGE_SKIPPED=1
     fi
 else
+    tv_xprofile_remove
     if [[ "$had_ibus" == 1 ]]; then
         tv_stop_wait_bus_engine "$PREFIX/lib/textvn/textvn-ibus-engine"
     fi

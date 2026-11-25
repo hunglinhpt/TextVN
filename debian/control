@@ -7,7 +7,7 @@ Build-Depends:
  cargo,
  rustc,
  cmake,
- pkgconf,
+ pkgconf | pkg-config,
  libibus-1.0-dev,
  libfcitx5core-dev,
  libfcitx5utils-dev,

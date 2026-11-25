@@ -231,6 +231,36 @@ impl DoctorReport {
     pub fn to_json(&self) -> String {
         let escaped_status =
             serde_json::to_string(&self.config_status).unwrap_or_else(|_| "\"\"".into());
+        #[cfg(target_os = "linux")]
+        {
+            let env = collect_linux_env_summary();
+            let os_j = serde_json::to_string(&env.os_pretty).unwrap_or_else(|_| "\"\"".into());
+            let glibc_j = serde_json::to_string(&env.glibc).unwrap_or_else(|_| "\"\"".into());
+            let sess_j = serde_json::to_string(&env.session).unwrap_or_else(|_| "\"\"".into());
+            let desk_j = serde_json::to_string(&env.desktop).unwrap_or_else(|_| "\"\"".into());
+            let set_j =
+                serde_json::to_string(&env.settings_backend).unwrap_or_else(|_| "\"\"".into());
+            let sec_j = serde_json::to_string(&env.lsm).unwrap_or_else(|_| "\"\"".into());
+            return format!(
+                "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"os\":{},\"glibc\":{},\"session\":{},\"desktop\":{},\"ibus_adapter\":{},\"fcitx5_adapter\":{},\"settings_backend\":{},\"lsm\":{},\"problems\":{}}}",
+                self.abi_version,
+                self.sizes_ok,
+                self.key_size,
+                self.result_size,
+                self.context_size,
+                escaped_status,
+                os_j,
+                glibc_j,
+                sess_j,
+                desk_j,
+                env.ibus_found,
+                env.fcitx5_found,
+                set_j,
+                sec_j,
+                self.problems.len()
+            );
+        }
+        #[cfg(not(target_os = "linux"))]
         format!(
             "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"pipe\":{},\"tray\":{},\"hook\":{},\"tip\":{},\"problems\":{}}}",
             self.abi_version,
@@ -285,6 +315,28 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
         report.problems
     );
     zip_entries.push(("system_info.json".to_string(), sys_info.into_bytes()));
+
+    #[cfg(target_os = "linux")]
+    {
+        let env = collect_linux_env_summary();
+        let linux_json = redact_sensitive_paths(&format!(
+            "{{\n  \"os\": {},\n  \"glibc\": {},\n  \"session\": {},\n  \"desktop\": {},\n  \"lsm\": {},\n  \"ibus_found\": {},\n  \"fcitx5_found\": {},\n  \"settings_backend\": {},\n  \"ibus_running\": {},\n  \"fcitx5_running\": {},\n  \"env_d_present\": {},\n  \"el8_system_cache\": {},\n  \"el8_autostart\": {}\n}}\n",
+            serde_json::to_string(&env.os_pretty).unwrap_or_else(|_| "\"\"".into()),
+            serde_json::to_string(&env.glibc).unwrap_or_else(|_| "\"\"".into()),
+            serde_json::to_string(&env.session).unwrap_or_else(|_| "\"\"".into()),
+            serde_json::to_string(&env.desktop).unwrap_or_else(|_| "\"\"".into()),
+            serde_json::to_string(&env.lsm).unwrap_or_else(|_| "\"\"".into()),
+            env.ibus_found,
+            env.fcitx5_found,
+            serde_json::to_string(&env.settings_backend).unwrap_or_else(|_| "\"\"".into()),
+            env.ibus_running,
+            env.fcitx5_running,
+            env.env_d_present,
+            env.el8_system_cache,
+            env.el8_autostart,
+        ));
+        zip_entries.push(("linux_env.json".to_string(), linux_json.into_bytes()));
+    }
 
     // 4. hook_stats.json (nếu có)
     if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
@@ -377,9 +429,12 @@ fn collect_log_tail(max_lines: usize) -> String {
     #[cfg(target_os = "linux")]
     {
         if let Some(xdg) = std::env::var_os("XDG_STATE_HOME") {
-            let p = PathBuf::from(xdg).join("TextVN/log/textvn.log");
-            if p.exists() {
-                log_path = Some(p);
+            let base = PathBuf::from(xdg);
+            if base.is_absolute() {
+                let p = base.join("TextVN/log/textvn.log");
+                if p.exists() {
+                    log_path = Some(p);
+                }
             }
         }
         if log_path.is_none() {
@@ -393,7 +448,10 @@ fn collect_log_tail(max_lines: usize) -> String {
     }
 
     let Some(path) = log_path else {
+        #[cfg(target_os = "windows")]
         return "# Không tìm thấy file log TSF.\n".to_string();
+        #[cfg(not(target_os = "windows"))]
+        return "# Không tìm thấy file log TextVN.\n".to_string();
     };
 
     let Ok(content) = std::fs::read_to_string(path) else {
@@ -437,7 +495,79 @@ pub fn config_path() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "linux")]
-fn print_linux_env_summary() {
+struct LinuxEnvSummary {
+    os_pretty: String,
+    glibc: String,
+    session: String,
+    desktop: String,
+    lsm: String,
+    ibus_comp: String,
+    fcitx_dirs: String,
+    im_env: String,
+    ibus_found: bool,
+    fcitx5_found: bool,
+    settings_backend: String,
+    ibus_running: bool,
+    fcitx5_running: bool,
+    env_d_present: bool,
+    el8_system_cache: bool,
+    el8_autostart: bool,
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_glibc() -> String {
+    extern "C" {
+        fn gnu_get_libc_version() -> *const std::os::raw::c_char;
+    }
+    unsafe {
+        let p = gnu_get_libc_version();
+        if p.is_null() {
+            "unknown".into()
+        } else {
+            std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn linux_proc_running(target_comm: &str) -> bool {
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(s) = name.to_str() else { continue };
+        if !s.bytes().all(|b| b.is_ascii_digit()) {
+            continue;
+        }
+        if let Ok(comm) = std::fs::read_to_string(entry.path().join("comm")) {
+            if comm.trim() == target_comm {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_lsm() -> String {
+    if let Ok(v) = std::fs::read_to_string("/sys/fs/selinux/enforce") {
+        return match v.trim() {
+            "1" => "SELinux=Enforcing".into(),
+            "0" => "SELinux=Permissive".into(),
+            _ => "SELinux".into(),
+        };
+    }
+    if let Ok(v) = std::fs::read_to_string("/sys/module/apparmor/parameters/enabled") {
+        if v.trim() == "Y" {
+            return "AppArmor=Enabled".into();
+        }
+    }
+    "none".into()
+}
+
+#[cfg(target_os = "linux")]
+fn collect_linux_env_summary() -> LinuxEnvSummary {
     let os_pretty = std::fs::read_to_string("/etc/os-release")
         .ok()
         .and_then(|s| {
@@ -447,40 +577,122 @@ fn print_linux_env_summary() {
         })
         .unwrap_or_else(|| "Linux".into());
     let env_or = |k: &str| std::env::var(k).unwrap_or_else(|_| "<chưa đặt>".into());
-    println!("  OS          : {os_pretty}");
-    println!(
-        "  session     : {} ({})",
-        env_or("XDG_SESSION_TYPE"),
-        env_or("XDG_CURRENT_DESKTOP")
-    );
-    println!("  IBUS_COMP   : {}", env_or("IBUS_COMPONENT_PATH"));
-    println!(
-        "  IM env      : GTK={} · QT={} · XMOD={}",
+    let session = env_or("XDG_SESSION_TYPE");
+    let desktop = env_or("XDG_CURRENT_DESKTOP");
+    let ibus_comp = env_or("IBUS_COMPONENT_PATH");
+    let fcitx_dirs = env_or("FCITX_ADDON_DIRS");
+    let im_env = format!(
+        "GTK={} · QT={} · XMOD={}",
         env_or("GTK_IM_MODULE"),
         env_or("QT_IM_MODULE"),
         env_or("XMODIFIERS")
     );
+
+    let mut ibus_found = false;
+    let mut fcitx5_found = false;
+    let mut settings_backend = "thiếu".to_string();
+    let arch_multiarch = format!("{}-linux-gnu", std::env::consts::ARCH);
+
     if let Ok(exe) = std::env::current_exe() {
         if let Some(bin_dir) = exe.parent() {
-            let ibus_ok = [
+            let ibus_candidates = [
                 bin_dir.join("../lib/textvn/textvn-ibus-engine"),
                 bin_dir.join("../lib64/textvn/textvn-ibus-engine"),
+                bin_dir.join(format!("../lib/{arch_multiarch}/textvn/textvn-ibus-engine")),
                 bin_dir.join("../libexec/ibus-engine-textvn"),
-            ]
-            .iter()
-            .any(|p| p.exists());
+            ];
+            ibus_found = ibus_candidates.iter().any(|p| p.exists());
+
+            let fcitx_candidates = [
+                bin_dir.join("../lib/textvn/fcitx5/libtextvn-fcitx5.so"),
+                bin_dir.join("../lib64/fcitx5/libtextvn-fcitx5.so"),
+                bin_dir.join("../lib/fcitx5/libtextvn-fcitx5.so"),
+                bin_dir.join(format!(
+                    "../lib/{arch_multiarch}/fcitx5/libtextvn-fcitx5.so"
+                )),
+                PathBuf::from(format!(
+                    "/usr/lib/{arch_multiarch}/fcitx5/libtextvn-fcitx5.so"
+                )),
+                PathBuf::from("/usr/lib64/fcitx5/libtextvn-fcitx5.so"),
+                PathBuf::from("/usr/lib/fcitx5/libtextvn-fcitx5.so"),
+            ];
+            fcitx5_found = fcitx_candidates.iter().any(|p| p.exists());
+
             let settings_bin = bin_dir.join("textvn-settings");
-            println!(
-                "  adapters    : ibus={} · settings={}",
-                if ibus_ok { "OK" } else { "thiếu" },
-                if settings_bin.exists() {
-                    "OK"
+            if settings_bin.exists() {
+                if let Ok(out) = std::process::Command::new(&settings_bin)
+                    .arg("--version")
+                    .output()
+                {
+                    if out.status.success() {
+                        let txt = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        settings_backend = if txt.is_empty() { "OK".into() } else { txt };
+                    } else {
+                        settings_backend = "lỗi ABI (thiếu GTK3/GTK4)".into();
+                    }
                 } else {
-                    "thiếu"
+                    settings_backend = "OK".into();
                 }
-            );
+            }
         }
     }
+
+    let xdg_cfg = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
+    let env_d_present = xdg_cfg
+        .as_ref()
+        .is_some_and(|c| c.join("environment.d/60-textvn.conf").exists());
+    let el8_autostart = xdg_cfg
+        .as_ref()
+        .is_some_and(|c| c.join("autostart/textvn-ibus-autostart.desktop").exists());
+
+    LinuxEnvSummary {
+        os_pretty,
+        glibc: detect_linux_glibc(),
+        session,
+        desktop,
+        lsm: detect_linux_lsm(),
+        ibus_comp,
+        fcitx_dirs,
+        im_env,
+        ibus_found,
+        fcitx5_found,
+        settings_backend,
+        ibus_running: linux_proc_running("ibus-daemon"),
+        fcitx5_running: linux_proc_running("fcitx5"),
+        env_d_present,
+        el8_system_cache: Path::new("/var/cache/ibus/bus/registry").exists(),
+        el8_autostart,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn print_linux_env_summary() {
+    let s = collect_linux_env_summary();
+    println!("  OS          : {} (glibc {})", s.os_pretty, s.glibc);
+    println!("  session     : {} ({}) · {}", s.session, s.desktop, s.lsm);
+    println!(
+        "  daemons     : ibus-daemon={} · fcitx5={}",
+        if s.ibus_running { "chạy" } else { "tắt" },
+        if s.fcitx5_running { "chạy" } else { "tắt" }
+    );
+    println!("  IBUS_COMP   : {}", s.ibus_comp);
+    println!("  FCITX_DIRS  : {}", s.fcitx_dirs);
+    println!("  IM env      : {}", s.im_env);
+    println!(
+        "  adapters    : ibus={} · fcitx5={} · settings={}",
+        if s.ibus_found { "OK" } else { "thiếu" },
+        if s.fcitx5_found { "OK" } else { "thiếu" },
+        s.settings_backend
+    );
+    println!(
+        "  integration : environment.d={} · ibus-sys-cache={} · el8-autostart={}",
+        if s.env_d_present { "OK" } else { "không" },
+        if s.el8_system_cache { "có" } else { "không" },
+        if s.el8_autostart { "có" } else { "không" }
+    );
 }
 
 pub fn abi_sizes() -> (usize, usize, usize, bool) {
