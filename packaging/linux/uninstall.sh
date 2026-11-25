@@ -97,6 +97,9 @@ if [[ "$PER_USER_STEPS" == 0 ]]; then
         PURGE_SKIPPED=1
     fi
 else
+    if [[ "$had_ibus" == 1 ]]; then
+        pkill -u "$(id -u)" -f 'textvn-ibus-engine.*--wait-bus' 2>/dev/null || true
+    fi
     [[ "$had_ibus" == 1 && "$PREFIX" != /usr ]] && tv_ibus_clear_cache
     if [[ "$RESTART" == 1 ]]; then
         if [[ "$had_ibus" == 1 ]] && tv_running ibus-daemon; then

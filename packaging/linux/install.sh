@@ -167,6 +167,25 @@ if [[ "$MODE" == user ]]; then
         fi
     } > "$ENV_FILE"
     echo "$ENV_FILE" >> "$MANIFEST_NEW"
+    if [[ "$HAS_IBUS" == 1 ]] && tv_ibus_has_system_cache_bug; then
+        # E67: RHEL 8.10 (IBus 1.5.19) luôn nạp /var/cache/ibus/bus/registry trước
+        # IBUS_COMPONENT_PATH khi chạy --cache=auto. Tạo XDG autostart đăng ký component
+        # sống (không cần root), được ghi vào manifest để uninstall.sh gỡ sạch.
+        AUTOSTART_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/textvn-ibus-autostart.desktop"
+        mkdir -p "$(dirname "$AUTOSTART_FILE")"
+        cat > "$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=TextVN IBus Engine (EL8 per-user)
+Exec=$(tv_desktop_quote "$LIBDIR/textvn-ibus-engine") --wait-bus --setup $(tv_desktop_quote "$BIN/textvn-settings")
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+        echo "$AUTOSTART_FILE" >> "$MANIFEST_NEW"
+        tv_say "Phát hiện IBus < 1.5.20 có cache hệ thống (vd. RHEL 8.10): đã thêm autostart per-user $AUTOSTART_FILE."
+        tv_say "  (Khuyến nghị trên máy có quyền quản trị: sudo ./install.sh --system để đăng ký trực tiếp vào /usr/share/ibus/component.)"
+    fi
 fi
 
 # Publish manifest của bản mới trước, rồi mới dọn residue của bản cũ. Nếu lệnh
@@ -213,7 +232,15 @@ if [[ "$PER_USER_STEPS" == 0 ]]; then
 elif [[ "$HAS_IBUS" == 1 ]]; then
     if [[ "$RESTART" == 1 ]] && tv_running ibus-daemon; then
         if [[ "$MODE" == user ]]; then
-            tv_restart_ibus "$SHARE/ibus/component:/usr/share/ibus/component"
+            if tv_ibus_needs_live_register && tv_ibus_has_system_cache_bug; then
+                # E67: GNOME 3.32 Wayland (RHEL 8.10) không restart ibus-daemon —
+                # đăng ký live ngay cho phiên hiện tại để không phải đăng xuất.
+                nohup "$LIBDIR/textvn-ibus-engine" --wait-bus --setup "$BIN/textvn-settings" </dev/null >/dev/null 2>&1 &
+                disown "$!" 2>/dev/null || true
+                sleep 1
+            else
+                tv_restart_ibus "$SHARE/ibus/component:/usr/share/ibus/component"
+            fi
         else
             tv_restart_ibus ""
         fi

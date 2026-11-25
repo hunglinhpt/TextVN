@@ -57,6 +57,7 @@ static IBusComponent *make_component(const char *setup_path) {
 
 int main(int argc, char *argv[]) {
     gboolean launched_by_ibus = FALSE;
+    gboolean wait_bus = FALSE;
     const char *setup_path = NULL;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--check-abi") == 0) {
@@ -69,6 +70,8 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[i], "--ibus") == 0 || strcmp(argv[i], "-i") == 0) {
             launched_by_ibus = TRUE;
+        } else if (strcmp(argv[i], "--wait-bus") == 0) {
+            wait_bus = TRUE;
         } else if (strcmp(argv[i], "--setup") == 0 && i + 1 < argc) {
             setup_path = argv[++i];
         }
@@ -78,11 +81,39 @@ int main(int argc, char *argv[]) {
     lc_log_init("ibus-engine");
 
     IBusBus *bus = ibus_bus_new();
+    if (wait_bus) {
+        /* E67: chế độ autostart trên RHEL 8.10 (IBus 1.5.19 bỏ qua IBUS_COMPONENT_PATH
+         * khi /var/cache/ibus/bus/registry tồn tại) — chờ tối đa 30s để ibus-daemon khởi chạy. */
+        for (int tries = 0; tries < 60 && (!bus || !ibus_bus_is_connected(bus)); ++tries) {
+            if (bus) g_object_unref(bus);
+            g_usleep(500000);
+            bus = ibus_bus_new();
+        }
+    }
     if (!bus || !ibus_bus_is_connected(bus)) {
         lc_log(LC_LOG_ERROR, "Main", "Cannot connect to ibus-daemon");
         if (bus) g_object_unref(bus);
         lc_log_close();
         return 1;
+    }
+    if (wait_bus && !launched_by_ibus) {
+        /* Nếu ibus-daemon đã có engine textvn (vd. cài --system hoặc IBus >= 1.5.20),
+         * thoát êm để không đăng ký trùng tiến trình. */
+        GList *engines = ibus_bus_list_engines(bus);
+        gboolean exists = FALSE;
+        for (GList *p = engines; p != NULL; p = p->next) {
+            IBusEngineDesc *d = (IBusEngineDesc *)p->data;
+            if (d && g_strcmp0(ibus_engine_desc_get_name(d), TEXTVN_IBUS_ENGINE) == 0) {
+                exists = TRUE;
+                break;
+            }
+        }
+        g_list_free_full(engines, g_object_unref);
+        if (exists) {
+            g_object_unref(bus);
+            lc_log_close();
+            return 0;
+        }
     }
     g_signal_connect(bus, "disconnected", G_CALLBACK(bus_disconnected), NULL);
     g_unix_signal_add(SIGTERM, on_term_signal, NULL);

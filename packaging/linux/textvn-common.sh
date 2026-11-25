@@ -118,6 +118,22 @@ tv_shell_quote() {
     printf "'%s'" "$s"
 }
 
+# Trích một đường dẫn cho trường Exec= trong file .desktop (FreeDesktop Desktop Entry Spec:
+# dùng dấu ngoặc kép "...", escape \, ", `, $ và nhân đôi %).
+tv_desktop_quote() {
+    local s="$1"
+    if [[ -n "$s" && "$s" != *[![:alnum:]_./+:@,=-]* ]]; then
+        printf '%s' "$s"
+        return 0
+    fi
+    s=${s//\\/\\\\}
+    s=${s//\"/\\\"}
+    s=${s//\`/\\\`}
+    s=${s//\$/\\\$}
+    s=${s//%/%%}
+    printf '"%s"' "$s"
+}
+
 # Escape text cho nội dung phần tử XML. Phần thay thế PHẢI đặt trong ngoặc kép:
 # bash 5.2 bật patsub_replacement, '&' không quote trong phần thay thế = chuỗi khớp.
 tv_xml_escape() {
@@ -191,8 +207,27 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
             ;;
     esac
     [[ -n "$env_file" && "$path" == "$env_file" ]] && return 0
+    local autostart_file="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/textvn-ibus-autostart.desktop"
+    [[ "$path" == "$autostart_file" ]] && return 0
     addon_dir="$(tv_fcitx5_system_addon_dir)"
     [[ -n "$addon_dir" && "$path" == "$addon_dir/libtextvn-fcitx5.so" ]]
+}
+
+# E67: IBus 1.5.19 (RHEL 8.10 / Rocky 8 / AlmaLinux 8) kiểm tra cache HỆ THỐNG
+# /var/cache/ibus/bus/registry TRƯỚC ~/.cache/ibus/bus/registry và TRƯỚC IBUS_COMPONENT_PATH
+# khi chạy --cache=auto (bus/ibusimpl.c). Trả 0 khi máy dính hành vi này (IBus < 1.5.20
+# và tồn tại /var/cache/ibus/bus/registry).
+tv_ibus_has_system_cache_bug() {
+    [[ -f /var/cache/ibus/bus/registry ]] || return 1
+    command -v ibus >/dev/null 2>&1 || return 1
+    local ver maj min pat
+    ver="$(ibus version 2>/dev/null | sed -n 's/.*IBus \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | sed -n '1p')"
+    [[ -n "$ver" ]] || return 1
+    IFS=. read -r maj min pat <<<"$ver"
+    [[ "$maj" -lt 1 ]] && return 0
+    [[ "$maj" -eq 1 && "$min" -lt 5 ]] && return 0
+    [[ "$maj" -eq 1 && "$min" -eq 5 && "$pat" -lt 20 ]] && return 0
+    return 1
 }
 
 # ibus-daemon giữ cache registry (~/.cache/ibus/bus/registry). Xoá không thôi chưa đủ trên
@@ -271,10 +306,16 @@ tv_restart_ibus() { # <component_path | "">
         args=("${args[@]:1}")
     fi
     [[ ${#args[@]} -eq 0 ]] && args=(--xim)
-    local keep=() had_xim=0
+    local keep=() had_xim=0 skip_next=0
     for a in "${args[@]}"; do
+        if [[ "$skip_next" == 1 ]]; then
+            skip_next=0
+            continue
+        fi
         case "$a" in
             -d|--daemonize|-r|--replace|-dr|-rd) ;;
+            -t|--cache) skip_next=1 ;;
+            --cache=*|-t*) ;;
             -x|--xim) had_xim=1 ;;
             -drx|-dxr|-rdx|-rxd|-xdr|-xrd|-dx|-xd|-rx|-xr) had_xim=1 ;;
             *) keep+=("$a") ;;
@@ -282,9 +323,11 @@ tv_restart_ibus() { # <component_path | "">
     done
     [[ "$had_xim" == 1 ]] && keep+=(--xim)
     if [[ -n "$comp" ]]; then
-        IBUS_COMPONENT_PATH="$comp" setsid ibus-daemon "${keep[@]}" --replace --daemonize </dev/null >/dev/null 2>&1
+        # E67: --cache=refresh ép IBus 1.5.19 (RHEL 8.10) đọc IBUS_COMPONENT_PATH thay vì
+        # rơi về cache hệ thống /var/cache/ibus/bus/registry.
+        IBUS_COMPONENT_PATH="$comp" setsid ibus-daemon "${keep[@]}" --cache=refresh --replace --daemonize </dev/null >/dev/null 2>&1
     else
-        env -u IBUS_COMPONENT_PATH setsid ibus-daemon "${keep[@]}" --replace --daemonize </dev/null >/dev/null 2>&1
+        env -u IBUS_COMPONENT_PATH setsid ibus-daemon "${keep[@]}" --cache=refresh --replace --daemonize </dev/null >/dev/null 2>&1
     fi
     sleep 1
     tv_ok "Đã khởi động lại IBus."

@@ -56,10 +56,12 @@ grep -Fq "&amp;" <<<"$xml_out" && ! grep -Fq '"&amp;"' <<<"$xml_out" || fail "Ba
 rm -rf "$t_abi"
 echo "PASS EL8-1: ABI glibc 2.28 + GTK3 auto-select + textvn doctor + Bash 4.4 XML escape"
 
-# 2. Kịch bản CÀI ĐẶT per-user trên EL8 + IBus 1.5.19 thật + gỡ sạch.
+# 2. Kịch bản CÀI ĐẶT per-user trên EL8 (IBus 1.5.19 có /var/cache/ibus/bus/registry,
+#    KHÔNG có quyền root) → autostart live-register + gõ tiếng Việt → gỡ sạch.
 el8_install() {
-    local t daemon_pid=""
+    local t daemon_pid="" autostart_pid=""
     cleanup() {
+        [[ -n "$autostart_pid" ]] && kill "$autostart_pid" 2>/dev/null || true
         ibus exit >/dev/null 2>&1 || true
         [[ -n "$daemon_pid" ]] && kill "$daemon_pid" 2>/dev/null || true
     }
@@ -78,15 +80,21 @@ el8_install() {
         fail "thiếu binary sau install.sh"
     "$pre/bin/textvn-settings" --check-abi || fail "textvn-settings sau cài lỗi ABI trên EL8"
     grep -q "'textvn'" "$HOME/.fake-gsettings" || fail "install.sh không thêm textvn vào GNOME input-sources"
+    local autostart="$XDG_CONFIG_HOME/autostart/textvn-ibus-autostart.desktop"
+    [[ -f "$autostart" ]] || fail "E67: install.sh trên EL8 (IBus 1.5.19) không tạo $autostart"
 
     set -a
     # shellcheck disable=SC1090
     . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
     set +a
     local rc=0
+    # Chạy đúng mặc định RHEL 8.10 (--cache=auto) + khởi chạy autostart như khi đăng nhập GNOME 3.32.
     ibus-daemon --panel=disable --xim=false --config=default --replace --single >"$t/d.log" 2>&1 &
     daemon_pid=$!
     sleep 2
+    "$pre/lib/textvn/textvn-ibus-engine" --wait-bus --setup "$pre/bin/textvn-settings" >>"$t/d.log" 2>&1 &
+    autostart_pid=$!
+    sleep 1
     "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
     if [[ $rc -ne 0 ]]; then
         echo "--- ibus list-engine (EL8 debug) ---"
@@ -99,13 +107,14 @@ el8_install() {
     tail -n1 "$t/e2e.log"
 
     "$pre/share/textvn/uninstall.sh" --no-restart >"$t/un.log" 2>&1 || { cat "$t/un.log"; fail "uninstall.sh"; }
+    [[ ! -e "$autostart" ]] || fail "uninstall.sh để sót $autostart"
     local left
     left="$(find "$HOME" \( -path "$HOME/.config/TextVN" -o -path "$HOME/.local/state/TextVN" \) -prune \
         -o \( -iname '*textvn*' -print \) | grep -v fake-gsettings || true)"
     [[ -z "$left" ]] || fail "còn sót sau khi gỡ trên EL8: $left"
     rm -rf "$t"
     trap - EXIT
-    echo "PASS EL8-2: cài đặt per-user → gõ tiếng Việt qua IBus 1.5.19 → gỡ sạch"
+    echo "PASS EL8-2: cài đặt per-user (không root) → autostart IBus 1.5.19 → gõ tiếng Việt → gỡ sạch"
 }
 export -f el8_install
 dbus-run-session -- bash -c el8_install
@@ -190,4 +199,54 @@ el8_wayland_live_portable() {
 export -f el8_wayland_live_portable
 dbus-run-session -- bash -c el8_wayland_live_portable
 
-echo "=== TOÀN BỘ 4/4 KIỂM THỬ RHEL 8.10 / ALMALINUX 8 PASS ==="
+# 5. Kịch bản CÀI HỆ THỐNG (--system với quyền root, khuyến nghị trên RHEL 8.10):
+#    cài vào /usr + ibus write-cache --system → ibus-daemon --cache=auto KHÔNG cần
+#    IBUS_COMPONENT_PATH hay autostart vẫn tải textvn nguyên bản → gõ tiếng Việt → gỡ sạch.
+if [[ "$(id -u)" -eq 0 ]]; then
+    el8_system_install() {
+        local t daemon_pid=""
+        cleanup() {
+            ibus exit >/dev/null 2>&1 || true
+            [[ -n "$daemon_pid" ]] && kill "$daemon_pid" 2>/dev/null || true
+            if [[ -x /usr/share/textvn/uninstall.sh ]]; then
+                /usr/share/textvn/uninstall.sh --no-restart >/dev/null 2>&1 || true
+            fi
+        }
+        trap cleanup EXIT
+        t="$(new_el8_home)"
+        export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_DATA_HOME="$t/home/.local/share"
+        export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
+        unset IBUS_COMPONENT_PATH
+        tar -C "$t" -xzf "$TARBALL"
+        local pkg
+        pkg="$(echo "$t"/TextVN-*)"
+
+        "$pkg/install.sh" --system --no-restart >"$t/in.log" 2>&1 || { cat "$t/in.log"; fail "install.sh --system"; }
+        [[ -f /usr/share/ibus/component/textvn.xml ]] || fail "--system không tạo /usr/share/ibus/component/textvn.xml"
+        [[ -x /usr/bin/textvn && -x /usr/bin/textvn-settings ]] || fail "--system thiếu binary trong /usr/bin"
+
+        # Khởi ibus-daemon --cache=auto KHÔNG IBUS_COMPONENT_PATH, KHÔNG autostart:
+        # phải tải trực tiếp từ /var/cache/ibus/bus/registry đã cập nhật bởi --system!
+        local rc=0
+        ibus-daemon --panel=disable --xim=false --config=default --replace --single >"$t/d.log" 2>&1 &
+        daemon_pid=$!
+        sleep 2
+        "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
+        if [[ $rc -ne 0 ]]; then
+            ibus list-engine 2>&1 | head -n 30 || true
+            cat "$t/in.log" "$t/e2e.log" "$t/d.log"
+            fail "EL8 --system e2e_ibus"
+        fi
+        tail -n1 "$t/e2e.log"
+
+        /usr/share/textvn/uninstall.sh --no-restart >"$t/un.log" 2>&1 || { cat "$t/un.log"; fail "uninstall.sh --system"; }
+        [[ ! -e /usr/share/ibus/component/textvn.xml && ! -e /usr/bin/textvn ]] || fail "--system uninstall để sót file trong /usr"
+        rm -rf "$t"
+        trap - EXIT
+        echo "PASS EL8-5: cài hệ thống (--system) → ibus write-cache --system → gõ tiếng Việt qua IBus 1.5.19 → gỡ sạch"
+    }
+    export -f el8_system_install
+    dbus-run-session -- bash -c el8_system_install
+fi
+
+echo "=== TOÀN BỘ 5/5 KIỂM THỬ RHEL 8.10 / ALMALINUX 8 PASS ==="
