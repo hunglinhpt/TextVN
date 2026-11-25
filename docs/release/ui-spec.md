@@ -32,7 +32,7 @@
 
 ¹ Chỉ Windows (0.2.72): **"Ẩn vào khay"** đưa cửa sổ về khay nhưng bộ gõ VẪN CHẠY (nút X và Esc làm
 như vậy); **"Thoát"** tắt hẳn ứng dụng — tên cũ "Đóng"/"Kết thúc" khiến người dùng tưởng Đóng là tắt
-ứng dụng. Nút "Cài & bật TSF" đã bỏ vì tray tự đăng ký bộ gõ khi khởi động. **Mọi nút có biểu tượng
+ứng dụng. Nút "Cài & bật TSF" không nằm trên hàng nút chính mà đặt trong cửa sổ **Hướng dẫn** (E65) để giữ hàng chính gọn 7 nút mà người dùng bản portable / Windows 11 Enterprise 23H2+ vẫn chủ động đăng ký lại và xem chẩn đoán `register.log` được. **Mọi nút có biểu tượng
 và gợi ý (tooltip)** trên cả 3 nền tảng; Linux/macOS chỉ có "Đóng" (đóng cửa sổ, không có gì để
 thoát; macOS có "Thoát TextVN" ở menu bar). Linux không có nhóm "Hệ thống": IBus/Fcitx5 tự chạy cùng phiên đăng nhập,
 không có tiến trình khay riêng; bảng mở từ menu IBus/Fcitx5 ("Cài đặt TextVN…") hoặc

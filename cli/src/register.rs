@@ -401,6 +401,14 @@ pub fn runonce_cleanup_command(path: &str, is_dir: bool) -> Option<String> {
     (cmd.encode_utf16().count() <= 260).then_some(cmd)
 }
 
+/// E65: trên Windows 11 Enterprise 23H2 không có gói ngôn ngữ `vi-VN` hoặc
+/// bị policy giới hạn `ILOT_DEFPROFILE`, chỉ cần một trong hai layout VI hoặc EN
+/// được `InstallLayoutOrTip` chấp nhận là đã đủ để tiếp tục hoàn tất đăng ký.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn layout_install_accepted(vi_ok: bool, en_ok: bool) -> bool {
+    vi_ok || en_ok
+}
+
 /// Hive của LocalSystem/LocalService/NetworkService — không có người dùng gõ phím.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn is_service_profile_sid(sid: &str) -> bool {
@@ -938,6 +946,14 @@ mod win_impl {
     /// CHỈ từ System32 (LOAD_LIBRARY_SEARCH_SYSTEM32) để không nạp nhầm DLL giả mạo.
     fn call_layout_or_tip(lang: u16, flags: u32, label: &str) -> bool {
         call_layout_or_tip_spec(&layout_spec(lang), flags, label)
+    }
+
+    /// E65: thử `ILOT_DEFPROFILE` trước; nếu Windows 11 Enterprise 23H2 từ chối
+    /// ép đặt mặc định cho TIP per-user thì rơi về `flags = 0` (chỉ thêm vào
+    /// danh sách bàn phím mà không ép đổi mặc định).
+    fn install_layout_with_fallback(lang: u16) -> bool {
+        call_layout_or_tip(lang, ILOT_DEFPROFILE, "DEFPROFILE")
+            || call_layout_or_tip(lang, 0, "INSTALL")
     }
 
     /// Như [`call_layout_or_tip`] với chuỗi profile bất kỳ (`042A:{…}{…}`,
@@ -1856,6 +1872,13 @@ mod win_impl {
 
         if !activate_machine_for_user {
             grant_appcontainer_read(dll_path);
+            if let Some(x86) = dll_path
+                .parent()
+                .map(|d| d.join("textvn-tsf-x86.dll"))
+                .filter(|p| p.is_file())
+            {
+                grant_appcontainer_read(&x86);
+            }
         }
 
         // Bước 2: profile + category. Mỗi bước độc lập — bản trước dừng ở
@@ -1903,6 +1926,15 @@ mod win_impl {
             return 0;
         }
 
+        // E65: khi RegisterCategory API không ghi được HKLM (bản portable/per-user
+        // trên Windows 11 Enterprise 23H2), PHẢI ghi sẵn category HKCU (nhất là
+        // GUID_TFCAT_TIP_KEYBOARD) TRƯỚC khi gọi InstallLayoutOrTip — nếu không,
+        // `input.dll` nhìn vào CLSID chưa có category bàn phím và trả FALSE ngay.
+        // Sau ILOT vẫn ghi lại lần 2 (bên dưới) phòng ILOT ghi đè cây CTF.
+        if categories_need_hkcu_fallback {
+            register_ctf_categories_per_user();
+        }
+
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
         // VI và EN ĐỀU DEFPROFILE — layout EN KHÔNG phải dup: app có ngôn ngữ
         // nhập en-US (Notepad/runner/máy tiếng Anh) chỉ nhận TextVN qua profile
@@ -1916,22 +1948,26 @@ mod win_impl {
             call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
                 && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
         } else {
-            let vi_ok = call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
-            let en_ok = call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
+            let vi_ok = install_layout_with_fallback(LANGID_VI);
+            let en_ok = install_layout_with_fallback(LANGID_EN);
             if vi_ok && !en_ok {
                 say("  WARN: không thêm được profile cho ngôn ngữ EN (best-effort) — VI vẫn dùng được");
+            } else if !vi_ok && en_ok {
+                say("  WARN: không thêm được profile cho ngôn ngữ VI — vẫn dùng được qua profile EN (Win+Space)");
             }
-            vi_ok
+            layout_install_accepted(vi_ok, en_ok)
         };
-        if !layouts_ok {
-            say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");
-            return 1;
-        }
         // Danh sách ngôn ngữ hiện đại (nguồn Win+Space trên Win10/11) — bắt
-        // buộc, xem doc `ensure_modern_language_list`. Idempotent.
-        ensure_modern_language_list();
-        if let Some(before) = &languages_before {
-            record_languages_added(before);
+        // buộc, xem doc `ensure_modern_language_list`. Idempotent; ghi cả khi
+        // ILOT thất bại trên Enterprise 23H2 để người dùng vẫn có thể chọn tay
+        // hoặc thấy trạng thái nhất quán sau khi cài lại.
+        if !no_taskbar {
+            ensure_modern_language_list();
+            if layouts_ok {
+                if let Some(before) = &languages_before {
+                    record_languages_added(before);
+                }
+            }
         }
 
         if used_ctf_fallback {
@@ -1948,10 +1984,15 @@ mod win_impl {
             }
         }
         if categories_need_hkcu_fallback {
-            // API RegisterCategory thất bại (không admin): ghi category per-user
-            // SAU ILOT — ghi trước ILOT thì bị ILOT xoá mất (repro 2026-10-02),
+            // API RegisterCategory thất bại (không admin): ghi lại category per-user
+            // SAU ILOT — ILOT có thể xoá key category ghi trước đó (repro 2026-10-02),
             // mất category display-attribute provider = gạch chân không tắt được.
             register_ctf_categories_per_user();
+        }
+        if !layouts_ok {
+            let _ = register_wow64_mirror(dll_path, scope);
+            say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím (InstallLayoutOrTip)");
+            return 1;
         }
 
         // Bước 4: kích hoạt ngay cho session. Tiến trình không có ngữ cảnh nhập
@@ -2740,6 +2781,16 @@ mod tests {
         assert!(is_service_profile_sid("S-1-5-20"));
         assert!(!is_service_profile_sid(sid));
         assert!(!is_service_profile_sid("S-1-5-180"));
+    }
+
+    /// E65: chỉ cần một trong hai profile VI hoặc EN được InstallLayoutOrTip nhận
+    /// là đủ để hoàn tất đăng ký trên Windows 11 Enterprise 23H2 (máy chỉ có en-US).
+    #[test]
+    fn e65_layout_install_accepts_en_or_vi_only() {
+        assert!(layout_install_accepted(true, true));
+        assert!(layout_install_accepted(true, false));
+        assert!(layout_install_accepted(false, true));
+        assert!(!layout_install_accepted(false, false));
     }
 
     /// R2-115: lệnh RunOnce dọn file khoá ≤ 260 ký tự (R2-94); rmdir không `/s`.

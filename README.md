@@ -143,7 +143,7 @@ Bản mới nhất: **[GitHub Release v0.2.87](https://github.com/hunglinhpt/Tex
 Chi tiết cài đặt, gỡ bỏ, hướng dẫn sử dụng và khắc phục sự cố: **[Tài liệu Hướng dẫn sử dụng](docs/user-guide.md)**.
 
 > [!NOTE]
-> **Lưu ý Windows 11 24H2+**: Một số bản cập nhật mới của Windows từ chối kích hoạt bộ gõ chỉ đăng ký trong phạm vi tài khoản per-user (mã lỗi B7 trong `docs/specs/win-test-common-errors.md`). Bản cài đặt tài khoản và bản portable của TextVN **không bao giờ đòi hỏi UAC** — khi phát hiện điều kiện này, ứng dụng sẽ thông báo rõ ràng và hướng dẫn người dùng sử dụng bản cài đặt `-machine.exe`.
+> **Lưu ý Windows 11 (23H2/24H2+ & Enterprise)**: Một số bản cập nhật hoặc cấu hình Windows 11 Enterprise từ chối kích hoạt bộ gõ chỉ đăng ký trong phạm vi tài khoản per-user (mã lỗi B7 / E65). Bản cài đặt tài khoản và bản portable của TextVN **không bao giờ đòi hỏi UAC** — nếu chưa gõ được, mở **Bảng điều khiển → [Hướng dẫn] → [Cài & bật TSF]** để đăng ký lại và xem nguyên nhân chi tiết (`register.log`), hoặc cài bản `-machine.exe` (Program Files, HKLM một lần).
 
 ---
 
@@ -390,7 +390,7 @@ Latest release: **[GitHub Release v0.2.87](https://github.com/hunglinhpt/TextVN/
 Full installation, uninstallation, usage instructions and troubleshooting: **[User Guide](docs/user-guide.md)**.
 
 > [!NOTE]
-> **Windows 11 24H2+ Note**: Recent Windows updates may refuse to activate input methods registered solely in per-user scope (issue B7 in `docs/specs/win-test-common-errors.md`). TextVN's per-user installer and portable package **never prompt for UAC** — when this condition is encountered, TextVN notifies you with clear guidance to use the `-machine.exe` installer.
+> **Windows 11 (23H2/24H2+ & Enterprise) Note**: Recent Windows 11 updates or Enterprise policies may refuse to activate input methods registered solely in per-user scope (issues B7 / E65). TextVN's per-user installer and portable package **never prompt for UAC** — if Vietnamese input does not activate, open **Control Panel → [Hướng dẫn] → [Cài & bật TSF]** to re-register and view exact diagnostics (`register.log`), or install the `-machine.exe` installer (Program Files, one-time HKLM registration).
 
 ---
 

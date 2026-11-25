@@ -392,7 +392,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Windows: không thấy TextVN khi nhấn Win + Space | Thoát hẳn TextVN rồi mở lại (app tự đăng ký bộ gõ khi khởi động; không còn nút "Cài & bật TSF" từ 0.2.72); chạy `textvn-cli doctor` và xem `%LOCALAPPDATA%\TextVN\logs\register.log`. Nếu COM HKCU OK nhưng API TSF báo `0x80004005`, xem lưu ý cài đặt ở trên. |
+| Windows: không thấy TextVN khi nhấn Win + Space (hoặc bản portable chưa chạy trên Win11 Enterprise 23H2/24H2+) | Mở **Bảng điều khiển → [Hướng dẫn] → [Cài & bật TSF]** để đăng ký lại, kiểm tra kích hoạt thật và xem nguyên nhân chi tiết từ `%LOCALAPPDATA%\TextVN\logs\register.log` (hoặc chạy `textvn-cli doctor`). Nếu vừa tải tệp `.zip` portable từ Internet, chuột phải tệp `.zip` → *Properties → Unblock* trước khi giải nén. Nếu Windows 11 Enterprise 23H2/24H2+ vẫn từ chối kích hoạt đăng ký per-user (HKCU), cài **bộ cài cho mọi người dùng** `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, HKLM một lần). |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím — nếu Windows còn giữ phím này, một lần bấm vừa đổi mode TextVN vừa đổi bàn phím hệ thống. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 

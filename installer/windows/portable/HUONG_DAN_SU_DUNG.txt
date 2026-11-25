@@ -2,20 +2,22 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
 ============================================================
 
 1. BẮT ĐẦU
-   - Nhấn đúp TextVN.exe. Lần đầu, TextVN thử đăng ký bộ gõ cho tài khoản
-     của bạn và mở Bảng điều khiển. Một số cấu hình Windows không cho đăng ký
-     profile TSF từ tài khoản thường dù HKCU ghi được.
-   - Nếu chưa gõ được: bấm [Cài & bật TSF] trong Bảng điều khiển, rồi chọn TextVN trong
-     danh sách bộ gõ (Win + Space).
-   - Nếu register.log ghi "API TSF → 0x80004005" và "hậu kiểm đăng ký TSF
-     không đạt": dùng bộ cài TextVN chính thức để đăng ký profile phạm vi máy.
-     KHÔNG chạy textvn-cli.exe từ thư mục portable với quyền Administrator.
-   - MỘT SỐ MÁY WINDOWS 11 MỚI (24H2+) từ chối kích hoạt bộ gõ chỉ đăng ký
-     per-user. Vì an toàn, bản chạy ngay KHÔNG BAO GIỜ xin quyền Administrator
-     (UAC) khi chạy từ thư mục tự chọn (Downloads, Desktop, D:\...): TextVN chỉ
-     báo một lần và hướng dẫn dùng BỘ CÀI CHO MỌI NGƯỜI DÙNG
+   - Lưu ý khi tải tệp .zip từ Internet (đặc biệt trên Windows 11 Enterprise 23H2/24H2+):
+     bấm chuột phải vào tệp .zip → Properties → tích Unblock → OK rồi mới giải nén toàn bộ
+     thư mục (không kéo riêng TextVN.exe ra ngoài).
+   - Nhấn đúp TextVN.exe. Lần đầu, TextVN tự đăng ký bộ gõ cho tài khoản
+     của bạn và mở Bảng điều khiển.
+   - Nếu chưa gõ được: mở Bảng điều khiển → bấm [Hướng dẫn] → bấm [Cài & bật TSF]
+     để đăng ký lại, kích hoạt bộ gõ và xem chi tiết nguyên nhân từ register.log;
+     sau đó chọn TextVN trong danh sách bộ gõ (Win + Space).
+   - MỘT SỐ MÁY WINDOWS 11 (23H2/24H2+ và đặc biệt Enterprise) có thể từ chối
+     kích hoạt bộ gõ chỉ đăng ký per-user (HKCU). Vì an toàn, bản chạy ngay
+     KHÔNG BAO GIỜ xin quyền Administrator (UAC) khi chạy từ thư mục người dùng
+     ghi được (Downloads, Desktop, D:\...): nếu [Cài & bật TSF] báo Windows từ
+     chối kích hoạt per-user, hãy dùng BỘ CÀI CHO MỌI NGƯỜI DÙNG
      (TextVN-setup-*-windows-x64-machine.exe — cài vào Program Files, đăng ký
-     đúng chỗ, gõ được ngay).
+     HKLM đúng chỗ, gõ được ngay).
+   - KHÔNG chạy textvn-cli.exe từ thư mục portable với quyền Administrator.
    - Mẹo chẩn đoán nhanh: biểu tượng khay phải là [V] (tiếng Việt); nếu là [E]
      thì bấm Ctrl + Shift (hoặc click biểu tượng) để chuyển về [V].
 
@@ -30,7 +32,7 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
    - Gõ tắt: Bảng điều khiển → [Gõ tắt...], mỗi dòng "gõ tắt = nội dung", nhấn Tab để bung.
 
 4. BẢNG ĐIỀU KHIỂN
-   - Nhấn vào biểu tượng khay. [Đóng] thu về khay, [Kết thúc] thoát hẳn.
+   - Nhấn đúp vào biểu tượng khay. [Ẩn vào khay] thu về khay (bộ gõ vẫn chạy), [Thoát] tắt hẳn.
 
 5. GỠ BỎ BẢN CHẠY NGAY
    - Chạy uninstall.ps1 (chuột phải → Run with PowerShell): tắt TextVN và gỡ đăng ký bộ gõ.

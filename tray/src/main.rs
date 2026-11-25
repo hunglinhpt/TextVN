@@ -59,6 +59,10 @@ const TSF_CTF_TIP_KEY: &str = r"Software\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9
 #[cfg(windows)]
 const TSF_PROFILE_GUID: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 #[cfg(windows)]
+const TSF_CLSID: &str = "{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+#[cfg(windows)]
+const TSF_CAT_TIP_KEYBOARD: &str = "{34745C63-B2F0-4784-8B67-5E12C8701A31}";
+#[cfg(windows)]
 const TSF_LANGS: [u16; 2] = [0x042A, 0x0409];
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
@@ -328,11 +332,12 @@ fn machine_registration_present() -> bool {
 fn show_untrusted_path_notice_once() {
     show_activation_refused_notice_once(
         "uac_blocked_notice_done",
-        "Windows từ chối kích hoạt bộ gõ TextVN chỉ đăng ký cho tài khoản này, \
+        "Windows 11 (23H2/24H2+ / Enterprise) từ chối kích hoạt bộ gõ TextVN chỉ đăng ký cho tài khoản này, \
 và TextVN không đăng ký cho cả máy từ thư mục người dùng ghi được (bản portable \
-hoặc bản cài riêng cho tài khoản).\r\n\r\nCách gõ được: cài TextVN cho mọi người \
-dùng bằng bộ cài TextVN-setup-*-machine.exe (cài vào Program Files, đăng ký đúng \
-chỗ và gõ được ngay), hoặc chọn TextVN bằng Win+Space nếu Windows cho phép.",
+hoặc bản cài riêng cho tài khoản).\r\n\r\nCách xử lý:\r\n\
+1. Mở Bảng điều khiển › Hướng dẫn › [Cài & bật TSF] để thử đăng ký lại và xem chi tiết nguyên nhân (register.log), hoặc nhấn Win + Space chọn TextVN nếu Windows cho phép.\r\n\
+2. Nếu chính sách Windows 11 Enterprise/24H2+ vẫn chặn bản portable: cài TextVN cho mọi người \
+dùng bằng bộ cài TextVN-setup-*-windows-x64-machine.exe (cài vào Program Files, đăng ký đúng chỗ và gõ được ngay).",
     );
 }
 
@@ -618,7 +623,7 @@ fn elevated_register_succeeded(result: Option<Option<u32>>) -> bool {
 }
 
 #[cfg(windows)]
-fn ensure_tsf_tip_registered(first_run: bool) {
+fn ensure_tsf_tip_registered(first_run: bool, interactive: bool) {
     // Chốt chặn cứng: còn package identity thì mọi ghi đăng ký bị ảo hoá (R2-02).
     if textvn_tray::store_win::refuse_if_packaged("đăng ký TSF") {
         return;
@@ -661,16 +666,23 @@ fn ensure_tsf_tip_registered(first_run: bool) {
         .status();
     if !status.is_ok_and(|s| s.success()) {
         // Không hiện hộp thoại khi autostart (tránh làm phiền mỗi lần đăng nhập),
-        // và tray tự thử lại ở lần khởi động kế tiếp (`tsf_registration_is_current`).
+        // nhưng khi người dùng tự mở app (E65) phải báo khay thay vì im lặng hoàn toàn.
         eprintln!(
             "TextVN: TSF registration did not complete; it is retried on the next start. \
              Run `textvn-cli doctor` for details."
         );
+        if interactive {
+            textvn_tray::show_tray_notification(
+                "TextVN — Chưa bật được bộ gõ TSF",
+                "Mở Bảng điều khiển › Hướng dẫn › [Cài & bật TSF] để thử lại và xem nguyên nhân chi tiết.",
+            );
+        }
     }
 }
 
-/// COM server trỏ đúng DLL đang có + đầy đủ profile VI/EN. Một CTF root rỗng
-/// từng khiến tray bỏ qua sửa chữa dù TextVN chưa thể gõ được.
+/// COM server trỏ đúng DLL đang có + đầy đủ profile VI/EN + category bàn phím.
+/// Một CTF root rỗng hoặc thiếu category TIP_KEYBOARD (E65) từng khiến tray bỏ qua
+/// tự sửa chữa dù TextVN chưa thể gõ được.
 #[cfg(windows)]
 fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
     let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
@@ -679,7 +691,11 @@ fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
     let server_ok = server.is_some_and(|p| {
         p.eq_ignore_ascii_case(&dll.to_string_lossy()) && std::path::Path::new(&p).is_file()
     });
-    server_ok && TSF_LANGS.iter().all(|lang| tsf_profile_is_current(*lang))
+    let cat_key =
+        format!(r"{TSF_CTF_TIP_KEY}\Category\Category\{TSF_CAT_TIP_KEYBOARD}\{TSF_CLSID}");
+    let cat_ok = registry_key_exists(HKEY_CURRENT_USER, &cat_key)
+        || registry_key_exists(HKEY_LOCAL_MACHINE, &cat_key);
+    server_ok && cat_ok && TSF_LANGS.iter().all(|lang| tsf_profile_is_current(*lang))
 }
 
 #[cfg(windows)]
@@ -1025,16 +1041,30 @@ fn run_tray_app() {
                 WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
             let existing_hwnd =
                 unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), PCWSTR::null()) };
-            if let Ok(h) = existing_hwnd {
-                if !h.is_invalid() {
-                    unsafe {
-                        let _ = PostMessageW(
-                            Some(h),
-                            textvn_tray::WM_OPEN_SETTINGS,
-                            WPARAM(0),
-                            LPARAM(0),
-                        );
-                    }
+            let posted = match existing_hwnd {
+                Ok(h) if !h.is_invalid() => unsafe {
+                    PostMessageW(Some(h), textvn_tray::WM_OPEN_SETTINGS, WPARAM(0), LPARAM(0))
+                        .is_ok()
+                },
+                _ => false,
+            };
+            // E65: nếu bản TextVN đang chạy có mức quyền cao hơn (UIPI chặn PostMessageW)
+            // hoặc cửa sổ khay chưa kịp sẵn sàng, báo rõ thay vì thoát im lặng khiến
+            // người dùng tưởng bản portable không chạy được.
+            if !posted {
+                let msg: Vec<u16> = "Một bản TextVN khác đang chạy ở khay hệ thống (có thể ở thư mục khác hoặc chạy bằng quyền Administrator).\r\n\r\n\
+Hãy bấm chuột phải biểu tượng TextVN ở khay hệ thống › [Thoát] bản cũ trước khi mở bản portable mới này."
+                    .encode_utf16()
+                    .chain(Some(0))
+                    .collect();
+                let cap: Vec<u16> = "TextVN đang chạy".encode_utf16().chain(Some(0)).collect();
+                unsafe {
+                    MessageBoxW(
+                        None,
+                        PCWSTR(msg.as_ptr()),
+                        PCWSTR(cap.as_ptr()),
+                        MB_OK | MB_ICONINFORMATION,
+                    );
                 }
             }
         }
@@ -1165,13 +1195,13 @@ fn run_tray_app() {
     if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
         let svc_bg = svc.clone();
         let store_channel = store_ctx.is_some();
+        let interactive = !is_autostart;
         std::thread::spawn(move || {
-            ensure_tsf_tip_registered(svc_bg.first_run());
-            // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
-            // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
-            // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ
-            // được (giống bộ cài). Chỉ hỏi khi người dùng chủ động mở app
-            // (không hỏi lúc --autostart). Kênh Store: không bao giờ xin UAC (R2-07).
+            ensure_tsf_tip_registered(svc_bg.first_run(), interactive);
+            // B7/E65 trên Win11 23H2/24H2+ (kể cả Enterprise): đăng ký per-user OK
+            // nhưng Windows TỪ CHỐI ActivateProfile → portable đứng một mình không gõ
+            // được. Đề nghị đăng ký phạm vi máy (chỉ khi nằm trong Program Files) hoặc
+            // thông báo hướng dẫn (bản portable). Kênh Store: không bao giờ xin UAC (R2-07).
             offer_machine_registration_if_needed(store_channel);
         });
     }

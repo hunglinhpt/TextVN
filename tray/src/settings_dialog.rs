@@ -9,8 +9,10 @@
 
 use std::sync::atomic::AtomicIsize;
 #[cfg(windows)]
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+#[cfg(windows)]
+use std::sync::Mutex;
 
 #[cfg(windows)]
 use textvn_config::{AssistMode, DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset};
@@ -163,8 +165,9 @@ Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi g�
 Ẩn vào khay: đóng cửa sổ này nhưng TextVN vẫn chạy nền (bộ gõ vẫn hoạt động); mở lại từ biểu \
 tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
 Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ hoặc chuột phải icon khay → mục \"Math & Science\". Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste công thức), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\r\n\r\n\
-Nếu chưa gõ được tiếng Việt: TextVN tự đăng ký bộ gõ khi khởi động — thoát hẳn rồi mở lại, \
-chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli doctor`.";
+Nếu chưa gõ được tiếng Việt (nhất là bản portable hoặc trên Windows 11 Enterprise 23H2/24H2+): \
+bấm nút [Cài & bật TSF] ngay bên dưới để đăng ký lại, kích hoạt bộ gõ và xem nguyên nhân chi tiết \
+từ register.log; sau đó chọn TextVN trong danh sách bộ gõ (Win + Space).";
 
 /// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/macOS/Linux (cửa sổ "Hướng dẫn").
 #[cfg(windows)]
@@ -1297,6 +1300,10 @@ unsafe extern "system" fn dialog_wnd_proc(
             }
             LRESULT(0)
         }
+        WM_TSF_SETUP_DONE => {
+            handle_tsf_setup_done(hwnd);
+            LRESULT(0)
+        }
         WM_CLOSE => {
             // Nút [X]: ẩn về khay hệ thống thay vì thoát
             let _ = ShowWindow(hwnd, SW_HIDE);
@@ -2057,6 +2064,10 @@ fn open_url(url: &str) {
 }
 
 #[cfg(windows)]
+const WM_TSF_SETUP_DONE: u32 = WM_APP + 10;
+#[cfg(windows)]
+const HELP_BTN_SETUP_TSF: i32 = 999;
+#[cfg(windows)]
 const HELP_BTN_MATH: i32 = 1000;
 #[cfg(windows)]
 const HELP_BTN_DISCUSS: i32 = 1001;
@@ -2065,8 +2076,22 @@ const HELP_BTN_REPORT: i32 = 1002;
 #[cfg(windows)]
 const HELP_BTN_CLOSE: i32 = 1003;
 
-/// Cửa sổ "Hướng dẫn": nội dung + nút [Thảo luận] [Báo lỗi] [Đóng] (TaskDialog; manifest
-/// đã bật Common Controls 6). Lỗi TaskDialog → rơi về MessageBox thường (không mất hướng dẫn).
+#[cfg(windows)]
+enum TsfSetupOutcome {
+    Activated,
+    RegisteredNeedsManualActivate(String),
+    Failed(String),
+}
+
+#[cfg(windows)]
+static TSF_SETUP_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+#[cfg(windows)]
+static TSF_SETUP_RESULT: Mutex<Option<TsfSetupOutcome>> = Mutex::new(None);
+
+/// Cửa sổ "Hướng dẫn": nội dung + nút [Cài & bật TSF] [Math & Science] [Thảo luận] [Báo lỗi] [Đóng]
+/// (TaskDialog; manifest đã bật Common Controls 6). Nút [Cài & bật TSF] nằm trong Hướng dẫn (E65)
+/// để giữ hàng nút chính gọn 7 nút mà người dùng portable / Windows 11 Enterprise 23H2 vẫn có thể
+/// chủ động đăng ký lại và xem chẩn đoán `register.log`.
 #[cfg(windows)]
 fn show_help(owner: HWND) {
     use windows::Win32::UI::Controls::{
@@ -2074,12 +2099,18 @@ fn show_help(owner: HWND) {
     };
     let title = w("Hướng dẫn TextVN");
     let content = w(&HELP_TEXT.replace("\r\n", "\n"));
+    let b_tsf = w("Cài & bật TSF");
     let b_math = w("Math & Science");
     let b_discuss = w("Thảo luận");
     let b_report = w("Báo lỗi");
     let b_close = w("Đóng");
-    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận.
+    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận; E65: nút Cài & bật TSF đặt
+    // trong panel Hướng dẫn để hỗ trợ bản portable / Windows 11 Enterprise 23H2+.
     let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_SETUP_TSF,
+            pszButtonText: PCWSTR(b_tsf.as_ptr()),
+        },
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_MATH,
             pszButtonText: PCWSTR(b_math.as_ptr()),
@@ -2116,11 +2147,299 @@ fn show_help(owner: HWND) {
         return;
     }
     match pressed {
+        HELP_BTN_SETUP_TSF => start_tsf_setup(owner),
         HELP_BTN_MATH => open_url(MATH_GUIDE_URL),
         HELP_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
         HELP_BTN_REPORT => open_url(REPORT_ISSUE_URL),
         _ => {}
     }
+}
+
+/// R2-32 + E65: chạy `textvn-cli register --dll <dll>` + `textvn-cli activate` ở thread nền
+/// (không bao giờ chặn thread UI đang giữ LL hook), rồi báo kết quả qua `WM_TSF_SETUP_DONE`.
+#[cfg(windows)]
+fn start_tsf_setup(hwnd: HWND) {
+    if TSF_SETUP_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        show_information(
+            hwnd,
+            "Đang cài & bật TSF",
+            "TextVN đang thực hiện đăng ký TSF ở nền. Vui lòng đợi vài giây để xem kết quả.",
+        );
+        return;
+    }
+    let raw = hwnd.0 as isize;
+    let spawned = std::thread::Builder::new()
+        .name("textvn-tsf-setup".into())
+        .spawn(move || {
+            let outcome = register_and_activate_tsf();
+            if let Ok(mut slot) = TSF_SETUP_RESULT.lock() {
+                *slot = Some(outcome);
+            }
+            TSF_SETUP_IN_PROGRESS.store(false, Ordering::Release);
+            let target = HWND(raw as *mut std::ffi::c_void);
+            // SAFETY: PostMessageW tới cửa sổ cài đặt (nếu còn tồn tại).
+            let posted = unsafe {
+                IsWindow(Some(target)).as_bool()
+                    && PostMessageW(Some(target), WM_TSF_SETUP_DONE, WPARAM(0), LPARAM(0)).is_ok()
+            };
+            if !posted {
+                // Cửa sổ cài đặt đã đóng trong lúc chờ → vẫn hiện kết quả cho người dùng.
+                handle_tsf_setup_done(HWND::default());
+            }
+        });
+    if spawned.is_err() {
+        TSF_SETUP_IN_PROGRESS.store(false, Ordering::Release);
+        show_information(
+            hwnd,
+            "Không thể đăng ký TextVN TSF",
+            "Không tạo được tiến trình nền để chạy textvn-cli. Thử lại sau.",
+        );
+    }
+}
+
+#[cfg(windows)]
+fn handle_tsf_setup_done(owner: HWND) {
+    let outcome = TSF_SETUP_RESULT
+        .lock()
+        .ok()
+        .and_then(|mut slot| slot.take());
+    let Some(outcome) = outcome else {
+        return;
+    };
+    let parent = if owner.is_invalid() {
+        None
+    } else {
+        Some(owner)
+    };
+    let show_msg = |title: &str, body: &str, flags: MESSAGEBOX_STYLE| {
+        let t = w(title);
+        let b = w(body);
+        // SAFETY: chuỗi NUL-terminated sống suốt lời gọi MessageBoxW.
+        unsafe {
+            MessageBoxW(parent, PCWSTR(b.as_ptr()), PCWSTR(t.as_ptr()), flags);
+        }
+    };
+    match outcome {
+        TsfSetupOutcome::Activated => {
+            // B7: sau khi cài & bật TSF thành công, đảm bảo chế độ đang ở tiếng Việt [V].
+            if let Some((enabled, ver)) = with_ctx(|ctx| {
+                let (e, v) = ctx.svc.set_global_enabled(true);
+                ctx.ipc.broadcast_state_update("*", e, v);
+                (e, v)
+            }) {
+                let _ = (enabled, ver);
+                crate::notify_tray_state_changed();
+            }
+            show_msg(
+                "Đã cài & bật TextVN TSF",
+                "TextVN TSF đã đăng ký và kích hoạt thành công (chế độ tiếng Việt [V]).\r\n\r\n\
+Nếu ứng dụng đang mở sẵn chưa nhận bộ gõ, hãy nhấn Win + Space chọn TextVN hoặc mở lại ứng dụng đó.",
+                MB_OK | MB_ICONINFORMATION,
+            );
+        }
+        TsfSetupOutcome::RegisteredNeedsManualActivate(detail) => {
+            show_msg(
+                "TextVN TSF đã đăng ký HKCU nhưng chưa kích hoạt được",
+                &detail,
+                MB_OK | MB_ICONWARNING,
+            );
+        }
+        TsfSetupOutcome::Failed(detail) => {
+            show_msg(
+                "Không thể đăng ký TextVN TSF",
+                &detail,
+                MB_OK | MB_ICONWARNING,
+            );
+        }
+    }
+}
+
+#[cfg(windows)]
+fn register_and_activate_tsf() -> TsfSetupOutcome {
+    if crate::store_win::refuse_if_packaged("đăng ký TSF thủ công") {
+        return TsfSetupOutcome::Failed(
+            "Bản cài qua Microsoft Store không đăng ký TSF trực tiếp từ container gói.\r\n\
+             Hãy dùng Win + Space chọn TextVN, hoặc cài bằng TextVN-setup-*-windows-x64-machine.exe."
+                .to_string(),
+        );
+    }
+    let Ok(exe) = std::env::current_exe() else {
+        return TsfSetupOutcome::Failed(
+            "Không xác định được thư mục cài đặt (current_exe lỗi). \
+             Hãy mở TextVN từ đúng thư mục đã cài/giải nén."
+                .to_string(),
+        );
+    };
+    let Some(dir) = exe.parent() else {
+        return TsfSetupOutcome::Failed("Không xác định được thư mục chứa TextVN.exe.".to_string());
+    };
+    let cli_path = dir.join("textvn-cli.exe");
+    if !cli_path.is_file() {
+        return TsfSetupOutcome::Failed(format!(
+            "Thiếu textvn-cli.exe cạnh TextVN.exe ({}).\r\n\r\nGói cài/portable bị thiếu tệp — \
+             hãy tải lại gói đầy đủ rồi bấm [Cài & bật TSF] lại.",
+            cli_path.display()
+        ));
+    }
+    let Some(dll_path) = ["textvn-tsf.dll", "textvn_win_tsf.dll"]
+        .iter()
+        .map(|n| dir.join(n))
+        .find(|p| p.is_file())
+    else {
+        return TsfSetupOutcome::Failed(format!(
+            "Thiếu textvn-tsf.dll cạnh TextVN.exe ({}).\r\n\r\nGói cài/portable bị thiếu tệp — \
+             hãy giải nén đầy đủ cả thư mục zip (không chỉ kéo riêng TextVN.exe) rồi thử lại.",
+            dir.display()
+        ));
+    };
+
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let reg_status = std::process::Command::new(&cli_path)
+        .arg("register")
+        .arg("--dll")
+        .arg(&dll_path)
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+    let exit_code = match reg_status {
+        Ok(st) if st.success() => 0,
+        Ok(st) => st.code().unwrap_or(-1),
+        Err(err) => {
+            return TsfSetupOutcome::Failed(format!(
+                "Không chạy được textvn-cli.exe: {err}\r\n\r\n\
+                 Trên Windows 11 Enterprise / SmartScreen: nếu bạn vừa tải gói .zip từ Internet, \
+                 hãy bấm chuột phải vào tệp .zip → Properties → tích Unblock rồi giải nén lại \
+                 (hoặc chạy PowerShell: Unblock-File -Path .\\* trong thư mục portable)."
+            ));
+        }
+    };
+
+    if exit_code != 0 {
+        let mut message = format!("textvn-cli register thất bại (exit code {exit_code}).\r\n");
+        append_register_log_tail(&mut message);
+        message.push_str("\r\n\r\n");
+        message.push_str(&advice_for_failure(exit_code, &message));
+        return TsfSetupOutcome::Failed(message);
+    }
+
+    // Bước 2: kiểm tra kích hoạt thật (B7 / E65 trên Windows 11 Enterprise 23H2 & 24H2+).
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    let act_ok = std::process::Command::new(&cli_path)
+        .arg("activate")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .is_ok_and(|s| s.success());
+    if act_ok {
+        return TsfSetupOutcome::Activated;
+    }
+
+    let mut message = String::from(
+        "TextVN đã ghi cấu hình TSF cho tài khoản hiện tại (HKCU), nhưng Windows từ chối \
+         kích hoạt tự động (ActivateProfile thất bại — giới hạn thường gặp trên Windows 11 \
+         Enterprise 23H2 / 24H2+ đối với bản portable chưa đăng ký phạm vi máy).\r\n\r\n\
+         Cách xử lý:\r\n\
+         1. Thử nhấn Win + Space xem có mục Vietnamese — TextVN để chọn thủ công không.\r\n\
+         2. Nếu giải nén từ tệp .zip tải trên mạng, đảm bảo tệp DLL không bị chặn Zone.Identifier \
+         (Properties → Unblock tệp .zip trước khi giải nén, hoặc mở PowerShell chạy Unblock-File).\r\n\
+         3. Khuyên dùng trên Windows 11 Enterprise 23H2/24H2+: cài bộ cài phạm vi máy \
+         TextVN-setup-*-windows-x64-machine.exe (cài vào Program Files, đăng ký HKLM một lần là gõ được ngay).",
+    );
+    append_register_log_tail(&mut message);
+    TsfSetupOutcome::RegisteredNeedsManualActivate(message)
+}
+
+#[cfg(windows)]
+fn append_register_log_tail(message: &mut String) {
+    match register_log_path() {
+        Some(path) => {
+            if let Some(tail) = read_log_tail(&path, 12) {
+                message.push_str("\r\n\r\nChi tiết từ register.log:\r\n");
+                message.push_str(&tail);
+            } else {
+                message.push_str("\r\n\r\nKhông đọc được register.log (file trống/thiếu quyền).");
+            }
+            message.push_str(&format!("\r\n\r\nLog đầy đủ: {}", path.display()));
+        }
+        None => message.push_str("\r\n\r\nKhông xác định được %LOCALAPPDATA% để đọc register.log."),
+    }
+}
+
+/// `%LOCALAPPDATA%\TextVN\logs\register.log` — CLI ghi mọi bước vào đây (kể cả
+/// khi chạy ẩn console, lý do thật chỉ nằm trong file).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn register_log_path() -> Option<std::path::PathBuf> {
+    let base = std::env::var_os("LOCALAPPDATA")?;
+    Some(
+        std::path::PathBuf::from(base)
+            .join("TextVN")
+            .join("logs")
+            .join("register.log"),
+    )
+}
+
+/// `max_lines` dòng cuối của lần đăng ký mới nhất trong log (thuần path → test mọi OS).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn read_log_tail(path: &std::path::Path, max_lines: usize) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    // register.log được append qua nhiều lần chạy — chỉ lấy từ ranh giới run mới nhất.
+    let run_start = lines
+        .iter()
+        .rposition(|line| line.contains("=== TextVN register ("))
+        .unwrap_or(0);
+    let start = lines.len().saturating_sub(max_lines).max(run_start);
+    Some(lines[start..].join("\r\n"))
+}
+
+/// Gợi ý theo nguyên nhân THẬT trong log/exit code (E65: cập nhật khớp log thực tế
+/// của CLI hiện tại — `RegisterProfile qua API TSF` và `InstallLayoutOrTip` trên
+/// Windows 11 Enterprise 23H2/24H2+, đồng thời giữ tương thích chuỗi log bản cũ).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn advice_for_failure(exit_code: i32, detail: &str) -> String {
+    if exit_code == 3 {
+        return "Windows yêu cầu quyền Administrator để đăng ký profile TSF ở phạm vi máy. \
+                Hãy dùng bộ cài TextVN-setup-*-windows-x64-machine.exe (cài vào Program Files); \
+                không nâng quyền trực tiếp cho file trong thư mục portable."
+            .to_string();
+    }
+    if detail.contains("InstallLayoutOrTip")
+        && detail.contains("không thêm được TextVN vào danh sách bàn phím")
+    {
+        return "Windows (thường gặp trên Windows 11 Enterprise 23H2/24H2+) từ chối thêm bộ gõ \
+                chỉ đăng ký per-user (HKCU) vào danh sách bàn phím.\r\n\
+                Hãy cài bằng bộ cài cho mọi người dùng TextVN-setup-*-windows-x64-machine.exe \
+                (cài vào Program Files, đăng ký HKLM một lần là gõ được ngay)."
+            .to_string();
+    }
+    if (detail.contains("RegisterProfile qua API TSF →")
+        || detail.contains("Đăng ký qua API TSF → 0x80004005"))
+        && detail.contains("hậu kiểm đăng ký TSF không đạt")
+    {
+        return "Đã ghi được HKCU nhưng Windows chưa nhận profile TSF; đây không phải lỗi quyền ghi HKCU. \
+                Hãy cài bằng bộ cài TextVN-setup-*-windows-x64-machine.exe (đăng ký machine một lần rồi bật cho tài khoản hiện tại). \
+                Không chạy textvn-cli.exe trong thư mục portable với quyền Administrator."
+            .to_string();
+    }
+    if detail.contains("ACCESS_DENIED") || detail.contains("0x00000005") {
+        return "Windows từ chối ghi HKCU\\Software\\Classes\\CLSID cho tài khoản hiện tại.\r\n\
+                Kiểm tra quyền tài khoản và chính sách bảo mật doanh nghiệp, sau đó mở Hướng dẫn › [Cài & bật TSF] thử lại."
+            .to_string();
+    }
+    if detail.contains("Không tìm thấy textvn-tsf.dll") {
+        return "Thiếu textvn-tsf.dll cạnh textvn-cli.exe.\r\n\
+                Hãy cài lại bằng installer hoặc giải nén lại đầy đủ cả gói portable rồi thử lại."
+            .to_string();
+    }
+    "Xem register.log (đường dẫn ở trên) để biết bước thất bại; \
+     nếu đang dùng bản portable trên Windows 11 Enterprise 23H2/24H2+, hãy thử bộ cài \
+     TextVN-setup-*-windows-x64-machine.exe hoặc gửi kèm file log này khi báo lỗi."
+        .to_string()
 }
 
 #[cfg(test)]
@@ -2513,7 +2832,77 @@ mod tests {
         }
         let last = rects.last().unwrap();
         assert!(last.0 + last.2 <= CLIENT_DESIGN_WIDTH);
-        assert!(!HELP_TEXT.contains("Cài & bật"));
+        // E65: nút "Cài & bật TSF" KHÔNG đứng ở hàng nút chính, mà nằm trong panel Hướng dẫn.
+        assert!(HELP_TEXT.contains("Cài & bật TSF"));
+        let src = include_str!("settings_dialog.rs");
+        assert!(src.contains("nButtonID: HELP_BTN_SETUP_TSF"));
+        assert!(src.contains("w(\"Cài & bật TSF\")"));
+    }
+
+    /// E65: `read_log_tail` chỉ đọc đuôi của lần chạy mới nhất trong `register.log`.
+    #[test]
+    fn register_log_tail_reads_last_lines() {
+        let dir = std::env::temp_dir().join(format!("textvn-reglog-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let log = dir.join("register.log");
+        let content = (1..=20)
+            .map(|i| format!("line-{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&log, content).unwrap();
+        let tail = read_log_tail(&log, 5).expect("phải đọc được log");
+        assert_eq!(tail.lines().count(), 5, "chỉ lấy 5 dòng cuối");
+        assert!(tail.contains("line-20"), "dòng mới nhất phải có");
+        assert!(!tail.contains("line-14"), "dòng cũ hơn ngoài cửa sổ bị cắt");
+
+        std::fs::write(
+            &log,
+            "[pid=1] === TextVN register (HKCU) ===\n[pid=1] Registry create → FAIL 0x00000005\n[pid=2] === TextVN register (HKCU) ===\n[pid=2] COM server HKCU → OK\n[pid=2] FAIL: hậu kiểm đăng ký TSF không đạt\n",
+        )
+        .unwrap();
+        let latest = read_log_tail(&log, 12).unwrap();
+        assert!(
+            !latest.contains("0x00000005"),
+            "không trộn lỗi của lần trước"
+        );
+        assert!(latest.contains("hậu kiểm đăng ký TSF không đạt"));
+
+        std::fs::write(&log, "  \n\n").unwrap();
+        assert!(read_log_tail(&log, 5).is_none(), "log rỗng → None");
+        assert!(read_log_tail(&dir.join("missing.log"), 5).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// E65: gợi ý trong hộp thoại `[Cài & bật TSF]` phải khớp nguyên nhân THẬT từ `register.log`,
+    /// bao gồm chuỗi log mới (`RegisterProfile qua API TSF` / `InstallLayoutOrTip`) trên Win11 Enterprise 23H2.
+    #[test]
+    fn advice_matches_real_cause() {
+        assert!(advice_for_failure(3, "").contains("Administrator"));
+        assert!(advice_for_failure(
+            1,
+            "FAIL: Windows không thêm được TextVN vào danh sách bàn phím (InstallLayoutOrTip)"
+        )
+        .contains("machine.exe"));
+        assert!(advice_for_failure(
+            1,
+            "  Registry create HKCU\\Software\\Classes\\CLSID\\{6F2B…} → \
+             FAIL 0x00000005 (ERROR_ACCESS_DENIED)"
+        )
+        .contains("Classes\\CLSID"));
+        assert!(advice_for_failure(
+            1,
+            "  Registry create Software\\Classes\\CLSID\\{…} → FAIL 0x00000005"
+        )
+        .contains("Classes\\CLSID"));
+        assert!(
+            advice_for_failure(1, "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll)")
+                .contains("textvn-tsf.dll")
+        );
+        let tsf_log_new = "COM server HKCU → OK\nRegisterProfile qua API TSF → 0x80070005 (fallback per-user sẽ ghi)\nFAIL: hậu kiểm đăng ký TSF không đạt";
+        assert!(advice_for_failure(1, tsf_log_new).contains("không phải lỗi quyền ghi HKCU"));
+        let tsf_log_old = "COM server HKCU → OK\nĐăng ký qua API TSF → 0x80004005 (cần quyền admin cho HKLM)\nFAIL: hậu kiểm đăng ký TSF không đạt";
+        assert!(advice_for_failure(1, tsf_log_old).contains("không phải lỗi quyền ghi HKCU"));
+        assert!(advice_for_failure(1, "lỗi lạ").contains("register.log"));
     }
 
     #[test]
