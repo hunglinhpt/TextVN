@@ -195,11 +195,23 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
     [[ -n "$addon_dir" && "$path" == "$addon_dir/libtextvn-fcitx5.so" ]]
 }
 
-# ibus-daemon giữ cache registry (~/.cache/ibus/bus/registry) và chỉ kiểm tra thay đổi ở
-# các thư mục component ĐÃ biết — thêm thư mục qua IBUS_COMPONENT_PATH không làm cache mất
-# hiệu lực, TextVN không hiện dù đã cài. Xoá cache (ibus tự dựng lại) mỗi khi đổi component.
+# ibus-daemon giữ cache registry (~/.cache/ibus/bus/registry). Xoá không thôi chưa đủ trên
+# RHEL 8.10 (IBus 1.5.19): khi không có cache user, ibus-daemon 1.5.19 rơi về cache HỆ THỐNG
+# /var/cache/ibus/bus/registry và bỏ qua hoàn toàn IBUS_COMPONENT_PATH (E67). Vì vậy cần
+# dựng lại cache user bằng `IBUS_COMPONENT_PATH=... ibus write-cache`.
 tv_ibus_clear_cache() {
     rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/ibus/bus/registry" 2>/dev/null || true
+}
+
+tv_ibus_refresh_cache() { # <component_path | "">
+    local comp="${1:-}"
+    tv_ibus_clear_cache
+    command -v ibus >/dev/null 2>&1 || return 0
+    if [[ -n "$comp" ]]; then
+        IBUS_COMPONENT_PATH="$comp" ibus write-cache >/dev/null 2>&1 || true
+    else
+        env -u IBUS_COMPONENT_PATH ibus write-cache >/dev/null 2>&1 || true
+    fi
 }
 
 tv_systemd_user_ok() {
@@ -228,7 +240,7 @@ tv_ibus_needs_live_register() {
 # làm sập/đóng gnome-terminal); các phiên còn lại: chạy lại daemon tách khỏi PTY terminal.
 tv_restart_ibus() { # <component_path | "">
     local comp="$1" unit pid args=()
-    tv_ibus_clear_cache
+    tv_ibus_refresh_cache "$comp"
     if tv_systemd_user_ok; then
         if [[ "${TV_SKIP_MANAGER_ENV:-0}" != 1 ]]; then
             if [[ -n "$comp" ]]; then
@@ -246,16 +258,9 @@ tv_restart_ibus() { # <component_path | "">
     fi
     # E64/E67: trên GNOME Wayland cũ hơn GNOME 43 (RHEL 8.10 GNOME 3.32, Ubuntu 22.04 GNOME 42)
     # không có systemd unit cho IBus — gnome-shell tự giữ socket Wayland IM với ibus-daemon.
-    # Chỉ giữ nguyên khi ibus-daemon ĐANG chạy; làm mới cache với đúng IBUS_COMPONENT_PATH.
+    # Chỉ giữ nguyên khi ibus-daemon ĐANG chạy (cache user đã được làm mới ở trên).
     if [[ "${TV_FORCE_IBUS_REPLACE:-0}" != 1 && "${XDG_SESSION_TYPE:-}" == wayland &&
           "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]] && tv_running ibus-daemon; then
-        if command -v ibus >/dev/null 2>&1; then
-            if [[ -n "$comp" ]]; then
-                IBUS_COMPONENT_PATH="$comp" ibus write-cache >/dev/null 2>&1 || true
-            else
-                ibus write-cache >/dev/null 2>&1 || true
-            fi
-        fi
         tv_say "GNOME Wayland (không có systemd IBus unit, vd. RHEL 8.10 / Ubuntu 22.04): giữ nguyên ibus-daemon để không làm gián đoạn terminal."
         tv_say "Hãy đăng xuất và đăng nhập lại 1 lần để GNOME nạp TextVN an toàn."
         return 0

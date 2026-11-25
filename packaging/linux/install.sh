@@ -114,7 +114,11 @@ if [[ -f "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]]; then
     rm -f -- "$XML_TMP"
     XML_TMP=""
     HAS_IBUS=1
-    [[ "$MODE" == user ]] && tv_ibus_clear_cache
+    if [[ "$MODE" == user ]]; then
+        tv_ibus_refresh_cache "$SHARE/ibus/component:/usr/share/ibus/component"
+    elif [[ "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
+        ibus write-cache --system >/dev/null 2>&1 || true
+    fi
 fi
 if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
     put 0755 "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" "$FCITX_LIB/libtextvn-fcitx5.so"

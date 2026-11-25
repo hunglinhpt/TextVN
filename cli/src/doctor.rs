@@ -358,13 +358,20 @@ pub fn redact_sensitive_paths(input: &str) -> String {
 
 /// Lấy 200 dòng cuối từ log TSF / TextVN (không log text gõ - S2).
 fn collect_log_tail(max_lines: usize) -> String {
-    let mut log_path = None;
+    let mut log_path: Option<PathBuf> = None;
     #[cfg(target_os = "windows")]
     if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
         let root = PathBuf::from(local_appdata);
         let primary = root.join("TextVN").join("logs").join("tsf-min.log");
         if primary.exists() {
             log_path = Some(primary);
+        }
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = std::env::var_os("HOME") {
+        let p = PathBuf::from(home).join("Library/Logs/TextVN/textvn.log");
+        if p.exists() {
+            log_path = Some(p);
         }
     }
     #[cfg(target_os = "linux")]

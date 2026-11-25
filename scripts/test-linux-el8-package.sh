@@ -88,6 +88,11 @@ el8_install() {
     daemon_pid=$!
     sleep 2
     "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "--- ibus list-engine (EL8 debug) ---"
+        ibus list-engine 2>&1 || true
+        ls -la "$XDG_CACHE_HOME/ibus/bus" 2>&1 || true
+    fi
     cleanup
     sleep 1
     [[ $rc -eq 0 ]] || { cat "$t/e2e.log" "$t/d.log"; fail "EL8 install e2e_ibus"; }

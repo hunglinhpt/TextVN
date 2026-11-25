@@ -81,6 +81,9 @@ for d in "$PREFIX/lib/textvn/fcitx5" "$PREFIX/lib/textvn" "$PREFIX/share/textvn"
 done
 
 if [[ "$PER_USER_STEPS" == 0 ]]; then
+    if [[ "$had_ibus" == 1 && "$PREFIX" == /usr ]] && command -v ibus >/dev/null 2>&1; then
+        ibus write-cache --system >/dev/null 2>&1 || true
+    fi
     tv_say "Chạy bằng root: KHÔNG sửa danh sách bộ gõ, daemon hay cấu hình của người dùng."
     echo "  Mỗi người dùng chạy trong phiên của mình (không dùng sudo):"
     [[ "$had_ibus" == 1 ]] &&
