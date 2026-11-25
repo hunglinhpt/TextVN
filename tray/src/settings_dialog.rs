@@ -1333,6 +1333,10 @@ unsafe extern "system" fn dialog_wnd_proc(
             handle_tsf_setup_done(hwnd);
             LRESULT(0)
         }
+        WM_DIAG_EXPORT_DONE => {
+            handle_diag_export_done(hwnd);
+            LRESULT(0)
+        }
         WM_CLOSE => {
             // Nút [X]: ẩn về khay hệ thống thay vì thoát
             let _ = ShowWindow(hwnd, SW_HIDE);
@@ -2095,6 +2099,8 @@ fn open_url(url: &str) {
 #[cfg(windows)]
 const WM_TSF_SETUP_DONE: u32 = WM_APP + 10;
 #[cfg(windows)]
+const WM_DIAG_EXPORT_DONE: u32 = WM_APP + 11;
+#[cfg(windows)]
 const HELP_BTN_SETUP_TSF: i32 = 999;
 #[cfg(windows)]
 const HELP_BTN_MATH: i32 = 1000;
@@ -2102,6 +2108,8 @@ const HELP_BTN_MATH: i32 = 1000;
 const HELP_BTN_DISCUSS: i32 = 1001;
 #[cfg(windows)]
 const HELP_BTN_REPORT: i32 = 1002;
+#[cfg(windows)]
+const HELP_BTN_DIAG: i32 = 1004;
 #[cfg(windows)]
 const HELP_BTN_CLOSE: i32 = 1003;
 
@@ -2116,11 +2124,15 @@ enum TsfSetupOutcome {
 static TSF_SETUP_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
 static TSF_SETUP_RESULT: Mutex<Option<TsfSetupOutcome>> = Mutex::new(None);
+#[cfg(windows)]
+static DIAG_EXPORT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+#[cfg(windows)]
+static DIAG_EXPORT_RESULT: Mutex<Option<std::result::Result<String, String>>> = Mutex::new(None);
 
-/// Cửa sổ "Hướng dẫn": nội dung + nút [Cài & bật TSF] [Math & Science] [Thảo luận] [Báo lỗi] [Đóng]
-/// (TaskDialog; manifest đã bật Common Controls 6). Nút [Cài & bật TSF] nằm trong Hướng dẫn (E65)
-/// để giữ hàng nút chính gọn 7 nút mà người dùng portable / Windows 11 Enterprise 23H2 vẫn có thể
-/// chủ động đăng ký lại và xem chẩn đoán `register.log`.
+/// Cửa sổ "Hướng dẫn": nội dung + nút [Cài & bật TSF] [Math & Science] [Thảo luận] [Báo lỗi] [Xuất log chẩn đoán] [Đóng]
+/// (TaskDialog; manifest đã bật Common Controls 6). Nút [Cài & bật TSF] (E65) và [Xuất log chẩn đoán] (E69)
+/// nằm trong Hướng dẫn để giữ hàng nút chính gọn 7 nút mà người dùng portable / Enterprise vẫn dễ dàng
+/// đăng ký TSF và xuất gói chẩn đoán chi tiết (không chứa nội dung gõ, G8) gửi kèm khi báo lỗi.
 #[cfg(windows)]
 fn show_help(owner: HWND) {
     use windows::Win32::UI::Controls::{
@@ -2132,9 +2144,9 @@ fn show_help(owner: HWND) {
     let b_math = w("Math & Science");
     let b_discuss = w("Thảo luận");
     let b_report = w("Báo lỗi");
+    let b_diag = w("Xuất log chẩn đoán");
     let b_close = w("Đóng");
-    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận; E65: nút Cài & bật TSF đặt
-    // trong panel Hướng dẫn để hỗ trợ bản portable / Windows 11 Enterprise 23H2+.
+    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận; E65: nút Cài & bật TSF; E69: Xuất log chẩn đoán.
     let buttons = [
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_SETUP_TSF,
@@ -2151,6 +2163,10 @@ fn show_help(owner: HWND) {
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_REPORT,
             pszButtonText: PCWSTR(b_report.as_ptr()),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_DIAG,
+            pszButtonText: PCWSTR(b_diag.as_ptr()),
         },
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_CLOSE,
@@ -2180,7 +2196,133 @@ fn show_help(owner: HWND) {
         HELP_BTN_MATH => open_url(MATH_GUIDE_URL),
         HELP_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
         HELP_BTN_REPORT => open_url(REPORT_ISSUE_URL),
+        HELP_BTN_DIAG => start_diag_export(owner),
         _ => {}
+    }
+}
+
+/// E69: chạy `textvn-cli.exe doctor --export auto` ở thread nền (không chặn UI/LL hook),
+/// trả kết quả qua `WM_DIAG_EXPORT_DONE`.
+#[cfg(windows)]
+fn start_diag_export(hwnd: HWND) {
+    if DIAG_EXPORT_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        show_information(
+            hwnd,
+            "Đang xuất log chẩn đoán",
+            "TextVN đang tạo tệp chẩn đoán ở nền. Vui lòng đợi vài giây.",
+        );
+        return;
+    }
+    let raw = hwnd.0 as isize;
+    let spawned = std::thread::Builder::new()
+        .name("textvn-diag-export".into())
+        .spawn(move || {
+            let outcome = run_diag_export_cli();
+            if let Ok(mut slot) = DIAG_EXPORT_RESULT.lock() {
+                *slot = Some(outcome);
+            }
+            DIAG_EXPORT_IN_PROGRESS.store(false, Ordering::Release);
+            let target = HWND(raw as *mut std::ffi::c_void);
+            // SAFETY: PostMessageW tới cửa sổ cài đặt nếu còn tồn tại.
+            let posted = unsafe {
+                IsWindow(Some(target)).as_bool()
+                    && PostMessageW(Some(target), WM_DIAG_EXPORT_DONE, WPARAM(0), LPARAM(0)).is_ok()
+            };
+            if !posted {
+                if let Ok(mut slot) = DIAG_EXPORT_RESULT.lock() {
+                    if let Some(res) = slot.take() {
+                        present_diag_export_outcome(HWND::default(), res);
+                    }
+                }
+            }
+        });
+    if spawned.is_err() {
+        DIAG_EXPORT_IN_PROGRESS.store(false, Ordering::Release);
+        show_information(
+            hwnd,
+            "Không xuất được log chẩn đoán",
+            "Không khởi tạo được luồng nền. Vui lòng chạy thủ công: textvn-cli doctor --export auto",
+        );
+    }
+}
+
+#[cfg(windows)]
+fn run_diag_export_cli() -> std::result::Result<String, String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .ok_or_else(|| "Không xác định được thư mục chứa TextVN.exe.".to_string())?;
+    let cli_path = exe_dir.join("textvn-cli.exe");
+    if !cli_path.is_file() {
+        return Err(format!(
+            "Không tìm thấy textvn-cli.exe tại: {}",
+            cli_path.display()
+        ));
+    }
+    let out = std::process::Command::new(&cli_path)
+        .args(["doctor", "--export", "auto"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| format!("Không chạy được textvn-cli.exe: {e}"))?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let saved_line = stdout
+        .lines()
+        .find(|l| l.starts_with("Đã xuất file chẩn đoán:"))
+        .map(|s| s.to_string());
+    if let Some(line) = saved_line {
+        let mut highlights = Vec::new();
+        for l in stdout.lines() {
+            let trimmed = l.trim();
+            if trimmed.starts_with("[LỖI]")
+                || trimmed.starts_with("[CẢNH BÁO]")
+                || trimmed.starts_with("→ Gợi ý:")
+                || trimmed.starts_with("conflicts")
+            {
+                highlights.push(trimmed.to_string());
+            }
+        }
+        let mut msg = format!(
+            "{line}\r\n\r\nTệp ZIP đã tự động ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\r\n\
+             Hãy đính kèm tệp ZIP này khi mở báo lỗi tại:\r\n{REPORT_ISSUE_URL}"
+        );
+        if !highlights.is_empty() {
+            msg.push_str("\r\n\r\nPhát hiện nhanh trên máy:\r\n");
+            for h in highlights.iter().take(10) {
+                msg.push_str("  ");
+                msg.push_str(h);
+                msg.push_str("\r\n");
+            }
+        }
+        Ok(msg)
+    } else {
+        Err(format!(
+            "textvn-cli doctor --export thất bại (exit {:?}).\r\n{}",
+            out.status.code(),
+            stderr.trim()
+        ))
+    }
+}
+
+#[cfg(windows)]
+fn handle_diag_export_done(hwnd: HWND) {
+    let outcome = DIAG_EXPORT_RESULT.lock().ok().and_then(|mut s| s.take());
+    if let Some(res) = outcome {
+        present_diag_export_outcome(hwnd, res);
+    }
+}
+
+#[cfg(windows)]
+fn present_diag_export_outcome(hwnd: HWND, outcome: std::result::Result<String, String>) {
+    match outcome {
+        Ok(msg) => show_information(hwnd, "Đã xuất log chẩn đoán TextVN", &msg),
+        Err(err) => show_information(hwnd, "Không xuất được log chẩn đoán", &err),
     }
 }
 
@@ -2757,6 +2899,10 @@ mod tests {
         ] {
             assert!(src.contains("\"Thảo luận\""), "{os} thiếu nút Thảo luận");
             assert!(src.contains("\"Báo lỗi\""), "{os} thiếu nút Báo lỗi");
+            assert!(
+                src.contains("\"Xuất log chẩn đoán\""),
+                "{os} thiếu nút Xuất log chẩn đoán (E69)"
+            );
             // P11: nút Math & Science trong cửa sổ Hướng dẫn, ngay bên trái Thảo luận.
             assert!(
                 src.contains("Math & Science"),

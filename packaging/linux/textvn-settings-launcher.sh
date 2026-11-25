@@ -18,10 +18,11 @@ if [ -x "$LIB_DIR/textvn-settings-gtk3" ] && "$LIB_DIR/textvn-settings-gtk3" --c
     exec "$LIB_DIR/textvn-settings-gtk3" "$@"
 fi
 
-echo "✗ Không mở được bảng điều khiển TextVN (thiếu thư viện GTK3/GTK4 trên hệ thống)." >&2
+echo "✗ [E_GTK_MISSING] Không mở được bảng điều khiển TextVN (thiếu thư viện GTK3/GTK4 trên hệ thống)." >&2
 echo "  • RHEL 8/9 / Rocky / Alma / Fedora : sudo dnf install -y gtk3" >&2
-echo "  • SLES 15 / openSUSE Leap          : sudo zypper install -y gtk3" >&2
-echo "  • Ubuntu / Debian / Mint           : sudo apt install -y libgtk-3-0t64 (hoặc libgtk-3-0)" >&2
+echo "  • SLES 15 / openSUSE Leap          : sudo zypper install -y libgtk-3-0" >&2
+echo "  • Ubuntu / Debian / Mint           : sudo apt install -y libgtk-4-1 (hoặc libgtk-3-0)" >&2
 echo "  • Arch / Manjaro                   : sudo pacman -S gtk4" >&2
+echo "  • Xuất log chẩn đoán để báo lỗi    : textvn doctor --export ~/textvn-diag.zip" >&2
 echo "  • Dùng CLI không cần GUI           : textvn doctor (cấu hình ở ~/.config/TextVN/config.json)" >&2
 exit 1

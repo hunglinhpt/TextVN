@@ -80,8 +80,8 @@ public struct SettingsView: View {
         self.onExpandedChange = onExpandedChange
     }
 
-    /// Cửa sổ "Hướng dẫn": nội dung + [Thảo luận] [Báo lỗi] [Đóng] — cùng bố cục với
-    /// Windows (TaskDialog) và Linux (GTK). SwiftUI `Alert` chỉ hỗ trợ 2 nút nên dùng NSAlert.
+    /// Cửa sổ "Hướng dẫn": nội dung + [Thảo luận] [Báo lỗi] [Xuất log chẩn đoán] [Đóng] —
+    /// cùng bố cục với Windows (TaskDialog) và Linux (GTK). SwiftUI `Alert` chỉ hỗ trợ 2 nút nên dùng NSAlert.
     private func showHelp() {
         let alert = NSAlert()
         alert.messageText = AppInfo.helpTitle
@@ -93,6 +93,8 @@ public struct SettingsView: View {
         // add SAU "Thảo luận" để nút nằm ngay bên TRÁI Thảo luận.
         alert.addButton(withTitle: "Math & Science")
         alert.addButton(withTitle: "Báo lỗi")
+        // E69: nút Xuất log chẩn đoán (rawValue 1004) — xuất file chẩn đoán ẩn PII (G8).
+        alert.addButton(withTitle: "Xuất log chẩn đoán")
         let response = alert.runModal()
         // Thảo luận mở Discussions; Math & Science mở tài liệu guide; Báo lỗi mở issues URL.
         let target: String
@@ -101,11 +103,104 @@ public struct SettingsView: View {
         case .alertThirdButtonReturn: target = AppInfo.mathGuideUrl
         // Nút thứ 4 không có hằng Swift sẵn — dùng rawValue 1003.
         case NSApplication.ModalResponse(rawValue: 1003): target = AppInfo.reportIssueUrl
+        case NSApplication.ModalResponse(rawValue: 1004):
+            exportDiagnosticsReport()
+            return
         default: return
         }
         if let url = URL(string: target) {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    /// E69: Xuất báo cáo chẩn đoán ẩn danh tính (G8/S2 — không chứa nội dung gõ hay từ vựng cá nhân)
+    /// ra Desktop để người dùng đính kèm khi báo lỗi.
+    private func exportDiagnosticsReport() {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let desktop = home.appendingPathComponent("Desktop", isDirectory: true)
+        let destDir = fm.fileExists(atPath: desktop.path) ? desktop : home
+        let ts = Int(Date().timeIntervalSince1970)
+        let outUrl = destDir.appendingPathComponent("textvn-diag-\(ts).md")
+
+        let user = NSUserName()
+        let homePath = home.path
+        func redact(_ s: String) -> String {
+            var out = s
+            if homePath.count >= 3 {
+                out = out.replacingOccurrences(of: homePath, with: "~", options: .caseInsensitive)
+            }
+            if user.count >= 2 {
+                out = out.replacingOccurrences(of: user, with: "<REDACTED_USER>", options: .caseInsensitive)
+            }
+            return out
+        }
+
+        var conflicts: [String] = []
+        for (name, bundle) in [("OpenKey", "OpenKey.app"), ("EVKey", "EVKey.app"), ("GoTiengViet", "GoTiengViet.app")] {
+            let sysPath = "/Applications/\(bundle)"
+            let usrPath = home.appendingPathComponent("Applications/\(bundle)").path
+            if fm.fileExists(atPath: sysPath) || fm.fileExists(atPath: usrPath) {
+                conflicts.append("\(name) (đã cài)")
+            }
+        }
+
+        let logDir = home.appendingPathComponent("Library/Logs/TextVN", isDirectory: true)
+        var logUrl: URL? = nil
+        let primaryLog = logDir.appendingPathComponent("textvn.log")
+        if fm.fileExists(atPath: primaryLog.path) {
+            logUrl = primaryLog
+        } else if let items = try? fm.contentsOfDirectory(
+            at: logDir,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            // Diagnostics.swift của IMK ghi ra im-<pid>.log — chọn tệp mới nhất.
+            logUrl = items
+                .filter { $0.lastPathComponent.hasPrefix("im-") && $0.pathExtension == "log" }
+                .sorted { a, b in
+                    let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                    let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                    return da > db
+                }
+                .first
+        }
+        let logTail: String
+        if let found = logUrl, let rawLog = try? String(contentsOf: found, encoding: .utf8) {
+            let lines = rawLog.split(separator: "\n", omittingEmptySubsequences: false)
+            logTail = redact(lines.suffix(200).joined(separator: "\n"))
+        } else {
+            logTail = "# Chưa có log (bật TEXTVN_LOG=1 nếu cần ghi log chi tiết)."
+        }
+
+        var md = "# Báo cáo chẩn đoán TextVN (macOS)\n\n"
+        md += "- **Phiên bản**: `TextVN \(AppInfo.displayVersion)`\n"
+        md += "- **macOS**: `\(ProcessInfo.processInfo.operatingSystemVersionString)`\n"
+        md += "- **Xung đột bộ gõ phát hiện**: \(conflicts.isEmpty ? "Không" : conflicts.joined(separator: ", "))\n"
+        if !conflicts.isEmpty {
+            md += "  - *Gợi ý*: Hãy thoát bộ gõ cũ ở thanh menu bar (và tắt Accessibility/Input Monitoring của bộ gõ cũ) khi dùng TextVN.\n"
+        }
+        md += "\n## Log gần nhất (đã ẩn tên người dùng — G8/S2)\n\n```\n\(logTail)\n```\n"
+        md += "\n## Thông tin người dùng bổ sung khi báo lỗi\n\n"
+        md += "- **Ứng dụng đang gõ**: \n- **Chuỗi phím đã gõ**: \n- **Kết quả thực tế**: \n- **Kết quả mong đợi**: \n"
+
+        let resAlert = NSAlert()
+        do {
+            try md.write(to: outUrl, atomically: true, encoding: .utf8)
+            NSWorkspace.shared.activateFileViewerSelecting([outUrl])
+            resAlert.messageText = "Đã xuất log chẩn đoán TextVN"
+            resAlert.informativeText =
+                "Đã lưu tệp chẩn đoán tại:\n\(outUrl.path)\n\n"
+                + "Tệp đã tự động ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\n"
+                + "Hãy đính kèm tệp này khi bấm [Báo lỗi] tại \(AppInfo.reportIssueUrl)."
+                + (conflicts.isEmpty ? "" : "\n\nCảnh báo xung đột: \(conflicts.joined(separator: ", ")) — hãy thoát bộ gõ cũ trước khi dùng TextVN.")
+        } catch {
+            resAlert.alertStyle = .warning
+            resAlert.messageText = "Không xuất được log chẩn đoán"
+            resAlert.informativeText = "Không ghi được tệp \(outUrl.path): \(error.localizedDescription)"
+        }
+        resAlert.addButton(withTitle: "Đóng")
+        resAlert.runModal()
     }
 
     public var body: some View {

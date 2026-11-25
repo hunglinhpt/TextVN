@@ -66,6 +66,110 @@ static void add_escape_closes(GtkWidget *window) {
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press_close), NULL);
 }
 
+/* E69: Tìm binary `textvn` cùng gói (../../bin/textvn từ lib/textvn/, hoặc PATH). */
+static char *find_textvn_cli_path(void) {
+    char *self = g_file_read_link("/proc/self/exe", NULL);
+    if (self) {
+        char *dir = g_path_get_dirname(self);
+        g_free(self);
+        const char *rels[] = {"../../bin/textvn", "../bin/textvn", "textvn"};
+        for (size_t i = 0; i < G_N_ELEMENTS(rels); ++i) {
+            char *cand = g_build_filename(dir, rels[i], NULL);
+            if (!g_file_test(cand, G_FILE_TEST_IS_DIR) &&
+                g_file_test(cand, G_FILE_TEST_IS_EXECUTABLE)) {
+                g_free(dir);
+                return cand;
+            }
+            g_free(cand);
+        }
+        g_free(dir);
+    }
+    char *in_path = g_find_program_in_path("textvn");
+    if (in_path) return in_path;
+    return g_find_program_in_path("textvn-cli");
+}
+
+static gboolean s_diag_export_busy = FALSE;
+
+typedef struct {
+    gpointer parent; /* weak-referenced (gpointer tránh strict-aliasing UB với -O3 -Werror) */
+    char    *title;
+    char    *body;
+} DiagResultCtx;
+
+static gboolean finish_diag_export_idle(gpointer data) {
+    DiagResultCtx *ctx = (DiagResultCtx *)data;
+    s_diag_export_busy = FALSE;
+    if (ctx->parent) {
+        gpointer win = ctx->parent;
+        g_object_remove_weak_pointer(G_OBJECT(win), &ctx->parent);
+        show_message(GTK_WINDOW(win), ctx->title, ctx->body);
+    }
+    g_free(ctx->title);
+    g_free(ctx->body);
+    g_free(ctx);
+    return G_SOURCE_REMOVE;
+}
+
+static gpointer diag_export_thread(gpointer data) {
+    DiagResultCtx *ctx = (DiagResultCtx *)data;
+    char *cli = find_textvn_cli_path();
+    if (!cli) {
+        ctx->title = g_strdup("Không tìm thấy CLI textvn");
+        ctx->body = g_strdup("Không tìm thấy lệnh `textvn` để xuất log chẩn đoán.\n"
+                             "Hãy chạy trong terminal: textvn doctor --export ~/textvn-diag.zip");
+        g_idle_add(finish_diag_export_idle, ctx);
+        return NULL;
+    }
+    char *argv[] = {cli, "doctor", "--export", "auto", NULL};
+    char *out_str = NULL;
+    char *err_str = NULL;
+    int status = 0;
+    GError *gerr = NULL;
+    gboolean ok = g_spawn_sync(NULL, argv, NULL, G_SPAWN_DEFAULT, NULL, NULL,
+                               &out_str, &err_str, &status, &gerr);
+    g_free(cli);
+    if (!ok) {
+        ctx->title = g_strdup("Không xuất được log chẩn đoán");
+        ctx->body = g_strdup_printf("Lỗi thực thi textvn doctor: %s",
+                                    gerr ? gerr->message : "không rõ");
+        if (gerr) g_error_free(gerr);
+    } else {
+        const char *saved = out_str ? strstr(out_str, "Đã xuất file chẩn đoán:") : NULL;
+        if (saved) {
+            const char *eol = strchr(saved, '\n');
+            char *line = eol ? g_strndup(saved, (gsize)(eol - saved)) : g_strdup(saved);
+            ctx->title = g_strdup("Đã xuất log chẩn đoán TextVN");
+            ctx->body = g_strdup_printf(
+                "%s\n\nTệp ZIP đã tự động ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\n"
+                "Hãy đính kèm tệp ZIP này khi bấm [Báo lỗi] tại:\n%s",
+                line, tv_issues_url);
+            g_free(line);
+        } else {
+            ctx->title = g_strdup("Không xuất được log chẩn đoán");
+            ctx->body = g_strdup_printf("textvn doctor --export trả lỗi:\n%s",
+                                        (err_str && *err_str) ? err_str : "(không có chi tiết)");
+        }
+    }
+    g_free(out_str);
+    g_free(err_str);
+    g_idle_add(finish_diag_export_idle, ctx);
+    return NULL;
+}
+
+static void on_export_diag(GtkButton *b, gpointer user_data) {
+    (void)b;
+    if (s_diag_export_busy) return;
+    s_diag_export_busy = TRUE;
+    DiagResultCtx *ctx = g_new0(DiagResultCtx, 1);
+    ctx->parent = user_data;
+    if (ctx->parent) {
+        g_object_add_weak_pointer(G_OBJECT(ctx->parent), &ctx->parent);
+    }
+    GThread *th = g_thread_new("textvn-diag", diag_export_thread, ctx);
+    g_thread_unref(th);
+}
+
 static void on_help_link(GtkButton *b, gpointer user_data) {
     GtkWindow *parent = GTK_WINDOW(user_data);
     const char *url = (const char *)g_object_get_data(G_OBJECT(b), "help-url");
@@ -116,8 +220,12 @@ static void present_info_dialog(GtkWindow *parent, const char *title, const char
         gtk_widget_set_tooltip_text(report, "Báo cáo sự cố trên GitHub");
         g_object_set_data_full(G_OBJECT(report), "help-url", g_strdup(tv_issues_url), g_free);
         g_signal_connect(report, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
+        GtkWidget *diag = gtk_button_new_with_label("Xuất log chẩn đoán");
+        gtk_widget_set_tooltip_text(diag, "Xuất gói ZIP chẩn đoán hệ thống & log (không chứa chữ đã gõ) để gửi báo lỗi");
+        g_signal_connect(diag, "clicked", G_CALLBACK(on_export_diag), parent ? (gpointer)parent : (gpointer)dlg);
         gtk_box_pack_start(GTK_BOX(row), discuss, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), report, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), diag, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), ok, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
     } else {

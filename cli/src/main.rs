@@ -23,7 +23,7 @@ Usage:
   textvn-cli config default                  # in config mặc định ra stdout
   textvn-cli config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
   textvn-cli config validate <file.json>     # validate config.v1 (P0-3 §1)
-  textvn-cli doctor [--json] [--pause] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
+  textvn-cli doctor [--json] [--report] [--pause] [--export [auto|<path.zip>]] # chẩn đoán môi trường / xuất báo cáo lỗi (WIN-058 / E69)
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   textvn-cli unregister [--scope user|machine] [--if-owned-by <dir>] # hủy đăng ký TSF TIP (--if-owned-by: chỉ khi TIP thuộc <dir>)
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
@@ -336,9 +336,10 @@ fn config_path() -> Option<PathBuf> {
     }
 }
 
-/// `doctor` — chẩn đoán môi trường và xuất báo cáo chẩn đoán (WIN-058 / P1-4 §9).
+/// `doctor` — chẩn đoán môi trường, phát hiện xung đột bộ gõ và xuất báo cáo (WIN-058 / E69).
 fn cmd_doctor(rest: &[String]) -> i32 {
     let mut json_out = false;
+    let mut report_out = false;
     let mut pause = false;
     let mut export_path: Option<PathBuf> = None;
     let mut i = 0;
@@ -346,6 +347,7 @@ fn cmd_doctor(rest: &[String]) -> i32 {
     while i < rest.len() {
         match rest[i].as_str() {
             "--json" => json_out = true,
+            "--report" => report_out = true,
             // R2-36: shortcut Start menu mở console riêng — đóng ngay khi in xong thì người
             // dùng không đọc được báo cáo. Cờ tường minh (không đoán qua số tiến trình
             // gắn console: con chạy ẩn CREATE_NO_WINDOW sẽ bị treo chờ Enter).
@@ -353,25 +355,31 @@ fn cmd_doctor(rest: &[String]) -> i32 {
             "--export" => {
                 if let Some(next) = rest.get(i + 1) {
                     if !next.starts_with("--") {
-                        export_path = Some(PathBuf::from(next));
+                        if next == "auto" {
+                            export_path = Some(doctor::default_export_path());
+                        } else {
+                            export_path = Some(PathBuf::from(next));
+                        }
                         i += 1;
                     } else {
-                        export_path = Some(PathBuf::from("textvn-diagnostics.zip"));
+                        export_path = Some(doctor::default_export_path());
                     }
                 } else {
-                    export_path = Some(PathBuf::from("textvn-diagnostics.zip"));
+                    export_path = Some(doctor::default_export_path());
                 }
             }
             other => {
                 eprintln!("error: `doctor` không nhận tham số `{other}`");
-                eprintln!("Usage: textvn doctor [--json] [--pause] [--export <path.zip>]");
+                eprintln!(
+                    "Usage: textvn doctor [--json] [--report] [--pause] [--export [auto|<path.zip>]]"
+                );
                 return 2;
             }
         }
         i += 1;
     }
 
-    let code = doctor::run_doctor(json_out, export_path.as_deref());
+    let code = doctor::run_doctor_ext(json_out, report_out, export_path.as_deref());
     if pause {
         use std::io::{BufRead, IsTerminal, Write};
         if std::io::stdin().is_terminal() {
@@ -489,7 +497,7 @@ fn cmd_unregister(rest: &[String]) -> i32 {
 /// bằng `dlopen(RTLD_NOW | RTLD_LOCAL)` để phát hiện thiếu thư viện, sai SONAME hay
 /// lệch GLIBC/GLIBCXX trước khi cài/khởi động Fcitx5 (E68).
 #[cfg(target_os = "linux")]
-fn cmd_check_dlopen(rest: &[String]) -> i32 {
+pub(crate) fn probe_dlopen(path: &str) -> Result<(), String> {
     use std::ffi::{CStr, CString};
     use std::os::raw::{c_char, c_int, c_void};
 
@@ -500,14 +508,7 @@ fn cmd_check_dlopen(rest: &[String]) -> i32 {
         fn dlerror() -> *const c_char;
     }
 
-    let Some(path) = rest.first() else {
-        eprintln!("error: check-dlopen cần đường dẫn file .so");
-        return 2;
-    };
-    let Ok(cpath) = CString::new(path.as_str()) else {
-        eprintln!("error: đường dẫn chứa byte NUL");
-        return 2;
-    };
+    let cpath = CString::new(path).map_err(|_| "đường dẫn chứa byte NUL".to_string())?;
     // RTLD_NOW = 2, RTLD_LOCAL = 0 trên Linux glibc.
     const RTLD_NOW: c_int = 2;
     unsafe {
@@ -520,12 +521,26 @@ fn cmd_check_dlopen(rest: &[String]) -> i32 {
             } else {
                 CStr::from_ptr(err).to_string_lossy().into_owned()
             };
-            eprintln!("{msg}");
-            return 1;
+            return Err(msg);
         }
         let _ = dlclose(h);
     }
-    0
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn cmd_check_dlopen(rest: &[String]) -> i32 {
+    let Some(path) = rest.first() else {
+        eprintln!("error: check-dlopen cần đường dẫn file .so");
+        return 2;
+    };
+    match probe_dlopen(path) {
+        Ok(()) => 0,
+        Err(msg) => {
+            eprintln!("{msg}");
+            1
+        }
+    }
 }
 
 #[cfg(not(target_os = "linux"))]

@@ -143,9 +143,9 @@ cd TextVN-*-linux-x86_64
 
 | Cách | Lệnh | Ghi chú |
 |---|---|---|
-| **Cài cho tài khoản** | `./install.sh` | Cài vào `~/.local`, không cần root; tự phát hiện & kiểm ABI độc lập cho IBus / Fcitx5, ghi đường dẫn tuyệt đối trong `textvn-settings.desktop`, tạo `~/.xprofile` cho phiên X11/LightDM (Mint, Pop!_OS, Xfce, SUSE), bảo vệ `WAYLAND_SOCKET` của KWin trên KDE Plasma Wayland, và trên RHEL 8.10 (IBus 1.5.19) tự tạo XDG autostart + live-register trên GNOME 3.32 Wayland. |
-| **Cài cho cả máy** *(khuyên dùng trên RHEL 8/9, SLES 15, Enterprise)* | `sudo ./install.sh --system` | Cài vào `/usr` (tự chọn `/usr/lib64` trên RHEL/Fedora/SUSE và `/usr/lib` trên Debian/Ubuntu/Arch), cập nhật `/var/cache/ibus/bus/registry` (`ibus write-cache --system`) và chuẩn hoá nhãn SELinux (`restorecon` cả `lib*` lẫn `share/`). Mọi tài khoản dùng ngay TextVN qua daemon gốc. |
-| **Chạy ngay (portable)** | `./textvn-portable.sh` | Không cài gì vào hệ thống; tự chọn IBus hoặc Fcitx5 theo ABI chạy được trên máy; trên GNOME Wayland (RHEL 8/9 / Ubuntu 22.04) tự bật **live-register** không khởi động lại `ibus-daemon` (không làm đóng terminal). *(Lưu ý KDE Plasma Wayland: KWin quản lý `fcitx5` qua `WAYLAND_SOCKET`, hãy dùng `./install.sh` thay vì portable).* Tắt sạch bằng `./textvn-portable.sh stop`. |
+| **Cài cho tài khoản** | `./install.sh` | Cài vào `~/.local`, không cần root; **tự kiểm tra phụ thuộc (`ibus`/`fcitx5`/`gtk3`/`gtk4`) và hỏi `[Y/n]` cài tự động qua `apt`/`dnf`/`zypper`/`pacman` nếu thiếu** (thêm `--install-deps` để tự cài không hỏi, `--no-install-deps` để chỉ kiểm tra); **tự phát hiện xung đột bộ gõ cũ** (`ibus-daemon`+`fcitx5`, `fcitx` v4, `xvnkb`, `ibus-unikey`/`bamboo`, `fcitx5-unikey`, lệch `GTK_IM_MODULE`) kèm lệnh thoát cụ thể; ghi đường dẫn tuyệt đối trong `textvn-settings.desktop`, tạo `~/.xprofile` cho X11/LightDM, bảo vệ `WAYLAND_SOCKET` KWin trên KDE Plasma Wayland và tạo XDG autostart trên RHEL 8.10. |
+| **Cài cho cả máy** *(khuyên dùng trên RHEL 8/9, SLES 15, Enterprise)* | `sudo ./install.sh --system` | Cài vào `/usr` (tự chọn `/usr/lib64` trên RHEL/Fedora/SUSE và `/usr/lib` trên Debian/Ubuntu/Arch), tự kiểm tra và hỏi `[Y/n]` cài gói phụ thuộc còn thiếu (thêm `--install-deps` để tự cài không hỏi), cập nhật `/var/cache/ibus/bus/registry` (`ibus write-cache --system`) và chuẩn hoá nhãn SELinux (`restorecon` cả `lib*` lẫn `share/`). Mọi tài khoản dùng ngay TextVN qua daemon gốc. |
+| **Chạy ngay (portable)** | `./textvn-portable.sh` | Không cài gì vào hệ thống; tự kiểm tra phụ thuộc & xung đột IME đang chạy (báo rõ lệnh thoát bộ gõ cũ nếu xung đột cứng, thêm `--force` nếu muốn ép chạy); tự chọn IBus hoặc Fcitx5 theo ABI khả dụng; trên GNOME Wayland (RHEL 8/9 / Ubuntu 22.04) tự bật **live-register** không khởi động lại `ibus-daemon` (không làm đóng terminal). *(Lưu ý KDE Plasma Wayland: KWin quản lý `fcitx5` qua `WAYLAND_SOCKET`, hãy dùng `./install.sh` thay vì portable).* Tắt sạch bằng `./textvn-portable.sh stop`. |
 
 Gỡ bản cài: `~/.local/share/textvn/uninstall.sh` (hoặc `sudo /usr/share/textvn/uninstall.sh`) — tự dọn
 sạch khối `# BEGIN TextVN` trong `~/.xprofile`, XDG autostart và cache IBus/desktop. Thêm `--purge`
@@ -444,15 +444,13 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Bản 0.2.47: Alt + Space bị TextVN dùng để sửa câu thay vì mở menu cửa sổ | Bản sau 0.2.47 bỏ Alt + Space khỏi TextVN theo yêu cầu (đụng menu cửa sổ và các trình khởi chạy) — phím tắt trợ lý chỉ còn **Ctrl + Space** (macOS **Option + Space**). Cập nhật lên bản mới. |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
-Thảo luận / hỏi đáp hoặc báo lỗi trực tiếp từ app: mở bảng điều khiển → **Hướng dẫn** → bấm
-**[Thảo luận]** (`https://github.com/hunglinhpt/TextVN/discussions`) hoặc **[Báo lỗi]**
-(`https://github.com/hunglinhpt/TextVN/issues`).
-Hoặc báo lỗi kèm chi tiết: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
-(ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm — Windows: file tạo bởi
-`textvn-cli doctor --export diag.zip` (xem nhanh trong cửa sổ: `textvn-cli doctor --pause` — lối
-tắt *Kiem tra he thong (TextVN Doctor)* trong Start menu của bản cài); macOS: thư mục `~/Library/Logs/TextVN/` (chỉ có log khi
-chạy với biến môi trường `TEXTVN_LOG=1`); Linux: `~/.local/state/TextVN/log/textvn.log`. Các
-file này không chứa nội dung bạn gõ.
+Thảo luận / hỏi đáp hoặc báo lỗi trực tiếp từ app (cả 3 hệ điều hành): mở bảng điều khiển → **Hướng dẫn** → bấm
+**[Xuất log chẩn đoán]** (tự động lưu tệp `textvn-diag-*.zip` trên Windows/Linux hoặc `textvn-diag-*.md` trên macOS ra Desktop, chứa sẵn `report_summary.md`, thông tin hệ điều hành/glibc/build, danh sách xung đột bộ gõ, `config.redacted.json`, `register.log`/`install-diag.log`/`textvn.log`), rồi bấm **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/issues`) và đính kèm tệp đó.
+Hoặc chạy nhanh từ dòng lệnh trên mọi OS:
+- `textvn doctor` (Windows: `textvn-cli doctor --pause`) — hiển thị trạng thái hệ thống, phụ thuộc và **xung đột bộ gõ cũ** (`UniKey`, `EVKey`, `OpenKey`, `GoTiengViet`, `ibus-unikey`/`bamboo`, `fcitx5-unikey`, chạy song song `ibus-daemon`+`fcitx5`, lệch `GTK_IM_MODULE`) kèm gợi ý xử lý cụ thể.
+- `textvn doctor --report` — in báo cáo Markdown sẵn sàng dán lên GitHub Issues.
+- `textvn doctor --export auto` (hoặc `--export diag.zip`) — đóng gói đầy đủ log & thông tin hệ thống vào một tệp `.zip`.
+Mọi tệp chẩn đoán đều tự động ẩn tên người dùng và **tuyệt đối không chứa nội dung bạn đã gõ hay từ vựng cá nhân (G8/S2)**.
 
 ## Trạng thái từng nền tảng
 

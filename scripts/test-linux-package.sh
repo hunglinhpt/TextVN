@@ -475,11 +475,125 @@ G
 }
 export -f unit_e64_ubuntu22_guards
 
+unit_e69_deps_conflicts_diag() {
+    local t out rc diag_log
+    t="$(new_home)"
+    export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_STATE_HOME="$t/home/.local/state"
+    # shellcheck source=packaging/linux/textvn-common.sh
+    . "$ROOT/packaging/linux/textvn-common.sh"
+
+    # 1. Ánh xạ gói runtime cho 5 dòng trình quản lý gói Linux doanh nghiệp & phổ thông.
+    out="$(tv_runtime_dep_packages dnf el8 1 0 1 | tr '\n' ' ')"
+    grep -q 'ibus' <<<"$out" && grep -q 'gtk3' <<<"$out" || fail "E69: gói EL8 sai: $out"
+    out="$(tv_runtime_dep_packages dnf fedora 0 1 1 | tr '\n' ' ')"
+    grep -q 'fcitx5' <<<"$out" && grep -q 'gtk4' <<<"$out" || fail "E69: gói Fedora KDE sai: $out"
+    out="$(tv_runtime_dep_packages zypper suse 1 0 1 | tr '\n' ' ')"
+    grep -q 'libibus-1_0-5' <<<"$out" && grep -q 'libgtk-3-0' <<<"$out" || fail "E69: gói SUSE sai: $out"
+    out="$(tv_runtime_dep_packages pacman arch 0 1 1 | tr '\n' ' ')"
+    grep -q 'fcitx5' <<<"$out" && grep -q 'gtk4' <<<"$out" || fail "E69: gói Arch sai: $out"
+
+    # 2. Thiếu thư viện IBus/Fcitx5 → tv_ensure_linux_deps (check) báo [E_DEP_MISSING], in lệnh cài + doctor --export
+    #    và ghi nhật ký chẩn đoán bền vững install-diag.log đã ẩn HOME/USER (G8/S2).
+    local fpkg="$t/fakepkg"
+    mkdir -p "$fpkg/bin" "$fpkg/lib/textvn/fcitx5"
+    cat > "$fpkg/bin/textvn" <<'B'
+#!/usr/bin/env bash
+case "${1:-}" in
+    --help) exit 0 ;;
+    check-dlopen) echo "libFcitx5Core.so.7: cannot open shared object file" >&2; exit 1 ;;
+esac
+exit 0
+B
+    cat > "$fpkg/lib/textvn/textvn-ibus-engine" <<'B'
+#!/usr/bin/env bash
+echo "libibus-1.0.so.5: cannot open shared object file" >&2
+exit 1
+B
+    touch "$fpkg/lib/textvn/fcitx5/libtextvn-fcitx5.so"
+    chmod +x "$fpkg/bin/textvn" "$fpkg/lib/textvn/textvn-ibus-engine"
+
+    rc=0
+    out="$(TV_PKG_MGR_OVERRIDE=dnf TV_DISTRO_FAMILY_OVERRIDE=el8 tv_ensure_linux_deps "$fpkg" check 2>&1)" || rc=$?
+    [[ "$rc" -ne 0 ]] || fail "E69: thiếu cả IBus lẫn Fcitx5 phải fail"
+    grep -q 'E_DEP_MISSING' <<<"$out" || fail "E69: thiếu mã lỗi E_DEP_MISSING: $out"
+    grep -q 'sudo dnf install -y ibus ibus-libs' <<<"$out" || fail "E69: thiếu lệnh cài đúng distro EL8: $out"
+    grep -q 'doctor --export' <<<"$out" || fail "E69: thiếu hướng dẫn xuất log chẩn đoán: $out"
+    diag_log="$XDG_STATE_HOME/TextVN/log/install-diag.log"
+    [[ -f "$diag_log" ]] || fail "E69: chưa ghi $diag_log"
+    grep -q 'E_DEP_MISSING' "$diag_log" || fail "E69: install-diag.log thiếu E_DEP_MISSING"
+    if [[ -n "${USER:-}" && "${#USER}" -ge 3 ]]; then
+        ! grep -Fq "$USER" "$diag_log" || fail "E69/G8: install-diag.log lộ tên USER!"
+    fi
+
+    # 3. Tự động kéo gói về cài (mode=auto với giả lập sudo + apt-get → cài xong ABI đạt!).
+    local marker="$t/installed.ok"
+    cat > "$fpkg/lib/textvn/textvn-ibus-engine" <<B
+#!/usr/bin/env bash
+[[ -f "$marker" ]] && exit 0
+echo "libibus-1.0.so.5: missing" >&2
+exit 1
+B
+    chmod +x "$fpkg/lib/textvn/textvn-ibus-engine"
+    cat > "$t/fakebin/sudo" <<B
+#!/usr/bin/env bash
+touch "$marker"
+exit 0
+B
+    cat > "$t/fakebin/apt-get" <<B
+#!/usr/bin/env bash
+touch "$marker"
+exit 0
+B
+    chmod +x "$t/fakebin/sudo" "$t/fakebin/apt-get"
+    out="$(PATH="$t/fakebin:$PATH" TV_PKG_MGR_OVERRIDE=apt TV_DISTRO_FAMILY_OVERRIDE=debian tv_ensure_linux_deps "$fpkg" auto ibus 2>&1)" || {
+        echo "$out"; fail "E69: auto-install deps thất bại"
+    }
+    [[ -f "$marker" ]] || fail "E69: tv_ensure_linux_deps auto không gọi cài gói"
+    grep -q 'DEP_INSTALL_OK' "$diag_log" || fail "E69: install-diag.log thiếu DEP_INSTALL_OK"
+
+    # 4. Phát hiện xung đột IME: hai daemon chạy song song, xvnkb, ibus-engine-unikey, fcitx5 profile, lệch IM env.
+    rc=0
+    out="$( ( tv_running() { [[ "$1" == ibus-daemon || "$1" == fcitx5 ]]; }; tv_check_ime_conflicts ibus ) 2>&1)" || rc=$?
+    [[ "$rc" -eq 2 ]] || fail "E69: dual daemon phải trả mã xung đột cứng 2 (nhận $rc)"
+    grep -q 'CONFLICT_DUAL_IM_DAEMON' <<<"$out" || fail "E69: thiếu mã CONFLICT_DUAL_IM_DAEMON: $out"
+    grep -q 'fcitx5-remote -e' <<<"$out" || fail "E69: thiếu hướng dẫn thoát fcitx5: $out"
+
+    rc=0
+    out="$( ( tv_running() { [[ "$1" == xvnkb ]]; }; tv_check_ime_conflicts ibus ) 2>&1)" || rc=$?
+    [[ "$rc" -eq 2 ]] || fail "E69: xvnkb phải trả mã xung đột cứng 2 (nhận $rc)"
+    grep -q 'CONFLICT_STANDALONE_VI_IME' <<<"$out" || fail "E69: thiếu mã CONFLICT_STANDALONE_VI_IME: $out"
+
+    mkdir -p "$XDG_CONFIG_HOME/fcitx5"
+    printf '[Groups/0/Items/0]\nName=unikey\n[Groups/0/Items/1]\nName=textvn\n' > "$XDG_CONFIG_HOME/fcitx5/profile"
+    out="$( ( tv_running() { [[ "$1" == ibus-daemon || "$1" == ibus-engine-unikey ]]; }; GTK_IM_MODULE=fcitx tv_check_ime_conflicts ibus ) 2>&1)"
+    grep -q 'CONFLICT_IBUS_VI_IME' <<<"$out" || fail "E69: thiếu cảnh báo ibus-engine-unikey: $out"
+    grep -q 'CONFLICT_FCITX5_VI_IME' <<<"$out" || fail "E69: thiếu cảnh báo fcitx5 unikey: $out"
+    grep -q 'CONFLICT_IM_ENV_MISMATCH' <<<"$out" || fail "E69: thiếu cảnh báo lệch GTK_IM_MODULE: $out"
+
+    # 5. Kiểm tra `textvn doctor --report` & `--export` trên gói thật (bao gồm report_summary.md & install_diag_tail.log).
+    mkdir -p "$t/realpkg"
+    tar -C "$t/realpkg" -xzf "$TARBALL"
+    local rpkg
+    rpkg="$(echo "$t"/realpkg/TextVN-*)"
+    "$rpkg/bin/textvn" doctor --report >"$t/report.md" || true
+    grep -q '# Báo cáo chẩn đoán TextVN' "$t/report.md" || fail "E69: doctor --report thiếu tiêu đề"
+    "$rpkg/bin/textvn" doctor --export "$t/diag.zip" >"$t/exp.out" || true
+    [[ -s "$t/diag.zip" ]] || fail "E69: doctor --export không tạo được ZIP"
+    grep -a -q 'report_summary.md' "$t/diag.zip" || fail "E69: ZIP thiếu report_summary.md"
+    grep -a -q 'install_diag_tail.log' "$t/diag.zip" || fail "E69: ZIP thiếu install_diag_tail.log"
+    grep -a -q 'linux_env.json' "$t/diag.zip" || fail "E69: ZIP thiếu linux_env.json"
+
+    rm -rf "$t"
+    echo "PASS đơn vị: E69 auto-install deps, phát hiện xung đột IME và gói log chẩn đoán (G8/S2)"
+}
+export -f unit_e69_deps_conflicts_diag
+
 bash -c unit_activation
 bash -c unit_ibus_component
 bash -c unit_fcitx5_absent
 bash -c unit_system_root
 bash -c unit_e64_ubuntu22_guards
+bash -c unit_e69_deps_conflicts_diag
 
 for fw in ibus fcitx5; do
     dbus-run-session -- bash -c "scenario_install $fw" 2> >(grep -v 'fd limit' >&2)

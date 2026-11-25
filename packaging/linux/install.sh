@@ -6,7 +6,9 @@
 #   sudo ./install.sh --system  # cài cho mọi người dùng vào /usr
 #
 # Tuỳ chọn: --prefix DIR, --no-restart (không khởi động lại IBus/Fcitx5),
-#           --no-activate (không tự thêm TextVN vào danh sách bộ gõ).
+#           --no-activate (không tự thêm TextVN vào danh sách bộ gõ),
+#           --install-deps (tự động cài gói IBus/Fcitx5/GTK còn thiếu),
+#           --no-install-deps (chỉ kiểm tra, không gọi trình quản lý gói).
 # Mọi file đã cài được ghi vào <prefix>/share/textvn/install-manifest.txt để
 # uninstall.sh gỡ đúng và đủ.
 
@@ -25,9 +27,10 @@ MODE=user
 PREFIX=""
 RESTART=1
 ACTIVATE=1
+DEP_MODE=ask
 
 usage() {
-    sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '3,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit "${1:-0}"
 }
 
@@ -38,6 +41,8 @@ while [[ $# -gt 0 ]]; do
         --prefix) PREFIX="${2:?--prefix cần thư mục}"; shift ;;
         --no-restart) RESTART=0 ;;
         --no-activate) ACTIVATE=0 ;;
+        --install-deps) DEP_MODE=auto ;;
+        --no-install-deps) DEP_MODE=check ;;
         -h|--help) usage 0 ;;
         *) tv_err "Tuỳ chọn không hợp lệ: $1"; usage 1 ;;
     esac
@@ -53,7 +58,8 @@ if [[ "$MODE" == system && $EUID -ne 0 ]]; then
     exit 1
 fi
 
-tv_check_package "$PKG_DIR" || exit 1
+tv_diag_log INFO INSTALL_START "mode=$MODE dep_mode=$DEP_MODE"
+tv_ensure_linux_deps "$PKG_DIR" "$DEP_MODE" || exit 1
 
 BIN="$PREFIX/bin"
 LIBDIR="$PREFIX/lib/textvn"
@@ -309,6 +315,15 @@ if [[ "$PER_USER_STEPS" == 1 && "$HAS_FCITX5" == 1 && "$FCITX5_ABI_OK" == 1 ]]; 
     fi
 fi
 
+if [[ "$PER_USER_STEPS" == 1 ]]; then
+    CONFLICT_RC=0
+    tv_check_ime_conflicts "" || CONFLICT_RC=$?
+    if [[ "$CONFLICT_RC" == 2 ]]; then
+        tv_warn "Vui lòng thoát bộ gõ đang xung đột ở trên rồi thử gõ lại với TextVN."
+    fi
+fi
+
+tv_diag_log INFO INSTALL_OK "mode=$MODE ibus=$IBUS_ABI_OK fcitx5=$FCITX5_ABI_OK"
 tv_ok "Đã cài TextVN."
 echo
 echo "  • Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (hoặc Ctrl + Shift + Space)."
@@ -316,4 +331,5 @@ echo "  • Bảng điều khiển: chạy 'textvn-settings' hoặc mở 'TextVN
 echo "  • Chưa thấy TextVN trong danh sách bộ gõ? Thêm 'TextVN' trong Cài đặt → Bàn phím"
 echo "    (GNOME/IBus) hoặc fcitx5-configtool, rồi đăng xuất và đăng nhập lại."
 [[ -n "$ENV_FILE" ]] && echo "  • Biến môi trường per-user: $ENV_FILE (áp dụng từ lần đăng nhập sau)."
+echo "  • Kiểm tra hệ thống / xuất log báo lỗi: $BIN/textvn doctor --export ~/textvn-diag.zip"
 echo "  • Gỡ cài đặt: $SHARE/textvn/uninstall.sh"

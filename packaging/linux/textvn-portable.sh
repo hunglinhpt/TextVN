@@ -6,7 +6,8 @@
 #   ./textvn-portable.sh stop       # trả IBus/Fcitx5 về như cũ
 #   ./textvn-portable.sh status
 #
-# Tuỳ chọn: --ibus / --fcitx5 (mặc định: framework đang chạy; cả hai thì ưu tiên Fcitx5).
+# Tuỳ chọn: --ibus / --fcitx5 (mặc định: framework đang chạy; cả hai thì ưu tiên Fcitx5),
+#           --install-deps / --no-install-deps, --force (bỏ qua cảnh báo xung đột IME đang chạy).
 # Cách hoạt động: sinh component/addon trỏ vào thư mục này trong $XDG_RUNTIME_DIR, rồi khởi
 # động lại IBus (IBUS_COMPONENT_PATH) hoặc Fcitx5 (FCITX_ADDON_DIRS + XDG_DATA_DIRS).
 # Không có gì tồn tại qua lần đăng xuất; cấu hình ở ~/.config/TextVN dùng chung với bản cài.
@@ -24,18 +25,27 @@ PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 ACTION=start
 FW=""
+DEP_MODE=ask
+FORCE=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         start|stop|status) ACTION="$1" ;;
         --ibus) FW=ibus ;;
         --fcitx5) FW=fcitx5 ;;
-        -h|--help) sed -n '3,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --install-deps) DEP_MODE=auto ;;
+        --no-install-deps) DEP_MODE=check ;;
+        --force) FORCE=1 ;;
+        -h|--help) sed -n '3,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) tv_err "Tuỳ chọn không hợp lệ: $1"; exit 1 ;;
     esac
     shift
 done
 
-tv_check_package "$PKG_DIR" || exit 1
+if [[ "$ACTION" == start ]]; then
+    tv_ensure_linux_deps "$PKG_DIR" "$DEP_MODE" "$FW" || exit 1
+else
+    tv_check_package "$PKG_DIR" || exit 1
+fi
 
 RUNTIME="${XDG_RUNTIME_DIR:-/tmp}/textvn-portable-$(id -u)"
 MARK="$RUNTIME/active"
@@ -307,8 +317,18 @@ if [[ "$FW" == fcitx5 ]] && ! tv_fcitx5_abi_ok "$PKG_DIR"; then
     exit 1
 fi
 if [[ "$FW" == fcitx5 ]] && tv_fcitx5_is_kwin_wayland; then
-    tv_err "KDE Plasma Wayland đang quản lý Fcitx5 trực tiếp qua WAYLAND_SOCKET — bản portable không thể restart fcitx5 mà không ngắt bàn phím ảo."
+    tv_err "[E_KWIN_WAYLAND] KDE Plasma Wayland đang quản lý Fcitx5 trực tiếp qua WAYLAND_SOCKET — bản portable không thể restart fcitx5 mà không ngắt bàn phím ảo."
     tv_err "Hãy cài đặt bằng './install.sh' (hoặc dùng IBus: './textvn-portable.sh --ibus')."
+    tv_diag_log ERROR E_KWIN_WAYLAND "Refused portable fcitx5 restart on KDE Plasma Wayland"
+    tv_print_report_hint "$PKG_DIR/bin/textvn"
+    exit 1
+fi
+
+CONFLICT_RC=0
+tv_check_ime_conflicts "$FW" || CONFLICT_RC=$?
+if [[ "$CONFLICT_RC" == 2 && "$FORCE" != 1 ]]; then
+    tv_err "Dừng khởi động portable để tránh xung đột với bộ gõ cũ đang chạy (xem hướng dẫn thoát ở trên, hoặc thêm '--force' để ép chạy)."
+    tv_print_report_hint "$PKG_DIR/bin/textvn"
     exit 1
 fi
 

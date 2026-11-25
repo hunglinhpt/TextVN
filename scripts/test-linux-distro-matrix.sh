@@ -91,8 +91,14 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
             fail "libtextvn-fcitx5.so không dlopen được trên $DISTRO!"
         echo "  fcitx5 dlopen   : OK"
     fi
+    doc_rep="$("$pkg1/bin/textvn" doctor --report 2>&1 || true)"
+    grep -q '# Báo cáo chẩn đoán TextVN' <<<"$doc_rep" ||
+        fail "textvn doctor --report thất bại trên $DISTRO: $doc_rep"
+    "$pkg1/bin/textvn" doctor --export "$t1/diag.zip" >/dev/null || true
+    [[ -s "$t1/diag.zip" ]] && grep -a -q 'report_summary.md' "$t1/diag.zip" && grep -a -q 'linux_env.json' "$t1/diag.zip" ||
+        fail "textvn doctor --export thiếu report_summary.md/linux_env.json trên $DISTRO"
     rm -rf "$t1"
-    echo "PASS [$DISTRO] 1: ABI + GTK auto-select + textvn doctor (text/json) + Fcitx5 dlopen"
+    echo "PASS [$DISTRO] 1: ABI + GTK auto-select + textvn doctor (text/json/report/export) + Fcitx5 dlopen"
 
     # 2. Cài per-user: kiểm tra non-GNOME gsettings (Cinnamon/Xfce), Exec= tuyệt đối trong .desktop,
     #    ~/.xprofile cho X11, gõ tiếng Việt thật qua IBus, và gỡ sạch (kể cả ~/.xprofile).

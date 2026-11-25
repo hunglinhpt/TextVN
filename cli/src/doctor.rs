@@ -16,6 +16,30 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Một phát hiện chẩn đoán có cấu trúc (E69) — gắn mã lỗi/cảnh báo cụ thể,
+/// nguyên nhân và hướng dẫn xử lý để người dùng tự khắc phục hoặc gửi báo lỗi.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiagnosticItem {
+    pub code: &'static str,
+    pub severity: &'static str, // "error" | "warning"
+    pub category: &'static str, // "dep" | "conflict" | "abi" | "config" | "runtime" | "env"
+    pub message: String,
+    pub suggestion: String,
+}
+
+impl DiagnosticItem {
+    fn to_json_value(&self) -> serde_json::Value {
+        serde_json::json!({
+            "code": self.code,
+            "severity": self.severity,
+            "category": self.category,
+            "message": redact_sensitive_paths(&self.message),
+            "suggestion": redact_sensitive_paths(&self.suggestion),
+        })
+    }
+}
 
 pub struct DoctorReport {
     pub abi_version: u32,
@@ -34,10 +58,38 @@ pub struct DoctorReport {
     /// Windows giữ Ctrl + Shift để đổi bàn phím (tranh phím chuyển V/E). `None` ngoài Windows.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub ctrl_shift_taken: Option<bool>,
+    pub diagnostics: Vec<DiagnosticItem>,
     pub problems: Vec<String>,
 }
 
+/// Tạo đường dẫn xuất file chẩn đoán mặc định (`<Desktop hoặc HOME>/textvn-diag-<ts>.zip`).
+pub fn default_export_path() -> PathBuf {
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let filename = format!("textvn-diag-{ts}.zip");
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from);
+    if let Some(h) = home {
+        let desktop = h.join("Desktop");
+        if desktop.is_dir() {
+            return desktop.join(filename);
+        }
+        if h.is_dir() {
+            return h.join(filename);
+        }
+    }
+    PathBuf::from(filename)
+}
+
+#[allow(dead_code)]
 pub fn run_doctor(json_out: bool, export_path: Option<&Path>) -> i32 {
+    run_doctor_ext(json_out, false, export_path)
+}
+
+pub fn run_doctor_ext(json_out: bool, report_out: bool, export_path: Option<&Path>) -> i32 {
     let report = collect_report();
 
     if let Some(dest) = export_path {
@@ -56,7 +108,9 @@ pub fn run_doctor(json_out: bool, export_path: Option<&Path>) -> i32 {
         }
     }
 
-    if json_out {
+    if report_out {
+        print!("{}", report.to_markdown_report());
+    } else if json_out {
         println!("{}", report.to_json());
     } else {
         report.print_text();
@@ -75,9 +129,18 @@ pub fn run_doctor(json_out: bool, export_path: Option<&Path>) -> i32 {
 pub fn collect_report() -> DoctorReport {
     let (key_size, result_size, context_size, sizes_ok) = abi_sizes();
     let mut problems = Vec::new();
+    let mut diagnostics = Vec::new();
 
     if !sizes_ok {
-        problems.push("ABI struct sizes lệch (P0-2 §6)".into());
+        let msg = "ABI struct sizes lệch (P0-2 §6)".to_string();
+        problems.push(msg.clone());
+        diagnostics.push(DiagnosticItem {
+            code: "E_ABI_MISMATCH",
+            severity: "error",
+            category: "abi",
+            message: msg,
+            suggestion: "Cài lại đúng bản phát hành TextVN đồng bộ CLI và adapter.".into(),
+        });
     }
 
     let cfg_path = config_path();
@@ -88,12 +151,30 @@ pub fn collect_report() -> DoctorReport {
                 Ok(text) => match textvn_config::parse_config(&text) {
                     Ok(_) => "hợp lệ".into(),
                     Err(e) => {
-                        problems.push("config.json không hợp lệ (P0-3 §1.3)".into());
+                        let msg = "config.json không hợp lệ (P0-3 §1.3)".to_string();
+                        problems.push(msg.clone());
+                        diagnostics.push(DiagnosticItem {
+                            code: "E_CONFIG_INVALID",
+                            severity: "error",
+                            category: "config",
+                            message: format!("{msg}: {e}"),
+                            suggestion:
+                                "Sao lưu và xóa config.json để TextVN tự tạo lại cấu hình chuẩn."
+                                    .into(),
+                        });
                         format!("KHÔNG hợp lệ ({e}) → engine chạy default")
                     }
                 },
                 Err(e) => {
-                    problems.push("config.json không đọc được".into());
+                    let msg = "config.json không đọc được".to_string();
+                    problems.push(msg.clone());
+                    diagnostics.push(DiagnosticItem {
+                        code: "E_CONFIG_UNREADABLE",
+                        severity: "error",
+                        category: "config",
+                        message: format!("{msg}: {e}"),
+                        suggestion: "Kiểm tra quyền đọc thư mục cấu hình TextVN.".into(),
+                    });
                     format!("không đọc được ({e})")
                 }
             };
@@ -115,11 +196,40 @@ pub fn collect_report() -> DoctorReport {
     let tip_registered = crate::register::tip_registration_ok();
     let ctrl_shift_taken = crate::register::ctrl_shift_taken_by_windows();
     if cfg!(windows) && !tip_registered {
-        problems.push(
+        let msg =
             "TSF TIP chưa đăng ký hoặc trỏ tới DLL không còn tồn tại — chạy `textvn-cli register`"
-                .into(),
-        );
+                .to_string();
+        problems.push(msg.clone());
+        diagnostics.push(DiagnosticItem {
+            code: "E_TSF_UNREGISTERED",
+            severity: "error",
+            category: "runtime",
+            message: msg,
+            suggestion:
+                "Mở Bảng điều khiển → Hướng dẫn → [Cài & bật TSF], hoặc cài bản TextVN-setup-*-windows-x64-machine.exe."
+                    .into(),
+        });
     }
+    if cfg!(windows) && ctrl_shift_taken == Some(true) {
+        diagnostics.push(DiagnosticItem {
+            code: "W_CTRL_SHIFT_TAKEN",
+            severity: "warning",
+            category: "conflict",
+            message: "Windows đang giữ phím Ctrl+Shift để đổi bố cục bàn phím.".into(),
+            suggestion:
+                "Bật 'Dành Ctrl + Shift cho TextVN' trong Bảng điều khiển hoặc chạy `TextVN.exe --free-ctrl-shift`."
+                    .into(),
+        });
+    }
+
+    #[cfg(target_os = "windows")]
+    collect_windows_diagnostics(&mut diagnostics);
+
+    #[cfg(target_os = "linux")]
+    collect_linux_diagnostics(&mut diagnostics, &mut problems);
+
+    #[cfg(target_os = "macos")]
+    collect_macos_diagnostics(&mut diagnostics);
 
     DoctorReport {
         abi_version: textvn_ffi::IME_ABI_VERSION,
@@ -135,6 +245,7 @@ pub fn collect_report() -> DoctorReport {
         tray_running,
         tip_registered,
         ctrl_shift_taken,
+        diagnostics,
         problems,
     }
 }
@@ -166,6 +277,8 @@ impl DoctorReport {
         println!("  config      : {}", self.config_status);
         #[cfg(target_os = "windows")]
         {
+            let win = collect_windows_env_summary();
+            println!("  OS          : {}", win.os_version);
             println!(
                 "  data/       : {}",
                 if self.data_dir_exists {
@@ -221,62 +334,266 @@ impl DoctorReport {
                     }
                 );
             }
+            if !win.conflicts.is_empty() {
+                println!("  conflicts   : {}", win.conflicts.join(", "));
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let mac = collect_macos_env_summary();
+            println!("  OS          : {}", mac.os_version);
+            if !mac.conflicts.is_empty() {
+                println!("  conflicts   : {}", mac.conflicts.join(", "));
+            }
         }
         #[cfg(target_os = "linux")]
         {
             print_linux_env_summary();
         }
+        if !self.diagnostics.is_empty() {
+            println!("  chẩn đoán   : {} mục", self.diagnostics.len());
+            for d in &self.diagnostics {
+                let tag = if d.severity == "error" {
+                    "LỖI"
+                } else {
+                    "CẢNH BÁO"
+                };
+                println!("    [{tag}] [{}] {}", d.code, d.message);
+                println!("      → Gợi ý: {}", d.suggestion);
+            }
+        }
     }
 
     pub fn to_json(&self) -> String {
-        let escaped_status =
-            serde_json::to_string(&self.config_status).unwrap_or_else(|_| "\"\"".into());
+        let diag_json: Vec<serde_json::Value> = self
+            .diagnostics
+            .iter()
+            .map(DiagnosticItem::to_json_value)
+            .collect();
         #[cfg(target_os = "linux")]
         {
             let env = collect_linux_env_summary();
-            let jstr = |s: &str| {
-                serde_json::to_string(&redact_sensitive_paths(s)).unwrap_or_else(|_| "\"\"".into())
-            };
-            format!(
-                "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"os\":{},\"glibc\":{},\"session\":{},\"desktop\":{},\"ibus_adapter\":{},\"fcitx5_adapter\":{},\"settings_backend\":{},\"lsm\":{},\"problems\":{}}}",
-                self.abi_version,
-                self.sizes_ok,
-                self.key_size,
-                self.result_size,
-                self.context_size,
-                escaped_status,
-                jstr(&env.os_pretty),
-                jstr(&env.glibc),
-                jstr(&env.session),
-                jstr(&env.desktop),
-                env.ibus_found,
-                env.fcitx5_found,
-                jstr(&env.settings_backend),
-                jstr(&env.lsm),
-                self.problems.len()
-            )
+            let obj = serde_json::json!({
+                "abi": self.abi_version,
+                "sizes_ok": self.sizes_ok,
+                "key": self.key_size,
+                "result": self.result_size,
+                "context": self.context_size,
+                "config_status": redact_sensitive_paths(&self.config_status),
+                "os": redact_sensitive_paths(&env.os_pretty),
+                "kernel": redact_sensitive_paths(&env.kernel),
+                "glibc": redact_sensitive_paths(&env.glibc),
+                "pkg_mgr": env.pkg_mgr,
+                "session": redact_sensitive_paths(&env.session),
+                "desktop": redact_sensitive_paths(&env.desktop),
+                "ibus_adapter": env.ibus_found,
+                "fcitx5_adapter": env.fcitx5_found,
+                "settings_backend": redact_sensitive_paths(&env.settings_backend),
+                "lsm": redact_sensitive_paths(&env.lsm),
+                "conflicts": env.conflicts,
+                "diagnostics": diag_json,
+                "problems": self.problems.len(),
+            });
+            serde_json::to_string(&obj).unwrap_or_else(|_| "{}".into())
         }
-        #[cfg(not(target_os = "linux"))]
-        format!(
-            "{{\"abi\":{},\"sizes_ok\":{},\"key\":{},\"result\":{},\"context\":{},\"config_status\":{},\"pipe\":{},\"tray\":{},\"hook\":{},\"tip\":{},\"problems\":{}}}",
+        #[cfg(target_os = "windows")]
+        {
+            let win = collect_windows_env_summary();
+            let obj = serde_json::json!({
+                "abi": self.abi_version,
+                "sizes_ok": self.sizes_ok,
+                "key": self.key_size,
+                "result": self.result_size,
+                "context": self.context_size,
+                "config_status": redact_sensitive_paths(&self.config_status),
+                "os": redact_sensitive_paths(&win.os_version),
+                "pipe": self.pipe_listening,
+                "tray": self.tray_running,
+                "hook": self.hook_running,
+                "tip": self.tip_registered,
+                "conflicts": win.conflicts,
+                "diagnostics": diag_json,
+                "problems": self.problems.len(),
+            });
+            serde_json::to_string(&obj).unwrap_or_else(|_| "{}".into())
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let mac = collect_macos_env_summary();
+            let obj = serde_json::json!({
+                "abi": self.abi_version,
+                "sizes_ok": self.sizes_ok,
+                "key": self.key_size,
+                "result": self.result_size,
+                "context": self.context_size,
+                "config_status": redact_sensitive_paths(&self.config_status),
+                "os": redact_sensitive_paths(&mac.os_version),
+                "conflicts": mac.conflicts,
+                "diagnostics": diag_json,
+                "problems": self.problems.len(),
+            });
+            serde_json::to_string(&obj).unwrap_or_else(|_| "{}".into())
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+        {
+            let obj = serde_json::json!({
+                "abi": self.abi_version,
+                "sizes_ok": self.sizes_ok,
+                "key": self.key_size,
+                "result": self.result_size,
+                "context": self.context_size,
+                "config_status": redact_sensitive_paths(&self.config_status),
+                "diagnostics": diag_json,
+                "problems": self.problems.len(),
+            });
+            serde_json::to_string(&obj).unwrap_or_else(|_| "{}".into())
+        }
+    }
+
+    /// Báo cáo Markdown sẵn sàng dán vào GitHub Issues (đã ẩn đường dẫn & không chứa nội dung gõ — G8/S2).
+    pub fn to_markdown_report(&self) -> String {
+        let mut md = String::new();
+        md.push_str("# Báo cáo chẩn đoán TextVN (Diagnostic Report)\n\n");
+        md.push_str(&format!(
+            "- **Phiên bản**: `TextVN {}` (ABI v{}, `{}`, `{}`)\n",
+            env!("CARGO_PKG_VERSION"),
             self.abi_version,
-            self.sizes_ok,
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        ));
+        md.push_str(&format!(
+            "- **ABI structs**: `key={}`, `result={}`, `context={}` ({})\n",
             self.key_size,
             self.result_size,
             self.context_size,
-            escaped_status,
-            self.pipe_listening,
-            self.tray_running,
-            self.hook_running,
-            self.tip_registered,
-            self.problems.len()
-        )
+            if self.sizes_ok { "OK" } else { "LỆCH" }
+        ));
+        md.push_str(&format!(
+            "- **Cấu hình**: {}\n",
+            redact_sensitive_paths(&self.config_status)
+        ));
+
+        #[cfg(target_os = "windows")]
+        {
+            let win = collect_windows_env_summary();
+            md.push_str(&format!(
+                "- **Hệ điều hành**: {}\n",
+                redact_sensitive_paths(&win.os_version)
+            ));
+            md.push_str(&format!(
+                "- **Trạng thái Windows**: TIP={}, Tray={}, Pipe={}, Hook={}, Ctrl+Shift taken={:?}\n",
+                self.tip_registered,
+                self.tray_running,
+                self.pipe_listening,
+                self.hook_running,
+                self.ctrl_shift_taken
+            ));
+            if let Some(detail) = crate::register::tip_registration_summary() {
+                md.push_str(&format!(
+                    "- **TIP detail**: `{}`\n",
+                    redact_sensitive_paths(&detail)
+                ));
+            }
+            if !win.conflicts.is_empty() {
+                md.push_str(&format!(
+                    "- **Xung đột bộ gõ phát hiện**: {}\n",
+                    win.conflicts.join(", ")
+                ));
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let env = collect_linux_env_summary();
+            md.push_str(&format!(
+                "- **Hệ điều hành**: {} (kernel `{}`, glibc `{}`)\n",
+                redact_sensitive_paths(&env.os_pretty),
+                redact_sensitive_paths(&env.kernel),
+                redact_sensitive_paths(&env.glibc)
+            ));
+            md.push_str(&format!(
+                "- **Phiên & Bảo mật**: session=`{}`, desktop=`{}`, LSM=`{}`, pkg_mgr=`{}`\n",
+                redact_sensitive_paths(&env.session),
+                redact_sensitive_paths(&env.desktop),
+                redact_sensitive_paths(&env.lsm),
+                env.pkg_mgr
+            ));
+            md.push_str(&format!(
+                "- **Daemon & Adapter**: ibus(installed={}, running={}, adapter={}, abi_ok={}) · fcitx5(installed={}, running={}, adapter={}, abi_ok={}) · settings=`{}`\n",
+                env.ibus_installed,
+                env.ibus_running,
+                env.ibus_found,
+                env.ibus_abi_ok,
+                env.fcitx5_installed,
+                env.fcitx5_running,
+                env.fcitx5_found,
+                env.fcitx5_abi_ok,
+                redact_sensitive_paths(&env.settings_backend)
+            ));
+            md.push_str(&format!(
+                "- **Biến môi trường IM**: `{}`\n",
+                redact_sensitive_paths(&env.im_env)
+            ));
+            md.push_str(&format!(
+                "- **Tích hợp**: environment.d={}, xprofile={}, el8_cache={}, el8_autostart={}\n",
+                env.env_d_present, env.xprofile_present, env.el8_system_cache, env.el8_autostart
+            ));
+            if !env.conflicts.is_empty() {
+                md.push_str(&format!(
+                    "- **Xung đột bộ gõ phát hiện**: {}\n",
+                    env.conflicts.join(", ")
+                ));
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let mac = collect_macos_env_summary();
+            md.push_str(&format!(
+                "- **Hệ điều hành**: {}\n",
+                redact_sensitive_paths(&mac.os_version)
+            ));
+            if !mac.conflicts.is_empty() {
+                md.push_str(&format!(
+                    "- **Xung đột bộ gõ phát hiện**: {}\n",
+                    mac.conflicts.join(", ")
+                ));
+            }
+        }
+
+        md.push_str("\n## Các vấn đề / cảnh báo phát hiện\n\n");
+        if self.diagnostics.is_empty() {
+            md.push_str("- Không phát hiện lỗi hoặc xung đột môi trường tự động.\n");
+        } else {
+            for d in &self.diagnostics {
+                md.push_str(&format!(
+                    "- **[{} / {}]** `{}`: {}\n  - *Gợi ý xử lý*: {}\n",
+                    d.severity.to_uppercase(),
+                    d.category,
+                    d.code,
+                    redact_sensitive_paths(&d.message),
+                    redact_sensitive_paths(&d.suggestion)
+                ));
+            }
+        }
+
+        md.push_str("\n## Thông tin người dùng bổ sung khi báo lỗi\n\n");
+        md.push_str("- **Ứng dụng đang gõ**: *(vd. Chrome, VS Code, Word, Terminal...)*\n");
+        md.push_str("- **Chuỗi phím đã gõ**: *(vd. `dduocj`, `Sirr`...)*\n");
+        md.push_str("- **Kết quả thực tế**: \n");
+        md.push_str("- **Kết quả mong đợi**: \n");
+        md.push_str("\n> *Quyền riêng tư (G8/S2): Gói chẩn đoán này đã tự động ẩn tên người dùng và KHÔNG chứa nội dung văn bản đã gõ hay từ vựng cá nhân.*\n");
+        md
     }
 }
 
 /// Xuất ZIP lưu file chẩn đoán theo chuẩn PKZIP Stored (Zero Dependency).
 pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io::Result<usize> {
     let mut zip_entries: Vec<(String, Vec<u8>)> = Vec::new();
+
+    // 0. report_summary.md — bản tóm tắt sẵn sàng dán lên GitHub Issues (E69)
+    zip_entries.push((
+        "report_summary.md".to_string(),
+        report.to_markdown_report().into_bytes(),
+    ));
 
     // 1. version.json
     let version_info = format!(
@@ -300,41 +617,101 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
     }
     zip_entries.push(("config.redacted.json".to_string(), config_text.into_bytes()));
 
-    // 3. system_info.json
-    let sys_info = format!(
-        "{{\n  \"sizes_ok\": {},\n  \"pipe_listening\": {},\n  \"tray_running\": {},\n  \"hook_running\": {},\n  \"tip_registered\": {},\n  \"problems\": {:?}\n}}\n",
-        report.sizes_ok,
-        report.pipe_listening,
-        report.tray_running,
-        report.hook_running,
-        report.tip_registered,
-        report.problems
-    );
+    // 3. system_info.json (chứa cả diagnostics[] có mã lỗi/gợi ý cụ thể — E69)
+    let diag_vals: Vec<serde_json::Value> = report
+        .diagnostics
+        .iter()
+        .map(DiagnosticItem::to_json_value)
+        .collect();
+    let redacted_problems: Vec<String> = report
+        .problems
+        .iter()
+        .map(|p| redact_sensitive_paths(p))
+        .collect();
+    let sys_obj = serde_json::json!({
+        "sizes_ok": report.sizes_ok,
+        "pipe_listening": report.pipe_listening,
+        "tray_running": report.tray_running,
+        "hook_running": report.hook_running,
+        "tip_registered": report.tip_registered,
+        "problems": redacted_problems,
+        "diagnostics": diag_vals,
+    });
+    let mut sys_info = serde_json::to_string_pretty(&sys_obj).unwrap_or_else(|_| "{}".into());
+    sys_info.push('\n');
     zip_entries.push(("system_info.json".to_string(), sys_info.into_bytes()));
 
     #[cfg(target_os = "linux")]
     {
         let env = collect_linux_env_summary();
-        let jstr = |s: &str| {
-            serde_json::to_string(&redact_sensitive_paths(s)).unwrap_or_else(|_| "\"\"".into())
-        };
-        let linux_json = format!(
-            "{{\n  \"os\": {},\n  \"glibc\": {},\n  \"session\": {},\n  \"desktop\": {},\n  \"lsm\": {},\n  \"ibus_found\": {},\n  \"fcitx5_found\": {},\n  \"settings_backend\": {},\n  \"ibus_running\": {},\n  \"fcitx5_running\": {},\n  \"env_d_present\": {},\n  \"el8_system_cache\": {},\n  \"el8_autostart\": {}\n}}\n",
-            jstr(&env.os_pretty),
-            jstr(&env.glibc),
-            jstr(&env.session),
-            jstr(&env.desktop),
-            jstr(&env.lsm),
-            env.ibus_found,
-            env.fcitx5_found,
-            jstr(&env.settings_backend),
-            env.ibus_running,
-            env.fcitx5_running,
-            env.env_d_present,
-            env.el8_system_cache,
-            env.el8_autostart,
-        );
+        let linux_obj = serde_json::json!({
+            "os": redact_sensitive_paths(&env.os_pretty),
+            "kernel": redact_sensitive_paths(&env.kernel),
+            "glibc": redact_sensitive_paths(&env.glibc),
+            "pkg_mgr": env.pkg_mgr,
+            "session": redact_sensitive_paths(&env.session),
+            "desktop": redact_sensitive_paths(&env.desktop),
+            "lsm": redact_sensitive_paths(&env.lsm),
+            "im_env": redact_sensitive_paths(&env.im_env),
+            "ibus_installed": env.ibus_installed,
+            "ibus_found": env.ibus_found,
+            "ibus_abi_ok": env.ibus_abi_ok,
+            "ibus_abi_err": redact_sensitive_paths(&env.ibus_abi_err),
+            "ibus_running": env.ibus_running,
+            "fcitx5_installed": env.fcitx5_installed,
+            "fcitx5_found": env.fcitx5_found,
+            "fcitx5_abi_ok": env.fcitx5_abi_ok,
+            "fcitx5_abi_err": redact_sensitive_paths(&env.fcitx5_abi_err),
+            "fcitx5_running": env.fcitx5_running,
+            "settings_backend": redact_sensitive_paths(&env.settings_backend),
+            "env_d_present": env.env_d_present,
+            "xprofile_present": env.xprofile_present,
+            "el8_system_cache": env.el8_system_cache,
+            "el8_autostart": env.el8_autostart,
+            "conflicts": env.conflicts,
+        });
+        let mut linux_json =
+            serde_json::to_string_pretty(&linux_obj).unwrap_or_else(|_| "{}".into());
+        linux_json.push('\n');
         zip_entries.push(("linux_env.json".to_string(), linux_json.into_bytes()));
+
+        let install_diag = collect_linux_install_diag_tail(200);
+        zip_entries.push((
+            "install_diag_tail.log".to_string(),
+            install_diag.into_bytes(),
+        ));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let win = collect_windows_env_summary();
+        let tip_detail = crate::register::tip_registration_summary()
+            .map(|s| redact_sensitive_paths(&s))
+            .unwrap_or_default();
+        let win_obj = serde_json::json!({
+            "os": redact_sensitive_paths(&win.os_version),
+            "ctrl_shift_taken": report.ctrl_shift_taken,
+            "tip_detail": tip_detail,
+            "conflicts": win.conflicts,
+        });
+        let mut win_json = serde_json::to_string_pretty(&win_obj).unwrap_or_else(|_| "{}".into());
+        win_json.push('\n');
+        zip_entries.push(("windows_env.json".to_string(), win_json.into_bytes()));
+
+        let reg_tail = collect_windows_register_log_tail(200);
+        zip_entries.push(("register_tail.log".to_string(), reg_tail.into_bytes()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mac = collect_macos_env_summary();
+        let mac_obj = serde_json::json!({
+            "os": redact_sensitive_paths(&mac.os_version),
+            "conflicts": mac.conflicts,
+        });
+        let mut mac_json = serde_json::to_string_pretty(&mac_obj).unwrap_or_else(|_| "{}".into());
+        mac_json.push('\n');
+        zip_entries.push(("macos_env.json".to_string(), mac_json.into_bytes()));
     }
 
     // 4. hook_stats.json (nếu có)
@@ -348,12 +725,17 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
         }
     }
 
-    // 5. tsf_tail.log (200 dòng cuối từ log)
-    let log_tail = collect_log_tail(200);
+    // 5. tsf_tail.log (200 dòng cuối từ log runtime — đã ẩn tên người dùng S2)
+    let log_tail = redact_sensitive_paths(&collect_log_tail(200));
     zip_entries.push(("tsf_tail.log".to_string(), log_tail.into_bytes()));
 
     // Ghi file ZIP
     let zip_bytes = build_pkzip(&zip_entries)?;
+    if let Some(parent) = out_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+    }
     let mut file = File::create(out_path)?;
     file.write_all(&zip_bytes)?;
     Ok(zip_bytes.len())
@@ -392,14 +774,61 @@ pub fn redact_user_content(raw: &str) -> String {
     out
 }
 
-/// Redact đường dẫn người dùng (`C:\Users\<username>`, `/home/<user>`) theo Rule S2.
+/// Thay chuỗi không phân biệt hoa/thường ASCII (dùng cho đường dẫn Windows/macOS).
+fn replace_ascii_case_insensitive(haystack: &str, needle: &str, replacement: &str) -> String {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return haystack.to_string();
+    }
+    let h_bytes = haystack.as_bytes();
+    let n_bytes = needle.as_bytes();
+    let mut out = String::with_capacity(haystack.len());
+    let mut i = 0;
+    while i < h_bytes.len() {
+        if i + n_bytes.len() <= h_bytes.len()
+            && h_bytes[i..i + n_bytes.len()].eq_ignore_ascii_case(n_bytes)
+            && haystack.is_char_boundary(i)
+            && haystack.is_char_boundary(i + n_bytes.len())
+        {
+            out.push_str(replacement);
+            i += n_bytes.len();
+        } else {
+            let ch = haystack[i..].chars().next().unwrap();
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
+/// Redact đường dẫn người dùng (`C:\Users\<username>`, `/home/<user>`, `USERPROFILE`/`HOME`) theo Rule S2.
 pub fn redact_sensitive_paths(input: &str) -> String {
     let mut out = input.to_string();
+    let redact_token = |text: &str, token: &str| -> String {
+        if cfg!(any(target_os = "windows", target_os = "macos")) {
+            replace_ascii_case_insensitive(text, token, "<REDACTED_USER>")
+        } else {
+            text.replace(token, "<REDACTED_USER>")
+        }
+    };
+    // 1. Ẩn tên thư mục người dùng từ USERPROFILE / HOME (kể cả khi tên thư mục khác USERNAME
+    //    hoặc USER/LOGNAME chưa đặt) nhưng vẫn giữ cấu trúc `C:\Users\<REDACTED_USER>` / `/home/<REDACTED_USER>`.
+    for dir_key in ["USERPROFILE", "HOME"] {
+        if let Some(dir_val) = std::env::var_os(dir_key) {
+            if let Some(dir_str) = dir_val.to_str() {
+                if let Some(leaf) = Path::new(dir_str).file_name().and_then(|s| s.to_str()) {
+                    if leaf.len() >= 2 && leaf != "root" {
+                        out = redact_token(&out, leaf);
+                    }
+                }
+            }
+        }
+    }
+    // 2. Ẩn USERNAME / USER / LOGNAME (không phân biệt hoa/thường trên Windows & macOS).
     for env_key in ["USERNAME", "USER", "LOGNAME"] {
         if let Some(username) = std::env::var_os(env_key) {
             if let Some(name_str) = username.to_str() {
                 if name_str.len() >= 2 {
-                    out = out.replace(name_str, "<REDACTED_USER>");
+                    out = redact_token(&out, name_str);
                 }
             }
         }
@@ -420,9 +849,28 @@ fn collect_log_tail(max_lines: usize) -> String {
     }
     #[cfg(target_os = "macos")]
     if let Some(home) = std::env::var_os("HOME") {
-        let p = PathBuf::from(home).join("Library/Logs/TextVN/textvn.log");
-        if p.exists() {
-            log_path = Some(p);
+        let log_dir = PathBuf::from(home).join("Library/Logs/TextVN");
+        let primary = log_dir.join("textvn.log");
+        if primary.exists() {
+            log_path = Some(primary);
+        } else if let Ok(entries) = std::fs::read_dir(&log_dir) {
+            // Diagnostics.swift của macOS IMK ghi ra im-<pid>.log — chọn tệp mới nhất.
+            let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+            for entry in entries.flatten() {
+                let p = entry.path();
+                let name = entry.file_name();
+                let Some(s) = name.to_str() else { continue };
+                if s.starts_with("im-") && s.ends_with(".log") && p.is_file() {
+                    let mtime = entry
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .unwrap_or(UNIX_EPOCH);
+                    if newest.as_ref().is_none_or(|(t, _)| mtime > *t) {
+                        newest = Some((mtime, p));
+                    }
+                }
+            }
+            log_path = newest.map(|(_, p)| p);
         }
     }
     #[cfg(target_os = "linux")]
@@ -493,24 +941,506 @@ pub fn config_path() -> Option<PathBuf> {
     }
 }
 
+/// Kiểm tra lệch biến môi trường IM Linux so với daemon đang chạy (thuần — dùng chung cho unit test).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn detect_linux_im_env_mismatch(
+    ibus_running: bool,
+    fcitx5_running: bool,
+    gtk_im: &str,
+    qt_im: &str,
+    xmod: &str,
+) -> Option<String> {
+    if ibus_running
+        && !fcitx5_running
+        && (gtk_im.starts_with("fcitx") || qt_im.starts_with("fcitx") || xmod.contains("@im=fcitx"))
+    {
+        return Some(format!(
+            "ibus-daemon đang chạy nhưng biến môi trường trỏ tới Fcitx (GTK={gtk_im}, QT={qt_im}, XMOD={xmod})"
+        ));
+    }
+    if fcitx5_running
+        && !ibus_running
+        && (gtk_im == "ibus" || qt_im == "ibus" || xmod.contains("@im=ibus"))
+    {
+        return Some(format!(
+            "fcitx5 đang chạy nhưng biến môi trường trỏ tới IBus (GTK={gtk_im}, QT={qt_im}, XMOD={xmod})"
+        ));
+    }
+    None
+}
+
+/// Phân tích nội dung `~/.config/fcitx5/profile` tìm các bộ gõ tiếng Việt cũ xung đột TextVN.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn detect_fcitx5_profile_conflicts(profile_text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for line in profile_text.lines() {
+        if let Some(name) = line.trim().strip_prefix("Name=") {
+            let n = name.trim();
+            if n == "unikey" || n == "bamboo" || n.starts_with("m17n_vi_") {
+                let tag = format!("fcitx5:{n}");
+                if !found.contains(&tag) {
+                    found.push(tag);
+                }
+            }
+        }
+    }
+    found
+}
+
+/// Nhận diện tên bộ gõ tiếng Việt Windows có khả năng xung đột từ chuỗi lệnh/tên giá trị Run registry.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub fn detect_windows_conflict_name(value: &str) -> Option<&'static str> {
+    let lower = value.to_ascii_lowercase();
+    if lower.contains("unikey") {
+        Some("UniKey")
+    } else if lower.contains("evkey") {
+        Some("EVKey")
+    } else if lower.contains("openkey") {
+        Some("OpenKey")
+    } else if lower.contains("gotiengviet") {
+        Some("GoTiengViet")
+    } else if lower.contains("vietkey") {
+        Some("VietKey")
+    } else {
+        None
+    }
+}
+
+/// Chuẩn hoá hiển thị phiên bản Windows (Build >= 22000 → Windows 11).
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub fn format_windows_version(
+    product_name: &str,
+    display_ver: &str,
+    build: &str,
+    ubr: Option<u32>,
+    edition: &str,
+) -> String {
+    let build_num: u32 = build.trim().parse().unwrap_or(0);
+    let normalized_prod = if build_num >= 22000 && product_name.starts_with("Windows 10") {
+        product_name.replacen("Windows 10", "Windows 11", 1)
+    } else if product_name.is_empty() {
+        "Windows".to_string()
+    } else {
+        product_name.to_string()
+    };
+    let mut out = normalized_prod;
+    if !display_ver.is_empty() {
+        out.push(' ');
+        out.push_str(display_ver);
+    }
+    if !edition.is_empty()
+        && !out
+            .to_ascii_lowercase()
+            .contains(&edition.to_ascii_lowercase())
+    {
+        out.push_str(&format!(" [{edition}]"));
+    }
+    if !build.is_empty() {
+        match ubr {
+            Some(u) => out.push_str(&format!(" (Build {build}.{u})")),
+            None => out.push_str(&format!(" (Build {build})")),
+        }
+    }
+    out
+}
+
+/// Đọc giá trị chuỗi `<key>NAME</key><string>VALUE</string>` trong plist (macOS SystemVersion.plist).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn parse_plist_string_value(plist_xml: &str, key: &str) -> Option<String> {
+    let needle = format!("<key>{key}</key>");
+    let after = plist_xml.split_once(&needle)?.1;
+    let after_str = after.split_once("<string>")?.1;
+    let val = after_str.split_once("</string>")?.0.trim();
+    if val.is_empty() {
+        None
+    } else {
+        Some(val.to_string())
+    }
+}
+
+#[cfg(target_os = "windows")]
+struct WindowsEnvSummary {
+    os_version: String,
+    conflicts: Vec<String>,
+}
+
+#[cfg(target_os = "windows")]
+fn read_hklm_string(subkey: &str, value_name: &str) -> Option<String> {
+    use windows::core::HSTRING;
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ, REG_SZ,
+        REG_VALUE_TYPE,
+    };
+    unsafe {
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            &HSTRING::from(subkey),
+            Some(0),
+            KEY_READ,
+            &mut hkey,
+        )
+        .is_err()
+        {
+            return None;
+        }
+        let mut typ = REG_VALUE_TYPE(0);
+        let mut len: u32 = 0;
+        let q1 = RegQueryValueExW(
+            hkey,
+            &HSTRING::from(value_name),
+            None,
+            Some(&mut typ),
+            None,
+            Some(&mut len),
+        );
+        if q1.is_err() || typ != REG_SZ || !(2..=1024).contains(&len) {
+            let _ = RegCloseKey(hkey);
+            return None;
+        }
+        let mut buf = vec![0u16; (len as usize).div_ceil(2)];
+        let mut byte_len = (buf.len() * 2) as u32;
+        let q2 = RegQueryValueExW(
+            hkey,
+            &HSTRING::from(value_name),
+            None,
+            Some(&mut typ),
+            Some(buf.as_mut_ptr() as *mut u8),
+            Some(&mut byte_len),
+        );
+        let _ = RegCloseKey(hkey);
+        if q2.is_err() {
+            return None;
+        }
+        let used = ((byte_len as usize) / 2).min(buf.len());
+        let end = buf[..used].iter().position(|&c| c == 0).unwrap_or(used);
+        Some(String::from_utf16_lossy(&buf[..end]).trim().to_string())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn read_hklm_dword(subkey: &str, value_name: &str) -> Option<u32> {
+    use windows::core::HSTRING;
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
+        REG_DWORD, REG_VALUE_TYPE,
+    };
+    unsafe {
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            &HSTRING::from(subkey),
+            Some(0),
+            KEY_READ,
+            &mut hkey,
+        )
+        .is_err()
+        {
+            return None;
+        }
+        let mut typ = REG_VALUE_TYPE(0);
+        let mut val: u32 = 0;
+        let mut len: u32 = std::mem::size_of::<u32>() as u32;
+        let ok = RegQueryValueExW(
+            hkey,
+            &HSTRING::from(value_name),
+            None,
+            Some(&mut typ),
+            Some(&mut val as *mut u32 as *mut u8),
+            Some(&mut len),
+        )
+        .is_ok();
+        let _ = RegCloseKey(hkey);
+        if ok && typ == REG_DWORD {
+            Some(val)
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn scan_run_key_for_conflicts(
+    root: windows::Win32::System::Registry::HKEY,
+    subkey: &str,
+    out: &mut Vec<String>,
+) {
+    use windows::core::HSTRING;
+    use windows::Win32::Foundation::{ERROR_MORE_DATA, ERROR_NO_MORE_ITEMS};
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegEnumValueW, RegOpenKeyExW, HKEY, KEY_READ, REG_EXPAND_SZ, REG_SZ,
+    };
+    unsafe {
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(root, &HSTRING::from(subkey), Some(0), KEY_READ, &mut hkey).is_err() {
+            return;
+        }
+        let mut idx: u32 = 0;
+        loop {
+            let mut name_buf = [0u16; 256];
+            let mut name_len = name_buf.len() as u32;
+            let mut data_buf = [0u8; 1024];
+            let mut data_len = data_buf.len() as u32;
+            let mut typ: u32 = 0;
+            let st = RegEnumValueW(
+                hkey,
+                idx,
+                Some(windows::core::PWSTR(name_buf.as_mut_ptr())),
+                &mut name_len,
+                None,
+                Some(&mut typ),
+                Some(data_buf.as_mut_ptr()),
+                Some(&mut data_len),
+            );
+            if st == ERROR_NO_MORE_ITEMS {
+                break;
+            }
+            idx += 1;
+            if st == ERROR_MORE_DATA {
+                continue;
+            }
+            if st.is_err() {
+                break;
+            }
+            let nlen = (name_len as usize).min(name_buf.len());
+            let name = String::from_utf16_lossy(&name_buf[..nlen]);
+            if let Some(hit) = detect_windows_conflict_name(&name) {
+                let tag = format!("{hit} (startup)");
+                if !out.contains(&tag) {
+                    out.push(tag);
+                }
+                continue;
+            }
+            if typ == REG_SZ.0 || typ == REG_EXPAND_SZ.0 {
+                let dlen = (data_len as usize).min(data_buf.len());
+                let u16s: Vec<u16> = (0..dlen / 2)
+                    .map(|k| u16::from_le_bytes([data_buf[k * 2], data_buf[k * 2 + 1]]))
+                    .take_while(|&v| v != 0)
+                    .collect();
+                let val = String::from_utf16_lossy(&u16s);
+                if let Some(hit) = detect_windows_conflict_name(&val) {
+                    let tag = format!("{hit} (startup)");
+                    if !out.contains(&tag) {
+                        out.push(tag);
+                    }
+                }
+            }
+        }
+        let _ = RegCloseKey(hkey);
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn collect_windows_env_summary() -> WindowsEnvSummary {
+    use windows::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+    const CV: &str = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+    let prod = read_hklm_string(CV, "ProductName").unwrap_or_default();
+    let disp = read_hklm_string(CV, "DisplayVersion")
+        .or_else(|| read_hklm_string(CV, "ReleaseId"))
+        .unwrap_or_default();
+    let build = read_hklm_string(CV, "CurrentBuildNumber")
+        .or_else(|| read_hklm_string(CV, "CurrentBuild"))
+        .unwrap_or_default();
+    let ubr = read_hklm_dword(CV, "UBR");
+    let edition = read_hklm_string(CV, "EditionID").unwrap_or_default();
+    let os_version = format_windows_version(&prod, &disp, &build, ubr, &edition);
+
+    let mut conflicts = Vec::new();
+    // 1. Kiểm tra mutex chuẩn của các bộ gõ tiếng Việt đang chạy (không duyệt process list — an toàn AV).
+    for (label, mutexes) in [
+        (
+            "UniKey (đang chạy)",
+            &[r"Local\UniKeyMutex", "UniKeyMutex"][..],
+        ),
+        (
+            "EVKey (đang chạy)",
+            &[r"Local\EVKeyMutex", "EVKeyMutex"][..],
+        ),
+        (
+            "OpenKey (đang chạy)",
+            &[r"Local\OpenKeyMutex", "OpenKeyMutex"][..],
+        ),
+        (
+            "GoTiengViet (đang chạy)",
+            &[r"Local\GoTiengVietMutex", "GoTiengVietMutex"][..],
+        ),
+    ] {
+        if mutexes.iter().any(|m| check_instance_mutex(m)) && !conflicts.iter().any(|c| c == label)
+        {
+            conflicts.push(label.to_string());
+        }
+    }
+    // 2. Kiểm tra khoá tự khởi động Run (HKCU/HKLM).
+    const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+    scan_run_key_for_conflicts(HKEY_CURRENT_USER, RUN_KEY, &mut conflicts);
+    scan_run_key_for_conflicts(HKEY_LOCAL_MACHINE, RUN_KEY, &mut conflicts);
+
+    WindowsEnvSummary {
+        os_version,
+        conflicts,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn collect_windows_diagnostics(diagnostics: &mut Vec<DiagnosticItem>) {
+    let win = collect_windows_env_summary();
+    if !win.conflicts.is_empty() {
+        diagnostics.push(DiagnosticItem {
+            code: "W_CONFLICT_VI_IME",
+            severity: "warning",
+            category: "conflict",
+            message: format!(
+                "Phát hiện bộ gõ tiếng Việt khác trên Windows: {}",
+                win.conflicts.join(", ")
+            ),
+            suggestion:
+                "Hãy thoát bộ gõ cũ ở khay hệ thống (và tắt tự khởi động cùng Windows) trước khi dùng TextVN để tránh ăn phím, lặp chữ hoặc tranh phím Ctrl+Shift."
+                    .into(),
+        });
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn collect_windows_register_log_tail(max_lines: usize) -> String {
+    let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") else {
+        return "# Không xác định được LOCALAPPDATA.\n".into();
+    };
+    let path = PathBuf::from(local_appdata)
+        .join("TextVN")
+        .join("logs")
+        .join("register.log");
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return "# Không tìm thấy file register.log.\n".into();
+    };
+    let lines: Vec<&str> = content.lines().collect();
+    let start = lines.len().saturating_sub(max_lines);
+    redact_sensitive_paths(&(lines[start..].join("\n") + "\n"))
+}
+
+#[cfg(target_os = "macos")]
+struct MacOsEnvSummary {
+    os_version: String,
+    conflicts: Vec<String>,
+}
+
+#[cfg(target_os = "macos")]
+fn collect_macos_env_summary() -> MacOsEnvSummary {
+    let os_version = std::fs::read_to_string("/System/Library/CoreServices/SystemVersion.plist")
+        .ok()
+        .map(|xml| {
+            let name =
+                parse_plist_string_value(&xml, "ProductName").unwrap_or_else(|| "macOS".into());
+            let ver = parse_plist_string_value(&xml, "ProductVersion").unwrap_or_default();
+            let build = parse_plist_string_value(&xml, "ProductBuildVersion").unwrap_or_default();
+            if ver.is_empty() {
+                name
+            } else if build.is_empty() {
+                format!("{name} {ver}")
+            } else {
+                format!("{name} {ver} ({build})")
+            }
+        })
+        .unwrap_or_else(|| "macOS".into());
+
+    let mut conflicts = Vec::new();
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    for (label, app_name) in [
+        ("OpenKey", "OpenKey.app"),
+        ("EVKey", "EVKey.app"),
+        ("GoTiengViet", "GoTiengViet.app"),
+    ] {
+        let sys_app = Path::new("/Applications").join(app_name);
+        let user_app = home.as_ref().map(|h| h.join("Applications").join(app_name));
+        if sys_app.exists() || user_app.is_some_and(|p| p.exists()) {
+            conflicts.push(format!("{label} (đã cài)"));
+        }
+    }
+    MacOsEnvSummary {
+        os_version,
+        conflicts,
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn collect_macos_diagnostics(diagnostics: &mut Vec<DiagnosticItem>) {
+    let mac = collect_macos_env_summary();
+    if !mac.conflicts.is_empty() {
+        diagnostics.push(DiagnosticItem {
+            code: "W_CONFLICT_VI_IME",
+            severity: "warning",
+            category: "conflict",
+            message: format!(
+                "Phát hiện bộ gõ tiếng Việt khác trên macOS: {}",
+                mac.conflicts.join(", ")
+            ),
+            suggestion:
+                "Hãy thoát OpenKey/EVKey/GoTiengViet khỏi thanh menu bar (và tắt Accessibility / Input Monitoring cho bộ gõ cũ) khi dùng TextVN để tránh lặp dấu hoặc tranh phím Ctrl+Shift."
+                    .into(),
+        });
+    }
+}
+
 #[cfg(target_os = "linux")]
 struct LinuxEnvSummary {
     os_pretty: String,
+    kernel: String,
     glibc: String,
+    pkg_mgr: String,
     session: String,
     desktop: String,
     lsm: String,
     ibus_comp: String,
     fcitx_dirs: String,
     im_env: String,
+    gtk_im: String,
+    qt_im: String,
+    xmod: String,
+    ibus_installed: bool,
     ibus_found: bool,
+    ibus_abi_ok: bool,
+    ibus_abi_err: String,
+    fcitx5_installed: bool,
     fcitx5_found: bool,
+    fcitx5_abi_ok: bool,
+    fcitx5_abi_err: String,
     settings_backend: String,
     ibus_running: bool,
     fcitx5_running: bool,
     env_d_present: bool,
+    xprofile_present: bool,
     el8_system_cache: bool,
     el8_autostart: bool,
+    conflicts: Vec<String>,
+}
+
+#[cfg(target_os = "linux")]
+fn command_on_path(cmd: &str) -> bool {
+    let Some(path_var) = std::env::var_os("PATH") else {
+        return false;
+    };
+    for dir in std::env::split_paths(&path_var) {
+        let p = dir.join(cmd);
+        if p.is_file() {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_pkg_mgr() -> String {
+    for (cmd, label) in [
+        ("apt-get", "apt"),
+        ("dnf", "dnf"),
+        ("yum", "yum"),
+        ("zypper", "zypper"),
+        ("pacman", "pacman"),
+    ] {
+        if command_on_path(cmd) {
+            return label.into();
+        }
+    }
+    "none".into()
 }
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -534,9 +1464,25 @@ fn detect_linux_glibc() -> String {
 }
 
 #[cfg(target_os = "linux")]
+fn current_euid() -> Option<u32> {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
+}
+
+/// Kiểm tra tiến trình thuộc cùng UID hiện tại và hỗ trợ tên dài >15 ký tự
+/// (vượt giới hạn `TASK_COMM_LEN - 1` của `/proc/<pid>/comm` cho `ibus-engine-unikey`/`bamboo`…).
+#[cfg(target_os = "linux")]
 fn linux_proc_running(target_comm: &str) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let my_uid = current_euid();
+    let cur_dbus = std::env::var("DBUS_SESSION_BUS_ADDRESS").ok();
     let Ok(entries) = std::fs::read_dir("/proc") else {
         return false;
+    };
+    let want15 = if target_comm.len() > 15 {
+        &target_comm[..15]
+    } else {
+        target_comm
     };
     for entry in entries.flatten() {
         let name = entry.file_name();
@@ -544,11 +1490,53 @@ fn linux_proc_running(target_comm: &str) -> bool {
         if !s.bytes().all(|b| b.is_ascii_digit()) {
             continue;
         }
-        if let Ok(comm) = std::fs::read_to_string(entry.path().join("comm")) {
-            if comm.trim() == target_comm {
-                return true;
+        let p = entry.path();
+        if let Some(uid) = my_uid {
+            let Ok(meta) = std::fs::metadata(&p) else {
+                continue;
+            };
+            if meta.uid() != uid {
+                continue;
             }
         }
+        let Ok(comm_raw) = std::fs::read_to_string(p.join("comm")) else {
+            continue;
+        };
+        let comm = comm_raw.trim();
+        let matched = if target_comm.len() <= 15 {
+            comm == target_comm
+        } else if comm == want15 || comm.starts_with("python") || comm == "sh" || comm == "bash" {
+            std::fs::read(p.join("cmdline")).ok().is_some_and(|bytes| {
+                bytes
+                    .split(|&b| b == 0)
+                    .take(2)
+                    .filter(|a| !a.is_empty())
+                    .any(|arg| {
+                        let s = String::from_utf8_lossy(arg);
+                        Path::new(s.as_ref()).file_name().and_then(|f| f.to_str())
+                            == Some(target_comm)
+                    })
+            })
+        } else {
+            false
+        };
+        if !matched {
+            continue;
+        }
+        if let Some(ref want_dbus) = cur_dbus {
+            if let Ok(env_bytes) = std::fs::read(p.join("environ")) {
+                let proc_dbus = env_bytes.split(|&b| b == 0).find_map(|kv| {
+                    kv.strip_prefix(b"DBUS_SESSION_BUS_ADDRESS=")
+                        .map(|v| String::from_utf8_lossy(v).into_owned())
+                });
+                if let Some(pd) = proc_dbus {
+                    if !pd.is_empty() && pd != *want_dbus {
+                        continue;
+                    }
+                }
+            }
+        }
+        return true;
     }
     false
 }
@@ -580,20 +1568,42 @@ fn collect_linux_env_summary() -> LinuxEnvSummary {
                 .map(|v| v.trim_matches(&['"', '\''][..]).to_string())
         })
         .unwrap_or_else(|| "Linux".into());
+    let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|_| "unknown".into());
     let env_or = |k: &str| std::env::var(k).unwrap_or_else(|_| "<chưa đặt>".into());
     let session = env_or("XDG_SESSION_TYPE");
     let desktop = env_or("XDG_CURRENT_DESKTOP");
     let ibus_comp = env_or("IBUS_COMPONENT_PATH");
     let fcitx_dirs = env_or("FCITX_ADDON_DIRS");
+    let gtk_im = std::env::var("GTK_IM_MODULE").unwrap_or_default();
+    let qt_im = std::env::var("QT_IM_MODULE").unwrap_or_default();
+    let xmod = std::env::var("XMODIFIERS").unwrap_or_default();
     let im_env = format!(
         "GTK={} · QT={} · XMOD={}",
-        env_or("GTK_IM_MODULE"),
-        env_or("QT_IM_MODULE"),
-        env_or("XMODIFIERS")
+        if gtk_im.is_empty() {
+            "<chưa đặt>"
+        } else {
+            &gtk_im
+        },
+        if qt_im.is_empty() {
+            "<chưa đặt>"
+        } else {
+            &qt_im
+        },
+        if xmod.is_empty() {
+            "<chưa đặt>"
+        } else {
+            &xmod
+        }
     );
 
     let mut ibus_found = false;
+    let mut ibus_abi_ok = false;
+    let mut ibus_abi_err = String::new();
     let mut fcitx5_found = false;
+    let mut fcitx5_abi_ok = false;
+    let mut fcitx5_abi_err = String::new();
     let mut settings_backend = "thiếu".to_string();
     let arch_multiarch = format!("{}-linux-gnu", std::env::consts::ARCH);
 
@@ -605,7 +1615,19 @@ fn collect_linux_env_summary() -> LinuxEnvSummary {
                 bin_dir.join(format!("../lib/{arch_multiarch}/textvn/textvn-ibus-engine")),
                 bin_dir.join("../libexec/ibus-engine-textvn"),
             ];
-            ibus_found = ibus_candidates.iter().any(|p| p.exists());
+            if let Some(ibus_bin) = ibus_candidates.iter().find(|p| p.exists()) {
+                ibus_found = true;
+                match std::process::Command::new(ibus_bin)
+                    .arg("--check-abi")
+                    .output()
+                {
+                    Ok(out) if out.status.success() => ibus_abi_ok = true,
+                    Ok(out) => {
+                        ibus_abi_err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                    }
+                    Err(e) => ibus_abi_err = e.to_string(),
+                }
+            }
 
             let fcitx_candidates = [
                 bin_dir.join("../lib/textvn/fcitx5/libtextvn-fcitx5.so"),
@@ -620,7 +1642,13 @@ fn collect_linux_env_summary() -> LinuxEnvSummary {
                 PathBuf::from("/usr/lib64/fcitx5/libtextvn-fcitx5.so"),
                 PathBuf::from("/usr/lib/fcitx5/libtextvn-fcitx5.so"),
             ];
-            fcitx5_found = fcitx_candidates.iter().any(|p| p.exists());
+            if let Some(fc_so) = fcitx_candidates.iter().find(|p| p.exists()) {
+                fcitx5_found = true;
+                match crate::probe_dlopen(&fc_so.to_string_lossy()) {
+                    Ok(()) => fcitx5_abi_ok = true,
+                    Err(e) => fcitx5_abi_err = e,
+                }
+            }
 
             let settings_bin = bin_dir.join("textvn-settings");
             if settings_bin.exists() {
@@ -651,52 +1679,255 @@ fn collect_linux_env_summary() -> LinuxEnvSummary {
     let el8_autostart = xdg_cfg
         .as_ref()
         .is_some_and(|c| c.join("autostart/textvn-ibus-autostart.desktop").exists());
+    let xprofile_present = std::env::var_os("HOME")
+        .map(|h| PathBuf::from(h).join(".xprofile"))
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .is_some_and(|s| s.contains("# BEGIN TextVN"));
+
+    let ibus_running = linux_proc_running("ibus-daemon");
+    let fcitx5_running = linux_proc_running("fcitx5");
+    let ibus_installed = ibus_running || command_on_path("ibus-daemon");
+    let fcitx5_installed = fcitx5_running || command_on_path("fcitx5");
+
+    let mut conflicts = Vec::new();
+    if ibus_running && fcitx5_running {
+        conflicts.push("dual-daemon:ibus-daemon+fcitx5".into());
+    }
+    for proc in [
+        "fcitx",
+        "scim",
+        "scim-launcher",
+        "uim-xim",
+        "xvnkb",
+        "xvnhook",
+        "ibus-engine-unikey",
+        "ibus-engine-bamboo",
+        "ibus-engine-bogo",
+        "ibus-engine-teni",
+    ] {
+        if linux_proc_running(proc) {
+            conflicts.push(format!("running:{proc}"));
+        }
+    }
+    if let Some(prof_path) = xdg_cfg.as_ref().map(|c| c.join("fcitx5/profile")) {
+        if let Ok(txt) = std::fs::read_to_string(prof_path) {
+            for hit in detect_fcitx5_profile_conflicts(&txt) {
+                if !conflicts.contains(&hit) {
+                    conflicts.push(hit);
+                }
+            }
+        }
+    }
 
     LinuxEnvSummary {
         os_pretty,
+        kernel,
         glibc: detect_linux_glibc(),
+        pkg_mgr: detect_linux_pkg_mgr(),
         session,
         desktop,
         lsm: detect_linux_lsm(),
         ibus_comp,
         fcitx_dirs,
         im_env,
+        gtk_im,
+        qt_im,
+        xmod,
+        ibus_installed,
         ibus_found,
+        ibus_abi_ok,
+        ibus_abi_err,
+        fcitx5_installed,
         fcitx5_found,
+        fcitx5_abi_ok,
+        fcitx5_abi_err,
         settings_backend,
-        ibus_running: linux_proc_running("ibus-daemon"),
-        fcitx5_running: linux_proc_running("fcitx5"),
+        ibus_running,
+        fcitx5_running,
         env_d_present,
+        xprofile_present,
         el8_system_cache: Path::new("/var/cache/ibus/bus/registry").exists(),
         el8_autostart,
+        conflicts,
     }
+}
+
+#[cfg(target_os = "linux")]
+fn collect_linux_diagnostics(diagnostics: &mut Vec<DiagnosticItem>, problems: &mut Vec<String>) {
+    let s = collect_linux_env_summary();
+
+    // 1. Kiểm tra thiếu cả 2 framework bộ gõ hệ thống hoặc cả 2 adapter cùng lỗi ABI.
+    if !s.ibus_installed && !s.fcitx5_installed {
+        diagnostics.push(DiagnosticItem {
+            code: "W_DEP_NO_IM_FRAMEWORK",
+            severity: "warning",
+            category: "dep",
+            message: "Chưa thấy ibus-daemon lẫn fcitx5 trên PATH của hệ thống.".into(),
+            suggestion:
+                "Chạy lại `./install.sh --install-deps` để tự động cài IBus/Fcitx5 & GTK phù hợp cho distro của bạn."
+                    .into(),
+        });
+    }
+    if (s.ibus_found || s.fcitx5_found) && !s.ibus_abi_ok && !s.fcitx5_abi_ok {
+        let mut detail = String::from("Không có adapter IBus hay Fcitx5 nào nạp được");
+        if !s.ibus_abi_err.is_empty() {
+            detail.push_str(&format!(" (IBus: {})", s.ibus_abi_err));
+        }
+        if !s.fcitx5_abi_err.is_empty() {
+            detail.push_str(&format!(" (Fcitx5: {})", s.fcitx5_abi_err));
+        }
+        problems.push(detail.clone());
+        diagnostics.push(DiagnosticItem {
+            code: "E_DEP_MISSING",
+            severity: "error",
+            category: "dep",
+            message: detail,
+            suggestion:
+                "Chạy `./install.sh --install-deps` để cài thư viện runtime (libibus / fcitx5 / gtk3|gtk4), hoặc dựng từ nguồn bằng `./scripts/install_linux.sh`."
+                    .into(),
+        });
+    }
+    if s.settings_backend.starts_with("lỗi") {
+        diagnostics.push(DiagnosticItem {
+            code: "W_GTK_MISSING",
+            severity: "warning",
+            category: "dep",
+            message: format!("Bảng cài đặt GUI không mở được: {}", s.settings_backend),
+            suggestion:
+                "Cài thêm GTK3/GTK4 (`gtk3` trên RHEL/SLES, `libgtk-4-1` trên Ubuntu/Debian, `gtk4` trên Fedora/Arch) hoặc chạy `./install.sh --install-deps`."
+                    .into(),
+        });
+    }
+
+    // 2. Xung đột hai daemon IME hoặc bộ gõ cũ.
+    if s.ibus_running && s.fcitx5_running {
+        diagnostics.push(DiagnosticItem {
+            code: "CONFLICT_DUAL_IM_DAEMON",
+            severity: "warning",
+            category: "conflict",
+            message: "Cả ibus-daemon và fcitx5 đang chạy đồng thời trên cùng phiên.".into(),
+            suggestion:
+                "Thoát một trong hai: chạy `fcitx5-remote -e` (nếu dùng IBus) hoặc `ibus exit` (nếu dùng Fcitx5)."
+                    .into(),
+        });
+    }
+    for c in &s.conflicts {
+        if c == "dual-daemon:ibus-daemon+fcitx5" {
+            continue;
+        }
+        if let Some(proc) = c.strip_prefix("running:") {
+            let suggestion = if proc.starts_with("ibus-engine-") {
+                "Nhấn Super+Space để chuyển sang 'Vietnamese (TextVN)' và gỡ Unikey/Bamboo khỏi Cài đặt → Bàn phím → Nguồn nhập."
+            } else if proc == "fcitx" {
+                "Thoát fcitx v4 cũ (`fcitx-remote -e`) và đổi mặc định sang IBus hoặc Fcitx5 bằng `im-config`."
+            } else {
+                "Thoát bộ gõ cũ đang chạy trước khi gõ bằng TextVN để tránh ăn phím hoặc lặp chữ."
+            };
+            diagnostics.push(DiagnosticItem {
+                code: "W_CONFLICT_VI_IME",
+                severity: "warning",
+                category: "conflict",
+                message: format!("Bộ gõ khác đang chạy song song với TextVN: `{proc}`."),
+                suggestion: suggestion.into(),
+            });
+        } else if let Some(im) = c.strip_prefix("fcitx5:") {
+            diagnostics.push(DiagnosticItem {
+                code: "W_CONFLICT_FCITX5_VI_IME",
+                severity: "warning",
+                category: "conflict",
+                message: format!("Profile Fcitx5 còn bộ gõ tiếng Việt cũ: `{im}`."),
+                suggestion: "Mở `fcitx5-configtool` và gỡ bộ gõ cũ hoặc chỉ giữ lại TextVN để tránh xung đột phím tắt.".into(),
+            });
+        }
+    }
+
+    // 3. Lệch biến môi trường GTK_IM_MODULE / QT_IM_MODULE / XMODIFIERS.
+    if let Some(mismatch) = detect_linux_im_env_mismatch(
+        s.ibus_running,
+        s.fcitx5_running,
+        &s.gtk_im,
+        &s.qt_im,
+        &s.xmod,
+    ) {
+        diagnostics.push(DiagnosticItem {
+            code: "W_IM_ENV_MISMATCH",
+            severity: "warning",
+            category: "env",
+            message: mismatch,
+            suggestion:
+                "Chạy `im-config` (hoặc sửa ~/.xprofile / ~/.config/environment.d) cho khớp đúng framework đang chạy rồi đăng xuất & đăng nhập lại."
+                    .into(),
+        });
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn collect_linux_install_diag_tail(max_lines: usize) -> String {
+    let mut path: Option<PathBuf> = None;
+    if let Some(xdg) = std::env::var_os("XDG_STATE_HOME") {
+        let base = PathBuf::from(xdg);
+        if base.is_absolute() {
+            let p = base.join("TextVN/log/install-diag.log");
+            if p.exists() {
+                path = Some(p);
+            }
+        }
+    }
+    if path.is_none() {
+        if let Some(home) = std::env::var_os("HOME") {
+            let p = PathBuf::from(home).join(".local/state/TextVN/log/install-diag.log");
+            if p.exists() {
+                path = Some(p);
+            }
+        }
+    }
+    let Some(p) = path else {
+        return "# Chưa có nhật ký cài đặt install-diag.log.\n".into();
+    };
+    let Ok(content) = std::fs::read_to_string(p) else {
+        return "# Không đọc được install-diag.log.\n".into();
+    };
+    let lines: Vec<&str> = content.lines().collect();
+    let start = lines.len().saturating_sub(max_lines);
+    redact_sensitive_paths(&(lines[start..].join("\n") + "\n"))
 }
 
 #[cfg(target_os = "linux")]
 fn print_linux_env_summary() {
     let s = collect_linux_env_summary();
-    println!("  OS          : {} (glibc {})", s.os_pretty, s.glibc);
+    println!(
+        "  OS          : {} (kernel {} · glibc {} · pkg={})",
+        s.os_pretty, s.kernel, s.glibc, s.pkg_mgr
+    );
     println!("  session     : {} ({}) · {}", s.session, s.desktop, s.lsm);
     println!(
-        "  daemons     : ibus-daemon={} · fcitx5={}",
+        "  daemons     : ibus-daemon={} (installed={}) · fcitx5={} (installed={})",
         if s.ibus_running { "chạy" } else { "tắt" },
-        if s.fcitx5_running { "chạy" } else { "tắt" }
+        if s.ibus_installed { "có" } else { "không" },
+        if s.fcitx5_running { "chạy" } else { "tắt" },
+        if s.fcitx5_installed { "có" } else { "không" }
     );
     println!("  IBUS_COMP   : {}", s.ibus_comp);
     println!("  FCITX_DIRS  : {}", s.fcitx_dirs);
     println!("  IM env      : {}", s.im_env);
     println!(
-        "  adapters    : ibus={} · fcitx5={} · settings={}",
+        "  adapters    : ibus={} (abi={}) · fcitx5={} (abi={}) · settings={}",
         if s.ibus_found { "OK" } else { "thiếu" },
+        if s.ibus_abi_ok { "OK" } else { "lỗi/chưa" },
         if s.fcitx5_found { "OK" } else { "thiếu" },
+        if s.fcitx5_abi_ok { "OK" } else { "lỗi/chưa" },
         s.settings_backend
     );
     println!(
-        "  integration : environment.d={} · ibus-sys-cache={} · el8-autostart={}",
+        "  integration : environment.d={} · xprofile={} · ibus-sys-cache={} · el8-autostart={}",
         if s.env_d_present { "OK" } else { "không" },
+        if s.xprofile_present { "OK" } else { "không" },
         if s.el8_system_cache { "có" } else { "không" },
         if s.el8_autostart { "có" } else { "không" }
     );
+    if !s.conflicts.is_empty() {
+        println!("  conflicts   : {}", s.conflicts.join(", "));
+    }
 }
 
 pub fn abi_sizes() -> (usize, usize, usize, bool) {
@@ -903,6 +2134,14 @@ mod tests {
                 let redacted = redact_sensitive_paths(&test_input);
                 assert!(!redacted.contains(user_str));
                 assert!(redacted.contains("<REDACTED_USER>"));
+                // Không phân biệt hoa/thường trên Windows (E69 audit #9).
+                let upper = user_str.to_ascii_uppercase();
+                let mixed = format!(r"c:\users\{upper}\appdata\roaming\textvn\config.json");
+                let redacted_mixed = redact_sensitive_paths(&mixed);
+                assert!(!redacted_mixed
+                    .to_ascii_lowercase()
+                    .contains(&user_str.to_ascii_lowercase()));
+                assert!(redacted_mixed.contains("<REDACTED_USER>"));
             }
         }
     }
@@ -933,6 +2172,121 @@ mod tests {
             }
         }
 
+        assert!(
+            zip_content_lossy.contains("report_summary.md"),
+            "Diagnostics ZIP thiếu report_summary.md"
+        );
         let _ = std::fs::remove_file(&temp_zip);
+    }
+
+    #[test]
+    fn e69_linux_im_env_mismatch_detection() {
+        assert!(
+            detect_linux_im_env_mismatch(true, false, "fcitx", "", "").is_some(),
+            "IBus chạy nhưng GTK_IM_MODULE=fcitx phải báo lệch"
+        );
+        assert!(
+            detect_linux_im_env_mismatch(false, true, "ibus", "", "").is_some(),
+            "Fcitx5 chạy nhưng GTK_IM_MODULE=ibus phải báo lệch"
+        );
+        assert!(
+            detect_linux_im_env_mismatch(true, false, "ibus", "ibus", "@im=ibus").is_none(),
+            "IBus khớp biến môi trường không được báo nhầm"
+        );
+        assert!(
+            detect_linux_im_env_mismatch(false, true, "fcitx", "fcitx", "@im=fcitx").is_none(),
+            "Fcitx5 khớp biến môi trường không được báo nhầm"
+        );
+    }
+
+    #[test]
+    fn e69_fcitx5_profile_conflicts_detection() {
+        let profile = "[Groups/0/Items/0]\nName=keyboard-us\n[Groups/0/Items/1]\nName=unikey\n[Groups/0/Items/2]\nName=bamboo\n[Groups/0/Items/3]\nName=textvn\n";
+        let hits = detect_fcitx5_profile_conflicts(profile);
+        assert_eq!(hits, vec!["fcitx5:unikey", "fcitx5:bamboo"]);
+        assert!(detect_fcitx5_profile_conflicts("Name=textvn\nName=keyboard-us\n").is_empty());
+    }
+
+    #[test]
+    fn e69_windows_conflict_name_and_version_format() {
+        assert_eq!(
+            detect_windows_conflict_name(r"C:\Program Files\UniKey\UniKeyNT.exe"),
+            Some("UniKey")
+        );
+        assert_eq!(
+            detect_windows_conflict_name(r"C:\Tools\EVKey64.exe"),
+            Some("EVKey")
+        );
+        assert_eq!(
+            detect_windows_conflict_name(r"C:\Apps\OpenKey64.exe"),
+            Some("OpenKey")
+        );
+        assert_eq!(
+            detect_windows_conflict_name(r"C:\Apps\GoTiengViet.exe"),
+            Some("GoTiengViet")
+        );
+        assert_eq!(
+            detect_windows_conflict_name(r"C:\Program Files\TextVN\TextVN.exe"),
+            None
+        );
+
+        assert_eq!(
+            format_windows_version(
+                "Windows 10 Enterprise",
+                "23H2",
+                "22631",
+                Some(4169),
+                "Enterprise"
+            ),
+            "Windows 11 Enterprise 23H2 (Build 22631.4169)"
+        );
+        assert_eq!(
+            format_windows_version(
+                "Windows 10 Pro",
+                "22H2",
+                "19045",
+                Some(5011),
+                "Professional"
+            ),
+            "Windows 10 Pro 22H2 [Professional] (Build 19045.5011)"
+        );
+    }
+
+    #[test]
+    fn e69_macos_plist_parser() {
+        let xml = r#"<plist><dict>
+            <key>ProductName</key><string>macOS</string>
+            <key>ProductVersion</key><string>15.1</string>
+            <key>ProductBuildVersion</key><string>24B83</string>
+        </dict></plist>"#;
+        assert_eq!(
+            parse_plist_string_value(xml, "ProductName").as_deref(),
+            Some("macOS")
+        );
+        assert_eq!(
+            parse_plist_string_value(xml, "ProductVersion").as_deref(),
+            Some("15.1")
+        );
+        assert_eq!(
+            parse_plist_string_value(xml, "ProductBuildVersion").as_deref(),
+            Some("24B83")
+        );
+    }
+
+    #[test]
+    fn e69_markdown_report_renders_diagnostics_safely() {
+        let mut report = collect_report();
+        report.diagnostics.push(DiagnosticItem {
+            code: "W_CONFLICT_VI_IME",
+            severity: "warning",
+            category: "conflict",
+            message: "Phát hiện bộ gõ cũ UniKey đang chạy".into(),
+            suggestion: "Thoát UniKey ở khay hệ thống trước khi dùng TextVN.".into(),
+        });
+        let md = report.to_markdown_report();
+        assert!(md.contains("# Báo cáo chẩn đoán TextVN"));
+        assert!(md.contains("W_CONFLICT_VI_IME"));
+        assert!(md.contains("Thoát UniKey"));
+        assert!(md.contains("G8/S2"));
     }
 }
