@@ -129,10 +129,16 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
         . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
         set +a
         local rc=0
-        ibus-daemon --panel=disable --xim=false --config=default --cache=refresh --replace --single >"$t/d.log" 2>&1 &
+        ibus-daemon --panel=disable --xim=false --config=default --cache=refresh --replace --single --verbose >"$t/d.log" 2>&1 &
         daemon_pid=$!
-        sleep 2
+        sleep 3
         "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
+        if [[ $rc -ne 0 ]]; then
+            echo "--- ibus list-engine ($DISTRO debug) ---"
+            ibus list-engine 2>&1 | head -n 40 || true
+            echo "--- IBUS_COMPONENT_PATH=$IBUS_COMPONENT_PATH ---"
+            cat "$pre/share/ibus/component/textvn.xml" 2>&1 || true
+        fi
         ibus exit >/dev/null 2>&1 || true
         [[ -n "$daemon_pid" ]] && kill "$daemon_pid" 2>/dev/null || true
         daemon_pid=""
@@ -231,11 +237,15 @@ P
             rm -f "$pkg/lib/textvn/textvn-ibus-engine"
             chmod -R a-w "$pkg"
 
-            "$pkg/textvn-portable.sh" --fcitx5 >"$t/p.log" 2>&1 || { cat "$t/p.log"; fail "Fcitx5-only portable start"; }
+            # Khởi chạy fcitx5 nền tối giản (giống test-linux-package.sh) để phím chuyển nhóm mặc định
+            # của Fcitx5 không chặn tổ hợp Ctrl+Shift trong e2e_fcitx5.
+            fcitx5 --disable=all --enable=dbus,dbusfrontend,keyboard,textvn >"$t/d.log" 2>&1 &
+            sleep 2
+            "$pkg/textvn-portable.sh" --fcitx5 >"$t/p.log" 2>&1 || { cat "$t/p.log" "$t/d.log"; fail "Fcitx5-only portable start"; }
             sleep 1
             local rc=0
             "$E2E_FCITX5" >"$t/e2e.log" 2>&1 || rc=$?
-            [[ $rc -eq 0 ]] || { cat "$t/p.log" "$t/e2e.log"; fail "Fcitx5 e2e_fcitx5"; }
+            [[ $rc -eq 0 ]] || { cat "$t/p.log" "$t/e2e.log" "$t/d.log"; fail "Fcitx5 e2e_fcitx5"; }
             tail -n1 "$t/e2e.log"
             "$pkg/textvn-portable.sh" stop >"$t/s.log" 2>&1 || { cat "$t/s.log"; fail "Fcitx5 portable stop"; }
             chmod -R u+w "$pkg"

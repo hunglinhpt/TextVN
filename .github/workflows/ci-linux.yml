@@ -229,7 +229,7 @@ jobs:
                   ;;
                 opensuse-leap-15-6)
                   zypper --non-interactive install --no-recommends \
-                    ibus libgtk-3-0 dbus-1 dbus-1-tools procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
+                    ibus libgtk-3-0 dbus-1 procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
                   ;;
                 ubuntu-22-04|debian-12)
                   export DEBIAN_FRONTEND=noninteractive
