@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795575866.5978706,
-    "seen": 1795576028.3358157,
-    "ast_hash": "64df12a562b439260e78e517f236ba37",
+    "mtime": 1795577049.3910916,
+    "seen": 1795577240.0203352,
+    "ast_hash": "6e09c9ef479284cb79b65c7d5b484775",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -834,9 +834,9 @@
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
-    "mtime": 1795575918.9042923,
-    "seen": 1795576028.320809,
-    "ast_hash": "4f89ff685f2743aacb3849f2145e9287",
+    "mtime": 1795577085.3264513,
+    "seen": 1795577240.0063307,
+    "ast_hash": "9ae4ff2d0256fbd9db80c5b9331adcd4",
     "semantic_hash": ""
   },
   "tray/src/menu.rs": {
@@ -858,9 +858,9 @@
     "semantic_hash": ""
   },
   "cli/src/doctor.rs": {
-    "mtime": 1795313933.7681534,
-    "seen": 1795314565.7932308,
-    "ast_hash": "1ae9ec4f24a8b8f869ba2c7a8ac5b491",
+    "mtime": 1795576994.9623508,
+    "seen": 1795577239.9793763,
+    "ast_hash": "03a9aa7ff6e3ff868421d42d2e3bd392",
     "semantic_hash": ""
   },
   "tools/win/lib/win32-uia.lib.ps1": {
@@ -906,9 +906,9 @@
     "semantic_hash": ""
   },
   "cli/src/register.rs": {
-    "mtime": 1795575577.722357,
-    "seen": 1795576028.3017926,
-    "ast_hash": "436b229a8d73ac9ff0a9ca274b7f030e",
+    "mtime": 1795577046.2611284,
+    "seen": 1795577239.9793763,
+    "ast_hash": "fd0725116776cec5274933febc2ee43a",
     "semantic_hash": ""
   },
   "tools/appcomptest/targets/chrome.json": {
@@ -1008,9 +1008,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795575901.3087745,
-    "seen": 1795576028.32481,
-    "ast_hash": "7b941bc4afde93230bc3594b755292b0",
+    "mtime": 1795577067.2433896,
+    "seen": 1795577240.010335,
+    "ast_hash": "cb3ecc77090798c8f1ea9a50704a00b6",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1044,9 +1044,9 @@
     "semantic_hash": ""
   },
   "tray/src/settings_dialog.rs": {
-    "mtime": 1795575918.8714914,
-    "seen": 1795576028.320809,
-    "ast_hash": "38fe4fb4a64a949eaeb7d62a8310c84b",
+    "mtime": 1795576826.2241056,
+    "seen": 1795577240.0063307,
+    "ast_hash": "eea9416cec6006553d0486077ef0c322",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/linux_common.h": {
@@ -2442,9 +2442,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/overlay.rs": {
-    "mtime": 1795313933.7106981,
-    "seen": 1795314565.7932308,
-    "ast_hash": "b64b8d500174d9c085d2d8f6e1b6bacb",
+    "mtime": 1795576833.098128,
+    "seen": 1795577239.9748669,
+    "ast_hash": "f7f6e08846d3ac61a47060f62863879d",
     "semantic_hash": ""
   },
   "assist/src/dict.rs": {
@@ -3354,9 +3354,9 @@
     "semantic_hash": ""
   },
   "xtask/src/win_tools.rs": {
-    "mtime": 1795395695.1684623,
-    "seen": 1795396416.3396564,
-    "ast_hash": "5dde3038d28c24c53e2f472c69577201",
+    "mtime": 1795577152.547476,
+    "seen": 1795577240.0083363,
+    "ast_hash": "f8ac10aa2880e36944f5e260f4778c94",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_emoji.h": {
@@ -3384,9 +3384,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/emoji_picker.rs": {
-    "mtime": 1795488416.2346663,
-    "seen": 1795491322.253344,
-    "ast_hash": "257fccfc15b990f1f6da399d89d81b4e",
+    "mtime": 1795577084.6231089,
+    "seen": 1795577239.9738667,
+    "ast_hash": "295fcef1ca923d0d4308f2ac00a68358",
     "semantic_hash": ""
   },
   "core/src/post/emoji_catalog.rs": {
@@ -3408,9 +3408,9 @@
     "semantic_hash": ""
   },
   "tray/src/emoji_popup.rs": {
-    "mtime": 1795487428.8876345,
-    "seen": 1795491322.2748904,
-    "ast_hash": "b75d635546a8d4c7b9d8da24f87988b8",
+    "mtime": 1795577085.2613757,
+    "seen": 1795577240.005825,
+    "ast_hash": "080171530a31b104fef315055b5b6880",
     "semantic_hash": ""
   },
   "core/tests/e63_expert_personas_audit.rs": {
