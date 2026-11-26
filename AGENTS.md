@@ -2,13 +2,13 @@
 
 > File này là **điểm vào tự nạp** cho agent (ZCode/Codex/Claude/…). Nội dung
 > tóm tắt; **luật đầy đủ và có ưu tiên cao hơn**: `docs/00-WORKFLOW.md`
-> (G1–G16) · `docs/01-AGENT-HANDBOOK.md` (DoD/security/review) ·
+> (G1–G20) · `docs/01-AGENT-HANDBOOK.md` (DoD/security/review) ·
 > `docs/release/release-process.md` (checklist phát hành). Mâu thuẫn → làm
 > theo file đó, không tự diễn giải.
 
 ## 0. Đọc trước khi làm bất cứ việc gì (trình tự)
 
-1. `docs/00-WORKFLOW.md` — ground rules G1–G16 + quy trình audit/fixbug/dọn dẹp/CI.
+1. `docs/00-WORKFLOW.md` — ground rules G1–G20 + quy trình audit/fixbug/dọn dẹp/CI.
 2. `PLAN.md` + `docs/01-AGENT-HANDBOOK.md` — mục tiêu, DoD 8 mục (kèm Dream RSI), security.
 3. `specs/verified-ops.md` + `specs/win-test-common-errors.md` +
    `specs/project-common-errors.md` — cái đã kiểm chứng + lỗi đã gặp (đừng lặp).
@@ -25,6 +25,7 @@
 | G16 | **Phát hành version mới = đi ĐỦ Checklist A (local) + Checklist B (repo/docs) trong `docs/release/release-process.md`** — không tag khi CI của commit gắn tag chưa xanh |
 | G18 | **Commit & Release bắt buộc cập nhật tài liệu liên quan & README song ngữ VI-EN toàn diện** — Mọi thay đổi tính năng/hành vi/API và mọi bản release PHẢI cập nhật docs liên quan (`README.md`, specs, ADR, CHANGELOG); `README.md` phải chính xác, đầy đủ bằng hoặc hơn template hiện tại, không thiếu sót; nêu bật các **tính năng vượt trội** (Rust core 3 OS an toàn bộ nhớ, TSF thuần không hook/inject, dự đoán P7 trie/frecency/sub-word, trợ lý ngữ pháp câu/từ ngữ cảnh, zero keylogging offline); **bắt buộc song ngữ Anh - Việt 1:1 đồng nhất 100% về cấu trúc, độ sâu thông tin và số liệu**; trình bày khoa học mạch lạc |
 | G19 | **Dream RSI (P10) — mọi agent code bộ gõ buộc phải review & implement Dream RSI** — Gợi ý phải luôn tiến hóa, đo được bằng số: (a) thêm đường accept prediction mới → gắn hook `DreamRsi` (tăng `accepts` + `chars_saved` đúng công thức — xem `docs/specs/dream-rsi.md`); (b) không phá `keys_typed` (chỉ phím gõ chữ thật `ch>0`, loại key-up/injected/modifier/chord/điều hướng); (c) bench/gate đo savings-rate trên corpus qua `dream_rsi_snapshot()` — **tính năng làm savings-rate giảm so baseline = không merge**; (d) audit 3× phải có 1 view Dream RSI (metrics tiến hóa tăng dần, G8 chỉ counter) |
+| G20 | **Mọi thay đổi code/tính năng/sửa lỗi → BẮT BUỘC tự động chạy trọn quy trình phát hành (`docs/release/release-process.md`), KHÔNG hỏi lại, KHÔNG bỏ bước** — Bất kỳ phiên nào có sửa mã nguồn (Rust/C/C++/Swift/script cài đặt/UI/packaging) đều PHẢI tự đi đủ từ đầu tới cuối: `cargo xtask preflight` → bump đủ 15 chỗ version + `Cargo.lock` + bộ docs phát hành B4 (`CHANGELOG.md` VI+EN, `README.md` 1:1 VI+EN, AppStream, `debian/changelog`, `PKGBUILD`/`.SRCINFO`, `build-release-report.md`) → commit ký GPG + push → 7/7 CI xanh → tag ký GPG `vX.Y.Z` → `release-candidate` 10/10 job xanh → verify 34 asset + GPG `Good signature` → sync `approved/vX.Y.Z/` (HTTP 200) → `sync-cask.yml` Homebrew tap xanh → pin hash Homebrew + AUR (`PKGBUILD` & `.SRCINFO`) + cập nhật report → `graphify update .` + push + CI cuối xanh. **Cấm hỏi "bạn có muốn phát hành không?" và cấm skip bất kỳ bước nào** (chỉ ngoại lệ khi người dùng ra lệnh tường minh không phát hành hoặc phiên chỉ sửa tài liệu thuần không đổi hành vi/code) |
 | — | Ngôn ngữ: chỉ Rust + C/C++ + Swift native, không thêm runtime mới cho user |
 
 ## 2. Chiến lược phát hành — các mốc bắt buộc theo thứ tự

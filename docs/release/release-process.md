@@ -1,10 +1,6 @@
 # Quy trình phát hành TextVN — bắt buộc cho mọi agent và contributor
 
-> **Trạng thái:** v1 (2026-10-01) — viết lại sau khi v0.2.0 → v0.2.2 phát hành
-> thành công bằng đúng quy trình này (ban đầu chạy theo kinh nghiệm, nay chuẩn
-> hoá thành checklist). Quy tắc **G16** trong `docs/00-WORKFLOW.md` trỏ tới file
-> này: **không ai được phép tag version mới nếu chưa đi hết Checklist A (máy
-> local) và Checklist B (repo/CI) bên dưới.**
+> **Trạng thái:** v2 (2026-11-26) — cập nhật luật **G20**: **MỌI phiên có thay đổi mã nguồn/UI/packaging/script sản phẩm đều BẮT BUỘC tự động chạy trọn quy trình phát hành trong file này (Checklist A + Checklist B1–B9 + `graphify update .`), KHÔNG hỏi lại người dùng và KHÔNG bỏ qua bất kỳ bước nào** (chỉ ngoại lệ khi người dùng yêu cầu tường minh không phát hành hoặc chỉ sửa tài liệu thuần). Quy tắc **G16** trong `docs/00-WORKFLOW.md` trỏ tới file này: **không ai được phép tag version mới nếu chưa đi hết Checklist A (máy local) và Checklist B (repo/CI) bên dưới.**
 >
 > Bản phát hành ở repo này là **release candidate đã ký integrity/provenance**:
 > mọi asset có chữ ký GPG `.asc` (FPR `3921595ABC961199F15303B6C45B84D0C7F4A822`) +

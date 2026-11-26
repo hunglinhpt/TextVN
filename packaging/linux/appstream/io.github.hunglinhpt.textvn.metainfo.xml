@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.91" date="2026-11-26">
+      <description>
+        <p>One-click Diagnose &amp; Export Log UX upgrade across all 3 operating systems. Places a prominent [Chẩn đoán &amp; xuất log] button at the top of the Help ("Hướng dẫn TextVN") dialog (vertical Command Links with TDF_SIZE_TO_CONTENT on Windows, dedicated top suggested-action row on Linux GTK4/GTK3, unified button on macOS) and exposes "Chẩn đoán &amp; xuất log..." directly at the top level of the Windows tray menu, macOS menu bar, and Linux IBus/Fcitx5 indicator menus (via textvn-settings --diagnose). Diagnostic result dialogs now display inline highlights and include an [Mở thư mục tệp ZIP] button alongside [Copy tóm tắt lỗi] and [Mở trang báo lỗi].</p>
+      </description>
+    </release>
     <release version="0.2.90" date="2026-11-26">
       <description>
         <p>E70 Diagnostics &amp; Conflict-Detection Completion. Privacy-safe panic reports (panic.log with source locations and backtrace symbols only, never dynamic messages) for the tray, CLI and hook; detection of the operating system's built-in Vietnamese input methods (Microsoft Vietnamese Telex/VNI, Apple Vietnamese) next to TextVN; new textvn --check-env, --diagnose and --export-log entry points with build commit, target and distribution type in the bundle; Windows tray startup conflict notice and redacted copy-summary button; a fix for a config-parsing performance regression introduced in 0.2.83 (10.4 to 2.17 microseconds); and real container smoke tests of the release tarball on Ubuntu 20.04 LTS and Debian 11.</p>

@@ -7,6 +7,57 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.91] — 2026-11-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Cải thiện giao diện / Changed
+
+- **Chẩn đoán & xuất log 1 chạm ngay trong popup "Hướng dẫn TextVN" và cấp 1 menu khay (3 OS)**:
+  - **Windows** (`tray/src/settings_dialog.rs`, `tray/src/menu.rs`, `tray/src/conflict_notice.rs`):
+    - Chuyển popup **"Hướng dẫn TextVN"** sang **Command Links xếp dọc toàn chiều rộng** (`TDF_USE_COMMAND_LINKS | TDF_SIZE_TO_CONTENT`, `TDCBF_CLOSE_BUTTON`), đặt **`Chẩn đoán & xuất log`** ở **vị trí #1** kèm mô tả dễ hiểu ngay trên **`Cài & bật TSF`** — không bao giờ bị tràn hay cắt nút ở mọi mức DPI (100%–200%).
+    - Hộp kết quả chẩn đoán thêm nút **`[Mở thư mục tệp ZIP]`** (`explorer.exe /select,...`, `TDF_SIZE_TO_CONTENT`) cạnh **`[Copy tóm tắt lỗi]`**, **`[Mở trang báo lỗi]`** và **`[Đóng]`**.
+    - Đưa **`Chẩn đoán & xuất log...`** lên **cấp 1 menu chuột phải biểu tượng khay** ngay dưới `Cài đặt...` (không phải tìm trong submenu `Sức khỏe / Trạng thái`), cập nhật gợi ý trong thông báo xung đột khởi động.
+  - **Linux GTK4, GTK3, IBus & Fcitx5** (`adapters/linux-settings/src/{main.c,settings_model.c,settings_window.h,settings_window.c,settings_window_gtk3.c}`, `adapters/linux-ibus/{include/textvn_ibus_engine.h,src/engine.c}`, `adapters/linux-fcitx5/src/{engine.h,engine.cpp}`):
+    - Popup **"Hướng dẫn TextVN"** (cả GTK4 lẫn GTK3) tách hàng 1 riêng nổi bật (`suggested-action`, giãn trọn chiều ngang) cho nút **`[Chẩn đoán & xuất log]`**, phía dưới là hàng liên kết `[Math & Science] [Thảo luận] [Báo lỗi] [Đóng]`.
+    - Hộp kết quả trích hiển thị tối đa 8 phát hiện lỗi/xung đột chính kèm nút **`[Mở thư mục tệp ZIP]`** và **`[Mở trang báo lỗi]`**.
+    - Bổ sung mục **`Chẩn đoán & xuất log…`** ngay cấp 1 menu khay **IBus** (`PROP_DIAG`) và **Fcitx5** (`diagAction_`), kích hoạt `textvn-settings --diagnose` (hỗ trợ `GSimpleAction` gọi từ xa khi cửa sổ cài đặt đã mở sẵn).
+  - **macOS** (`adapters/macos-app/Sources/TextVNAppLib/{AppInfo.swift,SettingsView.swift,AppDelegate.swift}`):
+    - Thống nhất nút **`Chẩn đoán & xuất log`** trong popup **"Hướng dẫn TextVN"** và đưa mục **`Chẩn đoán & xuất log...`** lên **cấp 1 thanh menu** ngay dưới `Cài đặt...`; hộp kết quả mở sẵn Finder chọn tệp kèm **`[Copy tóm tắt lỗi]`** và **`[Mở trang báo lỗi]`**.
+- **Tài liệu & quy trình**: cập nhật đồng bộ `docs/TROUBLESHOOTING.md`, `docs/user-guide.md`, `docs/release/ui-spec.md`, `README.md` (song ngữ 1:1 VI–EN); ghi nhận luật bắt buộc **G20** (mọi thay đổi code đều tự động đi trọn quy trình phát hành `release-process.md`, không hỏi lại, không bỏ bước) vào `AGENTS.md`, `docs/00-WORKFLOW.md` và `docs/release/release-process.md`.
+
+### Kiểm thử / Testing
+
+- Mở rộng `help_window_links_match_every_platform` và `button_row_has_icons_hints_and_no_tsf_button` (`tray/src/settings_dialog.rs`) kiểm chứng đồng bộ cả 3 OS (Windows Command Links + `TDF_SIZE_TO_CONTENT`, Linux GTK4/GTK3, macOS, và mục cấp 1 menu khay Windows/macOS/Linux IBus/Linux Fcitx5).
+- `cargo xtask preflight` 25/25 bước PASS (fmt, clippy Windows + Linux `-D warnings`, toàn bộ test workspace, ABI, replay 4 adapter, version-sync 15/15 = `0.2.91`, perf, hygiene, REUSE 3.3, Dream RSI 22% không đổi).
+
+---
+
+**English** — 0.2.91:
+
+### Changed
+
+- **One-click Diagnose & Export Log right inside the "Hướng dẫn TextVN" Help popup and top-level tray menus (all 3 OSes)**:
+  - **Windows** (`tray/src/settings_dialog.rs`, `tray/src/menu.rs`, `tray/src/conflict_notice.rs`):
+    - Upgraded the **"Hướng dẫn TextVN"** Help popup to full-width vertical **Command Links** (`TDF_USE_COMMAND_LINKS | TDF_SIZE_TO_CONTENT`, `TDCBF_CLOSE_BUTTON`), placing **`Chẩn đoán & xuất log`** at **position #1** with a plain-language subtitle directly above **`Cài & bật TSF`** — eliminating button overflow/clipping at any DPI (100%–200%).
+    - The diagnostic result dialog adds **`[Mở thư mục tệp ZIP]`** (`explorer.exe /select,...`, `TDF_SIZE_TO_CONTENT`) alongside **`[Copy tóm tắt lỗi]`**, **`[Mở trang báo lỗi]`**, and **`[Đóng]`**.
+    - Promoted **`Chẩn đoán & xuất log...`** directly to the **top level of the tray right-click menu** right under `Cài đặt...` (no submenu hunting), and updated the startup conflict toast wording.
+  - **Linux GTK4, GTK3, IBus & Fcitx5** (`adapters/linux-settings/src/{main.c,settings_model.c,settings_window.h,settings_window.c,settings_window_gtk3.c}`, `adapters/linux-ibus/{include/textvn_ibus_engine.h,src/engine.c}`, `adapters/linux-fcitx5/src/{engine.h,engine.cpp}`):
+    - The **"Hướng dẫn TextVN"** popup (both GTK4 and GTK3) puts **`[Chẩn đoán & xuất log]`** in its own full-width top `suggested-action` row above `[Math & Science] [Thảo luận] [Báo lỗi] [Đóng]`.
+    - The diagnostic result dialog displays up to 8 inline error/warning highlights along with **`[Mở thư mục tệp ZIP]`** and **`[Mở trang báo lỗi]`**.
+    - Added **`Chẩn đoán & xuất log…`** directly to the **IBus** (`PROP_DIAG`) and **Fcitx5** (`diagAction_`) indicator menus, launching `textvn-settings --diagnose` (with `GSimpleAction` remote activation when Settings is already open).
+  - **macOS** (`adapters/macos-app/Sources/TextVNAppLib/{AppInfo.swift,SettingsView.swift,AppDelegate.swift}`):
+    - Unified the **`Chẩn đoán & xuất log`** button in the **"Hướng dẫn TextVN"** popup and promoted **`Chẩn đoán & xuất log...`** to the **top level of the menu bar** right below `Cài đặt...`; the result alert reveals the file in Finder and offers **`[Copy tóm tắt lỗi]`** and **`[Mở trang báo lỗi]`**.
+- **Documentation & Workflow**: synced `docs/TROUBLESHOOTING.md`, `docs/user-guide.md`, `docs/release/ui-spec.md`, and `README.md` (1:1 bilingual VI–EN); codified mandatory rule **G20** (every code/UI/packaging change automatically completes the full `release-process.md` checklist without prompting or skipping) in `AGENTS.md`, `docs/00-WORKFLOW.md`, and `docs/release/release-process.md`.
+
+### Testing
+
+- Extended `help_window_links_match_every_platform` and `button_row_has_icons_hints_and_no_tsf_button` (`tray/src/settings_dialog.rs`) to enforce 3-OS parity across Help dialogs (Windows Command Links + `TDF_SIZE_TO_CONTENT`, Linux GTK4/GTK3, macOS) and top-level tray/indicator menus (Windows, macOS, Linux IBus, Linux Fcitx5).
+- `cargo xtask preflight` 25/25 steps PASS (fmt, Windows + Linux clippy `-D warnings`, full workspace tests, ABI, 4-adapter replay, 15/15 version-sync = `0.2.91`, perf, hygiene, REUSE 3.3, Dream RSI 22% unchanged).
+
+---
+
 ## [0.2.90] — 2026-11-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3875,7 +3926,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.91]: https://github.com/hunglinhpt/TextVN/compare/v0.2.90...v0.2.91
 [0.2.90]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...v0.2.90
 [0.2.89]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...v0.2.89
 [0.2.88]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...v0.2.88

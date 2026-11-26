@@ -1,3 +1,24 @@
+textvn (0.2.91-0ppa1) noble; urgency=medium
+
+  * 1-click Diagnose & Export Log UX upgrade across Help popup & top-level tray menus (3 OSes):
+    - Windows: "Hướng dẫn TextVN" upgraded to full-width vertical Command Links
+      (TDF_USE_COMMAND_LINKS | TDF_SIZE_TO_CONTENT) with [Chẩn đoán & xuất log] at #1
+      above [Cài & bật TSF] so buttons never clip at any DPI; result dialog adds
+      [Mở thư mục tệp ZIP] (explorer.exe /select,...) alongside [Copy tóm tắt lỗi]
+      and [Mở trang báo lỗi]; top-level tray menu adds "Chẩn đoán & xuất log..."
+      directly below "Cài đặt...".
+    - Linux (GTK4 + GTK3): "Hướng dẫn TextVN" puts [Chẩn đoán & xuất log] in its own
+      prominent top suggested-action row, displays inline error/warning highlights
+      and adds [Mở thư mục tệp ZIP] + [Mở trang báo lỗi]; IBus and Fcitx5 indicator
+      menus add "Chẩn đoán & xuất log…" launching `textvn-settings --diagnose`
+      (supporting single-instance remote action).
+    - macOS: Help popup & top-level menu bar add "Chẩn đoán & xuất log" with
+      Finder reveal + [Copy tóm tắt lỗi] + [Mở trang báo lỗi].
+    - Workflow: recorded mandatory G20 auto-release rule in AGENTS.md,
+      docs/00-WORKFLOW.md, and docs/release/release-process.md.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Thu, 26 Nov 2026 10:35:00 +0700
+
 textvn (0.2.90-0ppa1) noble; urgency=medium
 
   * E70 — Diagnostics & conflict-detection completion after the E69 gap audit:
