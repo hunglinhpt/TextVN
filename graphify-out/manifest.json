@@ -762,9 +762,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795625144.1852012,
-    "seen": 1795625356.980065,
-    "ast_hash": "83d644746b554c3c1b6283441299c997",
+    "mtime": 1795626914.7687438,
+    "seen": 1795654102.1757145,
+    "ast_hash": "e7d6448c28d56b0339b7f1e21f7cbfe9",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -996,9 +996,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1795617690.9343927,
-    "seen": 1795625356.980065,
-    "ast_hash": "04f5691fe691381afa2ced32b704aa4b",
+    "mtime": 1795626962.0910592,
+    "seen": 1795654102.1665606,
+    "ast_hash": "a1b173aac2b49d60bbe6f12b198ee233",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1008,9 +1008,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795625174.7853558,
-    "seen": 1795625356.980065,
-    "ast_hash": "d6368337cf42570f7023225b1c19ceef",
+    "mtime": 1795625510.4491746,
+    "seen": 1795654102.1665606,
+    "ast_hash": "1dbb6aa4347c7aa8aa81de93ca7f1dbf",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1326,9 +1326,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1795617578.537253,
-    "seen": 1795625356.9785607,
-    "ast_hash": "2c3b6121e6afd50952e89c45c0fb5090",
+    "mtime": 1795625510.3967783,
+    "seen": 1795654102.1345308,
+    "ast_hash": "efd96ecf2ebb7be11c75c018b448a63c",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1344,9 +1344,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1795617581.942064,
-    "seen": 1795625356.9785607,
-    "ast_hash": "bf73162dd1b972ba175e8397aff31f80",
+    "mtime": 1795625510.3967783,
+    "seen": 1795654102.1345308,
+    "ast_hash": "8d59e67a96a4d2a3a824d8db19b67a1c",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1795617585.3189952,
-    "seen": 1795625356.9785607,
-    "ast_hash": "83265dd918eecb450ac4cf6786b9102a",
+    "mtime": 1795625510.3967783,
+    "seen": 1795654102.1365309,
+    "ast_hash": "d9c7504f36dbd72d743c11b1099b94d2",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1602,9 +1602,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1795624591.6422696,
-    "seen": 1795625356.980065,
-    "ast_hash": "00f4d1aa08a5a12d09700809018acc19",
+    "mtime": 1795654060.852982,
+    "seen": 1795654102.1540534,
+    "ast_hash": "a716982f628a8631502632b14ae430c6",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1836,9 +1836,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1795624638.825125,
-    "seen": 1795625356.980065,
-    "ast_hash": "e53a6736533f862661cdfd0c07c4feff",
+    "mtime": 1795654073.6129467,
+    "seen": 1795654102.1747146,
+    "ast_hash": "a5f4f04eae07a27249d9820c2fab6894",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1926,9 +1926,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1795397982.2590258,
-    "seen": 1795625356.980065,
-    "ast_hash": "64792ca66e695f33621870c16b37ba56",
+    "mtime": 1795625539.3001423,
+    "seen": 1795654102.1747146,
+    "ast_hash": "765dadc4afafbf38e4a3e7e15eac9c17",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
@@ -2220,9 +2220,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci-linux.yml": {
-    "mtime": 1795623567.0469081,
-    "seen": 1795625356.980065,
-    "ast_hash": "08fb6a423521f4b93dd9b81d6cdb0134",
+    "mtime": 1795626886.2613728,
+    "seen": 1795654102.1655605,
+    "ast_hash": "a2b2a9a0343ba5b441cec54d6933c2ad",
     "semantic_hash": ""
   },
   ".github/workflows/ci-windows.yml": {
