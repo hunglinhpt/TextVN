@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.90" date="2026-11-26">
+      <description>
+        <p>E70 Diagnostics &amp; Conflict-Detection Completion. Privacy-safe panic reports (panic.log with source locations and backtrace symbols only, never dynamic messages) for the tray, CLI and hook; detection of the operating system's built-in Vietnamese input methods (Microsoft Vietnamese Telex/VNI, Apple Vietnamese) next to TextVN; new textvn --check-env, --diagnose and --export-log entry points with build commit, target and distribution type in the bundle; Windows tray startup conflict notice and redacted copy-summary button; a fix for a config-parsing performance regression introduced in 0.2.83 (10.4 to 2.17 microseconds); and real container smoke tests of the release tarball on Ubuntu 20.04 LTS and Debian 11.</p>
+      </description>
+    </release>
     <release version="0.2.89" date="2026-11-25">
       <description>
         <p>E69 Smart Dependency Auto-Installer, Cross-OS Conflicting IME Detector &amp; 3-OS One-Click Diagnostic Export. On Linux, install.sh, textvn-portable.sh, and scripts/install_linux.sh automatically detect missing IBus/Fcitx5/GTK3/GTK4 runtime and build dependencies across apt, dnf, yum, zypper, and pacman and pull/install them (--install-deps or interactive [Y/n]) before re-verifying ABI. Across Linux, Windows, and macOS, TextVN detects conflicting input methods (dual ibus-daemon + fcitx5, fcitx v4/scim/uim/xvnkb, ibus-unikey/bamboo/bogo/teni, fcitx5 unikey/bamboo, IM env mismatches, Windows UniKey/EVKey/OpenKey/GoTiengViet/VietKey, macOS OpenKey/EVKey/GoTiengViet) with explicit error codes and actionable exit instructions. Adds persistent G8-redacted install-diag.log, upgraded textvn doctor (--report and --export auto producing report_summary.md, redacted config, OS env JSON, and register/install/runtime log tails), and a 1-click [Xuất log chẩn đoán] button in the Help dialog across Windows, Linux GTK4/GTK3, and macOS.</p>

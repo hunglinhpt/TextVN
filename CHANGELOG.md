@@ -7,6 +7,59 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.90] — 2026-11-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Tính năng mới / Added
+
+- **E70 — Hoàn thiện chẩn đoán & phát hiện xung đột sau gap-audit E69 (3 OS)**:
+  - **Lối vào chẩn đoán thống nhất** (`cli/src/main.rs`): `textvn-cli --check-env [--json]` (= `doctor`), `--diagnose [--json]` (= `doctor --report`, Markdown dán GitHub Issues), `--export-log [<path.zip>]` (= `doctor --export`); Linux dùng `textvn …`.
+  - **Báo cáo panic an toàn riêng tư** (`config/src/crash.rs`, dùng chung G15): tray `TextVN.exe`, `textvn-cli`, `textvn-hook.exe` ghi `panic.log` (Windows `%LOCALAPPDATA%\TextVN\logs`, Linux `~/.local/state/TextVN/log`, macOS `~/Library/Logs/TextVN`; xoay vòng 64 KiB, không theo symlink) gồm mã `ERR_PANIC`, thành phần, phiên bản, target, luồng, `file:dòng:cột` và **chỉ tên hàm** trong backtrace; thông điệp panic dạng chuỗi động **không bao giờ được ghi** (chỉ độ dài — G8). `doctor` báo `W_RECENT_PANIC`, gói ZIP thêm `panic_tail.log`. Không cài vào DLL TSF (đã `catch_unwind`).
+  - **Phát hiện bộ gõ tiếng Việt có sẵn của hệ điều hành**: Windows `W_CONFLICT_VI_TIP` — **Microsoft Vietnamese Telex / Number Key-Based (VNI)** (CLSID `{C2CB2CF0-AF47-413E-9780-8BC3A3C16068}`) hoặc TIP lạ đang bật cạnh TextVN trong `HKCU\Control Panel\International\User Profile` (kiểm chứng trên máy thật Windows 11 26300); macOS `W_CONFLICT_APPLE_VI_IM` — Apple Vietnamese Telex / Simple Telex / VNI / VIQR đang bật (Swift `ConflictScan` qua Text Input Sources, đưa vào báo cáo `.md` của nút *Xuất log chẩn đoán*).
+  - **Windows tray**: tự kiểm tra xung đột ở nền mỗi lần khởi động và hiện thông báo khay **một lần cho mỗi tập xung đột mới** (`tray/src/conflict_notice.rs`, marker `%APPDATA%\TextVN\conflict_notice`, tắt bằng `TEXTVN_SKIP_CONFLICT_CHECK`); mục menu mới **Sức khỏe / Trạng thái › Xuất log chẩn đoán (Diagnostic Log)...**; hộp kết quả xuất log có **[Copy tóm tắt lỗi]** (`tray/src/diag_summary.rs` — chỉ tên tệp ZIP, ẩn `USERNAME`/thư mục người dùng) và **[Mở trang báo lỗi]**.
+  - **`version.json` trong gói chẩn đoán**: thêm `git_sha` (commit build, `cli/build.rs`), `target` (target triple), `distribution` (`installer-user` / `installer-machine` / `portable` / `store` / `system-package` / `user-install` / `app-bundle`).
+  - **CI Linux**: job mới `smoke-legacy-lts` chạy tarball phát hành trong container thật **Ubuntu 20.04 LTS** và **Debian 11** (`scripts/test-linux-smoke.sh`: ldd sạch cho 3 ELF baseline EL8, `--check-env`/`--diagnose`/`--export-log` không lộ PII, `--check-abi`, `install.sh`/`uninstall.sh` per-user); container Debian 11 cài gói từ `archive.debian.org` vì pool `debian-security` bullseye trên `deb.debian.org` trả 404 sau khi hết LTS (E71).
+  - **Tài liệu**: `docs/TROUBLESHOOTING.md` song ngữ (xuất gói chẩn đoán, bảng mã lỗi đầy đủ, cách thoát từng bộ gõ xung đột, phụ thuộc theo distro, lưu ý Windows doanh nghiệp/LTSC/portable — kèm lý do bản portable giữ cấu hình ở `%APPDATA%`: DLL TSF nạp trong tiến trình AppContainer không đọc được thư mục tuỳ ý).
+
+### Sửa lỗi / Fixed
+
+- **Hồi quy hiệu năng `parse_config` từ 0.2.83** (`math/src/config.rs`, `ffi/src/lib.rs`): `MathConfig::validate` chuẩn hoá lại 10 tổ hợp phím bảo vệ × mỗi hotkey ở MỖI lần đọc cấu hình (≈200+ cấp phát heap) và 4 hotkey mặc định bị dựng/clone nhiều lượt → p50 **1,45 µs (0.2.82) → 10,4 µs (0.2.89)**. Bisect theo tag/commit xác định `dbfebac6`; sửa bằng chữ ký combo tính sẵn (`OnceLock`), `HotkeySpec` dùng `Cow<'static, str>` (mặc định không cấp phát) và MOVE khối `math` thay vì clone → **≈2,17 µs (−79%)**, cổng `perf/baseline-win.json` xanh trở lại.
+- **Lớp bảo vệ hotkey Math bị vượt qua bằng chữ thường**: `"Ctrl+v"`, `"alt+f4"`, `"del+alt+ctrl"` trước đây lọt qua kiểm tra `Ctrl+V`/`Alt+F4`/`Ctrl+Alt+Del` vì chỉ modifier được chuẩn hoá hoa/thường — nay so khớp không phân biệt hoa/thường (cấu hình sửa tay có hotkey như vậy sẽ bị từ chối như `Ctrl+V`).
+
+### Kiểm thử / Testing
+
+- Test mới: `config` `e70_*` ×4 (payload động không lọt vào `panic.log`, backtrace bỏ đường dẫn, xoay vòng), `textvn-cli` `e70_*` ×7 (giá trị registry thật, input source Apple, phân loại bản, ZIP có `panic_tail.log`/`git_sha`), `textvn-tray` `e70_*` ×7 (`conflict_notice`, `diag_summary` kể cả tên người dùng Unicode), `textvn-math` `e70_protected_hotkeys_case_insensitive`, Swift `testE70AppleVietnameseModesDetection`, `scripts/test-linux-smoke.sh`.
+- `cargo xtask preflight` 25/25 bước (fmt, clippy Windows + Linux `-D warnings`, test toàn workspace, ABI, replay 4 adapter, version-sync, **perf**, hygiene), Dream RSI (G19) không đổi — không đụng đường accept dự đoán.
+
+---
+
+**English** — 0.2.90:
+
+### Added
+
+- **E70 — Completing diagnostics & conflict detection after the E69 gap audit (3 OSes)**:
+  - **Unified diagnostic entry points** (`cli/src/main.rs`): `textvn-cli --check-env [--json]` (= `doctor`), `--diagnose [--json]` (= `doctor --report`, Markdown for GitHub Issues), `--export-log [<path.zip>]` (= `doctor --export`); Linux uses `textvn …`.
+  - **Privacy-safe panic reports** (`config/src/crash.rs`, shared per G15): the `TextVN.exe` tray, `textvn-cli` and `textvn-hook.exe` write `panic.log` (Windows `%LOCALAPPDATA%\TextVN\logs`, Linux `~/.local/state/TextVN/log`, macOS `~/Library/Logs/TextVN`; 64 KiB rotation, symlink-refusing) with code `ERR_PANIC`, component, version, target, thread, `file:line:column` and **function names only** from the backtrace; dynamic-string panic messages are **never recorded** (length only — G8). `doctor` reports `W_RECENT_PANIC` and the ZIP gains `panic_tail.log`. Not installed in the TSF DLL (already `catch_unwind`).
+  - **Detection of the OS's built-in Vietnamese input methods**: Windows `W_CONFLICT_VI_TIP` — **Microsoft Vietnamese Telex / Number Key-Based (VNI)** (CLSID `{C2CB2CF0-AF47-413E-9780-8BC3A3C16068}`) or an unknown TIP enabled next to TextVN in `HKCU\Control Panel\International\User Profile` (verified on a real Windows 11 26300 machine); macOS `W_CONFLICT_APPLE_VI_IM` — Apple Vietnamese Telex / Simple Telex / VNI / VIQR enabled (Swift `ConflictScan` via Text Input Sources, included in the `.md` report of the *Export diagnostic log* button).
+  - **Windows tray**: runs a background conflict check on every start and shows a tray notification **once per new conflict set** (`tray/src/conflict_notice.rs`, marker `%APPDATA%\TextVN\conflict_notice`, disable with `TEXTVN_SKIP_CONFLICT_CHECK`); new menu item **Health / Status › Export diagnostic log (*Xuất log chẩn đoán*)...**; the export result dialog offers **[Copy tóm tắt lỗi]** (*copy error summary* — `tray/src/diag_summary.rs`: ZIP file name only, `USERNAME`/user folder redacted) and **[Mở trang báo lỗi]** (*open bug-report page*).
+  - **`version.json` in the diagnostic bundle**: adds `git_sha` (build commit, `cli/build.rs`), `target` (target triple), `distribution` (`installer-user` / `installer-machine` / `portable` / `store` / `system-package` / `user-install` / `app-bundle`).
+  - **Linux CI**: new `smoke-legacy-lts` job runs the release tarball inside real **Ubuntu 20.04 LTS** and **Debian 11** containers (`scripts/test-linux-smoke.sh`: clean ldd for the 3 EL8-baseline ELFs, PII-free `--check-env`/`--diagnose`/`--export-log`, `--check-abi`, per-user `install.sh`/`uninstall.sh`); the Debian 11 container installs packages from `archive.debian.org` because the bullseye `debian-security` pool on `deb.debian.org` returns 404 after its LTS ended (E71).
+  - **Documentation**: bilingual `docs/TROUBLESHOOTING.md` (exporting the bundle, full error-code table, how to exit each conflicting IME, per-distro dependencies, Windows enterprise/LTSC/portable notes — including why the portable build keeps its configuration in `%APPDATA%`: the TSF DLL runs inside AppContainer processes that cannot read arbitrary folders).
+
+### Fixed
+
+- **`parse_config` performance regression since 0.2.83** (`math/src/config.rs`, `ffi/src/lib.rs`): `MathConfig::validate` re-normalized 10 protected key combos × every hotkey on EVERY config parse (≈200+ heap allocations) and the 4 default hotkeys were rebuilt/cloned several times → p50 **1.45 µs (0.2.82) → 10.4 µs (0.2.89)**. A tag/commit bisect pinned `dbfebac6`; fixed with precomputed combo signatures (`OnceLock`), `HotkeySpec` as `Cow<'static, str>` (allocation-free defaults) and moving the `math` block instead of cloning → **≈2.17 µs (−79%)**, the `perf/baseline-win.json` gate is green again.
+- **Math hotkey protection bypassable with lowercase**: `"Ctrl+v"`, `"alt+f4"`, `"del+alt+ctrl"` used to slip past the `Ctrl+V`/`Alt+F4`/`Ctrl+Alt+Del` check because only modifiers were case-normalized — matching is now case-insensitive (a hand-edited configuration with such a hotkey is rejected exactly like `Ctrl+V`).
+
+### Testing
+
+- New tests: `config` `e70_*` ×4 (dynamic payload never reaches `panic.log`, backtrace drops paths, rotation), `textvn-cli` `e70_*` ×7 (real registry values, Apple input sources, distribution classification, ZIP contains `panic_tail.log`/`git_sha`), `textvn-tray` `e70_*` ×7 (`conflict_notice`, `diag_summary` including Unicode user names), `textvn-math` `e70_protected_hotkeys_case_insensitive`, Swift `testE70AppleVietnameseModesDetection`, `scripts/test-linux-smoke.sh`.
+- `cargo xtask preflight` 25/25 steps (fmt, Windows + Linux clippy `-D warnings`, full workspace tests, ABI, 4-adapter replay, version-sync, **perf**, hygiene); Dream RSI (G19) unchanged — no prediction accept path touched.
+
+---
+
 ## [0.2.89] — 2026-11-25
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3823,6 +3876,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...HEAD
+[0.2.90]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...v0.2.90
 [0.2.89]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...v0.2.89
 [0.2.88]: https://github.com/hunglinhpt/TextVN/compare/v0.2.87...v0.2.88
 [0.2.87]: https://github.com/hunglinhpt/TextVN/compare/v0.2.86...v0.2.87

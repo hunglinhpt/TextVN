@@ -1,3 +1,22 @@
+textvn (0.2.90-0ppa1) noble; urgency=medium
+
+  * E70 — Diagnostics & conflict-detection completion after the E69 gap audit:
+    - Privacy-safe panic reports (`panic.log`: ERR_PANIC, source location and
+      backtrace symbols only, dynamic messages never recorded) for tray, CLI and
+      hook; `textvn doctor` W_RECENT_PANIC and `panic_tail.log` in the bundle.
+    - Detects the OS built-in Vietnamese IMEs: Microsoft Vietnamese Telex/VNI TIP
+      (W_CONFLICT_VI_TIP) and Apple Vietnamese input sources (W_CONFLICT_APPLE_VI_IM).
+    - New CLI entry points `--check-env`, `--diagnose`, `--export-log`; bundle
+      `version.json` carries git_sha, target triple and distribution type.
+    - Windows tray startup conflict notice, Health menu diagnostic export and
+      redacted [Copy error summary] / [Open bug-report page] buttons.
+    - Fixes a `parse_config` performance regression from 0.2.83 (10.4 us -> 2.17 us)
+      and a case-sensitivity bypass of the protected Math hotkey check.
+    - CI smoke tests of the release tarball on Ubuntu 20.04 LTS and Debian 11;
+      new bilingual docs/TROUBLESHOOTING.md.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Thu, 26 Nov 2026 00:30:00 +0700
+
 textvn (0.2.89-0ppa1) noble; urgency=medium
 
   * E69 — Automatic Linux dependency check & installer (`ibus`/`fcitx5`/`gtk3`/`gtk4`),
