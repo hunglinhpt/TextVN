@@ -80,8 +80,8 @@ public struct SettingsView: View {
         self.onExpandedChange = onExpandedChange
     }
 
-    /// Cửa sổ "Hướng dẫn": nội dung + [Thảo luận] [Báo lỗi] [Xuất log chẩn đoán] [Đóng] —
-    /// cùng bố cục với Windows (TaskDialog) và Linux (GTK). SwiftUI `Alert` chỉ hỗ trợ 2 nút nên dùng NSAlert.
+    /// Cửa sổ "Hướng dẫn": nội dung + [Chẩn đoán & xuất log] [Math & Science] [Thảo luận] [Báo lỗi] [Đóng] —
+    /// cùng bộ hành động với Windows (Command Links) và Linux (GTK). SwiftUI `Alert` chỉ hỗ trợ 2 nút nên dùng NSAlert.
     private func showHelp() {
         let alert = NSAlert()
         alert.messageText = AppInfo.helpTitle
@@ -93,8 +93,8 @@ public struct SettingsView: View {
         // add SAU "Thảo luận" để nút nằm ngay bên TRÁI Thảo luận.
         alert.addButton(withTitle: "Math & Science")
         alert.addButton(withTitle: "Báo lỗi")
-        // E69: nút Xuất log chẩn đoán (rawValue 1004) — xuất file chẩn đoán ẩn PII (G8).
-        alert.addButton(withTitle: "Xuất log chẩn đoán")
+        // E69/E72: nút Chẩn đoán & xuất log (rawValue 1004) — kiểm tra xung đột & xuất file chẩn đoán ẩn PII (G8).
+        alert.addButton(withTitle: "Chẩn đoán & xuất log")
         let response = alert.runModal()
         // Thảo luận mở Discussions; Math & Science mở tài liệu guide; Báo lỗi mở issues URL.
         let target: String
@@ -104,7 +104,7 @@ public struct SettingsView: View {
         // Nút thứ 4 không có hằng Swift sẵn — dùng rawValue 1003.
         case NSApplication.ModalResponse(rawValue: 1003): target = AppInfo.reportIssueUrl
         case NSApplication.ModalResponse(rawValue: 1004):
-            exportDiagnosticsReport()
+            Self.exportDiagnosticsReport()
             return
         default: return
         }
@@ -113,9 +113,9 @@ public struct SettingsView: View {
         }
     }
 
-    /// E69: Xuất báo cáo chẩn đoán ẩn danh tính (G8/S2 — không chứa nội dung gõ hay từ vựng cá nhân)
-    /// ra Desktop để người dùng đính kèm khi báo lỗi.
-    private func exportDiagnosticsReport() {
+    /// E69/E72: Chẩn đoán xung đột & xuất báo cáo chẩn đoán ẩn danh tính (G8/S2 — không chứa nội dung gõ hay từ vựng cá nhân)
+    /// ra Desktop, mở sẵn Finder chọn tệp và cho phép [Copy tóm tắt lỗi] / [Mở trang báo lỗi] trong 1 chạm.
+    public static func exportDiagnosticsReport() {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let desktop = home.appendingPathComponent("Desktop", isDirectory: true)
@@ -188,23 +188,50 @@ public struct SettingsView: View {
         md += "\n## Thông tin người dùng bổ sung khi báo lỗi\n\n"
         md += "- **Ứng dụng đang gõ**: \n- **Chuỗi phím đã gõ**: \n- **Kết quả thực tế**: \n- **Kết quả mong đợi**: \n"
 
-        let resAlert = NSAlert()
+        var summary = "TextVN \(AppInfo.displayVersion) (macOS) — tóm tắt chẩn đoán (đã ẩn tên người dùng, không chứa nội dung gõ)\n"
+        summary += "- Tệp đính kèm: \(outUrl.lastPathComponent)\n"
+        summary += "- macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)\n"
+        summary += "- Xung đột: \(conflicts.isEmpty ? "Không" : conflicts.joined(separator: "; "))\n"
+
         do {
             try md.write(to: outUrl, atomically: true, encoding: .utf8)
             NSWorkspace.shared.activateFileViewerSelecting([outUrl])
-            resAlert.messageText = "Đã xuất log chẩn đoán TextVN"
-            resAlert.informativeText =
-                "Đã lưu tệp chẩn đoán tại:\n\(outUrl.path)\n\n"
-                + "Tệp đã tự động ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\n"
-                + "Hãy đính kèm tệp này khi bấm [Báo lỗi] tại \(AppInfo.reportIssueUrl)."
-                + (conflicts.isEmpty ? "" : "\n\nCảnh báo xung đột: \(conflicts.joined(separator: ", ")) — hãy thoát bộ gõ cũ trước khi dùng TextVN.")
+            while true {
+                let resAlert = NSAlert()
+                resAlert.messageText = "Kết quả chẩn đoán & xuất log TextVN"
+                resAlert.informativeText =
+                    "Đã lưu tệp chẩn đoán tại:\n\(outUrl.path)\n\n"
+                    + "Finder đã mở sẵn và chọn tệp này. Tệp đã ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\n"
+                    + "Hãy đính kèm tệp khi báo lỗi tại \(AppInfo.reportIssueUrl)."
+                    + (conflicts.isEmpty ? "" : "\n\nCảnh báo xung đột: \(conflicts.joined(separator: ", ")) — hãy thoát bộ gõ cũ trước khi dùng TextVN.")
+                resAlert.addButton(withTitle: "Đóng")
+                resAlert.addButton(withTitle: "Copy tóm tắt lỗi")
+                resAlert.addButton(withTitle: "Mở trang báo lỗi")
+                let choice = resAlert.runModal()
+                if choice == .alertSecondButtonReturn {
+                    let pb = NSPasteboard.general
+                    pb.clearContents()
+                    pb.setString(summary, forType: .string)
+                    let copied = NSAlert()
+                    copied.messageText = "Đã copy tóm tắt lỗi"
+                    copied.informativeText = "Đã chép tóm tắt (đã ẩn tên người dùng) vào clipboard — dán vào ô mô tả khi mở báo lỗi rồi kéo thả tệp vừa mở trong Finder."
+                    copied.addButton(withTitle: "Đóng")
+                    copied.runModal()
+                    continue
+                }
+                if choice == .alertThirdButtonReturn, let url = URL(string: AppInfo.reportIssueUrl) {
+                    NSWorkspace.shared.open(url)
+                }
+                break
+            }
         } catch {
-            resAlert.alertStyle = .warning
-            resAlert.messageText = "Không xuất được log chẩn đoán"
-            resAlert.informativeText = "Không ghi được tệp \(outUrl.path): \(error.localizedDescription)"
+            let errAlert = NSAlert()
+            errAlert.alertStyle = .warning
+            errAlert.messageText = "Không xuất được log chẩn đoán"
+            errAlert.informativeText = "Không ghi được tệp \(outUrl.path): \(error.localizedDescription)"
+            errAlert.addButton(withTitle: "Đóng")
+            errAlert.runModal()
         }
-        resAlert.addButton(withTitle: "Đóng")
-        resAlert.runModal()
     }
 
     public var body: some View {

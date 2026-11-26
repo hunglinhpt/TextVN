@@ -93,13 +93,7 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
   `adapters/linux-settings/src/settings_model.c` (`tv_about_text`) · macOS
   `adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift` (popup trong Settings và mục
   About của menu bar cùng đọc `AppInfo.aboutMessage`).
-- **Cửa sổ "Hướng dẫn"** — tích hợp hai nút: **[Thảo luận]** mở
-  `https://github.com/hunglinhpt/TextVN/discussions`, **[Báo lỗi]** mở đúng issue
-  tracker `https://github.com/hunglinhpt/TextVN/issues` trên cả 3 nền tảng (test
-  `help_window_links_match_every_platform` đối chiếu đồng bộ cả hai URL). Windows dùng
-  `TaskDialogIndirect` (`REPORT_ISSUE_URL`), macOS dùng `NSAlert`
-  (`AppInfo.discussionsUrl` / `AppInfo.reportIssueUrl`), Linux dùng
-  `present_info_dialog` (GTK4 — `tv_discussions_url` / `tv_issues_url`).
+- **Cửa sổ "Hướng dẫn"** — tích hợp nút **[Chẩn đoán & xuất log]** nổi bật đầu tiên (Windows dùng `TaskDialogIndirect` dạng Command Links + `TDF_SIZE_TO_CONTENT` không bao giờ cắt nút ở mọi mức DPI; Linux GTK4/GTK3 tách hàng 1 `suggested-action`; macOS `NSAlert`), nút **[Cài & bật TSF]** (riêng Windows), **[Math & Science]**, **[Thảo luận]** (`https://github.com/hunglinhpt/TextVN/discussions`) và **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/issues`) trên cả 3 nền tảng (test `help_window_links_match_every_platform` đối chiếu đồng bộ). Sau khi chẩn đoán, hộp thoại kết quả hiển thị ngay phát hiện chính kèm **[Mở thư mục tệp ZIP]** (Windows/Linux; macOS tự mở Finder chọn sẵn tệp), **[Copy tóm tắt lỗi]** (Windows/macOS) và **[Mở trang báo lỗi]**.
 
 ## 4. Cửa sổ Gõ tắt
 

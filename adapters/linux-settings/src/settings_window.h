@@ -22,6 +22,9 @@ G_BEGIN_DECLS
 /* Tạo (hoặc trả cửa sổ đang có) bảng điều khiển. */
 GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom_config_path);
 
+/* Kích hoạt trực tiếp luồng [Chẩn đoán & xuất log] (menu khay IBus/Fcitx5 hoặc `--diagnose`). */
+void textvn_settings_trigger_diag(GtkWidget *window);
+
 G_END_DECLS
 
 #endif /* TEXTVN_SETTINGS_WINDOW_H */

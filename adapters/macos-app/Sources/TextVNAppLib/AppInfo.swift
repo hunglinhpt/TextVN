@@ -42,5 +42,6 @@ enum AppInfo {
         + "Quick Telex: cc=ch  gg=gi  kk=kh  nn=ng  qq=qu  pp=ph  tt=th.\n\n"
         + "Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi gõ, nhập chữ tắt rồi nhấn Tab (hoặc Space) để bung ra.\n\n"
         + "Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ trong Cài đặt, hoặc menu bar. Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\n\n"
-        + "Nếu chưa gõ được tiếng Việt: thêm TextVN trong Cài đặt hệ thống > Bàn phím > Nguồn nhập, rồi đăng xuất và đăng nhập lại."
+        + "Nếu chưa gõ được tiếng Việt: thêm TextVN trong Cài đặt hệ thống > Bàn phím > Nguồn nhập, rồi đăng xuất và đăng nhập lại.\n\n"
+        + "Gặp lỗi (không gõ được dấu, lặp chữ, xung đột bộ gõ cũ...): bấm nút [Chẩn đoán & xuất log] ngay bên dưới — TextVN sẽ tự kiểm tra máy và lưu sẵn tệp log an toàn (không chứa chữ bạn gõ) để gửi báo lỗi."
 }

@@ -134,6 +134,7 @@ private:
     fcitx::FactoryFor<TextVNState> factory_;
     std::unique_ptr<fcitx::SimpleAction> modeAction_;
     std::unique_ptr<fcitx::SimpleAction> settingsAction_;
+    std::unique_ptr<fcitx::SimpleAction> diagAction_;
 };
 
 class TextVNEngineFactory : public fcitx::AddonFactory {

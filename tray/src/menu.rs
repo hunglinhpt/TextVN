@@ -240,6 +240,14 @@ impl TrayMenu {
                 PCWSTR(w("Cài đặt...").as_ptr()),
             );
 
+            // 6b. Chẩn đoán & xuất log... — đặt thẳng ở cấp 1 menu khay (không giấu sâu trong submenu).
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_EXPORT_DIAG as usize,
+                PCWSTR(w("Chẩn đoán & xuất log...").as_ptr()),
+            );
+
             // 7. Sức khỏe / Trạng thái (Submenu)
             let health_menu = CreatePopupMenu().unwrap_or_default();
             let clients_count = self.ipc.active_clients();
@@ -262,7 +270,7 @@ impl TrayMenu {
                 health_menu,
                 MF_STRING,
                 ID_EXPORT_DIAG as usize,
-                PCWSTR(w("Xuất log chẩn đoán (Diagnostic Log)...").as_ptr()),
+                PCWSTR(w("Chẩn đoán & xuất log...").as_ptr()),
             );
             let _ = AppendMenuW(
                 menu,

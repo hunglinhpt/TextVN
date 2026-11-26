@@ -45,7 +45,10 @@ const char *const tv_help_text =
     "nhấn Tab (hoặc Space) để bung ra.\n\n"
     "Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ trong cửa sổ này. Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste công thức), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\n\n"
     "Nếu chưa gõ được tiếng Việt: thêm TextVN vào danh sách bộ gõ của IBus (ibus-setup) "
-    "hoặc Fcitx5 (fcitx5-configtool), rồi đăng xuất và đăng nhập lại.";
+    "hoặc Fcitx5 (fcitx5-configtool), rồi đăng xuất và đăng nhập lại.\n\n"
+    "Gặp lỗi (không gõ được dấu, lặp chữ, xung đột bộ gõ cũ...): bấm nút [Chẩn đoán & xuất log] "
+    "ngay bên dưới — TextVN sẽ tự kiểm tra máy và lưu sẵn tệp ZIP an toàn (không chứa chữ bạn gõ) "
+    "để gửi báo lỗi.";
 
 /* Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test Rust
  * `about_text_matches_every_platform`); dòng "TextVN <phiên bản>" ghép ở on_about. */

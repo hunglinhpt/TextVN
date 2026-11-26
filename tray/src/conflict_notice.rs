@@ -74,7 +74,7 @@ pub fn balloon_text(summary: &ConflictSummary) -> String {
     } else {
         String::new()
     };
-    let tail = " — có thể gây lặp chữ/mất dấu. Thoát bộ gõ cũ; chi tiết: chuột phải TextVN › Sức khỏe › Xuất log chẩn đoán.";
+    let tail = " — có thể gây lặp chữ/mất dấu. Thoát bộ gõ cũ; chi tiết: chuột phải TextVN › Chẩn đoán & xuất log.";
     // Cắt phần thông điệp (không cắt hướng dẫn ở cuối) để vừa 250 ký tự.
     let budget = 250usize.saturating_sub(more.chars().count() + tail.chars().count());
     let mut head: String = first.chars().take(budget).collect();
@@ -127,13 +127,13 @@ mod tests {
         let t = balloon_text(&s);
         assert!(t.chars().count() <= 250);
         assert!(t.contains("+1 xung đột khác"));
-        assert!(t.contains("Xuất log chẩn đoán"));
+        assert!(t.contains("Chẩn đoán & xuất log"));
         let long = ConflictSummary {
             signature: "x".into(),
             messages: vec!["Ư".repeat(400)],
         };
         let t = balloon_text(&long);
         assert!(t.chars().count() <= 250, "{}", t.chars().count());
-        assert!(t.ends_with("Xuất log chẩn đoán."));
+        assert!(t.ends_with("Chẩn đoán & xuất log."));
     }
 }

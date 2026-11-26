@@ -95,7 +95,76 @@ typedef struct {
     gpointer parent; /* weak-referenced (gpointer tránh strict-aliasing UB với -O3 -Werror) */
     char    *title;
     char    *body;
+    char    *zip_dir;
 } DiagResultCtx;
+
+static void on_open_diag_folder(GtkButton *b, gpointer user_data) {
+    GtkWindow *parent = GTK_WINDOW(user_data);
+    const char *dir = (const char *)g_object_get_data(G_OBJECT(b), "diag-dir");
+    if (!dir || !*dir) return;
+    GError *err = NULL;
+    char *uri = g_filename_to_uri(dir, NULL, &err);
+    if (uri) {
+        if (!g_app_info_launch_default_for_uri(uri, NULL, &err)) {
+            show_message(parent, "Không mở được thư mục", dir);
+        }
+        g_free(uri);
+    } else {
+        show_message(parent, "Không mở được thư mục", dir);
+    }
+    if (err) g_error_free(err);
+}
+
+static void on_help_link(GtkButton *b, gpointer user_data);
+
+static void present_diag_result_dialog(GtkWindow *parent, const char *title, const char *body,
+                                       const char *zip_dir) {
+    GtkWidget *dlg = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(dlg), title);
+    gtk_window_set_transient_for(GTK_WINDOW(dlg), parent);
+    gtk_window_set_modal(GTK_WINDOW(dlg), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(dlg), FALSE);
+    gtk_window_set_destroy_with_parent(GTK_WINDOW(dlg), TRUE);
+    add_escape_closes(dlg);
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(box, 18);
+    gtk_widget_set_margin_end(box, 18);
+    gtk_widget_set_margin_top(box, 18);
+    gtk_widget_set_margin_bottom(box, 12);
+
+    GtkWidget *label = gtk_label_new(body);
+    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(label), 72);
+    gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(row, GTK_ALIGN_END);
+    if (zip_dir && *zip_dir) {
+        GtkWidget *open_dir = gtk_button_new_with_label("Mở thư mục tệp ZIP");
+        gtk_style_context_add_class(gtk_widget_get_style_context(open_dir), "suggested-action");
+        g_object_set_data_full(G_OBJECT(open_dir), "diag-dir", g_strdup(zip_dir), g_free);
+        g_signal_connect(open_dir, "clicked", G_CALLBACK(on_open_diag_folder), GTK_WINDOW(dlg));
+        gtk_box_pack_start(GTK_BOX(row), open_dir, FALSE, FALSE, 0);
+    }
+    GtkWidget *report = gtk_button_new_with_label("Mở trang báo lỗi");
+    g_object_set_data_full(G_OBJECT(report), "help-url", g_strdup(tv_issues_url), g_free);
+    g_signal_connect(report, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
+    gtk_box_pack_start(GTK_BOX(row), report, FALSE, FALSE, 0);
+
+    GtkWidget *ok = gtk_button_new_with_label("Đóng");
+    g_signal_connect_swapped(ok, "clicked", G_CALLBACK(gtk_widget_destroy), dlg);
+    gtk_box_pack_start(GTK_BOX(row), ok, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(dlg), box);
+    gtk_widget_set_can_default(ok, TRUE);
+    gtk_window_set_default(GTK_WINDOW(dlg), ok);
+    gtk_widget_show_all(dlg);
+    gtk_window_present(GTK_WINDOW(dlg));
+}
 
 static gboolean finish_diag_export_idle(gpointer data) {
     DiagResultCtx *ctx = (DiagResultCtx *)data;
@@ -103,10 +172,15 @@ static gboolean finish_diag_export_idle(gpointer data) {
     if (ctx->parent) {
         gpointer win = ctx->parent;
         g_object_remove_weak_pointer(G_OBJECT(win), &ctx->parent);
-        show_message(GTK_WINDOW(win), ctx->title, ctx->body);
+        if (ctx->zip_dir && *ctx->zip_dir) {
+            present_diag_result_dialog(GTK_WINDOW(win), ctx->title, ctx->body, ctx->zip_dir);
+        } else {
+            show_message(GTK_WINDOW(win), ctx->title, ctx->body);
+        }
     }
     g_free(ctx->title);
     g_free(ctx->body);
+    g_free(ctx->zip_dir);
     g_free(ctx);
     return G_SOURCE_REMOVE;
 }
@@ -139,11 +213,39 @@ static gpointer diag_export_thread(gpointer data) {
         if (saved) {
             const char *eol = strchr(saved, '\n');
             char *line = eol ? g_strndup(saved, (gsize)(eol - saved)) : g_strdup(saved);
-            ctx->title = g_strdup("Đã xuất log chẩn đoán TextVN");
-            ctx->body = g_strdup_printf(
+            const char *path_start = line + strlen("Đã xuất file chẩn đoán:");
+            while (*path_start == ' ') path_start++;
+            const char *paren = strstr(path_start, " (");
+            char *zip_path = paren ? g_strndup(path_start, (gsize)(paren - path_start))
+                                   : g_strdup(path_start);
+            g_strstrip(zip_path);
+            if (*zip_path) {
+                ctx->zip_dir = g_path_get_dirname(zip_path);
+            }
+            g_free(zip_path);
+
+            GString *msg = g_string_new("");
+            g_string_append_printf(
+                msg,
                 "%s\n\nTệp ZIP đã tự động ẩn tên người dùng và KHÔNG chứa nội dung bạn gõ (G8/S2).\n"
-                "Hãy đính kèm tệp ZIP này khi bấm [Báo lỗi] tại:\n%s",
+                "Hãy đính kèm tệp ZIP này khi bấm [Mở trang báo lỗi] tại:\n%s",
                 line, tv_issues_url);
+            char **lines = g_strsplit(out_str, "\n", -1);
+            int added = 0;
+            for (int i = 0; lines && lines[i] && added < 8; i++) {
+                char *tr = g_strstrip(lines[i]);
+                if (g_str_has_prefix(tr, "[LỖI]") || g_str_has_prefix(tr, "[CẢNH BÁO]") ||
+                    g_str_has_prefix(tr, "→ Gợi ý:") || g_str_has_prefix(tr, "conflicts")) {
+                    if (added == 0) {
+                        g_string_append(msg, "\n\nPhát hiện nhanh trên máy:\n");
+                    }
+                    g_string_append_printf(msg, "  %s\n", tr);
+                    added++;
+                }
+            }
+            g_strfreev(lines);
+            ctx->title = g_strdup("Kết quả chẩn đoán & xuất log TextVN");
+            ctx->body = g_string_free(msg, FALSE);
             g_free(line);
         } else {
             ctx->title = g_strdup("Không xuất được log chẩn đoán");
@@ -168,6 +270,11 @@ static void on_export_diag(GtkButton *b, gpointer user_data) {
     }
     GThread *th = g_thread_new("textvn-diag", diag_export_thread, ctx);
     g_thread_unref(th);
+}
+
+void textvn_settings_trigger_diag(GtkWidget *window) {
+    if (!window) return;
+    on_export_diag(NULL, (gpointer)window);
 }
 
 static void on_help_link(GtkButton *b, gpointer user_data) {
@@ -205,6 +312,18 @@ static void present_info_dialog(GtkWindow *parent, const char *title, const char
     GtkWidget *ok = gtk_button_new_with_label("Đóng");
     g_signal_connect_swapped(ok, "clicked", G_CALLBACK(gtk_widget_destroy), dlg);
     if (with_help_links) {
+        /* Hàng 1 nổi bật: nút [Chẩn đoán & xuất log] riêng biệt, dễ thấy cho người không rành kỹ thuật. */
+        GtkWidget *diag_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+        GtkWidget *diag = gtk_button_new_with_label("Chẩn đoán & xuất log");
+        gtk_style_context_add_class(gtk_widget_get_style_context(diag), "suggested-action");
+        gtk_widget_set_tooltip_text(
+            diag,
+            "Kiểm tra xung đột, lỗi bộ gõ & tự động lưu tệp ZIP chẩn đoán an toàn (không chứa chữ bạn gõ)");
+        g_signal_connect(diag, "clicked", G_CALLBACK(on_export_diag), parent ? (gpointer)parent : (gpointer)dlg);
+        gtk_box_pack_start(GTK_BOX(diag_row), diag, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(box), diag_row, FALSE, FALSE, 0);
+
+        /* Hàng 2: liên kết tài liệu/hỗ trợ + Đóng. */
         GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         gtk_widget_set_halign(row, GTK_ALIGN_END);
         GtkWidget *math = gtk_button_new_with_label("Math & Science");
@@ -220,12 +339,8 @@ static void present_info_dialog(GtkWindow *parent, const char *title, const char
         gtk_widget_set_tooltip_text(report, "Báo cáo sự cố trên GitHub");
         g_object_set_data_full(G_OBJECT(report), "help-url", g_strdup(tv_issues_url), g_free);
         g_signal_connect(report, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
-        GtkWidget *diag = gtk_button_new_with_label("Xuất log chẩn đoán");
-        gtk_widget_set_tooltip_text(diag, "Xuất gói ZIP chẩn đoán hệ thống & log (không chứa chữ đã gõ) để gửi báo lỗi");
-        g_signal_connect(diag, "clicked", G_CALLBACK(on_export_diag), parent ? (gpointer)parent : (gpointer)dlg);
         gtk_box_pack_start(GTK_BOX(row), discuss, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), report, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(row), diag, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), ok, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
     } else {

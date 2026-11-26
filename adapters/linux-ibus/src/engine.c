@@ -47,6 +47,7 @@ static int             s_base_assist = FALSE;
 
 #define PROP_MODE  "TextVN.InputMode"
 #define PROP_SETUP "TextVN.Setup"
+#define PROP_DIAG  "TextVN.Diagnose"
 
 /* ---- Tiện ích text ---- */
 
@@ -801,13 +802,13 @@ static void push_context(TextVNIbusEngine *self, int enabled) {
     self->ctx_enabled = enabled ? 1 : 0;
 }
 
-/* Mở bảng điều khiển (textvn-settings cạnh bản cài / trong PATH). */
-static void launch_settings(void) {
+/* Mở bảng điều khiển (textvn-settings cạnh bản cài / trong PATH), tùy chọn truyền cờ (vd --diagnose). */
+static void launch_settings_arg(const gchar *extra_arg) {
     gchar *exe = g_file_read_link("/proc/self/exe", NULL);
     gchar *dir = exe ? g_path_get_dirname(exe) : NULL;
     char path[1024];
     if (lc_find_settings_binary(path, sizeof(path), dir) == 0) {
-        gchar *argv[] = {path, NULL};
+        gchar *argv[3] = {path, (gchar *)extra_arg, NULL};
         GError *err = NULL;
         /* Không DO_NOT_REAP: GLib tự thu dọn tiến trình con (không để zombie). */
         if (!g_spawn_async(NULL, argv, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, &err)) {
@@ -862,6 +863,14 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
                                          TRUE, TRUE, PROP_STATE_UNCHECKED, NULL);
     g_object_ref_sink(self->setup_prop);
     ibus_prop_list_append(self->props, self->setup_prop);
+    self->diag_prop = ibus_property_new(PROP_DIAG, PROP_TYPE_NORMAL,
+                                        ibus_text_new_from_static_string("Chẩn đoán & xuất log…"),
+                                        "dialog-information",
+                                        ibus_text_new_from_static_string(
+                                            "Kiểm tra lỗi, xung đột và xuất gói log chẩn đoán"),
+                                        TRUE, TRUE, PROP_STATE_UNCHECKED, NULL);
+    g_object_ref_sink(self->diag_prop);
+    ibus_prop_list_append(self->props, self->diag_prop);
 
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     self->lookup_table = ibus_lookup_table_new(3, 0, TRUE, TRUE);
@@ -891,6 +900,7 @@ static void textvn_ibus_engine_finalize(GObject *object) {
     }
     g_clear_object(&self->mode_prop);
     g_clear_object(&self->setup_prop);
+    g_clear_object(&self->diag_prop);
     g_clear_object(&self->props);
     G_OBJECT_CLASS(textvn_ibus_engine_parent_class)->finalize(object);
 }
@@ -993,7 +1003,11 @@ static void engine_property_activate(IBusEngine *engine, const gchar *name, guin
         return;
     }
     if (g_strcmp0(name, PROP_SETUP) == 0) {
-        launch_settings();
+        launch_settings_arg(NULL);
+        return;
+    }
+    if (g_strcmp0(name, PROP_DIAG) == 0) {
+        launch_settings_arg("--diagnose");
         return;
     }
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->property_activate(engine, name, state);

@@ -419,11 +419,15 @@ static std::string selfDir() {
     return slash == std::string::npos ? std::string() : path.substr(0, slash);
 }
 
-static void launchSettings() {
+static void launchSettings(const char *extraArg = nullptr) {
     char path[1024];
     const std::string dir = selfDir();
     if (lc_find_settings_binary(path, sizeof(path), dir.empty() ? nullptr : dir.c_str()) == 0) {
-        fcitx::startProcess({path});
+        if (extraArg && *extraArg) {
+            fcitx::startProcess({path, extraArg});
+        } else {
+            fcitx::startProcess({path});
+        }
     } else {
         lc_log(LC_LOG_WARN, "Fcitx5", "textvn-settings not found");
     }
@@ -458,6 +462,17 @@ TextVNEngine::TextVNEngine(fcitx::Instance *instance)
         }
     });
     instance_->userInterfaceManager().registerAction("textvn-settings", settingsAction_.get());
+
+    diagAction_ = std::make_unique<fcitx::SimpleAction>();
+    diagAction_->setShortText("Chẩn đoán & xuất log…");
+    diagAction_->setIcon("dialog-information");
+    diagAction_->connect<fcitx::SimpleAction::Activated>([](fcitx::InputContext *) {
+        try {
+            launchSettings("--diagnose");
+        } catch (...) {
+        }
+    });
+    instance_->userInterfaceManager().registerAction("textvn-diagnose", diagAction_.get());
     updateModeAction(nullptr);
 }
 
@@ -475,9 +490,13 @@ TextVNEngine::~TextVNEngine() {
         if (settingsAction_) {
             instance_->userInterfaceManager().unregisterAction(settingsAction_.get());
         }
+        if (diagAction_) {
+            instance_->userInterfaceManager().unregisterAction(diagAction_.get());
+        }
     }
     modeAction_.reset();
     settingsAction_.reset();
+    diagAction_.reset();
     if (ipc_) lc_ipc_client_free(ipc_);
     lc_log_close();
 }
@@ -1053,6 +1072,7 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
         updateModeAction(ic);
         ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, modeAction_.get());
         ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, settingsAction_.get());
+        ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, diagAction_.get());
     } catch (...) {
     }
 }

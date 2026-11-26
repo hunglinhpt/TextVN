@@ -323,6 +323,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        // 7b. Chẩn đoán & xuất log... — đặt thẳng ở cấp 1 menu bar (1 chạm, khớp Windows).
+        let diagItem = NSMenuItem(title: "Chẩn đoán & xuất log...", action: #selector(runDiagnosticsExport), keyEquivalent: "")
+        diagItem.target = self
+        menu.addItem(diagItem)
+
         // 8. Sức khỏe
         let healthItem = NSMenuItem(title: "Sức khỏe hệ thống...", action: #selector(showHealth), keyEquivalent: "")
         healthItem.target = self
@@ -391,6 +396,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     }
 
     // MARK: - Actions
+
+    @objc private func runDiagnosticsExport() {
+        SettingsView.exportDiagnosticsReport()
+    }
 
     /// P11: bật/tắt Math & Science từ menu bar — ghi config + broadcast ConfigReload
     /// cho IMK nạp lại ngay; SettingsView đang mở tự đồng bộ vì cùng đọc configStore.

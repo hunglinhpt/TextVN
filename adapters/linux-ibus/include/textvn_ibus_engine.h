@@ -41,6 +41,7 @@ struct _TextVNIbusEngine {
     IBusPropList         *props;
     IBusProperty         *mode_prop;
     IBusProperty         *setup_prop;
+    IBusProperty         *diag_prop;
 
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     IBusLookupTable      *lookup_table;

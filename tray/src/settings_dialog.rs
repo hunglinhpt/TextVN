@@ -165,7 +165,9 @@ tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
 Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ hoặc chuột phải icon khay → mục \"Math & Science\". Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste công thức), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\r\n\r\n\
 Nếu chưa gõ được tiếng Việt (nhất là bản portable hoặc trên Windows 11 Enterprise 23H2/24H2+): \
 bấm nút [Cài & bật TSF] ngay bên dưới để đăng ký lại, kích hoạt bộ gõ và xem nguyên nhân chi tiết \
-từ register.log; sau đó chọn TextVN trong danh sách bộ gõ (Win + Space).";
+từ register.log; sau đó chọn TextVN trong danh sách bộ gõ (Win + Space).\r\n\r\n\
+Gặp lỗi (không gõ được dấu, lặp chữ, xung đột bộ gõ cũ...): bấm nút [Chẩn đoán & xuất log] ngay \
+bên dưới — TextVN tự kiểm tra máy và lưu sẵn tệp ZIP an toàn (không chứa chữ bạn gõ) để gửi báo lỗi.";
 
 /// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/macOS/Linux (cửa sổ "Hướng dẫn").
 #[cfg(windows)]
@@ -2110,8 +2112,6 @@ const HELP_BTN_DISCUSS: i32 = 1001;
 const HELP_BTN_REPORT: i32 = 1002;
 #[cfg(windows)]
 const HELP_BTN_DIAG: i32 = 1004;
-#[cfg(windows)]
-const HELP_BTN_CLOSE: i32 = 1003;
 
 #[cfg(windows)]
 enum TsfSetupOutcome {
@@ -2127,29 +2127,42 @@ static TSF_SETUP_RESULT: Mutex<Option<TsfSetupOutcome>> = Mutex::new(None);
 #[cfg(windows)]
 static DIAG_EXPORT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
-/// `Ok((nội dung hiển thị, tóm tắt dán GitHub Issues đã ẩn PII))` — E70.
-static DIAG_EXPORT_RESULT: Mutex<Option<std::result::Result<(String, String), String>>> =
+#[cfg(windows)]
+struct DiagExportSuccess {
+    message: String,
+    summary: String,
+    zip_path: String,
+}
+
+#[cfg(windows)]
+static DIAG_EXPORT_RESULT: Mutex<Option<std::result::Result<DiagExportSuccess, String>>> =
     Mutex::new(None);
 
-/// Cửa sổ "Hướng dẫn": nội dung + nút [Cài & bật TSF] [Math & Science] [Thảo luận] [Báo lỗi] [Xuất log chẩn đoán] [Đóng]
-/// (TaskDialog; manifest đã bật Common Controls 6). Nút [Cài & bật TSF] (E65) và [Xuất log chẩn đoán] (E69)
-/// nằm trong Hướng dẫn để giữ hàng nút chính gọn 7 nút mà người dùng portable / Enterprise vẫn dễ dàng
-/// đăng ký TSF và xuất gói chẩn đoán chi tiết (không chứa nội dung gõ, G8) gửi kèm khi báo lỗi.
+/// Cửa sổ "Hướng dẫn": nội dung + các nút Command Link rõ ràng, xếp dọc toàn chiều rộng
+/// (không bao giờ bị tràn/cắt nút ở mọi mức DPI) — đặt [Chẩn đoán & xuất log] lên vị trí #1
+/// và [Cài & bật TSF] ngay kế dưới để người dùng không rành kỹ thuật bấm 1 chạm là xong.
 #[cfg(windows)]
 fn show_help(owner: HWND) {
     use windows::Win32::UI::Controls::{
-        TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
+        TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDCBF_CLOSE_BUTTON,
+        TDF_ALLOW_DIALOG_CANCELLATION, TDF_SIZE_TO_CONTENT, TDF_USE_COMMAND_LINKS,
     };
     let title = w("Hướng dẫn TextVN");
     let content = w(&HELP_TEXT.replace("\r\n", "\n"));
-    let b_tsf = w("Cài & bật TSF");
-    let b_math = w("Math & Science");
-    let b_discuss = w("Thảo luận");
-    let b_report = w("Báo lỗi");
-    let b_diag = w("Xuất log chẩn đoán");
-    let b_close = w("Đóng");
-    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận; E65: nút Cài & bật TSF; E69: Xuất log chẩn đoán.
+    let b_diag = w(
+        "Chẩn đoán & xuất log\nKiểm tra lỗi, xung đột bộ gõ và lưu sẵn tệp ZIP an toàn (không chứa chữ bạn gõ)",
+    );
+    let b_tsf =
+        w("Cài & bật TSF\nĐăng ký lại và kích hoạt bộ gõ tiếng Việt trên Windows (dùng khi chưa gõ được)");
+    let b_math = w("Math & Science — Xem hướng dẫn gõ ký hiệu & công thức");
+    let b_discuss = w("Thảo luận — Mở diễn đàn hỏi đáp trên GitHub");
+    let b_report = w("Báo lỗi — Mở trang gửi báo cáo sự cố trên GitHub");
+    // Đặt [Chẩn đoán & xuất log] nổi bật đầu tiên; giữ Math & Science ngay trước Thảo luận (P11).
     let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_DIAG,
+            pszButtonText: PCWSTR(b_diag.as_ptr()),
+        },
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_SETUP_TSF,
             pszButtonText: PCWSTR(b_tsf.as_ptr()),
@@ -2166,24 +2179,17 @@ fn show_help(owner: HWND) {
             nButtonID: HELP_BTN_REPORT,
             pszButtonText: PCWSTR(b_report.as_ptr()),
         },
-        TASKDIALOG_BUTTON {
-            nButtonID: HELP_BTN_DIAG,
-            pszButtonText: PCWSTR(b_diag.as_ptr()),
-        },
-        TASKDIALOG_BUTTON {
-            nButtonID: HELP_BTN_CLOSE,
-            pszButtonText: PCWSTR(b_close.as_ptr()),
-        },
     ];
     let cfg = TASKDIALOGCONFIG {
         cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as u32,
         hwndParent: owner,
-        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION,
+        dwFlags: TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
+        dwCommonButtons: TDCBF_CLOSE_BUTTON,
         pszWindowTitle: PCWSTR(title.as_ptr()),
         pszContent: PCWSTR(content.as_ptr()),
         cButtons: buttons.len() as u32,
         pButtons: buttons.as_ptr(),
-        nDefaultButton: HELP_BTN_CLOSE,
+        nDefaultButton: IDCLOSE.0,
         ..Default::default()
     };
     let mut pressed: i32 = 0;
@@ -2194,11 +2200,11 @@ fn show_help(owner: HWND) {
         return;
     }
     match pressed {
+        HELP_BTN_DIAG => start_diag_export(owner),
         HELP_BTN_SETUP_TSF => start_tsf_setup(owner),
         HELP_BTN_MATH => open_url(MATH_GUIDE_URL),
         HELP_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
         HELP_BTN_REPORT => open_url(REPORT_ISSUE_URL),
-        HELP_BTN_DIAG => start_diag_export(owner),
         _ => {}
     }
 }
@@ -2259,7 +2265,7 @@ pub fn start_diag_export_detached() {
 }
 
 #[cfg(windows)]
-fn run_diag_export_cli() -> std::result::Result<(String, String), String> {
+fn run_diag_export_cli() -> std::result::Result<DiagExportSuccess, String> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -2322,7 +2328,11 @@ fn run_diag_export_cli() -> std::result::Result<(String, String), String> {
             &highlights,
             &crate::diag_summary::current_user_tokens(),
         );
-        Ok((msg, summary))
+        Ok(DiagExportSuccess {
+            message: msg,
+            summary,
+            zip_path,
+        })
     } else {
         Err(format!(
             "textvn-cli doctor --export thất bại (exit {:?}).\r\n{}",
@@ -2341,9 +2351,12 @@ fn handle_diag_export_done(hwnd: HWND) {
 }
 
 #[cfg(windows)]
-fn present_diag_export_outcome(hwnd: HWND, outcome: std::result::Result<(String, String), String>) {
+fn present_diag_export_outcome(
+    hwnd: HWND,
+    outcome: std::result::Result<DiagExportSuccess, String>,
+) {
     match outcome {
-        Ok((msg, summary)) => present_diag_export_success(hwnd, &msg, &summary),
+        Ok(ok) => present_diag_export_success(hwnd, &ok.message, &ok.summary, &ok.zip_path),
         Err(err) => show_information(hwnd, "Không xuất được log chẩn đoán", &err),
     }
 }
@@ -2354,20 +2367,53 @@ const DIAG_BTN_COPY: i32 = 2001;
 const DIAG_BTN_REPORT: i32 = 2002;
 #[cfg(windows)]
 const DIAG_BTN_CLOSE: i32 = 2003;
-
-/// E70: kết quả xuất log với [Copy tóm tắt lỗi] [Mở trang báo lỗi] [Đóng]. Copy chỉ chép
-/// tóm tắt ĐÃ ẨN PII (`diag_summary`) — không có đường dẫn thư mục người dùng.
 #[cfg(windows)]
-fn present_diag_export_success(owner: HWND, msg: &str, summary: &str) {
+const DIAG_BTN_OPEN_FOLDER: i32 = 2004;
+
+/// Mở File Explorer và chọn sẵn tệp ZIP chẩn đoán để người dùng kéo thả trực tiếp khi báo lỗi.
+#[cfg(windows)]
+fn reveal_file_in_explorer(path: &str) {
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    let trimmed = path.trim();
+    if trimmed.is_empty() || !std::path::Path::new(trimmed).exists() {
+        return;
+    }
+    let clean = trimmed.replace('"', "");
+    let op = w("open");
+    let exe = w("explorer.exe");
+    let params = w(&format!("/select,\"{clean}\""));
+    // SAFETY: chuỗi NUL-terminated sống suốt lời gọi ShellExecuteW.
+    unsafe {
+        ShellExecuteW(
+            None,
+            PCWSTR(op.as_ptr()),
+            PCWSTR(exe.as_ptr()),
+            PCWSTR(params.as_ptr()),
+            PCWSTR::null(),
+            SW_SHOW,
+        );
+    }
+}
+
+/// E70/E72: kết quả chẩn đoán & xuất log với [Mở thư mục tệp ZIP] [Copy tóm tắt lỗi]
+/// [Mở trang báo lỗi] [Đóng] — dùng `TDF_SIZE_TO_CONTENT` để không bao giờ cắt nút.
+#[cfg(windows)]
+fn present_diag_export_success(owner: HWND, msg: &str, summary: &str, zip_path: &str) {
     use windows::Win32::UI::Controls::{
         TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
+        TDF_SIZE_TO_CONTENT,
     };
-    let title = w("Đã xuất log chẩn đoán TextVN");
+    let title = w("Kết quả chẩn đoán & xuất log TextVN");
     let content = w(&msg.replace("\r\n", "\n"));
+    let b_folder = w("Mở thư mục tệp ZIP");
     let b_copy = w("Copy tóm tắt lỗi");
     let b_report = w("Mở trang báo lỗi");
     let b_close = w("Đóng");
     let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: DIAG_BTN_OPEN_FOLDER,
+            pszButtonText: PCWSTR(b_folder.as_ptr()),
+        },
         TASKDIALOG_BUTTON {
             nButtonID: DIAG_BTN_COPY,
             pszButtonText: PCWSTR(b_copy.as_ptr()),
@@ -2384,12 +2430,12 @@ fn present_diag_export_success(owner: HWND, msg: &str, summary: &str) {
     let cfg = TASKDIALOGCONFIG {
         cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as u32,
         hwndParent: owner,
-        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION,
+        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT,
         pszWindowTitle: PCWSTR(title.as_ptr()),
         pszContent: PCWSTR(content.as_ptr()),
         cButtons: buttons.len() as u32,
         pButtons: buttons.as_ptr(),
-        nDefaultButton: DIAG_BTN_COPY,
+        nDefaultButton: DIAG_BTN_OPEN_FOLDER,
         ..Default::default()
     };
     loop {
@@ -2397,10 +2443,14 @@ fn present_diag_export_success(owner: HWND, msg: &str, summary: &str) {
         // SAFETY: mọi buffer/mảng trên stack sống suốt lời gọi modal đồng bộ.
         let ok = unsafe { TaskDialogIndirect(&cfg, Some(&mut pressed), None, None) }.is_ok();
         if !ok {
-            show_information(owner, "Đã xuất log chẩn đoán TextVN", msg);
+            show_information(owner, "Kết quả chẩn đoán & xuất log TextVN", msg);
             return;
         }
         match pressed {
+            DIAG_BTN_OPEN_FOLDER => {
+                reveal_file_in_explorer(zip_path);
+                // Quay lại hộp thoại để người dùng có thể bấm tiếp [Copy tóm tắt lỗi] hoặc [Mở trang báo lỗi].
+            }
             DIAG_BTN_COPY => {
                 if copy_text_to_clipboard(owner, summary) {
                     show_information(
@@ -3035,21 +3085,59 @@ mod tests {
                 "{os} thiếu URL Math & Science guide"
             );
         }
+        let linux_win_gtk3 =
+            include_str!("../../adapters/linux-settings/src/settings_window_gtk3.c");
         for (os, src) in [
             ("Windows", windows),
-            ("Linux", linux_win),
+            ("Linux GTK4", linux_win),
+            ("Linux GTK3", linux_win_gtk3),
             ("macOS", mac_view),
         ] {
-            assert!(src.contains("\"Thảo luận\""), "{os} thiếu nút Thảo luận");
-            assert!(src.contains("\"Báo lỗi\""), "{os} thiếu nút Báo lỗi");
+            assert!(src.contains("Thảo luận"), "{os} thiếu nút Thảo luận");
+            assert!(src.contains("Báo lỗi"), "{os} thiếu nút Báo lỗi");
             assert!(
-                src.contains("\"Xuất log chẩn đoán\""),
-                "{os} thiếu nút Xuất log chẩn đoán (E69)"
+                src.contains("Chẩn đoán & xuất log"),
+                "{os} thiếu nút Chẩn đoán & xuất log (E69/E72)"
             );
             // P11: nút Math & Science trong cửa sổ Hướng dẫn, ngay bên trái Thảo luận.
             assert!(
                 src.contains("Math & Science"),
                 "{os} thiếu nút Math & Science"
+            );
+        }
+        // Windows: dùng Command Links + TDF_SIZE_TO_CONTENT để không bao giờ cắt nút ở DPI cao.
+        assert!(
+            windows.contains("TDF_USE_COMMAND_LINKS"),
+            "Windows Hướng dẫn phải dùng TDF_USE_COMMAND_LINKS tránh tràn 6 nút ngang"
+        );
+        assert!(
+            windows.contains("TDF_SIZE_TO_CONTENT"),
+            "Windows Hướng dẫn phải bật TDF_SIZE_TO_CONTENT"
+        );
+        assert!(
+            windows.contains("Mở thư mục tệp ZIP"),
+            "Windows kết quả chẩn đoán phải có nút Mở thư mục tệp ZIP"
+        );
+        assert!(
+            linux_win.contains("Mở thư mục tệp ZIP")
+                && linux_win_gtk3.contains("Mở thư mục tệp ZIP"),
+            "Linux GTK4/GTK3 kết quả chẩn đoán phải có nút Mở thư mục tệp ZIP"
+        );
+        // Cả 3 OS đều phải có mục [Chẩn đoán & xuất log] ngay cấp 1 menu khay / thanh menu (không giấu sâu).
+        let win_menu = include_str!("menu.rs");
+        let mac_delegate =
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift");
+        let linux_ibus = include_str!("../../adapters/linux-ibus/src/engine.c");
+        let linux_fcitx5 = include_str!("../../adapters/linux-fcitx5/src/engine.cpp");
+        for (target, src) in [
+            ("Windows tray menu", win_menu),
+            ("macOS menu bar", mac_delegate),
+            ("Linux IBus menu", linux_ibus),
+            ("Linux Fcitx5 menu", linux_fcitx5),
+        ] {
+            assert!(
+                src.contains("Chẩn đoán & xuất log"),
+                "{target} thiếu mục Chẩn đoán & xuất log ở menu khay"
             );
         }
         // Thứ tự nút trong hàng nút Hướng dẫn: Math & Science đứng ngay bên TRÁI Thảo luận.
@@ -3150,11 +3238,14 @@ mod tests {
         }
         let last = rects.last().unwrap();
         assert!(last.0 + last.2 <= CLIENT_DESIGN_WIDTH);
-        // E65: nút "Cài & bật TSF" KHÔNG đứng ở hàng nút chính, mà nằm trong panel Hướng dẫn.
+        // E65/E72: nút "Cài & bật TSF" và "Chẩn đoán & xuất log" nằm trong panel Hướng dẫn.
         assert!(HELP_TEXT.contains("Cài & bật TSF"));
+        assert!(HELP_TEXT.contains("Chẩn đoán & xuất log"));
         let src = include_str!("settings_dialog.rs");
         assert!(src.contains("nButtonID: HELP_BTN_SETUP_TSF"));
-        assert!(src.contains("w(\"Cài & bật TSF\")"));
+        assert!(src.contains("nButtonID: HELP_BTN_DIAG"));
+        assert!(src.contains("Cài & bật TSF\\n"));
+        assert!(src.contains("Chẩn đoán & xuất log\\n"));
     }
 
     /// E65: `read_log_tail` chỉ đọc đuôi của lần chạy mới nhất trong `register.log`.

@@ -11,13 +11,11 @@ chứa nội dung bạn gõ, clipboard hay từ vựng cá nhân** (G8/S2).
 
 | Cách | Windows | Linux | macOS |
 |---|---|---|---|
-| Giao diện | Bảng điều khiển → **Hướng dẫn** → **[Xuất log chẩn đoán]**, hoặc chuột phải biểu tượng khay → **Sức khỏe / Trạng thái → Xuất log chẩn đoán (Diagnostic Log)...** | Bảng cài đặt → **Hướng dẫn** → **[Xuất log chẩn đoán]** | App menu bar → Cài đặt → **Hướng dẫn** → **[Xuất log chẩn đoán]** |
+| Giao diện | Bảng điều khiển → **Hướng dẫn** → **[Chẩn đoán & xuất log]** (nút đầu tiên), hoặc chuột phải biểu tượng khay → **Chẩn đoán & xuất log...** | Bảng cài đặt → **Hướng dẫn** → **[Chẩn đoán & xuất log]** (nút nổi bật hàng đầu), hoặc menu IBus/Fcitx5 → **Chẩn đoán & xuất log…** | App menu bar → **Chẩn đoán & xuất log...**, hoặc Cài đặt → **Hướng dẫn** → **[Chẩn đoán & xuất log]** |
 | Dòng lệnh | `textvn-cli --export-log` (cạnh `TextVN.exe`) | `textvn --export-log` | — (giao diện tạo tệp `.md`) |
 | Kết quả | `textvn-diag-<thời điểm>.zip` trên Desktop | `textvn-diag-<thời điểm>.zip` trên Desktop / `$HOME` | `textvn-diag-<thời điểm>.md` trên Desktop |
 
-Sau khi xuất trên Windows, hộp thoại có **[Copy tóm tắt lỗi]** (chép tóm tắt đã ẩn tên
-người dùng — chỉ tên tệp ZIP, mã lỗi và gợi ý) và **[Mở trang báo lỗi]**. Dán tóm tắt
-vào ô mô tả issue rồi kéo thả tệp ZIP vào.
+Sau khi xuất, hộp thoại hiển thị ngay các phát hiện chính kèm nút **[Mở thư mục tệp ZIP]** (Windows/Linux — macOS tự mở Finder chọn sẵn tệp), **[Copy tóm tắt lỗi]** (Windows/macOS — chép tóm tắt đã ẩn tên người dùng) và **[Mở trang báo lỗi]**. Dán tóm tắt vào ô mô tả issue rồi kéo thả tệp vừa mở vào.
 
 Các lệnh dòng lệnh khác (Windows dùng `textvn-cli`, Linux dùng `textvn`):
 
@@ -168,14 +166,11 @@ Before reporting a bug, export a **diagnostic bundle** — it redacts your user 
 
 | How | Windows | Linux | macOS |
 |---|---|---|---|
-| UI | Control panel → **Help (*Hướng dẫn*)** → **[Xuất log chẩn đoán]**, or right-click the tray icon → **Health / Status (*Sức khỏe / Trạng thái*) → Xuất log chẩn đoán (Diagnostic Log)...** | Settings window → **Help** → **[Xuất log chẩn đoán]** | Menu bar app → Settings → **Help** → **[Xuất log chẩn đoán]** |
+| UI | Control panel → **Help (*Hướng dẫn*)** → **[Chẩn đoán & xuất log]** (top Command Link), or right-click the tray icon → **Chẩn đoán & xuất log...** | Settings window → **Help** → **[Chẩn đoán & xuất log]** (prominent top button), or IBus/Fcitx5 indicator menu → **Chẩn đoán & xuất log…** | Menu bar app → **Chẩn đoán & xuất log...**, or Settings → **Help** → **[Chẩn đoán & xuất log]** |
 | Command line | `textvn-cli --export-log` (next to `TextVN.exe`) | `textvn --export-log` | — (the UI writes an `.md` file) |
 | Output | `textvn-diag-<timestamp>.zip` on the Desktop | `textvn-diag-<timestamp>.zip` on the Desktop / `$HOME` | `textvn-diag-<timestamp>.md` on the Desktop |
 
-After exporting on Windows, the dialog offers **[Copy tóm tắt lỗi]** (*copy error summary* —
-copies a user-name-redacted summary: only the ZIP file name, error codes and hints) and
-**[Mở trang báo lỗi]** (*open the bug-report page*). Paste the summary into the issue
-description, then drag the ZIP file in.
+After exporting, the dialog shows the key findings immediately along with **[Mở thư mục tệp ZIP]** (*open ZIP folder* on Windows/Linux — macOS reveals the file directly in Finder), **[Copy tóm tắt lỗi]** (*copy error summary* on Windows/macOS, user name redacted), and **[Mở trang báo lỗi]** (*open the bug-report page*). Paste the summary into the issue description, then drag the revealed file in.
 
 Other command-line entry points (Windows uses `textvn-cli`, Linux uses `textvn`):
 
