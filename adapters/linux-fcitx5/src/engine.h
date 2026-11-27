@@ -66,6 +66,8 @@ public:
     lc_edit_batch edits{};
     /* R2-167: preedit chỉ được xoá SAU commit đã gom (commit trước, xoá preedit sau). */
     bool clearPreeditAfterCommit = false;
+    /* R2-171: thời điểm (steady_clock, µs) nhấn Enter gần nhất; 0 = không có. */
+    int64_t enterAtUs = 0;
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {

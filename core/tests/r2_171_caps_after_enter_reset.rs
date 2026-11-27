@@ -2,9 +2,10 @@
 //!
 //! GtkTextView (GTK3/GTK4) gọi `gtk_im_context_reset` ngay khi chèn dòng mới, nên IBus
 //! `reset` / Fcitx5 `InputContextReset` tới engine GIỮA Enter và chữ kế tiếp
-//! (fcitx5-lotus#597: `ban` Enter `tooi` ra `tôi` thay vì `Tôi`). Trước R2-171 `Engine::reset`
-//! xoá sạch đuôi văn bản ⇒ mất mốc "đầu dòng". Reset do click/đổi focus giữa câu vẫn phải
-//! KHÔNG tự viết hoa (không biết ngữ cảnh mới).
+//! (fcitx5-lotus#597: `ban` Enter `tooi` ra `tôi` thay vì `Tôi`). Adapter Linux nhận ra reset
+//! đó (tới < `LC_RESET_AFTER_ENTER_US` sau Enter, không phím/focus xen giữa) và gọi
+//! `reset_with_tail("\n")` = "con trỏ ở đầu dòng". `Engine::reset` thường (click, đổi focus,
+//! hay Enter rồi click vào giữa câu cũ) vẫn xoá sạch ⇒ KHÔNG tự viết hoa (không đoán ngữ cảnh).
 //!
 //! Cùng vòng đối chiếu (P3-8 §7): R2-172 — địa danh `Đắk Lắk`, `Krông Búk` (xkey#135), cuối file.
 
@@ -62,9 +63,21 @@ fn caps_after_enter_survives_toolkit_reset() {
     let mut buf = Vec::new();
     type_str(&mut e, "ban", &mut buf);
     enter(&mut e, &mut buf);
-    e.reset(); // GtkTextView: reset ngay sau khi chèn dòng mới
+    e.reset_with_tail("\n"); // adapter: reset GtkTextView ngay sau khi chèn dòng mới
     type_str(&mut e, "tooi ", &mut buf);
     assert_eq!(text(&buf), "ban\nTôi ");
+}
+
+#[test]
+fn enter_then_click_elsewhere_does_not_capitalize() {
+    // Enter rồi click vào giữa câu cũ: reset thường ⇒ không viết hoa nhầm.
+    let mut e = Engine::new(opts());
+    let mut buf = Vec::new();
+    type_str(&mut e, "ban", &mut buf);
+    enter(&mut e, &mut buf);
+    e.reset();
+    type_str(&mut e, "tooi ", &mut buf);
+    assert_eq!(text(&buf), "ban\ntôi ");
 }
 
 #[test]
@@ -101,13 +114,13 @@ fn reset_after_sentence_end_space_does_not_capitalize() {
 
 #[test]
 fn double_reset_after_enter_still_capitalizes() {
-    // GTK có thể reset nhiều lần (reset + focus_in); mốc đầu dòng vẫn giữ.
+    // GTK có thể reset nhiều lần trong cùng phím Enter; adapter gọi lại `reset_with_tail`.
     let mut e = Engine::new(opts());
     let mut buf = Vec::new();
     type_str(&mut e, "ban", &mut buf);
     enter(&mut e, &mut buf);
-    e.reset();
-    e.reset();
+    e.reset_with_tail("\n");
+    e.reset_with_tail("\n");
     type_str(&mut e, "dduowcj ", &mut buf);
     assert_eq!(text(&buf), "ban\nĐược ");
 }
@@ -121,9 +134,19 @@ fn auto_capitalize_off_is_untouched() {
     let mut buf = Vec::new();
     type_str(&mut e, "ban", &mut buf);
     enter(&mut e, &mut buf);
-    e.reset();
+    e.reset_with_tail("\n");
     type_str(&mut e, "tooi ", &mut buf);
     assert_eq!(text(&buf), "ban\ntôi ");
+}
+
+#[test]
+fn other_tails_with_control_chars_still_rejected() {
+    // R2-131 giữ nguyên: tail có ký tự điều khiển khác "\n" ⇒ chỉ reset.
+    let mut e = Engine::new(opts());
+    let mut buf = Vec::new();
+    e.reset_with_tail("a\nb");
+    type_str(&mut e, "tooi ", &mut buf);
+    assert_eq!(text(&buf), "tôi ");
 }
 
 // ---- R2-172 (xkey#135): địa danh `Đắk Lắk`, `Krông Búk` — âm cuối `k` / âm đầu `kr` ----

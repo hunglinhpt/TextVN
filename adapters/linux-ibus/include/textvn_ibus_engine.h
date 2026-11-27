@@ -70,6 +70,8 @@ struct _TextVNIbusEngine {
     lc_edit_batch         edits;
     /* R2-167: preedit chỉ được đóng SAU commit đã gom (commit trước, ẩn preedit sau). */
     gboolean              hide_preedit_after_commit;
+    /* R2-171: thời điểm (g_get_monotonic_time, µs) nhấn Enter gần nhất; 0 = không có. */
+    gint64                enter_at_us;
 };
 
 struct _TextVNIbusEngineClass {

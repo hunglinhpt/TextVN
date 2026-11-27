@@ -1192,16 +1192,33 @@ void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputConte
     try {
         auto *st = state(event.inputContext());
         assistIdleCancel(st);
+        if (st) st->enterAtUs = 0; /* R2-171: đổi focus/bộ gõ ⇒ ngữ cảnh mới */
         endWord(st, event);
         if (st) lc_style_persist(st->inst);
     } catch (...) {
     }
 }
 
+/* R2-171: đồng hồ đơn điệu (µs) cho cửa sổ "reset ngay sau Enter". */
+static int64_t monotonicUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
 void TextVNEngine::reset(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        assistIdleCancel(state(event.inputContext()));
-        endWord(state(event.inputContext()), event);
+        auto *st = state(event.inputContext());
+        assistIdleCancel(st);
+        /* R2-171 (fcitx5-lotus#597): GtkTextView reset input context ngay khi chèn dòng mới ⇒
+         * giữ mốc đầu dòng để chữ kế tiếp vẫn tự viết hoa. Reset khác (click, đổi focus) xoá
+         * sạch như cũ. */
+        const bool lineStart = st && event.type() == fcitx::EventType::InputContextReset &&
+                               st->enterAtUs != 0 &&
+                               monotonicUs() - st->enterAtUs < LC_RESET_AFTER_ENTER_US;
+        if (st && event.type() == fcitx::EventType::InputContextFocusOut) st->enterAtUs = 0;
+        endWord(st, event);
+        if (lineStart && st->inst) ime_reset_with_tail(st->inst, LC_LINE_START_TAIL, 1);
     } catch (...) {
     }
 }
@@ -1508,6 +1525,14 @@ void TextVNEngine::keyEvent(const fcitx::InputMethodEntry &, fcitx::KeyEvent &ke
     try {
         auto *st = state(keyEvent.inputContext());
         if (!st) return;
+        if (!keyEvent.isRelease()) {
+            /* R2-171: nhớ lúc nhấn Enter; phím khác xen giữa ⇒ reset sau đó không phải của Enter. */
+            const auto sym = keyEvent.key().sym();
+            st->enterAtUs = (sym == FcitxKey_Return || sym == FcitxKey_KP_Enter ||
+                             sym == FcitxKey_ISO_Enter)
+                                ? monotonicUs()
+                                : 0;
+        }
         /* R2-165: mọi chỉnh sửa của phím gom lại, gửi tối đa 1 xoá + 1 commit TRƯỚC khi
          * phím không nuốt đi tiếp tới app (thứ tự như cũ). */
         editsBegin(st);

@@ -259,7 +259,11 @@ static void ctrl_shift_tap(IBusInputContext *ic) {
     pump();
 }
 
+/* Sang một ô nhập MỚI (document rỗng): đổi focus rồi reset — R2-171 chỉ giữ mốc đầu dòng cho
+ * reset tới ngay sau Enter trong CÙNG ô (GtkTextView), không cho ô khác. */
 static void clear(IBusInputContext *ic) {
+    ibus_input_context_focus_out(ic);
+    ibus_input_context_focus_in(ic);
     ibus_input_context_reset(ic);
     pump();
     g_string_truncate(g_doc, 0);
@@ -329,6 +333,21 @@ int main(void) {
     clear(ic);
     type(ic, "chaof banj\n");
     ok &= check("Enter commit (B2)", "chào bạn\n");
+    clear(ic);
+    /* R2-171 (fcitx5-lotus#597): GtkTextView reset input context NGAY khi chèn dòng mới ⇒
+     * chữ đầu dòng vẫn tự viết hoa; reset muộn (click chỗ khác sau Enter) thì không. */
+    type(ic, "ban\n");
+    ibus_input_context_reset(ic);
+    pump();
+    type(ic, "tooi ");
+    ok &= check("R2-171 reset ngay sau Enter (GTK)", "ban\nTôi ");
+    clear(ic);
+    type(ic, "ban\n");
+    g_usleep(400000);
+    ibus_input_context_reset(ic);
+    pump();
+    type(ic, "tooi ");
+    ok &= check("R2-171 reset muộn sau Enter (click)", "ban\ntôi ");
     clear(ic);
     type(ic, "dduocj\b ");
     ok &= check("Backspace trong từ", "đượ "); /* R2-55: xoá ký tự cuối như UniKey */

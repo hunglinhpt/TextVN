@@ -1439,21 +1439,12 @@ impl Engine {
 
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
-        // R2-171 (fcitx5-lotus#597): GtkTextView reset input context NGAY khi chèn dòng mới
-        // (IBus `reset` / Fcitx5 `InputContextReset` tới giữa Enter và chữ kế tiếp) ⇒ giữ
-        // mốc "đầu dòng" để `post::caps::sentence_start` vẫn tự viết hoa chữ đầu dòng mới.
-        // Chỉ giữ khi đuôi văn bản KẾT THÚC bằng xuống dòng: reset giữa câu (click, đổi
-        // focus) vẫn xoá sạch — không đoán ngữ cảnh mới.
-        let at_line_start = matches!(self.recent.last(), Some('\n' | '\r'));
         // Đổi focus/click sau khi nhận ứng viên = giữ ứng viên đó.
         self.settle_predict(true);
         self.bracket_word = None;
         self.word.clear();
         self.math.reset_all();
         self.record(Tail::Clear);
-        if at_line_start {
-            self.recent.push('\n');
-        }
     }
 
     /// `ime_peek_completion` (P6-11 · R2-134, chủ repo: "chữ mờ gợi ý sẵn") —
@@ -1501,6 +1492,15 @@ impl Engine {
     /// kiểm tra sau không thấy câu cũ. Không mở từ mới (từ đã chốt).
     pub fn reset_with_tail(&mut self, unicode_tail: &str) {
         self.reset();
+        // R2-171 (fcitx5-lotus#597): tail đúng bằng "\n" = "con trỏ ở ĐẦU DÒNG mới".
+        // GtkTextView reset input context ngay khi chèn dòng mới; adapter Linux nhận ra reset
+        // đó (tới trong vài trăm ms sau Enter, không đổi focus, không phím nào xen giữa) và
+        // gọi `ime_reset_with_tail("\n")` để chữ đầu dòng vẫn được tự viết hoa. Reset khác
+        // (click, đổi focus) vẫn dùng `ime_reset` — không đoán ngữ cảnh.
+        if unicode_tail == "\n" {
+            self.recent.push('\n');
+            return;
+        }
         let unicode: Vec<char> = unicode_tail.chars().collect();
         if unicode.is_empty() || unicode.iter().any(|c| c.is_control()) {
             return;

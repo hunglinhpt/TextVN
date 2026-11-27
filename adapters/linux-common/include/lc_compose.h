@@ -44,6 +44,14 @@ extern "C" {
 #define LC_EVDEV_KEY_LEFT 105u
 #define LC_XKB_KEY_LEFT   (LC_EVDEV_KEY_LEFT + 8u)
 
+/* R2-171 (fcitx5-lotus#597): GtkTextView reset input context NGAY khi chèn dòng mới (cùng
+ * phím Enter, vài ms). Reset tới trong cửa sổ này sau Enter — không phím nào, không đổi
+ * focus xen giữa — là reset đó ⇒ adapter gọi `ime_reset_with_tail(LC_LINE_START_TAIL)` để chữ
+ * đầu dòng mới vẫn tự viết hoa. Click chuột sau Enter luôn tới muộn hơn ⇒ reset thường. */
+#define LC_RESET_AFTER_ENTER_US 250000
+/* Tail "con trỏ ở đầu dòng" cho `ime_reset_with_tail` (1 byte, ký tự xuống dòng). */
+#define LC_LINE_START_TAIL "\n"
+
 typedef enum lc_key_kind {
     LC_KEY_CHAR = 0,  /* sinh ký tự in được (gồm Space) */
     LC_KEY_BACKSPACE,

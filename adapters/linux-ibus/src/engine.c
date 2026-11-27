@@ -1042,6 +1042,7 @@ static void engine_focus_in(IBusEngine *engine) {
 
 static void engine_focus_out(IBusEngine *engine) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    self->enter_at_us = 0; /* R2-171: đổi focus ⇒ ngữ cảnh mới */
     forget_word(self);
     lc_modifier_toggle_reset(&self->toggle);
     lc_style_persist(self->inst);
@@ -1049,7 +1050,13 @@ static void engine_focus_out(IBusEngine *engine) {
 }
 
 static void engine_reset(IBusEngine *engine) {
-    forget_word((TextVNIbusEngine *)engine);
+    TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    /* R2-171: reset GtkTextView gửi ngay sau Enter ⇒ giữ mốc đầu dòng (tự viết hoa). */
+    const gboolean line_start =
+        self->enter_at_us != 0 &&
+        g_get_monotonic_time() - self->enter_at_us < LC_RESET_AFTER_ENTER_US;
+    forget_word(self);
+    if (line_start && self->inst) ime_reset_with_tail(self->inst, LC_LINE_START_TAIL, 1);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->reset(engine);
 }
 
@@ -1405,6 +1412,13 @@ static gboolean process_key_inner(IBusEngine *engine, guint keyval, guint keycod
 static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint keycode,
                                          guint state) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    if (!(state & IBUS_RELEASE_MASK)) {
+        /* R2-171: nhớ lúc nhấn Enter; phím khác xen giữa ⇒ reset sau đó không phải của Enter. */
+        self->enter_at_us = (keyval == IBUS_KEY_Return || keyval == IBUS_KEY_KP_Enter ||
+                             keyval == IBUS_KEY_ISO_Enter)
+                                ? g_get_monotonic_time()
+                                : 0;
+    }
     edits_begin(self);
     gboolean eaten = process_key_inner(engine, keyval, keycode, state);
     edits_end(self);

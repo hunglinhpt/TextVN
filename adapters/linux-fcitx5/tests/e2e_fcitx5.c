@@ -341,7 +341,11 @@ static void check(const char *label, const char *want) {
     free(got.data);
 }
 
+/* Sang một ô nhập MỚI (document rỗng): đổi focus rồi reset — R2-171 chỉ giữ mốc đầu dòng cho
+ * reset tới ngay sau Enter trong CÙNG ô (GtkTextView), không cho ô khác. */
 static void clear(void) {
+    method_void(ic_path, IC_IFACE, "FocusOut");
+    method_void(ic_path, IC_IFACE, "FocusIn");
     method_void(ic_path, IC_IFACE, "Reset");
     pump(0.1);
     sb_clear(&doc);
@@ -624,6 +628,21 @@ int main(void) {
     clear();
     type_string("chaof banj\n");
     check("Enter commit (B2)", "ch\xc3\xa0o b\xe1\xba\xa1n\n"); /* "chào bạn\n" */
+    /* R2-171 (fcitx5-lotus#597): GtkTextView reset input context NGAY khi chèn dòng mới ⇒
+     * chữ đầu dòng vẫn tự viết hoa; reset muộn (click chỗ khác sau Enter) thì không. */
+    clear();
+    type_string("ban\n");
+    method_void(ic_path, IC_IFACE, "Reset");
+    pump(0.05);
+    type_string("tooi ");
+    check("R2-171 reset ngay sau Enter (GTK)", "ban\nT\xc3\xb4i "); /* "ban\nTôi " */
+    clear();
+    type_string("ban\n");
+    usleep(400000);
+    method_void(ic_path, IC_IFACE, "Reset");
+    pump(0.05);
+    type_string("tooi ");
+    check("R2-171 reset mu\xe1\xbb\x99n sau Enter (click)", "ban\nt\xc3\xb4i "); /* "ban\ntôi " */
     clear();
     type_string("dduocj\b ");
     check("Backspace trong t\xe1\xbb\xab",
