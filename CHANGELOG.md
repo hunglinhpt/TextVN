@@ -48,7 +48,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - `docs/specs/sandbox-appcontainer.md` (mới) · `docs/TROUBLESHOOTING.md` §5 (VI + EN: R2-26 đã sửa, cách
   kiểm, giới hạn còn lại) · `docs/50-assist/P6-TEXT-PREDICTION.md` P6-1/P6-3/P6-3b · `docs/user-guide.md` ·
   `docs/specs/dream-rsi.md` (đường nhận #6) · `docs/specs/verified-ops.md` C15 (chạy tiến trình
-  AppContainer/LPAC thật) · `docs/specs/project-common-errors.md` E76 (lặp lại trên CI, gia cố test) · E79 · E80 · E81 ·
+  AppContainer/LPAC thật) · `docs/specs/project-common-errors.md` E76 (lặp lại trên CI, gia cố test) · E79 · E80 · E81 · E82 ·
   `docs/00-INDEX.md` (tên pipe sandbox) · P3-8 §8.1.
 
 ### Kiểm thử / Testing
@@ -61,7 +61,8 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   lệnh nguy hiểm bị từ chối, Ctrl+Shift tới tray (đột biến DACL cũ ⇒ test đỏ) · `config/src/sandbox.rs`
   (gate phân loại mọi khoá config) · `ipc/src/sandbox.rs` · `tray/src/sandbox_mirror.rs` (DACL bảo vệ) ·
   `tray/src/ipc_server.rs` (`sandbox_policy`, `Visibility`, `FrameBudget`) · `cli` `r2_26_sandbox_mirror_verdict`.
-- E76: 2 test xuất ZIP chẩn đoán chạy lần lượt (`ZIP_EXPORT_LOCK`) + watchdog 120 s.
+- E76: 2 test xuất ZIP chẩn đoán chạy lần lượt (`ZIP_EXPORT_LOCK`) + watchdog 120 s. E82: Ctrl+Shift trong
+  `sandbox_e2e` thử lại sau cửa sổ chống dội 250 ms (test khác cùng binary chiếm cửa sổ trên runner CI).
 
 ---
 
@@ -106,7 +107,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   check, remaining limits) · `docs/50-assist/P6-TEXT-PREDICTION.md` P6-1/P6-3/P6-3b · `docs/user-guide.md` ·
   `docs/specs/dream-rsi.md` (accept path #6) · `docs/specs/verified-ops.md` C15 (running real
   AppContainer/LPAC processes) · `docs/specs/project-common-errors.md` E76 (recurred on CI, test hardening) ·
-  E79 · E80 · E81 · `docs/00-INDEX.md` (sandbox pipe name) · P3-8 §8.1.
+  E79 · E80 · E81 · E82 · `docs/00-INDEX.md` (sandbox pipe name) · P3-8 §8.1.
 
 ### Testing
 
@@ -120,7 +121,9 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   `config/src/sandbox.rs` (gate classifying every config key) · `ipc/src/sandbox.rs` ·
   `tray/src/sandbox_mirror.rs` (protected DACL) · `tray/src/ipc_server.rs` (`sandbox_policy`,
   `Visibility`, `FrameBudget`) · `cli` `r2_26_sandbox_mirror_verdict`.
-- E76: the 2 diagnostics ZIP export tests run one at a time (`ZIP_EXPORT_LOCK`) + a 120 s watchdog.
+- E76: the 2 diagnostics ZIP export tests run one at a time (`ZIP_EXPORT_LOCK`) + a 120 s watchdog. E82: the
+  Ctrl+Shift step of `sandbox_e2e` retries after the 250 ms debounce window (another test in the same binary
+  claimed it on the CI runner).
 
 ---
 

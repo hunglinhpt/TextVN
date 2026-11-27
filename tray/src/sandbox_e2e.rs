@@ -222,18 +222,29 @@ fn child_in_appcontainer() {
 
     // 6. Ctrl+Shift toàn cục từ ô tìm kiếm Start tới tray.
     let want: bool = env("TEXTVN_AC_E2E_TOGGLE") == "1";
-    send(
-        &mut stream,
-        &Message::ToggleViEn {
-            app_id: "*".into(),
-            enabled: want,
-        },
-    );
-    let Message::Snapshot { state, .. } = recv(&mut stream) else {
-        panic!("ToggleViEn phải nhận Snapshot");
-    };
-    assert_eq!(state.get("*"), Some(&want));
-    assert!(!state.contains_key("chrome.exe"));
+    // E82: chống dội 250 ms của tray (`try_claim_global_toggle`) là trạng thái TOÀN tiến trình —
+    // test khác của cùng binary chạy song song có thể vừa chiếm cửa sổ ⇒ lệnh bị bỏ qua đúng
+    // thiết kế (tray trả snapshot hiện tại). Thử lại sau cửa sổ, như TIP thật khi người dùng bấm lại.
+    let mut last = None;
+    for _ in 0..6 {
+        send(
+            &mut stream,
+            &Message::ToggleViEn {
+                app_id: "*".into(),
+                enabled: want,
+            },
+        );
+        let Message::Snapshot { state, .. } = recv(&mut stream) else {
+            panic!("ToggleViEn phải nhận Snapshot");
+        };
+        assert!(!state.contains_key("chrome.exe"));
+        last = state.get("*").copied();
+        if last == Some(want) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    assert_eq!(last, Some(want), "Ctrl+Shift từ sandbox phải tới tray");
 }
 
 /// Chạy `exe` trong AppContainer `sid` (LPAC nếu `lpac`), đợi tối đa 60 s, trả exit code.

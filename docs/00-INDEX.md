@@ -15,6 +15,7 @@
 | [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
 | [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
 | [specs/sandbox-appcontainer.md](specs/sandbox-appcontainer.md) | R2-26: TextVN trong ô tìm kiếm Start / ứng dụng Store (AppContainer, LPAC) — số đo, bản sao cấu hình, pipe sandbox, mô hình đe doạ |
+| [10-shared/P0-5-ARM-PLATFORMS-PLAN.md](10-shared/P0-5-ARM-PLATFORMS-PLAN.md) | Kế hoạch chip ARM: Apple M, Windows on ARM (Snapdragon, NVIDIA), Linux aarch64 (Jetson/DGX Spark, Raspberry Pi) — đối chiếu UniKey/EVKey/OpenKey/ibus-bamboo |
 
 ## 1. Trạng thái các phần
 
