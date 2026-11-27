@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPK-ARM64X (spike cho ARM-W2/ARM-W3, P0-7 Luồng W) — DETACHED workspace.
+# Probe nạp DLL TIP theo đúng cách COM nạp InprocServer32 rồi gọi DllGetClassObject → tạo
+# ITfTextInputProcessor; build cho x86_64 và aarch64, chạy cả hai trên windows-11-arm.
+[workspace]
+
+[package]
+name = "arm64x-probe"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+# CLSID dùng chung với spike TIP (không chép hằng — G22).
+tsf-min = { path = "../../tsf-min" }
+windows-core = "0.61.2"
+
+[dependencies.windows]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_TextServices",
+]

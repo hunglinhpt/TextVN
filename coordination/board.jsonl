@@ -1,3 +1,5 @@
 {"agent":"claude-opus-c4c5a567","epoch":"1795788731","kind":"rm-lock","msg":"v0.2.93 (release-candidate 46011499603, B7–B9 đang chạy)","to":"*","ts":"2026-11-27T14:12:11Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795788731","kind":"notify","msg":"G21 có hiệu lực: giao nhận việc qua cargo xtask board (coordination/README.md R1–R14). Kế hoạch + spec + task: docs/10-shared/P0-5, P0-6, P0-7. Chưa claim task nào; chờ v0.2.93 phát hành xong (rm-lock).","to":"*","ts":"2026-11-27T14:12:11Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795789292","kind":"rm-lock","msg":"v0.2.94 (gộp: board G21–G23, LICENSE/NOTICE/deny, tác giả, E82 class fix, P0-5/6/7)","to":"*","ts":"2026-11-27T14:21:32Z"}
+{"agent":"claude-opus-c4c5a567","epoch":"1795793679","kind":"rm-unlock","to":"*","ts":"2026-11-27T15:34:39Z"}
+{"agent":"claude-opus-c4c5a567","epoch":"1795793683","kind":"notify","msg":"v0.2.94 released (rc 46021786968 10/10, approved 529889b0, tap synced, AUR/cask pinned 2af47ff1). rm-lock released. Next: refresh spikes/ (ARM64X, runner matrix, Dream RSI oracle).","to":"*","ts":"2026-11-27T15:34:43Z"}

@@ -1,6 +1,6 @@
 # WIN-061 - verify targets tren 2 runner image + upgrade-cycle tren CI.
 # Quy tac 2026-09-27: KHONG cai/update/downgrade app tren may local - runner tu huy sau job.
-# Dispatch-only (giong hook-spike) - khong gate PR.
+# Dispatch-only (giong spikes.yml) - khong gate PR.
 name: targets-verify
 
 on:

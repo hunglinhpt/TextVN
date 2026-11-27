@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPK-RSI — câu văn phòng tiếng Việt viết MỚI cho spike (không lấy từ data/vn_phrases.tsv).
+# Chữ thường, không dấu câu; một câu một dòng. Spike tự báo tỉ lệ chồng lấn với dữ liệu dự đoán.
+em gửi anh bản báo cáo tuần này để anh xem trước buổi họp
+chị kiểm tra giúp em hợp đồng với khách hàng mới nhé
+cuộc họp sáng mai được dời sang chiều thứ năm
+phòng kế toán cần bảng lương trước ngày hai mươi
+anh ấy đang đi công tác ở đà nẵng đến cuối tuần
+chúng tôi rất mong nhận được phản hồi sớm từ quý công ty
+dự án phát triển phần mềm đã hoàn thành giai đoạn một
+vui lòng xác nhận lịch phỏng vấn ứng viên vào thứ hai
+bộ phận kinh doanh sẽ trình bày kế hoạch quý tới
+em đã cập nhật tài liệu hướng dẫn sử dụng trên hệ thống
+nhờ anh chuyển tiếp thư này cho trưởng phòng nhân sự
+khách hàng phản ánh sản phẩm giao chậm hai ngày
+chúng ta cần thống nhất ngân sách trước khi ký hợp đồng
+xin cảm ơn mọi người đã tham gia buổi đào tạo hôm nay
+tôi sẽ gọi lại cho anh sau khi họp xong
+báo giá mới đã được gửi qua thư điện tử lúc chín giờ
+đội kỹ thuật đang xử lý sự cố mạng ở tầng ba
+mong chị sắp xếp thời gian để trao đổi thêm về đề xuất
+công ty tổ chức tiệc cuối năm vào tối thứ sáu
+hồ sơ dự thầu phải nộp trước mười giờ sáng mai
+em xin phép nghỉ một ngày để giải quyết việc gia đình
+kết quả kinh doanh tháng này tăng so với cùng kỳ
+anh vui lòng ký duyệt đề nghị thanh toán giúp em
+chúng tôi xin gửi lời chúc sức khỏe đến quý khách
+lịch làm việc tuần sau có thay đổi mọi người chú ý
+trưởng nhóm đề nghị mỗi người viết báo cáo ngắn gọn
+phần mềm mới giúp tiết kiệm nhiều thời gian nhập liệu
+xin chào các bạn hôm nay chúng ta bàn về chiến lược
+khách hàng muốn xem bản thiết kế trước khi thanh toán
+em đã đặt phòng họp lớn cho buổi gặp đối tác
+chi phí vận chuyển tăng nên giá bán cũng điều chỉnh
+mọi thắc mắc xin liên hệ bộ phận chăm sóc khách hàng
+anh chị nhớ sao lưu dữ liệu trước khi cài đặt
+tôi đồng ý với phương án thứ hai của nhóm
+hạn chót nộp báo cáo tài chính là cuối tháng
+nhân viên mới sẽ bắt đầu làm việc từ đầu tháng sau
+chúng ta nên kiểm tra kỹ số liệu trước khi công bố
+buổi thuyết trình diễn ra tốt đẹp ngoài mong đợi
+em gửi kèm danh sách người tham dự hội nghị
+cảm ơn anh đã hỗ trợ nhiệt tình trong thời gian qua

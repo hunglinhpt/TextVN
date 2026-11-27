@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPK-RSI — English office sentences written fresh for the spike (not copied from data/en_*.tsv).
+# Lowercase, no punctuation, one sentence per line. The spike reports overlap with the prediction data.
+please review the attached report before the meeting
+the client asked for a revised contract by friday
+our team will present the project plan next week
+thank you for your quick response
+i will send the updated budget this afternoon
+could you confirm the schedule for the interview
+the release was delayed because of a network issue
+we need more information about the new requirements
+let me know if you have any questions
+the customer support team resolved the problem today
+please share the meeting notes with everyone
+the finance department approved the payment request
+we are looking forward to working with your company
+the training session starts at nine in the morning
+i have updated the document on the shared drive
+the manager wants a short summary of the results
+our sales increased compared to last quarter
+please sign the agreement and send it back
+the developers are testing the new version
+we should check the numbers before we publish them

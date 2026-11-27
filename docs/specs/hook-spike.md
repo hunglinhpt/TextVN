@@ -1,7 +1,7 @@
 # Spike WIN-005 — WH_KEYBOARD_LL + SendInput + UIA trên GHA (`spikes/hook-probe`)
 
 > Task: `WIN-005` (`../20-windows/P1-6-TASKS.md`) · Risk: **RW5** (`../20-windows/P1-0-MASTER-PLAN.md`, `../20-windows/P1-5-test-plan.md §1/§5`)
-> Spike code: `../../spikes/hook-probe/` · Workflow: `../../.github/workflows/hook-spike.yml` (dispatch-only)
+> Spike code: `../../spikes/hook-probe/` · Workflow: `../../.github/workflows/spikes.yml` job `runner-probe` (dispatch-only; trước 2026-11-27 là `hook-spike.yml`, chỉ `windows-latest`)
 > Ngày chạy: 2026-09-27 · Local: Windows 11 x64 session 1 · GHA: `windows-latest` (Server 2022) session 2
 > **Acceptance:** ✅ "GHA có session desktop? SendInput có bị chặn?" — §1 · "quyết định nightly ở đâu" — §3.
 
@@ -72,8 +72,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File spikes\hook-probe\hook_probe
 
 ```bash
 # GHA (can push len main truoc vi workflow doc script tu branch)
-gh workflow run hook-spike.yml
-gh run watch --exit-status   # xem log hoac artifact hook-probe-out
+gh workflow run spikes.yml
+gh run watch --exit-status   # artifact spk-runner-<os> (windows-2022 / windows-2025 / windows-11-arm)
 ```
 
 Yêu cầu: Windows có UIA + WinForms (PowerShell 5.1). Script tự dọn notepad mới mở (giữ notepad có sẵn của người dùng), S2: không log text.
@@ -85,3 +85,11 @@ Yêu cầu: Windows có UIA + WinForms (PowerShell 5.1). Script tự dọn notep
 - [x] Kết quả RW5 ghi nhận để `P1-0 §RW5` + `P1-5 §1` cập nhật (báo agent phụ trách file chung trước khi sửa — G11).
 - [x] Findings S5-1…S5-8 (không xóa); lỗi script mới vào `win-test-common-errors.md` (A11–A13).
 - [x] Local + 3 run GHA đều xanh (evidence link §1); script portable, SPDX, ASCII.
+
+## 2026-11-27 — mở lại thành SPK-RUNNER (ma trận runner hiện tại)
+
+Kế hoạch ARM/tương thích (P0-5 §9b, P0-7 COMPAT-1/ARM-W5) cần e2e Windows trên **`windows-2025`** và
+**`windows-11-arm`** — câu hỏi của WIN-005 (phiên desktop? SendInput? UIA xuyên tiến trình?) phải được trả
+lời lại cho hai image này. Cùng script `spikes/hook-probe/hook_probe.ps1`, workflow `spikes.yml` job
+`runner-probe` (ma trận `windows-2022` / `windows-2025` / `windows-11-arm`, artifact `spk-runner-<os>`).
+Kết quả: xem `../../spikes/README.md` (cột Kết quả) — cập nhật sau run CI.

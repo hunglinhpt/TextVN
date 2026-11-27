@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Spikes (dispatch-only, KHONG gate PR/push) - spikes/README.md.
+# Thay hook-spike.yml (WIN-005): cung probe, nay chay tren ma tran runner hien tai + 2 spike moi.
+#   runner-probe   SPK-RUNNER: desktop session + SendInput + UIA tren windows-2022/2025/11-arm
+#                  (COMPAT-1, ARM-W5 - harness e2e co chay duoc tren runner moi khong).
+#   arm64x-*       SPK-ARM64X: forwarder ARM64X cho TIP, nap tu tien trinh x64 gia lap + ARM64
+#                  native tren windows-11-arm (ARM-W2/ARM-W3).
+#   rsi-oracle     SPK-RSI: KSR-oracle (RSI-1) tren 5 kien truc/OS; rsi-determinism so dau ra
+#                  phai giong het nhau tung byte (PERF-2).
+name: spikes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spikes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runner-probe:
+    name: SPK-RUNNER (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Hook/SendInput/UIA probe
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File spikes\hook-probe\hook_probe.ps1
+      - name: Show probe output
+        if: always()
+        shell: powershell
+        run: Get-Content (Join-Path $env:TEMP 'hook_probe_out.txt') -ErrorAction SilentlyContinue
+      - name: Upload probe output
+        if: always()
+        shell: powershell
+        run: Copy-Item (Join-Path $env:TEMP 'hook_probe_out.txt') (Join-Path $env:RUNNER_TEMP 'hook_probe_out.txt') -ErrorAction SilentlyContinue
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spk-runner-${{ matrix.os }}
+          path: ${{ runner.temp }}/hook_probe_out.txt
+          if-no-files-found: warn
+
+  arm64x-build:
+    name: SPK-ARM64X build (x64 host, cross ARM64 + ARM64X link)
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: x86_64-pc-windows-msvc, aarch64-pc-windows-msvc
+      - name: Build tsf-min x64/arm64 + probes + ARM64X forwarder + rsi-oracle arm64
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File spikes\arm64x-forwarder\build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spk-arm64x-out
+          path: target/spikes/arm64x-out
+          if-no-files-found: error
+
+  arm64x-run:
+    name: SPK-ARM64X run (windows-11-arm)
+    needs: arm64x-build
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: spk-arm64x-out
+          path: target/spikes/arm64x-out
+      - name: Probe x64 (emulated) + ARM64 (native) through the ARM64X forwarder
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File spikes\arm64x-forwarder\run.ps1
+      - name: rsi-oracle on Windows ARM64 (cross-built)
+        shell: powershell
+        # cmd redirect = raw UTF-8 bytes (PowerShell 5.1 pipes would re-decode via the OEM code page).
+        run: |
+          $env:SPK_RSI_ROOT = $env:GITHUB_WORKSPACE
+          cmd /c "target\spikes\arm64x-out\rsi-oracle-arm64.exe > `"%RUNNER_TEMP%\rsi-windows-11-arm.txt`""
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content -Encoding utf8 (Join-Path $env:RUNNER_TEMP 'rsi-windows-11-arm.txt')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spk-rsi-windows-11-arm
+          path: ${{ runner.temp }}/rsi-windows-11-arm.txt
+          if-no-files-found: error
+
+  rsi-oracle:
+    name: SPK-RSI (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2022, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: KSR-oracle vs bench policy
+        shell: bash
+        run: |
+          set -o pipefail
+          CARGO_TARGET_DIR=target/spikes cargo run --release --manifest-path spikes/rsi-oracle/Cargo.toml > "$RUNNER_TEMP/rsi-${{ matrix.os }}.txt"
+          cat "$RUNNER_TEMP/rsi-${{ matrix.os }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spk-rsi-${{ matrix.os }}
+          path: ${{ runner.temp }}/rsi-${{ matrix.os }}.txt
+          if-no-files-found: error
+
+  rsi-determinism:
+    name: SPK-RSI determinism (x86_64 vs aarch64, 3 OS)
+    needs: [rsi-oracle, arm64x-run]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: spk-rsi-*
+          merge-multiple: true
+          path: rsi
+      - name: Outputs must be byte-identical (CRLF/BOM normalised)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd rsi
+          for f in *.txt; do sed -i '1s/^\xEF\xBB\xBF//; s/\r$//' "$f"; done
+          ls -1
+          ref=rsi-ubuntu-24.04.txt
+          fail=0
+          for f in *.txt; do
+            if cmp -s "$ref" "$f"; then echo "same  $f"; else echo "DIFF  $f"; diff "$ref" "$f" || true; fail=1; fi
+          done
+          exit $fail

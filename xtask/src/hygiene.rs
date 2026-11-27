@@ -470,7 +470,7 @@ fn scan_injection_line(rel: &str, lineno: usize, line: &str, violations: &mut Ve
 }
 
 /// Gate: API inject/giống malware bị cấm (antivirus-false-positive.md §8).
-/// `spikes/` = probe không phát hành (hook-spike, WIN-005) — guard áp cho
+/// `spikes/` = probe không phát hành (`spikes/README.md`, workflow `spikes.yml`) — guard áp cho
 /// code phát hành, copy vào `adapters/` vẫn bị chặn tại đó.
 pub fn no_injection_apis() -> Result<(), String> {
     let root = repo_root();

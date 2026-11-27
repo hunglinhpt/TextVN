@@ -88,7 +88,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 
 | Agent | Vùng |
 |---|---|
-| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/workflows/hook-spike.yml`, `xtask/src/hygiene.rs` + `xtask/src/win_tools.rs` (gate hygiene kiểm Windows — E59) |
+| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/workflows/spikes.yml`, `xtask/src/hygiene.rs` + `xtask/src/win_tools.rs` (gate hygiene kiểm Windows — E59) |
 | Agent core/FFI | `core/`, `ffi/`, `cli/`, `config/`, `strategy/`, `corpus/`, `appdb/`, `.github/workflows/ci-shared.yml` |
 | Chung (vẫn áp G11 khi có WIP) | `PLAN.md`, `docs/00-*`, `docs/01-*`, `docs/20-windows/*` (ngoài spike specs), `docs/specs/*` còn lại |
 
@@ -181,7 +181,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 | Workflow | File | Chủ | Chạy khi | Việc làm |
 |---|---|---|---|---|
 | `repo-hygiene` | `.github/workflows/repo-hygiene.yml` | Agent Windows/spike | push `main` + PR + dispatch | 11 check "sạch" (§12.2, E59 +`no-python`) — cần toolchain build xtask |
-| `hook-spike` | `.github/workflows/hook-spike.yml` | Agent Windows/spike | **chỉ dispatch** | WIN-005: probe WH_KEYBOARD_LL + SendInput + UIA trên `windows-latest` (verify RW5, `P1-5 §1`) — không gate PR |
+| `spikes` | `.github/workflows/spikes.yml` (thay `hook-spike.yml` từ 2026-11-27) | Agent Windows/spike | **chỉ dispatch** | `spikes/README.md`: SPK-RUNNER (probe WH_KEYBOARD_LL + SendInput + UIA của WIN-005 trên `windows-2022`/`windows-2025`/`windows-11-arm`), SPK-ARM64X (forwarder TIP ARM64X trên `windows-11-arm`), SPK-RSI (KSR-oracle 5 kiến trúc/OS + so tất định) — không gate PR |
 | `ci-shared` | `.github/workflows/ci-shared.yml` | Agent core/FFI | push `main` + PR + dispatch | Rust CI: fmt · clippy · abi-sizes · check-tables · verify header · perf · cargo-deny · reuse · **test 3 OS** · replay 3 OS · fuzz |
 | `ci-windows` | `.github/workflows/ci-windows.yml` | Agent Windows | push `main` + PR + dispatch | clippy target Windows (gồm hook) · gói Windows chạy thật: portable + Inno (per-user, machine, nâng cấp khi tray chạy) gõ TSF thật, Store validation, MSIX build + verify + sideload (tách khỏi `ci-shared` 2026-10-11) |
 | `ci-linux` | `.github/workflows/ci-linux.yml` | Agent Linux | push `main` + PR + dispatch | linux-common ASan/UBSan · IBus/Fcitx5 build + e2e thật · tarball cài/chạy ngay (tách khỏi `ci-shared` 2026-10-11) |
