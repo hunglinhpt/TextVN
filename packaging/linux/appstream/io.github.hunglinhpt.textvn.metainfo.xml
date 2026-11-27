@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.92" date="2026-11-27">
+      <description>
+        <p>Linux typing robustness audited against the public bug trackers of other Vietnamese IMEs and a real x-unikey 1.0.4 engine oracle. Every key now sends at most one delete and one commit (IBus and Fcitx5), so the grammar auto-fix no longer loses words on GNOME Wayland; the preedit is hidden only after the commit (fixes repeated last words after Enter in Chrome chat apps); Math templates forward the Left key with press, release and a real keycode, and the diagnostics warn about GNOME 50.0-50.3. Engine: "Sose2026" keeps its keys, "booots" becomes "boots" while real loanwords such as "goòng" and "voọc" still work, and the "dz" onset (dzũng, dzô) is accepted.</p>
+      </description>
+    </release>
     <release version="0.2.91" date="2026-11-26">
       <description>
         <p>One-click Diagnose &amp; Export Log UX upgrade across all 3 operating systems. Places a prominent [Chẩn đoán &amp; xuất log] button at the top of the Help ("Hướng dẫn TextVN") dialog (vertical Command Links with TDF_SIZE_TO_CONTENT on Windows, dedicated top suggested-action row on Linux GTK4/GTK3, unified button on macOS) and exposes "Chẩn đoán &amp; xuất log..." directly at the top level of the Windows tray menu, macOS menu bar, and Linux IBus/Fcitx5 indicator menus (via textvn-settings --diagnose). Diagnostic result dialogs now display inline highlights and include an [Mở thư mục tệp ZIP] button alongside [Copy tóm tắt lỗi] and [Mở trang báo lỗi].</p>

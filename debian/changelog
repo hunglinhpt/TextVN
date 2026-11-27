@@ -1,3 +1,23 @@
+textvn (0.2.92-0ppa1) noble; urgency=medium
+
+  * Linux typing robustness audited against Ngó Sen, OpenKey, ibus-bamboo issues
+    and a real x-unikey 1.0.4 engine oracle:
+    - R2-165: every key now sends at most ONE delete + ONE commit (shared
+      lc_edit_batch for IBus and Fcitx5). text-input-v3/mutter keep only the last
+      edit per `done`, so the grammar auto-fix / Ctrl+Space sentence fix used to
+      lose the word just typed and over-delete earlier text on GNOME Wayland.
+    - R2-166: Math templates forward Left as press + release with a real keycode
+      (evdev 105 / XKB 113); `textvn-cli --diagnose` warns about mutter 50.0-50.3
+      (W_MUTTER_FORWARD_KEY_BUG, Ubuntu 26.04).
+    - R2-167: commit first, then hide the preedit (fixes the "last word repeated
+      after Enter" class seen in Chrome/Messenger with preedit IMEs).
+    - R2-168/169/170 (engine, all OSes): "Sose2026" keeps its keys at the glued
+      digit; "booots" -> "boots" while goong/mooc/Thoong/vooc loanwords still work
+      (vowel "oo" closes only with ng/c); "dz" onset (dzung, dzo).
+    - Known Linux limitations documented in docs/TROUBLESHOOTING.md (VI + EN).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Fri, 27 Nov 2026 09:00:00 +0700
+
 textvn (0.2.91-0ppa1) noble; urgency=medium
 
   * 1-click Diagnose & Export Log UX upgrade across Help popup & top-level tray menus (3 OSes):

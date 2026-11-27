@@ -7,6 +7,103 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.92] — 2026-11-27
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Sửa lỗi / Fixed
+
+- **R2-165 — Linux: mỗi phím gửi tối đa 1 lệnh xoá + 1 commit (IBus & Fcitx5)**: module dùng chung
+  `adapters/linux-common/{include/lc_edit_batch.h,src/edit_batch.c}` gom mọi xoá-trước-caret/commit của
+  một phím (`engine_process_key_event`, chọn ứng viên, timer dừng gõ; Fcitx5 `keyEvent` + timer).
+  text-input-v3 chỉ áp lệnh cuối mỗi `done` và mutter gộp lệnh một vòng lặp, nên trước đây trợ lý tự
+  sửa câu (`commit từ + commit dấu + xoá + commit bản sửa`) và Ctrl+Space sửa câu làm **mất từ vừa gõ
+  và xoá lẹm chữ phía trước** trên GNOME Wayland (đối chiếu Ngó Sen #1019/#207/#1016). Flush trước khi
+  forward phím, vẽ preedit mới, xoá vùng bôi đen. (E73)
+- **R2-166 — Linux: mẫu Math dời con trỏ đúng**: phím `Left` gửi lại có **nhấn + nhả** và keycode thật
+  (evdev 105 / XKB 113) thay vì chỉ nhấn với keycode 0 (GNOME coi phím đang giữ ⇒ app tự lặp, lần sau bị
+  bỏ); `textvn-cli --diagnose` thêm `W_MUTTER_FORWARD_KEY_BUG` cho GNOME Shell 50.0–50.3 (Ubuntu 26.04,
+  mutter#4853).
+- **R2-167 — Linux: commit trước, đóng gạch chân sau**: `commit_text` (IBus) / `commitText` (Fcitx5) không
+  còn ẩn preedit trước khi commit — thứ tự cũ làm Chrome/Electron lặp từ cuối sau Enter (Messenger,
+  Instagram, GitHub — ibus-bamboo #574/#589, PR #581). (E74)
+- **R2-168 — engine 3 OS: chữ số dính liền** sau từ đã biến đổi mà không có trong từ điển âm tiết ⇒ trả
+  phím (`Sose2026`, Ngó Sen #613); từ thật giữ như UniKey (`cos2` → `có2`, `lớp12`).
+- **R2-169 — engine: vần `oo` chỉ khép bằng `ng`/`c`** (`validate::oo_coda_ok`): `booots` → `boots` (Ngó Sen
+  #959, như x-unikey) mà vẫn gõ được `xoong boong goòng moóc soóc Thoòng voọc` (OpenKey #41). Dữ liệu
+  `vn_freq3000.txt` bỏ 3 từ Anh lẫn vào (`too moon boom`), `vn_syllables.txt` sinh lại bằng
+  `cargo xtask gen-vocab` (6.669 âm tiết, tổng corpora 53.952 mục). (E75)
+- **R2-170 — engine: âm đầu `dz`** (`dzũng`, `Dzũng`, `dzô`, `dzậy` — Ngó Sen #958, x-unikey gõ được).
+
+### Tài liệu / Docs
+
+- `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`: đối chiếu 100 issue Ngó Sen, 288 issue OpenKey,
+  520 issue ibus-bamboo và oracle x-unikey 1.0.4 — lỗi tương tự đã sửa, lỗi không áp dụng, khác biệt chủ
+  đích, giới hạn nền tảng.
+- `docs/TROUBLESHOOTING.md` (VI + EN): mục "Giới hạn đã biết khi gõ trên Linux" (thanh địa chỉ Chrome,
+  `sudo` trong terminal, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
+- `docs/specs/oracle-unikey.md` Cách D (build `ukengine` bằng MSVC), `docs/specs/verified-ops.md` B30/B31,
+  `docs/specs/project-common-errors.md` E72 (ghi bù) · E73 · E74 · E75.
+
+### Kiểm thử / Testing
+
+- `core/tests/r2_168_unikey_oracle_linux.rs` (37 ca oracle x-unikey/Ngó Sen/OpenKey/ibus-bamboo),
+  `corpus/shared/r2_168_unikey_oracle_01.keys` (replay 4 adapter), `validate::tests::oo_nucleus_needs_ng_or_c`,
+  `doctor::tests::r2_166_mutter_forward_key_bug_range`.
+- `adapters/linux-common/tests/test_edit_batch.c` (mô phỏng mutter gộp lệnh chứng minh lỗi cũ); e2e IBus +
+  Fcitx5: bất biến cả phiên "≤ 1 commit, ≤ 1 xoá mỗi phím", "phím gửi lại nhấn == nhả, keycode ≠ 0", "lúc
+  commit tới preedit cũ vẫn còn".
+
+---
+
+**English** — 0.2.92:
+
+### Fixed
+
+- **R2-165 — Linux: every key sends at most 1 delete + 1 commit (IBus & Fcitx5)**: the shared module
+  `adapters/linux-common/{include/lc_edit_batch.h,src/edit_batch.c}` batches every before-caret delete and
+  commit of one key (`engine_process_key_event`, candidate clicks, the idle timer; Fcitx5 `keyEvent` + timer).
+  text-input-v3 applies only the last edit per `done` and mutter coalesces one loop iteration, so the grammar
+  auto-fix (`commit word + commit punctuation + delete + commit fix`) and the Ctrl+Space sentence fix used to
+  **lose the word just typed and over-delete earlier text** on GNOME Wayland (cf. Ngó Sen #1019/#207/#1016).
+  Flushed before forwarding keys, drawing a new preedit or deleting a selection. (E73)
+- **R2-166 — Linux: Math templates move the caret correctly**: the forwarded `Left` key now carries **press +
+  release** and a real keycode (evdev 105 / XKB 113) instead of press-only with keycode 0 (GNOME treated it as
+  held ⇒ apps auto-repeated it and later forwards were dropped); `textvn-cli --diagnose` adds
+  `W_MUTTER_FORWARD_KEY_BUG` for GNOME Shell 50.0–50.3 (Ubuntu 26.04, mutter#4853).
+- **R2-167 — Linux: commit first, hide the underline after**: `commit_text` (IBus) / `commitText` (Fcitx5) no
+  longer hide the preedit before committing — the old order made Chrome/Electron repeat the last word after
+  Enter (Messenger, Instagram, GitHub — ibus-bamboo #574/#589, PR #581). (E74)
+- **R2-168 — 3-OS engine: glued digits** after a transformed word that is not in the syllable dictionary ⇒ the
+  keys are restored (`Sose2026`, Ngó Sen #613); real syllables stay as in UniKey (`cos2` → `có2`, `lớp12`).
+- **R2-169 — engine: vowel `oo` closes only with `ng`/`c`** (`validate::oo_coda_ok`): `booots` → `boots` (Ngó Sen
+  #959, as x-unikey) while `xoong boong goòng moóc soóc Thoòng voọc` still type (OpenKey #41). `vn_freq3000.txt`
+  drops 3 stray English words (`too moon boom`), `vn_syllables.txt` regenerated with `cargo xtask gen-vocab`
+  (6,669 syllables, 53,952 corpus entries in total). (E75)
+- **R2-170 — engine: `dz` onset** (`dzũng`, `Dzũng`, `dzô`, `dzậy` — Ngó Sen #958, typed by x-unikey).
+
+### Docs
+
+- `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`: comparison with 100 Ngó Sen issues, 288 OpenKey issues,
+  520 ibus-bamboo issues and the x-unikey 1.0.4 oracle — similar bugs fixed, bugs that do not apply,
+  intentional differences, platform limitations.
+- `docs/TROUBLESHOOTING.md` (VI + EN): "Known typing limitations on Linux" (Chrome address bar, `sudo` in
+  terminals, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
+- `docs/specs/oracle-unikey.md` method D (build `ukengine` with MSVC), `docs/specs/verified-ops.md` B30/B31,
+  `docs/specs/project-common-errors.md` E72 (backfilled) · E73 · E74 · E75.
+
+### Testing
+
+- `core/tests/r2_168_unikey_oracle_linux.rs` (37 x-unikey/Ngó Sen/OpenKey/ibus-bamboo oracle cases),
+  `corpus/shared/r2_168_unikey_oracle_01.keys` (4-adapter replay), `validate::tests::oo_nucleus_needs_ng_or_c`,
+  `doctor::tests::r2_166_mutter_forward_key_bug_range`.
+- `adapters/linux-common/tests/test_edit_batch.c` (a mutter-coalescing simulation proving the old bug); IBus +
+  Fcitx5 e2e: session-wide invariants "≤ 1 commit, ≤ 1 delete per key", "forwarded press == release, keycode ≠
+  0", "the old preedit is still shown when the commit arrives".
+
+---
+
 ## [0.2.91] — 2026-11-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3927,6 +4024,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.92]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...v0.2.92
 [0.2.91]: https://github.com/hunglinhpt/TextVN/compare/v0.2.90...v0.2.91
 [0.2.90]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...v0.2.90
 [0.2.89]: https://github.com/hunglinhpt/TextVN/compare/v0.2.88...v0.2.89
