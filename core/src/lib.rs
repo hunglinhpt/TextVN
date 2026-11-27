@@ -2849,12 +2849,19 @@ impl Engine {
         }
         // P7 (vòng 54): từ cá nhân (style_profile) tham gia ứng viên —
         // list rỗng (mặc định) → hành vi cũ byte-for-byte.
+        // RSI-7: tính ngữ cảnh EN (từ ngay trước là từ tiếng Anh thật) cho cổng
+        // ngôn ngữ — cùng cách `try_english_complete` tính `before_word`.
+        let tail = self.sentence_tail(64);
+        let prefix_char_count = tail.chars().count().saturating_sub(self.word.display.len());
+        let before_word: String = tail.chars().take(prefix_char_count).collect();
+        let en_context = post::restore_en::has_en_context(&before_word);
         let candidates = post::predict::predict_prefix_candidates_with_personal(
             &typed,
             true,
             5,
             &self.opts.style_words,
             self.style_touches,
+            en_context,
         );
         let candidates = if !candidates.is_empty() {
             candidates

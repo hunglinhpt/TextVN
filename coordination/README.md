@@ -16,6 +16,10 @@
 cargo xtask board help
 ```
 
+> **E83 — dự phòng khi workspace không biên dịch được** (WIP dở của agent khác): `cargo xtask board …` biên dịch lại cả
+> workspace nên sẽ hỏng; dùng bản đã build `target/debug/xtask.exe board …` (Windows) / `target/debug/xtask board …`, hoặc đọc
+> thẳng `coordination/board.jsonl`. Không sửa/stash WIP của agent khác (G2).
+
 ## 2. Định danh agent
 
 `TEXTVN_AGENT=<công cụ>-<model>-<8 ký tự phiên>` — ví dụ `claude-opus-c4c5a567`,

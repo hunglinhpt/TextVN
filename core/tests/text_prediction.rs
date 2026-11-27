@@ -700,7 +700,7 @@ fn test_personal_frecency_ranking_and_next_phrase_learning() {
     // 1. Frecency sorting: Từ cá nhân dùng nhiều (count 25) phải xếp trên từ ít dùng (count 1)
     // dù từ ít dùng ngắn hơn về số ký tự.
     let personal = vec![("khởi".to_string(), 1), ("khuyến".to_string(), 25)];
-    let preds = predict_prefix_candidates_with_personal("khu", true, 5, &personal, 0);
+    let preds = predict_prefix_candidates_with_personal("khu", true, 5, &personal, 0, true);
     assert_eq!(
         preds.first().map(|s| s.as_str()),
         Some("khuyến"),
@@ -961,5 +961,119 @@ fn r2_174_space_complete_khong_viet_lai_tu_da_dung() {
             want,
             "Space-complete phải còn chạy: {input:?}"
         );
+    }
+}
+
+// ===== RSI-7 — cổng ngôn ngữ cho chữ mờ (P0-7 Luồng R; spike SPK-RSI) =====
+//
+// Nhiễu chữ mờ VI lớn nhất là từ tiếng Anh chen vào khi đang gõ âm tiết Việt
+// (`gu`→`guys`, `ho`→`horse`, `ba`→`bars` — noise ~45/100 phím, precision ~9%).
+// Luật: tiền tố còn lớn lên được thành âm tiết Việt (tiền tố/âm tiết Việt hợp
+// lệ, so dạng ĐÃ BỎ DẤU) + KHÔNG có ngữ cảnh EN → ngừng mọi nguồn EN tĩnh;
+// có ngữ cảnh EN (từ trước là từ EN thật) → mở lại (code-switch không vỡ);
+// mode EN không bao giờ bị cổng; ứng viên cá nhân không bị cổng.
+
+/// Đột biến đã thử: đảo `en_allowed` thành hằng `true` trong `predict_impl`
+/// → test này đỏ ở cả 2 assertion "không EN" (API + engine).
+#[test]
+fn rsi_7_cong_ngon_ngu_chan_en_cho_tien_to_viet_hop_le() {
+    use textvn_core::post::predict::{predict_prefix_candidates_with_personal, vn_prefix_possible};
+
+    // vn_prefix_possible so dạng bỏ dấu — "gu"/"ho"/"ba" là tiền tố của
+    // "gụ"/"họ"/"bà" dù byte gốc không khớp; "pl"/"techn"/"rele" không phải.
+    // (Lưu ý: đầu vào là chuỗi ĐÃ transform của engine — "dd" Telex chưa bao giờ
+    // tới được predict vì display đã là "đ".)
+    for vn in ["gu", "ho", "ba", "re", "đư"] {
+        assert!(vn_prefix_possible(vn), "{vn} phải là tiền tố Việt hợp lệ");
+    }
+    assert!(
+        vn_prefix_possible("đư"),
+        "bỏ dấu: đ→d, ư→u — phải thấy 'dung'"
+    );
+    for en in ["pl", "techn", "rele", "proj"] {
+        assert!(!vn_prefix_possible(en), "{en} không phải tiền tố Việt");
+    }
+
+    // Không ngữ cảnh EN: KHÔNG ứng viên EN nào cho tiền tố Việt hợp lệ.
+    // ("re" còn lớn lên "reo"/"rẻ" — ứng viên VN giữ nguyên.) Từ SONG NGỮ thật
+    // ("ban", "bay", "bang" vừa là âm tiết Việt vừa ở google-10000) KHÔNG phải
+    // nhiễu — E84: ngữ pháp Việt thắng, chỉ chặn từ EN-thuần ("guy", "horse").
+    for typed in ["gu", "ho", "ba", "re"] {
+        let c = predict_prefix_candidates_with_personal(typed, true, 5, &[], 0, false);
+        let en_hits: Vec<&String> = c
+            .iter()
+            .filter(|w| {
+                textvn_core::post::restore_en::is_known_en_word(w)
+                    && !textvn_core::post::predict::is_known_vn_syllable(w)
+            })
+            .collect();
+        assert!(
+            en_hits.is_empty(),
+            "{typed} vẫn gợi ý EN khi không có ngữ cảnh: {c:?}"
+        );
+    }
+
+    // Có ngữ cảnh EN: nguồn EN mở lại cho tiền tố Việt hợp lệ — "re" (tiền tố
+    // Việt, chặn khi không ngữ cảnh) thấy từ EN-thuần ("red"/"read"…) quay lại
+    // khi từ ngay trước là từ EN thật (code-switch "gửi report" không vỡ).
+    let en_only_in = |c: &[String]| {
+        c.iter().any(|w| {
+            textvn_core::post::restore_en::is_known_en_word(w)
+                && !textvn_core::post::predict::is_known_vn_syllable(w)
+        })
+    };
+    let c = predict_prefix_candidates_with_personal("re", true, 20, &[], 0, true);
+    assert!(en_only_in(&c), "ngữ cảnh EN vẫn bị chặn: {c:?}");
+
+    // Mode EN không bao giờ bị cổng (kể cả không ngữ cảnh).
+    let c = predict_prefix_candidates_with_personal("techn", false, 5, &[], 0, false);
+    assert!(
+        c.iter().any(|w| w == "technology"),
+        "mode EN bị chặn: {c:?}"
+    );
+
+    // Hợp đồng 0.2.80 (`prefix_en_khong_bi_che_o_che_do_vi`): lời gọi trần
+    // (không biết ngữ cảnh) = permissive — nguồn EN không bị cấm ở mode VI.
+    let c = textvn_core::post::predict::predict_prefix_candidates("de", true, 10);
+    assert!(
+        c.iter().any(|w| w.starts_with("de") && w != "de"),
+        "lời gọi trần bị chặn nguồn EN: {c:?}"
+    );
+}
+
+/// Engine: sau từ Việt, tiền tố Việt hợp lệ không còn ghost EN; Space vẫn giữ
+/// chữ Việt đã đúng (R2-174 không hồi quy qua cổng mới).
+#[test]
+fn rsi_7_ghost_khong_en_sau_tu_viet() {
+    for (prefix, en_ghost) in [("gu", "ys"), ("ba", "rs"), ("ho", "rse")] {
+        let mut e = engine_with_predict();
+        typed(&mut e, "tôi "); // ngữ cảnh Việt
+        typed(&mut e, prefix);
+        match e.peek_completion() {
+            None => {} // "gu": không ứng viên nào — không ghost, đúng ý
+            Some(g) => {
+                let word = format!("{prefix}{g}");
+                let en_only = textvn_core::post::restore_en::is_known_en_word(&word)
+                    && !textvn_core::post::predict::is_known_vn_syllable(&word);
+                assert!(
+                    !en_only,
+                    "{prefix} sau từ Việt ghost thành từ EN-thuần {word:?}"
+                );
+                assert_ne!(g, en_ghost, "{prefix} ghost EN {g:?}");
+            }
+        }
+    }
+    // Đối chứng: ngữ cảnh EN → hoàn tất EN vẫn chạy ("the rele␠" → "the release ␠").
+    // (Gõ TRONG MỘT lượt — helper `typed` chỉ trả doc của lượt gọi đó.)
+    let mut e = engine_with_predict();
+    assert_eq!(
+        typed(&mut e, "the rele "),
+        "the release ",
+        "EN completion vỡ"
+    );
+    // Space giữ chữ Việt đã đúng sau từ Việt (không biến thành EN — R2-174).
+    for (input, want) in [("chungs ta ", "chúng ta "), ("kieemr tra ", "kiểm tra ")] {
+        let mut e = engine_with_predict();
+        assert_eq!(typed(&mut e, input), want, "{input:?}");
     }
 }

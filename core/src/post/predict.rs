@@ -22,9 +22,14 @@
 //! cùng cơ chế bucket byte-cuối, lookup vẫn < 1 ms (test `en_office_phrases_10k`).
 
 use crate::post::restore_en::{
-    EN_COMMON_DATA, EN_FREQ_DATA, EN_WORDS_10K_DATA, TECH_BUSINESS_TERMS,
+    is_known_en_word, EN_COMMON_DATA, EN_FREQ_DATA, EN_WORDS_10K_DATA, TECH_BUSINESS_TERMS,
 };
 use crate::post::suggest_vn::VN_SYLLABLES_DATA;
+
+/// E84 — từ điển Việt `data/assist/vi-DauMoi.dic` (nguồn sự thật "từ tiếng Việt
+/// thật" trong repo): mục âm tiết là từ EN đã biết mà không có ở đây = nhiễm
+/// corpus, loại khỏi prediction (xem `vn_syllables_sorted`).
+const VN_DIC_DAUMOI_DATA: &str = include_str!("../../../data/assist/vi-DauMoi.dic");
 use crate::transform::charset::strip_diacritics;
 use crate::transform::tone::normalize_tone;
 use crate::transform::DiacriticStyle;
@@ -37,13 +42,27 @@ use std::sync::OnceLock;
 // ---------------------------------------------------------------------------
 
 /// Âm tiết VN đã sắp alphabet (binary search 3 biến thể dấu).
+/// E84: corpus tần suất (OpenSubtitles) nhiễm tiếng Anh — mục là từ EN đã biết
+/// VÀ không có trong từ điển Việt `vi-DauMoi.dic` ("guy", "king", "thing",
+/// "my", "by", "kong", "on", "po", "them") bị loại tại điểm đọc. Từ Việt ASCII
+/// thật ("em", "con", "do", "an", "song", "than"…) đều có trong dic — giữ nguyên.
+/// `data/vn_syllables.txt` chưa regen (số corpora README chốt theo tệp) —
+/// `cargo xtask gen-vocab` đã có cùng luật để regen ở lần bump số liệu kế.
 fn vn_syllables_sorted() -> &'static [&'static str] {
     static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
     CACHE.get_or_init(|| {
+        let dic_set: std::collections::HashSet<&str> =
+            VN_DIC_DAUMOI_DATA.lines().map(str::trim).collect();
+        let dic_has = |w: &str| -> bool {
+            let old = restyle(w, DiacriticStyle::Old);
+            dic_set.contains(w) || dic_set.contains(old.as_str())
+        };
         let mut v: Vec<&'static str> = VN_SYLLABLES_DATA
             .lines()
             .map(str::trim)
-            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .filter(|l| {
+                !l.is_empty() && !l.starts_with('#') && (!is_known_en_word(l) || dic_has(l))
+            })
             .collect();
         v.sort_unstable();
         v
@@ -63,6 +82,57 @@ pub fn is_known_vn_syllable(word: &str) -> bool {
     hit(&lower)
         || hit(&restyle(&lower, DiacriticStyle::Old))
         || hit(&restyle(&lower, DiacriticStyle::New))
+}
+
+/// RSI-7 — âm tiết Việt đã **bỏ dấu**, sắp alphabet (build 1 lần qua OnceLock).
+/// So dạng bỏ dấu thay vì byte gốc vì tiền tố đang gõ thường chưa có dấu:
+/// `"gụ"` không bắt đầu bằng byte `"gu"` (ụ là 2 byte UTF-8) nhưng bỏ dấu thì
+/// có — cổng ngôn ngữ phải bắt được cả trường hợp này. Xây TỪ danh sách đã lọc
+/// E84 (`vn_syllables_sorted`) — một nguồn.
+fn vn_syllables_deacc_sorted() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut v: Vec<&'static str> = vn_syllables_sorted()
+            .iter()
+            .map(|l| {
+                let de: String = strip_diacritics(&l.trim().chars().collect::<Vec<_>>())
+                    .into_iter()
+                    .collect();
+                let de: &'static str = Box::leak(de.into_boxed_str());
+                de
+            })
+            .collect();
+        v.sort_unstable();
+        v.dedup();
+        v
+    })
+}
+
+/// RSI-7 — **cổng ngôn ngữ**: còn âm tiết Việt nào có thể lớn lên từ tiền tố
+/// đang gõ không (tiền tố là âm tiết/tiền tố Việt hợp lệ)? Nhận tiền tố ở
+/// BẤT KỲ dạng (có/không dấu, hoa/thường) — tự lowercase + `strip_diacritics`.
+pub fn vn_prefix_possible(typed: &str) -> bool {
+    if typed.chars().count() < 2 {
+        // predict_impl chỉ chạy với tiền tố ≥ 2 ký tự; cổng cũng giữ chuẩn đó.
+        return false;
+    }
+    let lower = typed.to_lowercase();
+    let de: String = strip_diacritics(&lower.chars().collect::<Vec<_>>())
+        .into_iter()
+        .collect();
+    vn_prefix_possible_unaccented(&de)
+}
+
+/// Lõi cổng — `typed_unaccented` đã lowercase + strip_diacritics (predict_impl
+/// đã tính sẵn `typed_unaccented` → gọi lõi này, 0 alloc thêm trên đường nóng).
+fn vn_prefix_possible_unaccented(typed_unaccented: &str) -> bool {
+    let sorted = vn_syllables_deacc_sorted();
+    let start = sorted.partition_point(|w| *w < typed_unaccented);
+    sorted[start..]
+        .iter()
+        .take_while(|w| w.starts_with(typed_unaccented))
+        .next()
+        .is_some()
 }
 
 /// Từ ghép kèm trọng số: `(word, deaccented, weight)` — deaccent build 1 lần
@@ -379,7 +449,11 @@ struct PrefixCandidate {
 /// Trả về danh sách ứng viên (tối đa `limit`), xếp theo độ ưu tiên:
 /// khớp trực tiếp (có dấu) > độ dài ký tự ngắn hơn (hoàn tất âm tiết trước) > weight cao hơn.
 pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -> Vec<String> {
-    predict_prefix_candidates_with_personal(typed_lower, is_vi, limit, &[], 0)
+    // Lời gọi trần (test / bench hiệu năng) = permissive `en_context = true`:
+    // hợp đồng 0.2.80 `prefix_en_khong_bi_che_o_che_do_vi` — nguồn EN KHÔNG bị
+    // cấm ở mode VI khi không biết ngữ cảnh. Engine (`try_vn_complete`) truyền
+    // ngữ cảnh thật → cổng RSI-7 chỉ hoạt động nơi có ngữ cảnh.
+    predict_prefix_candidates_with_personal(typed_lower, is_vi, limit, &[], 0, true)
 }
 
 /// P7 (vòng 54): như [`predict_prefix_candidates`] + ứng viên CÁ NHÂN
@@ -388,14 +462,26 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
 /// `style_touches` = số entry CUỐI danh sách `personal` được engine touch kể từ
 /// lần nạp options (F-A1-2 audit vòng 59) — chỉ chúng có recency boost; ngoài
 /// phạm vi đó thứ tự là count-desc (sanitize sort sau load) và boost phải = 0.
+/// `en_context` (RSI-7): từ ngay trước từ đang gõ là từ tiếng Anh thật — cho
+/// phép nguồn EN kể cả khi tiền tố là tiền tố/âm tiết Việt hợp lệ (code-switch
+/// "gửi report" vẫn hoàn tất từ EN); `false` + tiền tố Việt hợp lệ → ngừng
+/// nguồn EN tĩnh (giảm nhiễu chữ mờ VI: `gu`→`guys`, `ho`→`horse`, `ba`→`bars`).
 pub fn predict_prefix_candidates_with_personal(
     typed_lower: &str,
     is_vi: bool,
     limit: usize,
     personal: &[(String, u32)],
     style_touches: usize,
+    en_context: bool,
 ) -> Vec<String> {
-    predict_impl(typed_lower, is_vi, limit, personal, style_touches)
+    predict_impl(
+        typed_lower,
+        is_vi,
+        limit,
+        personal,
+        style_touches,
+        en_context,
+    )
 }
 
 fn predict_impl(
@@ -404,6 +490,7 @@ fn predict_impl(
     limit: usize,
     personal: &[(String, u32)],
     style_touches: usize,
+    en_context: bool,
 ) -> Vec<String> {
     if typed_lower.chars().count() < 2 || limit == 0 {
         return Vec::new();
@@ -566,92 +653,102 @@ fn predict_impl(
     }
 
     // 2. Tra cứu từ tiếng Anh (khi gõ từ tiếng Anh hoặc thuật ngữ coder/kinh doanh)
-    // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
-    // `to_lowercase()` + leak mỗi call (vòng 52: chống rò rỉ bộ nhớ mỗi phím).
-    for &(term, tl) in tech_terms_lower() {
-        if tl.starts_with(typed_lower)
-            && tl != typed_lower
-            && seen.insert(std::borrow::Cow::Borrowed(term))
-        {
-            ranked.push(PrefixCandidate {
-                word: std::borrow::Cow::Borrowed(term),
-                exact_match: true,
-                char_count: term.chars().count(),
-                weight: 85,
-                ext: false,
-                personal: false,
-            });
+    // RSI-7 — **cổng ngôn ngữ cho chữ mờ** (P0-7 Luồng R, SPK-RSI): ở mode VI,
+    // tiền tố còn lớn lên được thành âm tiết Việt (tiền tố/âm tiết Việt hợp lệ)
+    // và KHÔNG có ngữ cảnh EN → ngừng MỌI nguồn EN tĩnh. Phần lớn nhiễu chữ mờ
+    // VI là từ tiếng Anh chen vào khi đang gõ âm tiết Việt (`gu`→`guys`,
+    // `ho`→`horse`, `ba`→`bars` — noise ~45/100 phím, precision ~9%). Ngữ cảnh
+    // EN (từ trước là từ EN thật) mở cổng lại — code-switch "gửi report" không
+    // vỡ. Ứng viên CÁ NHÂN (khối 0) giữ nguyên — người dùng đã tự dùng từ đó.
+    let en_allowed = !is_vi || en_context || !vn_prefix_possible_unaccented(&typed_unaccented);
+    if en_allowed {
+        // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
+        // `to_lowercase()` + leak mỗi call (vòng 52: chống rò rỉ bộ nhớ mỗi phím).
+        for &(term, tl) in tech_terms_lower() {
+            if tl.starts_with(typed_lower)
+                && tl != typed_lower
+                && seen.insert(std::borrow::Cow::Borrowed(term))
+            {
+                ranked.push(PrefixCandidate {
+                    word: std::borrow::Cow::Borrowed(term),
+                    exact_match: true,
+                    char_count: term.chars().count(),
+                    weight: 85,
+                    ext: false,
+                    personal: false,
+                });
+            }
         }
-    }
 
-    // en_common (danh sách restore-policy, ~150 mục — tuyến tính)
-    for &word in en_common_lines() {
-        if word.starts_with(typed_lower)
-            && word != typed_lower
-            && seen.insert(std::borrow::Cow::Borrowed(word))
-        {
-            ranked.push(PrefixCandidate {
-                word: std::borrow::Cow::Borrowed(word),
-                exact_match: true,
-                char_count: word.chars().count(),
-                weight: 70,
-                ext: false,
-                personal: false,
-            });
-        }
-    }
-
-    // en_freq3000 (vòng 52: binary search)
-    for word in prefix_scan(en_freq_sorted(), typed_lower) {
-        if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
-            ranked.push(PrefixCandidate {
-                word: std::borrow::Cow::Borrowed(word),
-                exact_match: true,
-                char_count: word.chars().count(),
-                weight: 60,
-                ext: false,
-                personal: false,
-            });
-        }
-    }
-
-    // en_words10k — google-10000-english (vòng 52): nguồn mở rộng prediction,
-    // weight 55 dưới freq3000. KHÔNG đụng chính sách restore/assist.
-    for word in prefix_scan(en_words10k_sorted(), typed_lower) {
-        if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
-            ranked.push(PrefixCandidate {
-                word: std::borrow::Cow::Borrowed(word),
-                exact_match: true,
-                char_count: word.chars().count(),
-                weight: 55,
-                ext: false,
-                personal: false,
-            });
-        }
-    }
-
-    // en_compounds — từ ghép & cụm danh từ tiếng Anh (~1957 mục, 16 domain):
-    // Khi từ đầu khớp hoàn toàn (`ext == true`, ví dụ `"machine"` -> `"machine learning"`),
-    // được ưu tiên mở rộng giống từ ghép tiếng Việt (`"tiến"` -> `"tiến độ"`).
-    if let Some(&b0) = typed_lower.as_bytes().first() {
-        for &(word, weight) in en_compounds_buckets()
-            .get(&b0)
-            .copied()
-            .into_iter()
-            .flatten()
-        {
-            if word != typed_lower
-                && word.starts_with(typed_lower)
+        // en_common (danh sách restore-policy, ~150 mục — tuyến tính)
+        for &word in en_common_lines() {
+            if word.starts_with(typed_lower)
+                && word != typed_lower
                 && seen.insert(std::borrow::Cow::Borrowed(word))
             {
                 ranked.push(PrefixCandidate {
                     word: std::borrow::Cow::Borrowed(word),
                     exact_match: true,
                     char_count: word.chars().count(),
-                    weight,
-                    ext: compound_ext(word),
+                    weight: 70,
+                    ext: false,
                     personal: false,
                 });
+            }
+        }
+
+        // en_freq3000 (vòng 52: binary search)
+        for word in prefix_scan(en_freq_sorted(), typed_lower) {
+            if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
+                ranked.push(PrefixCandidate {
+                    word: std::borrow::Cow::Borrowed(word),
+                    exact_match: true,
+                    char_count: word.chars().count(),
+                    weight: 60,
+                    ext: false,
+                    personal: false,
+                });
+            }
+        }
+
+        // en_words10k — google-10000-english (vòng 52): nguồn mở rộng prediction,
+        // weight 55 dưới freq3000. KHÔNG đụng chính sách restore/assist.
+        for word in prefix_scan(en_words10k_sorted(), typed_lower) {
+            if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
+                ranked.push(PrefixCandidate {
+                    word: std::borrow::Cow::Borrowed(word),
+                    exact_match: true,
+                    char_count: word.chars().count(),
+                    weight: 55,
+                    ext: false,
+                    personal: false,
+                });
+            }
+        }
+
+        // en_compounds — từ ghép & cụm danh từ tiếng Anh (~1957 mục, 16 domain):
+        // Khi từ đầu khớp hoàn toàn (`ext == true`, ví dụ `"machine"` -> `"machine learning"`),
+        // được ưu tiên mở rộng giống từ ghép tiếng Việt (`"tiến"` -> `"tiến độ"`).
+        if let Some(&b0) = typed_lower.as_bytes().first() {
+            for &(word, weight) in en_compounds_buckets()
+                .get(&b0)
+                .copied()
+                .into_iter()
+                .flatten()
+            {
+                if word != typed_lower
+                    && word.starts_with(typed_lower)
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: true,
+                        char_count: word.chars().count(),
+                        weight,
+                        ext: compound_ext(word),
+                        personal: false,
+                    });
+                }
             }
         }
     }

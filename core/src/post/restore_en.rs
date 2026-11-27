@@ -27,6 +27,7 @@
 //! `hotkeys.restore_last`); Tab gợi ý hoàn tất từ EN dùng chung dữ liệu ở
 //! `complete_word`.
 
+use crate::post::predict::vn_prefix_possible;
 use crate::transform::stroke::is_stroke;
 use crate::transform::tone::is_vowel;
 use crate::validate::is_valid_word;
@@ -1055,10 +1056,16 @@ pub fn complete_word_candidates(
         && vn_ascii_syllables().contains(typed_lower)
         && !is_known_en_word(typed_lower)
         && !en_context;
+    // RSI-7 — cổng ngôn ngữ (đường EN): tiền tố còn lớn lên được thành âm tiết
+    // Việt (so dạng ĐÃ BỎ DẤU — "gu"→"gụ", "ho"→"họ" mà bảng 1061 âm tiết ASCII
+    // bỏ sót) và không có ngữ cảnh EN → chặn hoàn-tiện-prefix nguồn EN tĩnh.
+    // Nhường Tier 0 (từ cá nhân) và nhánh RESTORE từ EN gõ trọn bị Telex fold
+    // (`sort`→`sỏt` trả lại `sort`) — đó không phải hoàn-tiện-prefix.
+    let vn_only_prefix = vi_on && !en_context && vn_prefix_possible(typed_lower);
     let allow_full_en = if !vi_on {
         true
     } else {
-        (!is_valid_word(&folded_chars) && !vn_only_typed)
+        (!is_valid_word(&folded_chars) && !vn_only_typed && !vn_only_prefix)
             || (en_context && folded_lower == typed_lower && !space_mode)
     };
 
@@ -1148,9 +1155,13 @@ pub fn complete_word_candidates(
     }
 
     // Tier 2: Từ đơn tiếng Anh (giữ nguyên thứ tự ngắn nhất trước của `complete_word`).
-    for l in with_prefix(en_common_sorted(), typed_lower) {
-        if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
-            cands.push((2, l.len(), -70, l.to_string()));
+    // RSI-7: en_common cũng thuộc cổng ngôn ngữ — chính danh sách ~153 từ restore
+    // này sinh phần lớn nhiễu VI ("guys", "horse", "bars", "law", "town" đều ở đây).
+    if !vn_only_prefix {
+        for l in with_prefix(en_common_sorted(), typed_lower) {
+            if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
+                cands.push((2, l.len(), -70, l.to_string()));
+            }
         }
     }
     if allow_full_en {

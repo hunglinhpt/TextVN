@@ -15,9 +15,10 @@
 //!
 //! Idempotent — sinh lại byte-identical khi không đổi bảng.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 
+use textvn_core::post::restore_en::is_known_en_word;
 use textvn_core::transform::tone::normalize_tone;
 use textvn_core::transform::DiacriticStyle;
 use textvn_core::validate::is_valid_word;
@@ -49,22 +50,46 @@ fn to_old_style(word: &str) -> String {
 fn gen_vn_syllables() -> Result<usize, String> {
     let freq_raw =
         fs::read_to_string("data/vn_freq3000.txt").map_err(|e| format!("vn_freq3000.txt: {e}"))?;
+    // E84: corpus tần suất (OpenSubtitles) nhiễm tiếng Anh — các mục hình âm vị
+    // hợp lệ nhưng KHÔNG phải tiếng Việt ("guy", "king", "thing", "my", "by",
+    // "kong", "on", "po", "them") lọt qua validator ngữ âm học. Luật loại: từ
+    // tiếng Anh đã biết (`is_known_en_word`) VÀ không có trong từ điển Việt
+    // `vi-DauMoi.dic` (nguyên văn hoặc kiểu dấu CŨ) — nguồn sự thật duy nhất
+    // của "genuine Vietnamese" trong repo. Từ Việt ASCII thật ("em", "con",
+    // "do", "an", "song", "than"…) đều có trong dic nên giữ nguyên.
+    let dic_raw =
+        fs::read_to_string("data/assist/vi-DauMoi.dic").map_err(|e| format!("dic: {e}"))?;
+    let dic_set: HashSet<&str> = dic_raw.lines().map(str::trim).collect();
+    let dic_has = |w: &str| -> bool {
+        let old = to_old_style(w);
+        dic_set.contains(w) || dic_set.contains(old.as_str())
+    };
     let mut header = String::new();
     let mut freq_words: Vec<String> = Vec::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut freq_en_dropped: Vec<String> = Vec::new();
     for line in freq_raw.lines() {
         let t = line.trim();
         if t.starts_with('#') {
             header.push_str(line);
             header.push('\n');
         } else if !t.is_empty() {
+            if is_known_en_word(t) && !dic_has(t) {
+                freq_en_dropped.push(t.to_string());
+                continue;
+            }
             freq_words.push(t.to_string());
             seen.insert(t.to_string());
         }
     }
+    if !freq_en_dropped.is_empty() {
+        println!(
+            "vn_syllables: loại {} mục EN nhiễm corpus ({})",
+            freq_en_dropped.len(),
+            freq_en_dropped.join(", ")
+        );
+    }
 
-    let dic_raw =
-        fs::read_to_string("data/assist/vi-DauMoi.dic").map_err(|e| format!("dic: {e}"))?;
     let mut dic_added: Vec<String> = Vec::new();
     let mut rejected = 0usize;
     for line in dic_raw.lines() {

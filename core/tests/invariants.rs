@@ -281,3 +281,35 @@ fn backspace_removes_exactly_one_visible_char() {
         }
     }
 }
+
+// ===== E84 — dữ liệu âm tiết Việt không chứa từ tiếng Anh ngoài từ điển =====
+//
+// Corpus tần suất OpenSubtitles nhiễm tiếng Anh: "guy", "king", "thing", "my",
+// "by", "kong", "on", "po", "them" hình âm vị hợp lệ (validator ngữ âm học
+// không loại được) nhưng không phải tiếng Việt ⇒ thành ghost sai trong mode VI
+// ("gu" → "guy", SPK-RSI đo noise ~45/100 phím). Luật sinh lại (gen-vocab):
+// mục là từ EN đã biết (`is_known_en_word`) và KHÔNG có trong từ điển Việt
+// `vi-DauMoi.dic` phải bị loại. Test này khoá bất biến dữ liệu.
+
+#[test]
+fn e84_du_lieu_am_tiet_vn_khong_chua_tu_en_ngoai_tu_dien() {
+    use textvn_core::post::predict::is_known_vn_syllable;
+
+    // 9 mục EN nhiễm corpus OpenSubtitles (E84): hình âm vị hợp lệ nhưng không
+    // phải tiếng Việt, KHÔNG có trong từ điển vi-DauMoi.dic — engine phải loại
+    // tại điểm đọc (vn_syllables_sorted) ⇒ không còn là âm tiết Việt.
+    for leak in [
+        "guy", "king", "thing", "my", "by", "kong", "on", "po", "them",
+    ] {
+        assert!(
+            !is_known_vn_syllable(leak),
+            "{leak} vẫn được coi là âm tiết Việt — E84 chưa fix (gen-vocab regen sẽ dọn tệp)"
+        );
+    }
+    // Từ Việt ASCII thật (có trong dic) phải SURVIVE — filter không được cướp.
+    for vn in [
+        "em", "con", "do", "an", "song", "than", "may", "tim", "la", "ca",
+    ] {
+        assert!(is_known_vn_syllable(vn), "{vn} bị filter cướp mất");
+    }
+}
