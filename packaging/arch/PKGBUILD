@@ -1,4 +1,4 @@
-# Maintainer: LinhBH.CoM <hunglinhpt@users.noreply.github.com>
+# Maintainer: Bui Hung Linh - LinhBH.CoM <hunglinhpt@users.noreply.github.com>
 # Contributor: TextVN release checklist B7e (docs/release/release-process.md)
 #
 # PKGBUILD cho AUR (aur.archlinux.org/pkgbase/textvn) — build TỪ MÃ NGUỒN của
@@ -24,7 +24,7 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/hunglinhpt/TextVN/archive/r
 # R2-118: hash phải là archive của ĐÚNG tag pkgver — tính SAU khi tag tồn tại
 # (B7e: `sha256sum <(curl -sL .../archive/refs/tags/v$pkgver.tar.gz)`); publish-aur.sh
 # từ chối push nếu lệch version, CI ci-aur build cây hiện tại nên không phụ thuộc.
-sha256sums=('422b5d2ee1715fbe1def1640e606469ec51c8b3f274bb0051d5be284ad1a6c32')
+sha256sums=('a3b13e06158b34d4c8abeb12816d3d08fe9140efa9035c9d210a297ead09968e')
 
 prepare() {
     # Source archive của GitHub trích ra TextVN-<ver>/ (tên repo) — đổi tên cho
