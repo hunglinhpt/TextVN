@@ -16,6 +16,7 @@
 
 mod art_icons;
 mod assist_tools;
+mod board;
 mod check_mac_targets;
 mod check_version_sync;
 mod en_office;
@@ -116,6 +117,8 @@ fn main() -> ExitCode {
         | "assist-gen-vi-tatoeba"
         | "assist-gen-en-tatoeba" => assist_tools::cli(&args),
         "preflight" => preflight::run(),
+        // G21: bảng điều phối nhiều agent (coordination/board.jsonl).
+        "board" => board::cli(&args[1..]),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -147,6 +150,7 @@ fn usage() -> &'static str {
      cargo xtask check-mac-corpus   # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask check-mac-targets  # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
+     cargo xtask board <lệnh>       # G21: nhận/giao task, giữ chỗ tệp, thông báo (board help)\n  \
      cargo xtask check-ibus-component <xml> <base> # kiểm tra component IBus (E59)\n  \
      cargo xtask hygiene-docs       # link markdown nội bộ không hỏng\n  \
      cargo xtask hygiene-secrets    # secret/token/private key không được commit\n  \

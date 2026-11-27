@@ -1,38 +1,88 @@
-# cargo-deny config — Handbook DoD #4 + security S5 (gate dependency network/ban).
-# Project: GPL-3.0-or-later → allow-list các license compatible.
-# Ref: docs/10-shared/P0-1-repo-and-workflow.md §5 (CI gates).
+# SPDX-License-Identifier: GPL-3.0-or-later
+# cargo-deny — TextVN (C) 2026 Bui Hung Linh - LinhBH.CoM · https://github.com/hunglinhpt/TextVN
+#
+# Gate phụ thuộc cho Handbook DoD #4 + security S5, chạy ở CI `ci-shared.yml` (`cargo deny check`)
+# và khuyến nghị chạy local trước khi thêm crate. Ref: docs/10-shared/P0-1-repo-and-workflow.md §5.
+#
+# Nguyên tắc nghiệp vụ được mã hoá ở đây (cập nhật 2026-11-27, v0.2.93):
+#   1. TextVN là GPL-3.0-or-later (LICENSE + LICENSES/GPL-3.0-or-later.txt, REUSE.toml) — mọi crate
+#      bên thứ ba phải có giấy phép TƯƠNG THÍCH và ĐÃ ĐƯỢC DUYỆT (danh sách hẹp bên dưới: chỉ những
+#      giấy phép đang thực sự dùng; thêm giấy phép mới = review + ghi lý do trong PR).
+#   2. Bộ gõ 100% offline, không telemetry, không ghi phím (G8 · README "zero keylogging"): cấm crate
+#      mạng/HTTP/telemetry trong toàn workspace.
+#   3. Không crate "global input hook" bên thứ ba — API hook chỉ nằm trong `adapters/windows-hook`
+#      (opt-in) và bị `cargo xtask hygiene-apis` kiểm (AV policy Farch-3).
+#   4. Chỉ crates.io chính thức; không git/registry lạ (chuỗi cung ứng).
+#   5. Kiểm trên MỌI kiến trúc đang/ sắp phát hành (P0-5/P0-6: Windows ARM64, Linux aarch64,
+#      macOS universal) — phụ thuộc chỉ xuất hiện trên một target cũng bị soát.
+
+[graph]
+targets = [
+    "x86_64-pc-windows-msvc",
+    "i686-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
 
 [advisories]
+# RustSec: lỗ hổng luôn chặn (mặc định); crate bị gỡ (yanked) cũng chặn.
 yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+ignore = []
 
 [licenses]
-# Ghi chú: license text của project ở LICENSE + LICENSES/GPL-3.0-or-later.txt (REUSE).
+# Chỉ giấy phép đang dùng thật (2026-11-27: `cargo deny list -l license`) + GPL của chính TextVN.
+# Tất cả tương thích GPL-3.0-or-later. Thêm mục = phải review tương thích GPL-3.0 + ghi lý do.
 allow = [
-    "GPL-3.0-or-later",
-    "MIT",
-    "Apache-2.0",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "0BSD",
-    "ISC",
-    "Zlib",
-    "BSL-1.0",
-    "Unlicense",
-    "CC0-1.0",
-    "MIT-0",
-    "Unicode-DFS-2016",
-    "Unicode-3.0",
-    "MPL-2.0",
-    "CDLA-Permissive-2.0",
+    "GPL-3.0-or-later", # crate textvn-* và xtask (giấy phép của TextVN)
+    "MIT",              # serde, windows-rs, syn/quote/proc-macro2, …
+    "Apache-2.0",       # đa số crate MIT OR Apache-2.0
+    "Unicode-3.0",      # unicode-ident
+    "Unlicense",        # memchr (MIT OR Unlicense)
 ]
+confidence-threshold = 0.93
+
+[licenses.private]
+# Crate nội bộ của workspace vẫn phải khai GPL-3.0-or-later (không bỏ qua).
+ignore = false
 
 [bans]
 multiple-versions = "warn"
-# workspace path-dep (`textvn-* = { path = ... }`) bị cargo-deny coi là wildcard —
-# không phải rủi ro thật (crates.io wildcard thật vẫn hiện warning để review).
+# Dependency path nội bộ (`textvn-* = { path = ... }`) không phải rủi ro; wildcard crates.io thật vẫn cảnh báo.
 wildcards = "warn"
+allow-wildcard-paths = true
+deny = [
+    # (2) offline / không telemetry / không ghi phím — không mạng trong sản phẩm.
+    { name = "reqwest", reason = "TextVN offline: cấm HTTP client (G8, zero keylogging)" },
+    { name = "hyper", reason = "TextVN offline: cấm HTTP stack" },
+    { name = "ureq", reason = "TextVN offline: cấm HTTP client" },
+    { name = "curl", reason = "TextVN offline: cấm HTTP client" },
+    { name = "isahc", reason = "TextVN offline: cấm HTTP client" },
+    { name = "attohttpc", reason = "TextVN offline: cấm HTTP client" },
+    { name = "surf", reason = "TextVN offline: cấm HTTP client" },
+    { name = "sentry", reason = "không telemetry/crash upload (panic.log cục bộ, G8)" },
+    { name = "opentelemetry", reason = "không telemetry" },
+    { name = "posthog-rs", reason = "không telemetry" },
+    # (3) không global input hook bên thứ ba (AV policy Farch-3, hygiene-apis).
+    { name = "rdev", reason = "global keyboard hook bên thứ ba — cấm (AV/keylogger heuristics)" },
+    { name = "device_query", reason = "đọc phím toàn cục — cấm" },
+    { name = "inputbot", reason = "global hook — cấm" },
+    { name = "enigo", reason = "giả lập phím toàn cục — dùng API OS trực tiếp trong adapter" },
+    # TLS hệ thống không cần cho sản phẩm offline; kéo thư viện native khác nhau mỗi OS.
+    { name = "openssl", reason = "không cần TLS; tránh phụ thuộc native theo OS" },
+    { name = "openssl-sys", reason = "không cần TLS; tránh phụ thuộc native theo OS" },
+    { name = "native-tls", reason = "không cần TLS" },
+    # G21 chọn JSONL append-only (merge=union) cho điều phối agent, không DB nhị phân.
+    { name = "rusqlite", reason = "điều phối dùng coordination/board.jsonl (G21); không thêm C SQLite" },
+    { name = "libsqlite3-sys", reason = "như trên" },
+]
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

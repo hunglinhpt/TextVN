@@ -38,14 +38,14 @@ static IBusComponent *make_component(const char *setup_path) {
     gchar *quoted_setup = g_shell_quote(setup);
     IBusComponent *component = ibus_component_new(
         TEXTVN_IBUS_COMPONENT, "TextVN Vietnamese Input Method", TEXTVN_VERSION,
-        "GPL-3.0-or-later", "LinhBH.CoM", "https://github.com/hunglinhpt/TextVN", "", "textvn");
+        "GPL-3.0-or-later", "Bui Hung Linh - LinhBH.CoM", "https://github.com/hunglinhpt/TextVN", "", "textvn");
     IBusEngineDesc *desc = ibus_engine_desc_new_varargs(
         "name", TEXTVN_IBUS_ENGINE,
         "longname", "Vietnamese (TextVN)",
         "description", "Vietnamese Input Method (Telex, VNI, VIQR)",
         "language", "vi",
         "license", "GPL-3.0-or-later",
-        "author", "LinhBH.CoM",
+        "author", "Bui Hung Linh - LinhBH.CoM",
         "icon", "textvn_v",
         "layout", "default",
         "symbol", "VN",

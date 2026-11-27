@@ -35,12 +35,12 @@ Subject: ITP: textvn -- Vietnamese input method editor for IBus and Fcitx5
 
 Package: wnpp
 Severity: wishlist
-Owner: LinhBH.CoM <hunglinhpt@gmail.com>
+Owner: Bui Hung Linh - LinhBH.CoM <hunglinhpt@gmail.com>
 X-Debbugs-CC: debian-devel@lists.debian.org
 
 * Package name    : textvn
   Version         : 0.2.34-1
-  Upstream Author : LinhBH.CoM <hunglinhpt@gmail.com>
+  Upstream Author : Bui Hung Linh - LinhBH.CoM <hunglinhpt@gmail.com>
 * URL             : https://github.com/hunglinhpt/TextVN
 * License         : GPL-3.0-or-later
   Programming Lang: Rust, C, C++
@@ -105,7 +105,7 @@ I'd be grateful if a DD could sponsor the upload — happy to maintain it
 under the input-method team.
 
 Thanks,
-LinhBH.CoM <hunglinhpt@gmail.com>
+Bui Hung Linh - LinhBH.CoM <hunglinhpt@gmail.com>
 ```
 
 Sau khi sponsor upload vào **unstable (sid)**: gói đi qua kiểm thử tự động →

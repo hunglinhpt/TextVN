@@ -15,7 +15,10 @@
 | [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
 | [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
 | [specs/sandbox-appcontainer.md](specs/sandbox-appcontainer.md) | R2-26: TextVN trong ô tìm kiếm Start / ứng dụng Store (AppContainer, LPAC) — số đo, bản sao cấu hình, pipe sandbox, mô hình đe doạ |
-| [10-shared/P0-5-ARM-PLATFORMS-PLAN.md](10-shared/P0-5-ARM-PLATFORMS-PLAN.md) | Kế hoạch chip ARM: Apple M, Windows on ARM (Snapdragon, NVIDIA), Linux aarch64 (Jetson/DGX Spark, Raspberry Pi) — đối chiếu UniKey/EVKey/OpenKey/ibus-bamboo |
+| [10-shared/P0-5-ARM-PLATFORMS-PLAN.md](10-shared/P0-5-ARM-PLATFORMS-PLAN.md) | Nền tảng thống nhất `textvn-session` (một nghiệp vụ cho 3 OS) + chip ARM: Apple M, Windows on ARM (Snapdragon, NVIDIA — TSF + ARM64X), Linux aarch64 (Jetson/DGX Spark, Raspberry Pi) — nghiên cứu UniKey, Weasel, VietType, Gõ Nhanh, Ngó Sen, kime… |
+| [10-shared/P0-6-SESSION-FRAMEWORK-SPEC.md](10-shared/P0-6-SESSION-FRAMEWORK-SPEC.md) | Giải pháp chi tiết: `textvn-session` (sự kiện/lệnh, C ABI `ime_session_*`, vết vàng, shadow mode), ARM64X forwarder, CI/gói ARM, MSIX bundle |
+| [10-shared/P0-7-TASKS-ARM-SF.md](10-shared/P0-7-TASKS-ARM-SF.md) | Task cho nhiều agent: vai trò, **DoR**, **DoD**, **audit checklist**, thẻ task ARM-L/SF/ARM-W/ARM-M/PERF/WL |
+| [../coordination/README.md](../coordination/README.md) | **G21** — giao nhận việc & thông báo giữa agent qua `coordination/board.jsonl` (`cargo xtask board`) |
 
 ## 1. Trạng thái các phần
 

@@ -4,6 +4,7 @@ name = "textvn-ffi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 # P0-1 §1 liệt kê ["staticlib","cdylib"]; bổ sung "rlib" để `textvn-cli` và
 # integration test link được (Rust không depend được crate chỉ có staticlib/cdylib).

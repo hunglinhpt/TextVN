@@ -362,6 +362,10 @@ fn sandbox_appcontainer_end_to_end() {
     {
         return;
     }
+    // E82/G23: tiến trình con toggle qua tray của test này — giữ khoá chống dội toàn cục suốt test.
+    let _toggle_lock = crate::GLOBAL_TOGGLE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     use windows::core::HSTRING;
     use windows::Win32::Security::FreeSid;
     use windows::Win32::Security::Isolation::{

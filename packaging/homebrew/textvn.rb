@@ -2,7 +2,7 @@
 # textvn.rb — Homebrew Cask formula for TextVN on macOS
 
 cask "textvn" do
-  version "0.2.93"
+  version "0.2.94"
   # sha256 của TextVN-macos-universal-v<version>.zip — cập nhật MỖI bản phát hành
   # (lấy từ SHA256SUMS.txt của release; bước B7b trong release-process.md)
   sha256 "50a34be50cec529aa45ea4fc8152f0480cc331f8d764bbb91ecdaf7fc0d6939d"

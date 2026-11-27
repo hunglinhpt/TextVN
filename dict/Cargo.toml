@@ -4,6 +4,7 @@ name = "textvn-dict"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 # KHÔNG dependency bat buoc: crate này tự viết FST + mmap bằng FFI thuần của OS
 # (Windows `CreateFileMapping`/`MapViewOfFile`, macOS/Linux `mmap`) — không

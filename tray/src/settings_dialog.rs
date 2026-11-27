@@ -141,7 +141,7 @@ pub const ASSIST_MODE_HINTS: [&str; 3] = [
 /// riêng "cho Windows/macOS/Linux" ở mỗi bản.
 const ABOUT_TAGLINE: &str = "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)";
 const ABOUT_DETAILS: [&str; 3] = [
-    "Phát triển bởi: LinhBH.CoM",
+    "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM",
     "Giấy phép: GPL-3.0-or-later",
     "https://github.com/hunglinhpt/TextVN",
 ];

@@ -1,3 +1,141 @@
+TextVN — Bộ gõ tiếng Việt / Vietnamese Input Method
+Copyright (C) 2026 Bui Hung Linh - LinhBH.CoM <https://github.com/hunglinhpt>
+Tác giả, chủ sở hữu và người duy trì sản phẩm TextVN / Author, owner and
+maintainer of the TextVN product: Bui Hung Linh
+Mã nguồn / Source: https://github.com/hunglinhpt/TextVN
+SPDX-License-Identifier: GPL-3.0-or-later
+
+===============================================================================
+ENGLISH
+===============================================================================
+
+TextVN is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+TextVN is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License below for more details.
+
+ADDITIONAL TERMS UNDER SECTION 7 OF THE GNU GPL VERSION 3
+
+As permitted by Section 7 of the GNU General Public License version 3, the
+copyright holder adds the following terms to this License. They apply to
+TextVN and to every work that contains, is based on, or is derived from TextVN
+source code, in whole or in part ("Derived Product").
+
+  7(b) Attribution. A Derived Product must preserve the following notice, and
+       every copyright notice of TextVN in the source files it reuses:
+
+           Based on TextVN by Bui Hung Linh — https://github.com/hunglinhpt/TextVN
+
+       The notice must appear in the Appropriate Legal Notices displayed by the
+       Derived Product (for example its "About" window, credits or legal
+       screen, or the output of a version/license command) and in its
+       documentation or the NOTICE file that accompanies it. The notice must be
+       kept in a reasonably visible and legible form; it may be translated into
+       the language of the Derived Product as long as the names "TextVN" and
+       "Bui Hung Linh" and the address above are kept unchanged.
+
+  7(c) Origin. Modified versions must be marked as changed (for example in
+       their version string or release notes) and must not be presented as the
+       original TextVN or as made or endorsed by Bui Hung Linh.
+
+  7(e) Names and marks. This License does not grant permission to use the name
+       "TextVN", its logos or icons as the name, logo or brand of a Derived
+       Product, except for the attribution notice required by 7(b) and factual
+       statements such as "based on TextVN".
+
+These additional terms only use the options that Section 7 allows. They do not
+restrict any other freedom the GNU GPL grants, and they do not apply to
+third-party components that keep their own licenses (see "Third-party
+components" below).
+
+The English text of the GNU General Public License version 3 reproduced below
+is the only legally binding license text. The Vietnamese section is provided
+for convenience; if it differs from the English text, the English text prevails.
+
+===============================================================================
+TIẾNG VIỆT
+===============================================================================
+
+TextVN là phần mềm tự do: bạn được phân phối lại và/hoặc sửa đổi theo các điều
+khoản của Giấy phép Công cộng GNU (GNU General Public License) do Quỹ Phần mềm
+Tự do công bố, phiên bản 3 hoặc (tuỳ bạn chọn) bất kỳ phiên bản nào mới hơn.
+
+TextVN được phân phối với hy vọng hữu ích nhưng KHÔNG CÓ BẤT KỲ BẢO ĐẢM NÀO,
+kể cả bảo đảm ngầm định về KHẢ NĂNG THƯƠNG MẠI hay PHÙ HỢP VỚI MỘT MỤC ĐÍCH CỤ
+THỂ. Xem văn bản GNU General Public License bên dưới để biết chi tiết.
+
+ĐIỀU KHOẢN BỔ SUNG THEO MỤC 7 CỦA GNU GPL PHIÊN BẢN 3
+
+Theo quyền mà Mục 7 của GNU General Public License phiên bản 3 cho phép, chủ sở
+hữu bản quyền bổ sung các điều khoản sau. Chúng áp dụng cho TextVN và cho mọi
+sản phẩm có chứa, dựa trên hoặc phái sinh từ mã nguồn TextVN, toàn bộ hay một
+phần ("Sản phẩm phái sinh").
+
+  7(b) Ghi công. Sản phẩm phái sinh phải giữ nguyên thông báo sau, cùng mọi
+       thông báo bản quyền của TextVN trong các tệp mã nguồn được dùng lại:
+
+           Based on TextVN by Bui Hung Linh — https://github.com/hunglinhpt/TextVN
+           (Dựa trên TextVN của Bui Hung Linh)
+
+       Thông báo phải xuất hiện trong phần Thông báo pháp lý thích hợp
+       (Appropriate Legal Notices) mà Sản phẩm phái sinh hiển thị (ví dụ cửa sổ
+       "Giới thiệu/About", màn hình ghi công hoặc thông tin pháp lý, kết quả của
+       lệnh xem phiên bản/giấy phép) và trong tài liệu hoặc tệp NOTICE đi kèm.
+       Thông báo phải ở dạng đủ rõ ràng, dễ đọc; được phép dịch sang ngôn ngữ của
+       Sản phẩm phái sinh nhưng phải giữ nguyên tên "TextVN", "Bui Hung Linh" và
+       địa chỉ ở trên.
+
+  7(c) Nguồn gốc. Bản sửa đổi phải được đánh dấu là đã thay đổi (ví dụ trong
+       chuỗi phiên bản hoặc ghi chú phát hành) và không được giới thiệu như
+       TextVN gốc hay như do Bui Hung Linh làm ra hoặc bảo trợ.
+
+  7(e) Tên và nhãn hiệu. Giấy phép này không cho phép dùng tên "TextVN", logo
+       hay biểu tượng của TextVN làm tên, logo hoặc thương hiệu của Sản phẩm
+       phái sinh, ngoài thông báo ghi công bắt buộc ở 7(b) và các mô tả đúng sự
+       thật như "dựa trên TextVN".
+
+Các điều khoản bổ sung này chỉ dùng những lựa chọn mà Mục 7 cho phép; chúng không
+hạn chế bất kỳ quyền tự do nào khác mà GNU GPL trao, và không áp dụng cho thành
+phần bên thứ ba giữ giấy phép riêng (xem "Thành phần bên thứ ba" bên dưới).
+
+Tóm tắt nghĩa vụ chính của GNU GPL v3 (chỉ để tham khảo, không thay thế văn bản
+gốc tiếng Anh):
+  - Được dùng, nghiên cứu, sửa đổi và phân phối lại TextVN, kể cả cho mục đích
+    thương mại.
+  - Khi phân phối TextVN hoặc Sản phẩm phái sinh (dạng mã nguồn hoặc nhị phân):
+    phải cung cấp (hoặc kèm đề nghị cung cấp) mã nguồn tương ứng đầy đủ theo
+    cùng giấy phép GPL v3 trở lên, giữ nguyên các thông báo bản quyền, giấy phép
+    và điều khoản bổ sung ở trên, và không áp thêm hạn chế nào khác.
+  - Không có bảo đảm; tác giả không chịu trách nhiệm về thiệt hại phát sinh.
+
+Văn bản GNU General Public License phiên bản 3 bằng tiếng Anh dưới đây là văn bản
+giấy phép duy nhất có giá trị pháp lý. Phần tiếng Việt chỉ nhằm thuận tiện; nếu
+có khác biệt, văn bản tiếng Anh được ưu tiên.
+
+===============================================================================
+THÀNH PHẦN BÊN THỨ BA / THIRD-PARTY COMPONENTS
+===============================================================================
+
+Some files keep their own licenses (machine-readable list: REUSE.toml; license
+texts: LICENSES/) / Một số tệp giữ giấy phép riêng:
+  - data/assist/*.dic — Vietnamese Hunspell dictionary (Hồ Ngọc Đức, Ivan
+    Garcia, Nguyễn Xuân Minh), GNU GPL v2, used under its terms
+    (LICENSES/LicenseRef-hunspell-vi.txt).
+  - corpus/assist/*tatoeba* — Tatoeba sentences, CC BY 2.0 FR, attribution in
+    docs/compliance/tatoeba-attribution.md (LICENSES/LicenseRef-Tatoeba.txt).
+  - installer/windows/languages/Vietnamese.isl — Inno Setup translation, Inno
+    Setup license (LICENSES/LicenseRef-InnoSetup.txt).
+  - Rust crates from crates.io — their own permissive licenses (MIT, Apache-2.0,
+    Unicode-3.0, Unlicense), checked by deny.toml.
+
+===============================================================================
+GNU GENERAL PUBLIC LICENSE, VERSION 3 (OFFICIAL TEXT, UNCHANGED)
+===============================================================================
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

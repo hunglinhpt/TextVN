@@ -7,6 +7,96 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.94] — 2026-11-27
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Thay đổi / Changed
+
+- **Giấy phép & tác giả**: `LICENSE` thêm phần đầu song ngữ Việt–Anh — TextVN (C) 2026 **Bui Hung Linh -
+  LinhBH.CoM** (tác giả, chủ sở hữu sản phẩm) và điều khoản bổ sung hợp lệ theo **GPL v3 Mục 7**: 7(b) mọi sản
+  phẩm dùng mã TextVN (toàn bộ hay một phần) phải giữ thông báo "Based on TextVN by Bui Hung Linh —
+  https://github.com/hunglinhpt/TextVN" trong phần Giới thiệu/ghi công/thông tin pháp lý và tài liệu, 7(c) đánh
+  dấu bản sửa đổi, 7(e) không dùng tên/logo TextVN làm thương hiệu; văn bản GPL-3.0 chính thức giữ nguyên
+  từng byte. Thêm `NOTICE`. `REUSE.toml`, `debian/copyright`/`control`, PKGBUILD, AppStream, IBus, chính sách
+  riêng tư ghi "Bui Hung Linh - LinhBH.CoM".
+- **Popup "Thông tin" (3 OS)**: "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM"; bản quyền trong tài
+  nguyên phiên bản Windows (`LegalCopyright`) và macOS `NSHumanReadableCopyright`. Định danh Microsoft Store
+  (`Publisher`/`CompanyName` = `LinhBH.CoM`, khớp Partner Center từng byte) giữ nguyên.
+- **`deny.toml`**: kiểm phụ thuộc trên mọi kiến trúc (Windows x64/x86/ARM64, Linux x86_64/aarch64, macOS
+  x86_64/arm64); danh sách giấy phép thu hẹp về đúng giấy phép đang dùng (GPL-3.0-or-later, MIT, Apache-2.0,
+  Unicode-3.0, Unlicense); cấm crate mạng/telemetry (offline, zero keylogging), global hook bên thứ ba,
+  OpenSSL/native-tls, SQLite; `unmaintained`/`unsound` = all; crate nội bộ khai `publish = false`.
+
+### Quy trình / Process
+
+- **G21 — điều phối nhiều agent**: `cargo xtask board` ghi `coordination/board.jsonl` (append-only,
+  `merge=union`, khoá tệp OS): nhận/giao/nhả task với lease, giữ chỗ tệp + `guard` trước commit, thông báo
+  `notify`/`inbox`/`ack`, khoá phát hành `rm-lock`, cấp mã lỗi; luật R1–R14 ở `coordination/README.md`; mảnh
+  ghi chú phát hành `coordination/changes/`.
+- **G22 — không duplicate code/nghiệp vụ**: một framework dùng chung, lớp OS chỉ khác cách tận dụng hệ điều
+  hành; nguyên lý UI chung (task SF-9).
+- **G23 — phát hành không re-work**: gộp một bản; bước **B4b** chạy thử trọn `release.yml` trước khi tag; lỗi
+  sửa theo lớp + gate chặn tái diễn.
+- **Kế hoạch nền tảng**: `docs/10-shared/P0-5` (nền tảng thống nhất + ARM, nghiên cứu UniKey, Weasel,
+  VietType, Gõ Nhanh, Ngó Sen, kime…), `P0-6` (spec `textvn-session`, C ABI, ARM64X, CI ARM, MSIX bundle),
+  `P0-7` (task, DoR, DoD, audit checklist).
+
+### Kiểm thử / Testing
+
+- **E82 sửa theo lớp**: hai test tray chạm chống dội toàn cục (`sandbox_e2e`,
+  `toggle_global_responds_with_authoritative_snapshot`) giữ chung `GLOBAL_TOGGLE_TEST_LOCK` — không còn chồng
+  cửa sổ 250 ms (ngoài lần thử lại đã thêm ở 0.2.93).
+- `xtask/src/board.rs` 10 test (JSON phẳng, lease, giao việc, giữ chỗ, hộp thư, khoá phát hành, gộp union) +
+  thử 8 tiến trình tranh nhận cùng task: đúng 1 thắng. `cargo deny check` + `reuse lint` sạch.
+
+---
+
+**English** — 0.2.94:
+
+### Changed
+
+- **License & author**: `LICENSE` gains a bilingual Vietnamese–English header — TextVN (C) 2026 **Bui Hung Linh -
+  LinhBH.CoM** (author, product owner) and additional terms permitted by **GPL v3 Section 7**: 7(b) every product
+  using TextVN code (in whole or in part) must keep the notice "Based on TextVN by Bui Hung Linh —
+  https://github.com/hunglinhpt/TextVN" in its About/credits/legal notices and documentation, 7(c) mark modified
+  versions, 7(e) no use of the TextVN name/logo as a brand; the official GPL-3.0 text is kept byte-for-byte.
+  Added `NOTICE`. `REUSE.toml`, `debian/copyright`/`control`, PKGBUILD, AppStream, IBus and the privacy policy
+  read "Bui Hung Linh - LinhBH.CoM".
+- **"About" popup (3 OSes)**: "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM"; copyright in the Windows
+  version resources (`LegalCopyright`) and macOS `NSHumanReadableCopyright`. The Microsoft Store identity
+  (`Publisher`/`CompanyName` = `LinhBH.CoM`, byte-matched to Partner Center) is unchanged.
+- **`deny.toml`**: dependencies checked on every architecture (Windows x64/x86/ARM64, Linux x86_64/aarch64,
+  macOS x86_64/arm64); the license list is narrowed to the licenses actually used (GPL-3.0-or-later, MIT,
+  Apache-2.0, Unicode-3.0, Unlicense); bans network/telemetry crates (offline, zero keylogging), third-party
+  global hooks, OpenSSL/native-tls and SQLite; `unmaintained`/`unsound` = all; internal crates declare
+  `publish = false`.
+
+### Process
+
+- **G21 — multi-agent coordination**: `cargo xtask board` writes `coordination/board.jsonl` (append-only,
+  `merge=union`, OS file lock): claim/hand off/release tasks with leases, file reservations + `guard` before
+  commit, `notify`/`inbox`/`ack` notifications, `rm-lock` release lock, error-code allocation; rules R1–R14 in
+  `coordination/README.md`; release-note fragments in `coordination/changes/`.
+- **G22 — no duplicated code/business logic**: one shared framework, OS layers differ only in how they use the
+  operating system; shared UI principles (task SF-9).
+- **G23 — releases without rework**: one batched release; step **B4b** dry-runs the whole `release.yml` before
+  tagging; failures are fixed by class + a recurrence gate.
+- **Platform plan**: `docs/10-shared/P0-5` (unified platform + ARM, research on UniKey, Weasel, VietType,
+  Gõ Nhanh, Ngó Sen, kime…), `P0-6` (`textvn-session` spec, C ABI, ARM64X, ARM CI, MSIX bundle), `P0-7`
+  (tasks, DoR, DoD, audit checklist).
+
+### Testing
+
+- **E82 fixed by class**: the two tray tests that touch the global debounce (`sandbox_e2e`,
+  `toggle_global_responds_with_authoritative_snapshot`) hold a shared `GLOBAL_TOGGLE_TEST_LOCK` — their 250 ms
+  windows can no longer overlap (on top of the retry added in 0.2.93).
+- `xtask/src/board.rs` 10 tests (flat JSON, leases, handoff, reservations, inbox, release lock, union merge) + an
+  8-process race on one task: exactly 1 wins. `cargo deny check` + `reuse lint` clean.
+
+---
+
 ## [0.2.93] — 2026-11-27
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -4174,6 +4264,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.94]: https://github.com/hunglinhpt/TextVN/compare/v0.2.93...v0.2.94
 [0.2.93]: https://github.com/hunglinhpt/TextVN/compare/v0.2.92...v0.2.93
 [0.2.92]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...v0.2.92
 [0.2.91]: https://github.com/hunglinhpt/TextVN/compare/v0.2.90...v0.2.91

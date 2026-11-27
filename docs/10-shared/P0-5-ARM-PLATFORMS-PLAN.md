@@ -1,117 +1,240 @@
-# P0-5 — Kế hoạch hỗ trợ chip ARM: Apple M · Windows on ARM (Snapdragon, NVIDIA) · Linux aarch64
+# P0-5 — Nền tảng thống nhất + chip ARM (Apple M · Windows on ARM · Linux aarch64)
 
-> Trạng thái: **kế hoạch** (2026-11-27, sau 0.2.93). Chưa có mã. Mọi mục ARM-n dưới đây là việc
-> cần làm; mục nào xong phải chuyển sang `build-release-report.md` + CHANGELOG như mọi tính năng.
-> Nguyên tắc: **một engine Rust (`core/`) cho mọi kiến trúc** — ARM là việc build, đóng gói,
-> nạp DLL và kiểm thử, không phải engine thứ hai.
+> Trạng thái: **kế hoạch v2** (2026-11-27, sau 0.2.93) — thay bản v1 cùng ngày (chủ repo: "chưa
+> tốt, cần nghiên cứu sâu, ưu tiên cái OS đã hỗ trợ, có thể xây lại nền tảng native thống nhất nếu
+> chất lượng vượt trội"). Chưa có mã. Mỗi mục `SF-*`/`ARM-*` xong phải vào CHANGELOG +
+> `build-release-report.md` và đi đủ quy trình phát hành (G20).
+>
+> Triển khai chi tiết: **`P0-6-SESSION-FRAMEWORK-SPEC.md`** (giải pháp, C ABI, ARM64X, CI) và
+> **`P0-7-TASKS-ARM-SF.md`** (task, DoR, DoD, audit). Giao nhận việc: `../../coordination/README.md` (G21).
+>
+> Quyết định chủ repo đã chốt: **không armhf** (Raspberry Pi OS 32-bit); không theo đuổi hook trên
+> ARM; kiểm trên **CI trước** (máy Snapdragon/Jetson/DGX sau); MSIX: theo khuyến nghị §6.4.
 
-## 1. Hiện trạng (0.2.93)
+## 1. Tóm tắt khuyến nghị
 
-| Nền tảng | Kiến trúc đang phát hành | Thiếu |
-|---|---|---|
-| macOS (IMK) | **universal arm64 + x86_64** (`lipo`, CI `swift test --arch arm64` trên runner Apple Silicon) | notarization; e2e gõ thật trên arm64 mới ở mức test gói |
-| Windows (TSF) | x64 + x86 (DLL 32-bit cho app WOW64) | **ARM64** (Snapdragon X Elite/Plus, NVIDIA RTX Spark/N1X): không có DLL ARM64 ⇒ app ARM64 native (Edge, Chrome, Notepad, Office ARM64EC…) **không nạp được TIP** |
-| Linux (IBus/Fcitx5) | x86_64 tarball + deb + AUR | **aarch64** (NVIDIA Jetson/DGX Spark, Raspberry Pi 5, Snapdragon X Linux, Ampere/Graviton desktop): `debian/control` đã ghi `amd64 arm64` và `scripts/build-linux.sh` dùng `uname -m`, nhưng CI/release chỉ build x86_64; `PKGBUILD arch=('x86_64')` |
+1. **Không viết lại engine, không bỏ framework gõ của OS** — trên cả 3 OS, thứ "OS hỗ trợ sẵn" chính
+   là framework IME: TSF (Windows, chạy native ARM64), InputMethodKit (macOS, universal), IBus
+   (GNOME — **đường duy nhất**: Mutter không có giao thức input-method cho bên thứ ba) và Fcitx5 /
+   Wayland input-method-v2 (KDE, wlroots). Bỏ chúng = mất GNOME/Ubuntu và mất tích hợp của OS.
+2. **Viết lại tầng NGHIỆP VỤ giao diện thành một framework dùng chung** — hiện cùng một nghiệp vụ được
+   viết 3 lần (Rust trong TSF, C trong `linux-common`/IBus/Fcitx5, Swift trong IMK): ~12 nghìn dòng
+   (§3.2), nguồn chính của lỗi "lệch 3 OS". Xây **`textvn-session`** (Rust, C ABI) làm bản DUY NHẤT;
+   adapter OS chỉ còn là cầu nối mỏng. Đây là "nền tảng native thống nhất" đúng nghĩa: native ở mỗi OS,
+   một nghiệp vụ cho mọi OS.
+3. **ARM là việc build + đóng gói + kiểm thử**, làm theo tiền lệ đã chạy thật:
+   - Windows ARM64: TSF + **DLL chuyển hướng ARM64X** (Weasel/Rime 0.16+ và VietType đang phát hành) —
+     không hook, không ARM64EC thuần.
+   - Linux aarch64: build native trên runner ARM (Ngó Sen đã phát hành deb/rpm arm64).
+   - macOS: đã universal; chỉ còn notarization + e2e arm64.
+4. Thứ tự: **Linux aarch64 (nhanh, rủi ro thấp) ∥ nền móng `textvn-session`** → Windows ARM64 →
+   chuyển dần nghiệp vụ vào `textvn-session` → (tuỳ chọn) backend Wayland input-method-v2 riêng.
 
-## 2. Bộ gõ tiên phong — học gì, tránh gì
+## 2. Nghiên cứu bộ gõ — mới & nổi tiếng (2026-11-27)
 
-| Bộ gõ | ARM | Bài học cho TextVN |
-|---|---|---|
-| **UniKey** (Windows, nhiều người dùng nhất) | bản **ARM64 native 4.6 RC2** (06/2025) cho Snapdragon, khuyên dùng thay x64 giả lập | người dùng Việt trên Snapdragon đã quen có bản native ⇒ TextVN phải có ARM64 native, không trông vào giả lập x64. UniKey dùng hook toàn cục — TextVN dùng TSF in-process nên phải giải bài **nạp DLL vào cả tiến trình ARM64 lẫn x64 giả lập** (UniKey không gặp) |
-| **EVKey** | chưa có (issue #71 "Hỗ trợ native windows ARM" mở, không phản hồi) | khoảng trống thị trường |
-| **OpenKey** (macOS) | universal; issue M1: helper chạy Intel (#189), đơ sau sleep/khoá màn hình (#197/#179), xung đột Bitwarden (#193) | lỗi thuộc **event tap** + helper không universal. TextVN đi IMK (không event tap mặc định) và `package-macos-pkg.sh` đã chặn binary không universal — giữ gate đó cho MỌI binary phụ |
-| **ibus-bamboo** (Linux) | gói ARM thiếu (#120, bổ sung sau), cross-build hỏng do file theo kiến trúc (#37) | build **native trên runner ARM** (không cross từ x86) + test gói trên container aarch64 thật |
-| **fcitx5-unikey / ibus-unikey** | đóng gói bởi distro (Debian/Ubuntu/Arch ARM build lại) | mã C/C++ trung lập kiến trúc ⇒ distro tự build được; TextVN cần nguồn build sạch trên aarch64 (PPA/AUR) |
-| **Microsoft Vietnamese Telex** (Windows 11) | native ARM64 | chuẩn so sánh hành vi trên Snapdragon (cùng TSF) |
+| Bộ gõ | Cách bắt phím | ARM | Rút ra cho TextVN |
+|---|---|---|---|
+| **UniKey** 4.6 RC2 | hook toàn cục (Windows) | **ARM64 native** (06/2025) | người dùng Snapdragon đã có bản native ⇒ TextVN phải native; hook chạy ngoài tiến trình nên dễ port — TSF cần ARM64X (§6) |
+| **EVKey** | hook | không (issue #71 mở) | khoảng trống |
+| **OpenKey** | hook (Win x64), event tap (mac) | mac universal; lỗi M1 do event tap/helper Intel (#189, #193 Bitwarden, #197 sau khoá màn hình) | giữ IMK làm đường chính; gate "mọi binary universal" |
+| **Gõ Nhanh** (mới, lõi Rust) | Windows: **WPF .NET 8 + keyboard hook** x64; Linux: addon Fcitx5 (phát hành x86_64); macOS: app Swift + Rust | chưa có ARM Windows/Linux phát hành | cùng mô hình "lõi Rust + vỏ OS" như TextVN; TextVN đi trước ở TSF + 3 OS |
+| **VietType** (Vietnamese TSF) | **TSF** | **MSI ARM64** riêng, DLL build từ cấu hình **ARM64EC/ARM64X** | tiền lệ TSF tiếng Việt trên ARM |
+| **Weasel / Rime** | **TSF** | x86/x64/arm/arm64 một bộ cài; **`weasel.dll` = ARM64X forwarder** → `weaselARM64.dll` (tiến trình ARM64) / `weaselx64.dll` (x64 giả lập); `Register.cpp` ghi đường dẫn forwarder chứ không phải DLL thật | thiết kế mẫu §6; issue #803: chỉ ARM64 thì app x64 mất bộ gõ, chỉ x64 thì app ARM64 không gọi được bộ gõ |
+| **Squirrel / Rime**, **fcitx5-macos** | IMK | universal / tarball theo arch | giữ universal |
+| **PHTV**, **xkey**, **goxkey** | macOS (event tap / IMK) | PHTV phát hành dmg arm64 + intel riêng | universal 1 gói tốt hơn 2 gói |
+| **Ngó Sen** (fcitx5) | Fcitx5 | **deb arm64** (bookworm, forky, noble), **rpm aarch64** (Fedora 43–45) | ma trận gói ARM Linux tham chiếu |
+| **fcitx5-lotus**, **fcitx5-unikey**, **ibus-bamboo** | Fcitx5 / IBus | lotus: x86_64; unikey/bamboo: distro tự build; bamboo từng thiếu gói ARM (#120) và cross-build hỏng (#37) | build native trên runner ARM, không cross-compile |
+| **kime** (Hàn, 634★) | **framework riêng**: module GTK3/4, Qt5/6, XIM, Wayland | — | tiền lệ "tự viết thay IBus/Fcitx": **không gắn được vào GNOME Wayland** (Mutter không có input-method v1/v2) ⇒ bằng chứng không nên thay IBus/Fcitx5 |
+| **Microsoft Vietnamese Telex** | TSF | ARM64 native | chuẩn hành vi TSF trên Snapdragon |
 
-Lớp lỗi riêng ARM phải chặn trước (không đợi người dùng báo):
+## 3. Hiện trạng TextVN (0.2.93)
 
-1. **`char` không dấu trên Linux aarch64** (x86: có dấu) — so sánh `c < 0`/`c >= 0x80` trên `char` đổi
-   nghĩa. Mã C hiện tại đã ép `(unsigned char)` đúng chỗ (soát 2026-11-27: `assist_result.c`,
-   `compose.c`, `utf.c`), cần **gate** để không tái phát (ARM-L4).
-2. **Kích thước trang 16K/64K** (Asahi, một số kernel Jetson/Grace) — `dict/src/mmap.rs` map offset 0,
-   không giả định 4096 ⇒ an toàn; giữ quy tắc.
-3. **`off_t` 32-bit trên armhf** — `dict/src/mmap.rs` tự khai `mmap(…, offset: i64)`: đúng trên 64-bit,
-   **sai ABI trên ARM 32-bit** ⇒ chặn armhf cho tới khi chuyển sang `mmap64`/kiểu đúng (ARM-L6).
-4. **Một CLSID, một đường dẫn DLL** cho cả tiến trình ARM64 lẫn x64 giả lập trên Windows ARM (cùng
-   registry 64-bit) — nếu trỏ vào DLL x64 thì app ARM64 native không gõ được, trỏ vào ARM64 thì app
-   x64 mất bộ gõ (ARM-W2).
-5. **Hiệu năng/độ trễ khác** — runner ARM chậm/nhanh khác x64 ⇒ baseline perf theo từng target, không
-   dùng chung số x64 (ARM-C3).
+### 3.1 Ma trận kiến trúc
 
-## 3. Kiến trúc mục tiêu
+| OS | Framework | Kiến trúc phát hành | Thiếu |
+|---|---|---|---|
+| Windows | TSF (mặc định) · hook (opt-in) | x64 + DLL x86 (WOW64) | ARM64: app ARM64 native (Edge, Chrome, Notepad, ô tìm kiếm Start) **không nạp được TIP** |
+| macOS | IMK | **universal arm64 + x86_64** | notarization; e2e gõ thật arm64 |
+| Linux | IBus + Fcitx5 (`linux-common`) | x86_64 | aarch64 (`debian/control` đã ghi `arm64`, `build-linux.sh` dùng `uname -m`, chưa có CI/release ARM) |
 
-### 3.1 Windows on ARM (Snapdragon X, NVIDIA RTX Spark/N1X)
+### 3.2 Nghiệp vụ bị viết lại 3 lần (đo 2026-11-27)
 
-Quy tắc nạp của Windows trên ARM: tiến trình **ARM64** chỉ nạp DLL ARM64; tiến trình **x64 giả lập /
-ARM64EC** (Office trên ARM là ARM64EC) nạp DLL x64/ARM64EC; **ARM64X** nạp được ở cả hai. Tiến trình
-**x86 32-bit** dùng registry WOW64 riêng ⇒ DLL x86 hiện có giữ nguyên.
+| Nghiệp vụ | Windows (Rust) | Linux (C) | macOS (Swift) |
+|---|---|---|---|
+| Kế hoạch composition/preedit theo kết quả engine | `compose.rs` (`plan_key`) | `compose.c` (`lc_plan_key`) | `ApplyReplace.swift`, `Marked.swift` |
+| Máy trạng thái Ctrl+Shift / Ctrl tap | `ModifierToggle` | `compose.c` | `TextVNInputController.swift` |
+| Trợ lý: trigger, idle 1 s, popup, Mode 2 | `assist.rs`, `panel_idle.rs` | `assist_*.c`, engine.c/.cpp | `AssistModel.swift` |
+| Chữ mờ / preview dự đoán | `ghost.rs` + `edit_session.rs` | `update_preview` (IBus/Fcitx5) | `updatePredictionPreview` |
+| Nhận diện ô (mật khẩu, terminal) | crate `field-detect` | `field_detect.c` | `FieldDetect.swift` |
+| IPC client tới tray/app | `ipc_client.rs` | `ipc_client.c` (652 dòng) | `IpcClient.swift` (562 dòng) |
+| Emoji picker | `emoji_picker.rs` | `emoji_picker.c` | `EmojiPickerPanel.swift` |
 
-| Thành phần | Cách làm |
+Tổng ~12 nghìn dòng adapter. Nhiều mã lỗi lịch sử là lệch 3 bản (R-3, R-5, R2-143, R2-155, R2-171…).
+
+## 4. "Native từ đầu" — đánh giá theo từng OS
+
+| Lựa chọn | Windows | macOS | Linux |
+|---|---|---|---|
+| Framework IME của OS | **TSF** — duy nhất chính thống, chạy ARM64 native; app ARM64/x64/ARM64EC/x86/AppContainer đều qua TSF | **IMK** — duy nhất chính thống cho bộ gõ hệ thống | **IBus**: đường duy nhất trên GNOME (Mutter không có input-method v1/v2 cho bên thứ ba); **Fcitx5**: KWin khởi chạy qua "Virtual Keyboard"; wlroots (Sway, Hyprland, labwc) có **input-method-v2** |
+| Viết framework riêng thay thế | không có API thay TSF; hook = ngoài chuẩn (AV, game, Backspace giả) | event tap = ngoài chuẩn (secure input, Bitwarden — OpenKey #193) | kime: module GTK/Qt + XIM + Wayland ⇒ vẫn không chạy GNOME Wayland, phải duy trì 6 frontend |
+| Kết luận | **giữ TSF**, thêm ARM64X | **giữ IMK** | **giữ IBus + Fcitx5** làm vỏ; thêm backend **input-method-v2** trực tiếp (tuỳ chọn, §7.3) cho wlroots |
+
+Tận dụng thêm cái OS đã có (hiệu năng + đúng chuẩn): kiểm tra chính tả của OS (đã có `os_spell.rs`,
+`MacSpellProvider`; Linux: enchant/hunspell khi có), bảng ứng viên/dòng phụ của IBus (đã dùng auxiliary
+text), surrounding text của IBus/Fcitx5/text-input-v3 (giảm Backspace giả), display attributes TSF,
+`ITfCandidateListUIElement` cho chế độ UI-less (game toàn màn hình, trình đọc màn hình).
+
+## 5. Nền tảng thống nhất: `textvn-session` (SF)
+
+### 5.1 Kiến trúc
+
+```
+                 ┌──────────────── textvn-session (Rust, C ABI, không I/O) ───────────────┐
+OS event ──▶ key/focus/caret/surrounding ─▶ engine (core) ─▶ ra LỆNH chuẩn hoá:            │
+                 │  Preedit{text,cursor} · Commit{text} · DeleteBefore{n} · Forward{key}   │
+                 │  Ghost{text} · AssistList{items} · Toast{id} · Timer{ms} · Ipc{msg}      │
+                 └────────────────────────────────────────────────────────────────────────┘
+adapter mỏng: TSF (Rust) · IMK (Swift) · IBus (C) · Fcitx5 (C++) · [Wayland IM v2 (Rust)] chỉ ÁP lệnh
+```
+
+- Một bản cho: kế hoạch composition, gom chỉnh sửa (`lc_edit_batch` thành luật chung — mỗi phím ≤ 1
+  xoá + 1 commit), máy trạng thái phím chuyển, trợ lý (trigger/idle/Mode 2/undo), chính sách chữ mờ,
+  nhận diện ô (crate `field-detect` có sẵn), IPC client, emoji picker (logic tìm/xếp hạng).
+- Thời gian (`Timer`) và vẽ UI vẫn ở adapter (mỗi OS có vòng lặp riêng); session chỉ quyết định.
+- C ABI ổn định như `ffi/` (P0-2): struct có version, không panic qua ABI, không cấp phát chéo.
+
+### 5.2 Chất lượng "vượt trội" — gate bắt buộc trước khi thay một khối
+
+| Gate | Nội dung |
 |---|---|
-| `textvn-tsf.dll` (đường dẫn đăng ký `InprocServer32` 64-bit) | **ARM64X pure forwarder** (khuyến nghị của Microsoft cho COM in-proc dùng chung bởi host x64 và ARM64): DLL rỗng `link /MACHINE:ARM64X` từ 2 `.def` — phía ARM64 chuyển tiếp sang `textvn-tsf-arm64.dll`, phía EC/x64 sang `textvn-tsf-x64.dll` (DLL x64 hiện tại) |
-| `textvn-tsf-arm64.dll` | `cargo build --target aarch64-pc-windows-msvc -p textvn-win-tsf` (Rust Tier 2) |
-| DLL x86 | giữ nguyên (WOW64) |
-| Tray / CLI / settings / hook | build `aarch64-pc-windows-msvc` native (x64 giả lập vẫn chạy nhưng tốn pin) |
-| `cli register` | ghi `InprocServer32` = forwarder trên máy ARM64; ACL AppContainer (`S-1-15-2-1/2`) cho **cả 3** DLL (bài R2-26: ô tìm kiếm Start trên Snapdragon là tiến trình ARM64) |
-| Inno Setup | `ArchitecturesAllowed=x64compatible arm64`, chọn bộ file theo `IsArm64` |
-| MSIX | gói `arm64` (hoặc bundle x64+arm64) — Store yêu cầu khai đúng kiến trúc |
-| Portable zip | thêm `TextVN-portable-*-windows-arm64.zip` |
+| SF-G1 Vết vàng | corpus (shared + win + mac + linux) chạy qua `textvn-session` ⇒ chuỗi lệnh; so khớp 100% với vết của adapter cũ trước khi xoá mã cũ |
+| SF-G2 Một vết cho 3 OS | cùng corpus, cùng chuỗi lệnh trên Windows/macOS/Linux (khác biệt chỉ được ở bảng năng lực OS khai báo) |
+| SF-G3 e2e thật | e2e hiện có (TSF Notepad/Chrome…, IBus/Fcitx5 GTK/Qt, IMK) xanh trên x64 **và** ARM |
+| SF-G4 Fuzz + đột biến | fuzz chuỗi phím/caret/focus vào session; đột biến từng luật phải làm test đỏ |
+| SF-G5 Hiệu năng | `ime_key` + session p50/p99 không tăng so baseline từng target (§8) |
+| SF-G6 Dream RSI | savings-rate trên corpus không giảm (G19c) |
 
-Không chọn: (a) chỉ DLL ARM64EC — app ARM64 native không nạp được; (b) ARM64X "thật" trộn mã Rust
-ARM64 + ARM64EC trong một PE — Rust chưa xuất cdylib ARM64X trực tiếp, forwarder đạt cùng kết quả bằng
-công cụ MSVC chuẩn và cho phép kiểm từng nửa riêng.
+Quy tắc mới (đưa vào `00-WORKFLOW`): **nghiệp vụ giao diện mới chỉ được viết trong `textvn-session`**;
+adapter chỉ áp lệnh + vẽ. Gate `xtask` cảnh báo khi adapter thêm logic trùng (từ khoá trong §3.2).
 
-### 3.2 Linux aarch64 (NVIDIA Jetson / DGX Spark, Raspberry Pi 5, Snapdragon X Linux)
+### 5.3 Thứ tự chuyển (mỗi bước một bản phát hành)
 
-| Mục tiêu | Môi trường thật | Cách làm |
+| Bước | Khối | Lý do thứ tự |
 |---|---|---|
-| Tarball `TextVN-*-linux-aarch64.tar.gz` | GitHub `ubuntu-24.04-arm` / `ubuntu-22.04-arm` (miễn phí cho repo public) | chạy NGUYÊN `scripts/build-linux.sh` + `e2e-linux.sh` native (bài ibus-bamboo #37: không cross-build) |
-| Baseline glibc cũ | container aarch64 AlmaLinux 8 / Debian 11 trên runner ARM | như bản compat x86_64 hiện có (`build-linux-el8.sh`, `build-linux-compat.sh`) |
-| deb arm64 | `debian/control` đã có `arm64` | job `ci-deb` thêm ma trận arm64; PPA Launchpad tự build arm64 từ source |
-| AUR | Arch Linux ARM | `arch=('x86_64' 'aarch64')` + test `makepkg` trong container `archlinuxarm` |
-| NVIDIA | Jetson (JetPack 6 = Ubuntu 22.04), DGX Spark (DGX OS = Ubuntu 24.04) | bộ E2E container hiện có (6 distro) chạy lại trên runner ARM; checklist tay trên Jetson/DGX khi có máy |
-| Raspberry Pi OS (Debian 12/13 arm64, Wayland labwc) | — | e2e Fcitx5/IBus như Debian 12; armhf 32-bit **không** làm ở giai đoạn này (mục 2 lỗi 3) |
+| SF-1 | khung crate + C ABI + harness vết vàng (SF-G1/G2) | nền đo |
+| SF-2 | máy trạng thái phím chuyển + gom chỉnh sửa | nhỏ, thuần, lệch nhiều nhất |
+| SF-3 | kế hoạch composition/preedit | lõi gõ — cần vết vàng đầy đủ |
+| SF-4 | chữ mờ + dự đoán (R2-173) | vừa thống nhất ở core |
+| SF-5 | trợ lý (trigger/idle/Mode 2/undo) | lớn nhất, nhiều lệch lịch sử |
+| SF-6 | IPC client (bỏ `ipc_client.c`, `IpcClient.swift`) + field-detect qua FFI | gộp hạ tầng |
+| SF-7 | emoji picker logic | cuối |
 
-### 3.3 macOS Apple Silicon
+## 6. Windows on ARM (Snapdragon X, NVIDIA RTX Spark/N1X)
 
-Đã universal. Việc còn lại: notarization (đợi Apple secrets), e2e gõ thật IMK trên runner arm64 (hiện
-chỉ test gói + unit), và gate "mọi binary trong .pkg/.app đều universal" (đã có cho `TextVN-IM` —
-mở rộng cho helper/settings) để không lặp OpenKey #189.
+### 6.1 Quy tắc nạp DLL (Windows 11 ARM64)
 
-## 4. Bổ sung cho core / framework dùng chung
-
-| ID | Việc | Vì sao |
+| Tiến trình | Nạp được | Registry |
 |---|---|---|
-| ARM-C1 | `verify-abi` + `sizes` (20/532, offset) chạy trên **mọi** target build (aarch64-pc-windows-msvc, aarch64-unknown-linux-gnu, aarch64-apple-darwin, i686) trong CI | hợp đồng FFI P0-2 phải giữ nguyên trên mọi kiến trúc |
-| ARM-C2 | **Kiểm tất định đa kiến trúc**: replay toàn bộ corpus + Dream RSI corpus trên mỗi target, so hash đầu ra với x86_64 — lệch = đỏ | engine phải cho cùng kết quả; G19c (savings-rate) đo trên mọi kiến trúc |
-| ARM-C3 | Baseline perf theo target triple (`perf/baseline-<triple>.json`), cổng `perf` so đúng baseline của máy đang chạy | số x64 không áp được cho ARM |
-| ARM-C4 | `doctor`/gói chẩn đoán ghi kiến trúc tiến trình + kiến trúc DLL đã nạp + chế độ giả lập (Windows: `IsWow64Process2`) | báo lỗi trên Snapdragon phải biết app native hay giả lập |
-| ARM-C5 | `xtask check-pe-imports` kiểm thêm machine type (ARM64 / ARM64X / x64 / x86) đúng tên tệp; `check-elf-abi` cho aarch64 | chặn đóng gói nhầm kiến trúc |
-| ARM-C6 | Trong `core/` không thêm mã theo kiến trúc (`target_arch`, SIMD); nếu cần tối ưu thì có bản thuần + test tương đương | giữ một engine |
+| ARM64 native (Edge, Chrome, Notepad, Explorer, ô tìm kiếm Start) | ARM64, ARM64X | 64-bit |
+| x64 giả lập + ARM64EC (Office trên ARM là ARM64EC) | x64, ARM64EC, ARM64X | **cùng** 64-bit |
+| x86 giả lập | x86 | WOW64 (riêng) |
 
-## 5. Lộ trình (mỗi giai đoạn đủ DoD 8 mục + Dream RSI, phát hành theo G20)
+⇒ một CLSID 64-bit phải trỏ tới **một tệp nạp được ở cả ARM64 lẫn x64** = ARM64X.
 
-| Giai đoạn | Việc | DoD / bằng chứng |
+### 6.2 Thiết kế (theo Weasel)
+
+| Tệp | Build |
+|---|---|
+| `textvn-tsf.dll` (đăng ký `InprocServer32`) | **ARM64X pure forwarder**: `link /dll /noentry /machine:arm64x /defArm64Native:tsf_arm64.def /def:tsf_x64.def` + 2 obj rỗng (MSVC ARM64/ARM64EC tools) — xuất `DllGetClassObject`, `DllCanUnloadNow`, `DllRegisterServer`, `DllUnregisterServer` |
+| `textvn-tsf-arm64.dll` | `cargo build --target aarch64-pc-windows-msvc -p textvn-win-tsf` |
+| `textvn-tsf-x64.dll` | DLL x64 hiện có (đổi tên) |
+| `textvn-tsf-x86.dll` | giữ nguyên (WOW64) |
+| Tray / CLI / settings | `aarch64-pc-windows-msvc` native |
+| Hook | **không build ARM64** (TSF phủ mọi loại tiến trình; hook vẫn opt-in trên x64) |
+
+Bẫy đã biết (Weasel `Register.cpp`): trong DLL thật, `GetModuleFileName` trả tên DLL thật, không phải
+forwarder ⇒ `register` phải ghi đường dẫn **forwarder**. ACL AppContainer (`S-1-15-2-1/2`) cấp cho
+**cả 4** DLL (bài R2-26: ô tìm kiếm Start trên Snapdragon là tiến trình ARM64 AppContainer).
+Windows 10 on ARM không giả lập x64 và không có ARM64X ⇒ hỗ trợ **Windows 11 ARM64**; trên Windows 10
+ARM chỉ cài DLL ARM64 + x86.
+
+### 6.3 Kiểm thử (CI `windows-11-arm`, miễn phí cho repo public)
+
+`cargo test` native ARM64 · `replay --adapter tsf` · e2e gõ thật: Notepad (ARM64), một app x64 giả
+lập, một app x86, `sandbox_e2e` (AppContainer + LPAC ARM64) · `check-pe-imports` kiểm machine type
+từng tệp (ARM64 / ARM64X / x64 / x86) · đột biến: đăng ký DLL ARM64 thay forwarder ⇒ e2e app x64 đỏ.
+
+### 6.4 MSIX: **một `.msixbundle` (x64 + arm64)** — quyết định
+
+| | Bundle x64 + arm64 (chọn) | Hai gói riêng |
 |---|---|---|
-| **A — Linux aarch64** (rủi ro thấp nhất) | ARM-L1 job `ci-linux` ma trận `ubuntu-24.04-arm`; ARM-L2 release tarball + deb arm64; ARM-L3 E2E 6 container trên ARM; ARM-L4 gate `-fsigned-char`/`-funsigned-char` + `-Wsign-compare` cho C test trên x86 (bắt lỗi `char` không cần máy ARM); ARM-L5 AUR `aarch64`; ARM-L6 sửa `mmap` (kiểu `off_t` đúng) trước khi xét armhf | tarball aarch64 qua `test-linux-package.sh` + e2e IBus/Fcitx5 thật; ARM-C1/C2 xanh trên aarch64 |
-| **B — Windows ARM64** | ARM-W1 build DLL/exe `aarch64-pc-windows-msvc`; ARM-W2 forwarder ARM64X + test nạp trong tiến trình ARM64 và x64 giả lập; ARM-W3 `register` + ACL 3 DLL; ARM-W4 Inno Setup/MSIX/portable arm64; ARM-W5 CI `windows-11-arm`: test workspace, replay tsf, e2e gõ thật Notepad (ARM64) + app x64 giả lập + app x86 + `sandbox_e2e` (AppContainer ARM64) | ma trận "app ARM64 / x64 giả lập / ARM64EC (Office) / x86 / AppContainer" đều gõ được; 34 asset → thêm asset arm64 có GPG + Sigstore |
-| **C — Apple Silicon hoàn thiện** | ARM-M1 gate universal cho mọi binary; ARM-M2 e2e IMK trên runner arm64; ARM-M3 notarization khi có secrets | `lipo -archs` mọi binary; e2e xanh |
-| **D — Tối ưu & kiểm tay** | ARM-C3/C4; kiểm tay trên Snapdragon X, Jetson/DGX Spark, Raspberry Pi 5, MacBook M | báo cáo theo máy trong `build-release-report.md` |
+| Người dùng | một trang Store, Store tự chọn đúng kiến trúc | dễ cài nhầm x64 trên Snapdragon (chạy giả lập, tốn pin) |
+| Nâng cấp | cùng identity + version ⇒ máy ARM đang dùng gói x64 được Store chuyển sang arm64 khi cập nhật | phải hướng dẫn gỡ/cài lại |
+| Dung lượng tải | Store chỉ tải gói đúng kiến trúc | như nhau |
+| Chi phí build | phải build + ký + kiểm cả hai gói **cùng version** trong một lần phát hành | pipeline đơn giản hơn |
+| Rủi ro | một gói lỗi chặn cả bundle ⇒ CI kiểm cả hai trước khi bundle | lệch version giữa hai gói |
 
-Thứ tự đề xuất: A → B → C → D. A tái dùng gần hết hạ tầng hiện có; B là việc lớn nhất (forwarder +
-đóng gói + CI mới) nhưng là khoảng trống so với EVKey và ngang UniKey.
+Gói arm64 chứa: tray/CLI ARM64 + forwarder ARM64X + DLL ARM64 + DLL x64 + DLL x86. Bộ cài Inno:
+`ArchitecturesAllowed=x64compatible arm64`, chọn file theo `IsArm64`; portable thêm
+`TextVN-portable-*-windows-arm64.zip`.
 
-## 6. Quyết định cần chủ repo
+## 7. Linux aarch64 (NVIDIA Jetson / DGX Spark, Raspberry Pi 5, Snapdragon X Linux)
 
-1. Có làm **armhf (32-bit)** cho Raspberry Pi OS 32-bit không? (Đề xuất: không — số máy giảm, cần sửa
-   `mmap` trước.)
-2. Windows ARM64: build **hook tương thích** (`textvn-win-hook`) cho ARM64 hay chỉ TSF? (Đề xuất: chỉ
-   TSF như mặc định hiện tại; hook giữ opt-in x64.)
-3. MSIX: một gói **bundle** (x64 + arm64) hay hai gói riêng trên Store?
-4. Máy thật để kiểm tay: Snapdragon X, Jetson/DGX Spark — có sẵn máy nào?
+### 7.1 Build + gói (native trên runner ARM — không cross-build, bài ibus-bamboo #37)
 
-Nguồn tham chiếu: Microsoft Learn "Build Arm64X binaries" / "Arm64X PE files" (pure forwarder cho COM
-in-proc), Rust platform support `aarch64-pc-windows-msvc` · `arm64ec-pc-windows-msvc`, GitHub changelog
-2025-08-07 (runner arm64 cho repo public), UniKey ARM64 (unikey.org), EVKey #71, OpenKey #189/#193/#197,
-ibus-bamboo #37/#120.
+| Đích | Môi trường | Gói |
+|---|---|---|
+| Ubuntu 22.04 (= Jetson JetPack 6) · 24.04 (= DGX OS) | `ubuntu-22.04-arm`, `ubuntu-24.04-arm` | tarball `linux-aarch64`, deb arm64 (PPA Launchpad tự build arm64) |
+| Debian 12/13 (= Raspberry Pi OS 64-bit) | container arm64 | deb arm64 |
+| Fedora / RHEL 9 / AlmaLinux 8 | container aarch64 | tarball compat glibc cũ (như `build-linux-el8.sh`) |
+| Arch Linux ARM | container `archlinuxarm` | `PKGBUILD arch=('x86_64' 'aarch64')` |
+
+### 7.2 Lớp lỗi riêng ARM — chặn bằng gate, không đợi người dùng
+
+| Lỗi | Gate |
+|---|---|
+| `char` không dấu trên aarch64 Linux | build C test trên x86 với `-fsigned-char` **và** `-funsigned-char` + `-Wsign-compare` (đã soát: mã hiện ép `(unsigned char)` đúng) |
+| ABI FFI | `verify-abi` + `sizes` 20/532 chạy trên mọi target |
+| Trang 16K/64K (Asahi, một số kernel Jetson/Grace) | `dict/src/mmap.rs` map offset 0, không giả định 4096 — giữ quy tắc, test trên runner ARM |
+| armhf | **không làm** (chủ repo); `mmap(…, offset: i64)` tự khai chỉ đúng trên 64-bit |
+
+### 7.3 Backend Wayland input-method-v2 trực tiếp (tuỳ chọn, sau SF-3)
+
+Cho wlroots (Sway, Hyprland, labwc của Raspberry Pi OS) khi không cài IBus/Fcitx5: adapter Rust mỏng
+trên `textvn-session`, không daemon. **Không** thay IBus (GNOME) hay Fcitx5 (KDE); không phục vụ app
+X11/XWayland. Chỉ bật khi đạt SF-G1…G6 + e2e Sway/labwc headless trên CI.
+
+## 8. Hiệu năng & đo đạc đa kiến trúc
+
+- Baseline perf theo target triple (`perf/baseline-<triple>.json`); cổng `perf` so đúng máy đang chạy.
+- Kiểm tất định: replay corpus + Dream RSI trên mọi target ⇒ hash đầu ra giống x86_64.
+- `core/` không thêm mã theo kiến trúc (`target_arch`/SIMD); muốn tối ưu thì có bản thuần + test tương đương.
+- Doctor/gói chẩn đoán ghi kiến trúc tiến trình, kiến trúc DLL đã nạp, chế độ giả lập (`IsWow64Process2`).
+
+## 9. Lộ trình phát hành
+
+| Bản | Nội dung | Điều kiện xong |
+|---|---|---|
+| **0.2.94** | ARM-L: CI `ubuntu-24.04-arm` + `ubuntu-22.04-arm` (test, e2e IBus/Fcitx5, replay, verify-abi, perf baseline) · gate `-funsigned-char` · **SF-1** khung `textvn-session` + vết vàng | CI ARM xanh; vết vàng = adapter cũ |
+| **0.2.95** | asset `linux-aarch64` + deb arm64 + AUR aarch64 + E2E 6 container trên ARM · **SF-2** phím chuyển + gom chỉnh sửa trên 3 OS | 34 asset + asset ARM ký GPG/Sigstore |
+| **0.2.96** | **ARM-W**: DLL ARM64, forwarder ARM64X, `register`, Inno + portable arm64, `.msixbundle`, CI `windows-11-arm` e2e (ARM64 / x64 giả lập / x86 / AppContainer) | ma trận §6.3 xanh |
+| **0.2.97 → 0.3.0** | **SF-3 … SF-7**; adapter còn ≤ ~1,5 nghìn dòng mỗi OS; quy tắc "nghiệp vụ chỉ trong session" thành gate | SF-G1…G6 xanh mỗi bước |
+| sau 0.3.0 | backend Wayland input-method-v2 (tuỳ chọn); notarization macOS khi có secrets; kiểm tay Snapdragon/Jetson/DGX | §7.3 |
+
+## 10. Rủi ro
+
+| Rủi ro | Giảm thiểu |
+|---|---|
+| Thay nghiệp vụ gây hồi quy | vết vàng + chuyển từng khối + giữ adapter cũ sau cờ tới khi vết khớp 100% |
+| Runner ARM chậm hơn ⇒ timeout | ma trận ARM chạy song song, timeout riêng, E76 watchdog |
+| Công cụ ARM64EC/ARM64X không có trên runner | cài `VC.Tools.ARM64EC` qua vswhere như Weasel `arm64x_wrapper/build.bat`; thất bại ⇒ job đỏ, không phát hành nửa vời |
+| AV gắn cờ DLL forwarder rỗng | ký Authenticode (SignPath) trước khi Store; theo dõi `antivirus-false-positive.md` |
+| Swift/C gọi session qua C ABI lệch | `verify-abi` mở rộng cho header session; test Swift + C trên CI |
+
+Nguồn: Microsoft Learn "Build Arm64X binaries" / "Arm64X PE files"; rime/weasel `arm64x_wrapper/`,
+`WeaselTSF/Register.cpp`, issue #803, CHANGELOG 0.16.0; dinhngtu/VietType `VietTypeSetup/Product.wxs`;
+UniKey ARM64 (unikey.org); EVKey #71; OpenKey #189/#193/#197; khaphanspace/gonhanh.org
+`platforms/{windows,linux}`; ngosen 1.14.3 assets; LotusInputMethod/fcitx5-lotus 7.0.1; Riey/kime
+(GNOME Wayland); GNOME Discourse (Mutter không có input-method v2); KDE (KWin quản lý IM qua Virtual
+Keyboard); GitHub changelog 2025-08-07 (runner arm64 public); Rust platform support
+`aarch64-pc-windows-msvc`, `arm64ec-pc-windows-msvc`.

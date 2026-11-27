@@ -2,7 +2,7 @@ PRIVACY POLICY — TextVN (Vietnamese Input Method)
 =================================================
 
 Last updated / Cập nhật: October 22, 2026
-Developer / Nhà phát triển: LinhBH.CoM (Vietnam)
+Developer / Nhà phát triển: (C) 2026 Bui Hung Linh - LinhBH.CoM (Vietnam)
 Contact / Liên hệ: https://github.com/hunglinhpt/TextVN/issues
 
 ENGLISH

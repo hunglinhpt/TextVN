@@ -27,7 +27,7 @@ BEGIN
             VALUE "FileDescription", "TextVN - Bo go Tieng Viet Chuyen Nghiep"
             VALUE "FileVersion", "0.1.0.0"
             VALUE "InternalName", "TextVN"
-            VALUE "LegalCopyright", "Copyright (C) 2026 LinhBH.CoM. Open Source under GPL-3.0-or-later"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Bui Hung Linh - LinhBH.CoM. Open Source under GPL-3.0-or-later"
             VALUE "OriginalFilename", "TextVN.exe"
             VALUE "ProductName", "TextVN"
             VALUE "ProductVersion", "0.1.0.0"

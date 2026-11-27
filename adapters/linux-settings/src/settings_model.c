@@ -54,7 +54,7 @@ const char *const tv_help_text =
  * `about_text_matches_every_platform`); dòng "TextVN <phiên bản>" ghép ở on_about. */
 const char *const tv_about_text =
     "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)\n\n"
-    "Phát triển bởi: LinhBH.CoM\n"
+    "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM\n"
     "Giấy phép: GPL-3.0-or-later\n"
     "https://github.com/hunglinhpt/TextVN";
 

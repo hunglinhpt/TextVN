@@ -1,0 +1,17 @@
+TextVN — Bộ gõ tiếng Việt / Vietnamese Input Method
+Copyright (C) 2026 Bui Hung Linh - LinhBH.CoM <https://github.com/hunglinhpt>
+https://github.com/hunglinhpt/TextVN
+SPDX-License-Identifier: GPL-3.0-or-later
+
+Required attribution (GNU GPL v3, Section 7(b) — see LICENSE).
+Any product that contains, is based on, or is derived from TextVN source code,
+in whole or in part, must keep the following notice in its "About"/credits/legal
+notices and in its documentation or NOTICE file:
+
+    Based on TextVN by Bui Hung Linh — https://github.com/hunglinhpt/TextVN
+
+Ghi công bắt buộc (GNU GPL v3, Mục 7(b) — xem LICENSE).
+Mọi sản phẩm có chứa, dựa trên hoặc phái sinh từ mã nguồn TextVN, toàn bộ hay một
+phần, phải giữ thông báo trên trong phần Giới thiệu/ghi công/thông tin pháp lý và
+trong tài liệu hoặc tệp NOTICE của sản phẩm (được dịch nhưng giữ nguyên tên
+"TextVN", "Bui Hung Linh" và địa chỉ).

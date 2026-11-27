@@ -20,7 +20,7 @@ BEGIN
             VALUE "FileDescription", "TextVN Keyboard Hook Engine"
             VALUE "FileVersion", "0.1.0.0"
             VALUE "InternalName", "textvn-hook"
-            VALUE "LegalCopyright", "Copyright (C) 2026 LinhBH.CoM. Open Source under GPL-3.0-or-later"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Bui Hung Linh - LinhBH.CoM. Open Source under GPL-3.0-or-later"
             VALUE "OriginalFilename", "textvn-hook.exe"
             VALUE "ProductName", "TextVN"
             VALUE "ProductVersion", "0.1.0.0"

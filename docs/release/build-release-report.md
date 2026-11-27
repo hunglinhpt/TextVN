@@ -13,6 +13,14 @@
 
 > **R2-163 (2026-11-22, vòng audit CI parity):** `ci-macos.yml` có path filter nhưng thiếu `math/**` — trong khi `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`), nên một commit sửa math-only (vd `2ddbd771`) KHÔNG kích hoạt ci-macos → gap parity 3 nền tảng. FCA: thêm `"math/**"` vào cả `push` lẫn `pull_request` paths của `ci-macos.yml` (YAML parse ok). Từ commit này, mọi sửa đổi ở `math/` đều chạy đủ gate macOS. Cùng vòng: ci-linux báo `unused dependency textvn-ipc` ở `textvn-cli` (chỉ dùng trong khối `cfg(windows)` của `doctor.rs`) → chuyển sang `[target.'cfg(windows)'.dependencies]`; quét lại cả 4 target (linux, windows-msvc x64, darwin arm64/x64) bằng `cargo +nightly check --workspace --all-targets` không còn warning manifest nào.
 
+## Bản 0.2.94 — Giấy phép song ngữ + tác giả · `deny.toml` đa kiến trúc · điều phối nhiều agent (G21–G23) (2026-11-27)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | (1) `LICENSE`: phần đầu song ngữ (C) 2026 Bui Hung Linh - LinhBH.CoM + điều khoản bổ sung GPL v3 Mục 7(b)(c)(e); văn bản GPL-3.0 giữ nguyên từng byte (đã so `cmp`); `NOTICE` mới; `REUSE.toml`, debian, PKGBUILD, AppStream, IBus, chính sách riêng tư, `LegalCopyright` 5 tệp `.rc`, `NSHumanReadableCopyright`, popup "Thông tin" 3 OS ghi tác giả — định danh Store (`Publisher`/`CompanyName` = `LinhBH.CoM`) giữ nguyên. (2) `deny.toml`: `[graph] targets` 7 target (gồm `aarch64-pc-windows-msvc`, `aarch64-unknown-linux-gnu`, `aarch64-apple-darwin`), giấy phép thu hẹp còn 5, `[bans] deny` mạng/telemetry/hook/OpenSSL/SQLite, `publish = false` cho 8 crate nội bộ ⇒ `cargo deny check`: advisories/bans/licenses/sources ok (chỉ còn cảnh báo `syn` 2 bản của bên thứ ba). (3) G21 `cargo xtask board` (`xtask/src/board.rs`, `coordination/`), G22, G23 + bước B4b. (4) E82 sửa theo lớp (`GLOBAL_TOGGLE_TEST_LOCK`). (5) Docs P0-5/P0-6/P0-7 |
+| Đo (gate A local) | `cargo xtask preflight` **24/25 PASS + homebrew SKIP** (không có Ruby local — CI chặn thật) exit 0: fmt · clippy Windows + `check-linux` + `clippy-linux` `-D warnings` · `cargo test --workspace` **2328 pass / 0 fail** (83 binary, gồm `board` 10/10) · verify-abi · sizes 20/532 · replay win/tsf/mac/linux · check-tables/en-office/win-corpus/mac-corpus · version-sync 15 chỗ = 0.2.94 · perf `ime_key` p50 575 ns (−32,4%), `parse_config` p50 1862 ns (−14,9%) · Dream RSI 72/318 **22%** · 36 accepts (không đổi) · hygiene-apis/docs/secrets · `cargo deny check` + `reuse lint` sạch |
+| Ghi chú giới hạn | Chưa có Authenticode (SignPath Foundation) và Apple Developer ID/notarization |
+
 ## Bản 0.2.93 — Gợi ý nối tiếp gợi ý (R2-173) · ô tìm kiếm Start / ứng dụng Store theo cấu hình (R2-26) (2026-11-27)
 
 | Hạng mục | Bằng chứng |

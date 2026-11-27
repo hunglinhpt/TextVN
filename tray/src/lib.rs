@@ -122,6 +122,12 @@ pub fn show_tray_notification(_title: &str, _message: &str) {}
 /// đường (LL hook quan sát + TIP in-process gửi IPC) — nguồn đến sau trong
 /// cửa sổ 250ms bị bỏ qua để không toggle đôi (E11). Menu/click chuột không
 /// đi qua hàm này (hành động tường minh của người dùng).
+/// E82 + G23 (sửa theo lớp): mọi test chạm chống dội toàn cục `LAST_GLOBAL_TOGGLE_MS` (qua IPC
+/// `ToggleViEn{"*"}`/`ToggleGlobal`) giữ khoá này — hai test cùng binary không bao giờ chiếm cửa sổ
+/// 250 ms của nhau (release-candidate 0.2.93 đỏ 2 lần vì đúng điều đó).
+#[cfg(test)]
+pub(crate) static GLOBAL_TOGGLE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub static LAST_GLOBAL_TOGGLE_MS: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 

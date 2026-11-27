@@ -3,11 +3,11 @@ Upstream-Name: TextVN
 Source: https://github.com/hunglinhpt/TextVN
 
 Files: *
-Copyright: 2024-2026 LinhBH.CoM
+Copyright: 2026 Bui Hung Linh - LinhBH.CoM
 License: GPL-3.0-or-later
 
 Files: debian/*
-Copyright: 2026 LinhBH.CoM
+Copyright: 2026 Bui Hung Linh - LinhBH.CoM
 License: GPL-3.0-or-later
 
 License: GPL-3.0-or-later

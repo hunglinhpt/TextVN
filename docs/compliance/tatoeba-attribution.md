@@ -112,7 +112,7 @@ path = [
 precedence = "override"
 SPDX-FileCopyrightText = [
     "Tatoeba contributors (tatoeba.org) — câu tiếng Việt trong export vie_sentences.tsv.bz2",
-    "2026 LinhBH.CoM — tập lọc/gán nhãn (đạo hình thức)",
+    "2026 Bui Hung Linh - LinhBH.CoM — tập lọc/gán nhãn (đạo hình thức)",
 ]
 SPDX-License-Identifier = "LicenseRef-Tatoeba"
 
@@ -121,7 +121,7 @@ path = ["corpus/assist/en_real_clean.ass"]
 precedence = "override"
 SPDX-FileCopyrightText = [
     "Tatoeba contributors (tatoeba.org) — câu tiếng Anh trong export eng_sentences.tsv.bz2",
-    "2026 LinhBH.CoM — tập lọc/chọn mẫu (đạo hình thức)",
+    "2026 Bui Hung Linh - LinhBH.CoM — tập lọc/chọn mẫu (đạo hình thức)",
 ]
 SPDX-License-Identifier = "LicenseRef-Tatoeba"
 ```

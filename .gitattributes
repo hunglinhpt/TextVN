@@ -10,5 +10,7 @@
 *.swift text eol=lf
 *.tsv   text eol=lf
 *.md    text eol=lf
+# G21: bảng điều phối append-only — hai máy cùng nối dòng thì gộp cả hai (không xung đột).
+coordination/board.jsonl text eol=lf merge=union
 *.desktop text eol=lf
 packaging/macos/pkg-scripts/postinstall text eol=lf

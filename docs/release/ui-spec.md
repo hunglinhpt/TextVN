@@ -84,7 +84,7 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
   TextVN <phiên bản>
   Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)
 
-  Phát triển bởi: LinhBH.CoM
+  Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM
   Giấy phép: GPL-3.0-or-later
   https://github.com/hunglinhpt/TextVN
   ```

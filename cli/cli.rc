@@ -20,7 +20,7 @@ BEGIN
             VALUE "FileDescription", "TextVN Command Line Utility"
             VALUE "FileVersion", "0.1.0.0"
             VALUE "InternalName", "textvn-cli"
-            VALUE "LegalCopyright", "Copyright (C) 2026 LinhBH.CoM. Open Source under GPL-3.0-or-later"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Bui Hung Linh - LinhBH.CoM. Open Source under GPL-3.0-or-later"
             VALUE "OriginalFilename", "textvn-cli.exe"
             VALUE "ProductName", "TextVN"
             VALUE "ProductVersion", "0.1.0.0"

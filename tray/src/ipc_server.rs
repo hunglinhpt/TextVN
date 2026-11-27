@@ -1299,6 +1299,10 @@ mod tests {
     #[test]
     fn toggle_global_responds_with_authoritative_snapshot() {
         use std::io::Write as _;
+        // E82/G23: không chồng cửa sổ chống dội toàn cục với test khác (sandbox_e2e).
+        let _toggle_lock = crate::GLOBAL_TOGGLE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         let pipe = test_pipe_name("tgl");
         let temp_dir = std::env::temp_dir().join(format!("textvn_tgl_test_{}", std::process::id()));

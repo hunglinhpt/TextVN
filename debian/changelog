@@ -1,3 +1,16 @@
+textvn (0.2.94-0ppa1) noble; urgency=medium
+
+  * License: bilingual Vietnamese-English header in LICENSE naming the author
+    (C) 2026 Bui Hung Linh - LinhBH.CoM, with additional terms under GPL v3
+    section 7 (attribution notice for products using TextVN code, marking of
+    modified versions, no use of the TextVN name as a brand). The GPL text is
+    unchanged; NOTICE added; debian/copyright and Maintainer updated.
+  * About window shows the author; IBus component author updated.
+  * deny.toml checks every architecture (incl. arm64) and bans network and
+    telemetry crates. No behaviour change for typing.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Fri, 27 Nov 2026 22:00:00 +0700
+
 textvn (0.2.93-0ppa1) noble; urgency=medium
 
   * R2-173 (engine, all OSes): suggestion after suggestion. Right after a

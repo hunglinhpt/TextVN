@@ -23,7 +23,7 @@
   <launchable type="desktop-id">textvn-settings.desktop</launchable>
   <url type="homepage">https://github.com/hunglinhpt/TextVN</url>
   <url type="bugtracker">https://github.com/hunglinhpt/TextVN/issues</url>
-  <developer_name>LinhBH.CoM</developer_name>
+  <developer_name>Bui Hung Linh - LinhBH.CoM</developer_name>
   <!-- Icon stock trùng hicolor icon cài bởi install.sh (AppStream validate +
        Software Center hiển thị icon thay vì ô trống). -->
   <icon type="stock">textvn_v</icon>
@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.94" date="2026-11-27">
+      <description>
+        <p>The license now carries a bilingual Vietnamese-English header naming the author, Bui Hung Linh - LinhBH.CoM, with additional terms under GPL v3 Section 7 that require products using TextVN code to credit TextVN; the official GPL text is unchanged and a NOTICE file is included. The About window and package metadata show the author. Dependencies are checked on every architecture including ARM, and network or telemetry libraries are banned to keep TextVN fully offline.</p>
+      </description>
+    </release>
     <release version="0.2.93" date="2026-11-27">
       <description>
         <p>Suggestion after suggestion: right after you accept a prediction with Tab, the next continuation phrase appears as ghost text and Tab accepts it too, so suggestions keep coming instead of switching off (Ctrl+Space picks another candidate). Space after an accept keeps suggesting, and common greetings and office phrases gained continuations. On Windows, the Start search box, Calculator and Store apps now follow your input method and the V/E toggle through a filtered, read-only configuration copy and a restricted sandbox pipe.</p>
