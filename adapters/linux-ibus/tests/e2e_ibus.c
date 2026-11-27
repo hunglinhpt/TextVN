@@ -24,6 +24,15 @@ static gboolean g_lookup_visible = FALSE; /* R2-129: candidate list đang hiện
 static GString *g_aux = NULL;   /* Vòng 47: auxiliary text (ghost preview) */
 static gboolean g_aux_visible = FALSE;
 
+/* R2-165: text-input-v3 (mutter/KWin/wlroots) chỉ áp MỘT xoá + MỘT commit mỗi `done` —
+ * đếm theo TỪNG lần process_key_event, bất biến toàn phiên: <= 1 commit, <= 1 xoá. */
+static guint g_commits_this_key = 0, g_deletes_this_key = 0;
+static guint g_max_commits_per_key = 0, g_max_deletes_per_key = 0;
+/* R2-166: phím engine gửi lại (Math cursor_left) — nhấn và nhả phải cân, keycode != 0. */
+static guint g_fwd_press = 0, g_fwd_release = 0, g_fwd_zero_keycode = 0;
+/* R2-167: preedit đang hiện ĐÚNG lúc commit tới (commit trước, ẩn preedit sau). */
+static GString *g_preedit_at_commit = NULL;
+
 static void push_surrounding(IBusInputContext *ic) {
     if (!g_push_surrounding) return;
     if (!ibus_input_context_needs_surrounding_text(ic)) return;
@@ -39,6 +48,7 @@ static void on_delete_surrounding(IBusInputContext *ic, gint offset, guint n_cha
     (void)data;
     /* Chỉ dùng xoá TRƯỚC caret (offset < 0) — phần sau caret không thuộc
      * phạm vi sửa (D22). */
+    g_deletes_this_key++;
     if (offset >= 0) return;
     glong chars = g_utf8_strlen(g_doc->str, -1);
     if ((glong)n_chars > chars) return;
@@ -76,7 +86,30 @@ static void on_update_auxiliary(IBusInputContext *ic, IBusText *text, gboolean v
 static void on_commit(IBusInputContext *ic, IBusText *text, gpointer data) {
     (void)ic;
     (void)data;
+    g_commits_this_key++;
+    if (g_preedit_at_commit) g_string_assign(g_preedit_at_commit, g_preedit->str);
     g_string_append(g_doc, ibus_text_get_text(text));
+}
+
+static void on_forward_key(IBusInputContext *ic, guint keyval, guint keycode, guint state,
+                           gpointer data) {
+    (void)ic;
+    (void)data;
+    (void)keyval;
+    if (state & IBUS_RELEASE_MASK) g_fwd_release++;
+    else g_fwd_press++;
+    if (keycode == 0) g_fwd_zero_keycode++;
+}
+
+/* Gọi process_key_event và ghi nhận số commit/xoá của RIÊNG lần gọi này. */
+static gboolean process_counted(IBusInputContext *ic, guint keyval, guint state) {
+    g_commits_this_key = 0;
+    g_deletes_this_key = 0;
+    gboolean handled = ibus_input_context_process_key_event(ic, keyval, 0, state);
+    pump();
+    if (g_commits_this_key > g_max_commits_per_key) g_max_commits_per_key = g_commits_this_key;
+    if (g_deletes_this_key > g_max_deletes_per_key) g_max_deletes_per_key = g_deletes_this_key;
+    return handled;
 }
 
 static void on_preedit(IBusInputContext *ic, IBusText *text, guint cursor, gboolean visible,
@@ -146,8 +179,7 @@ static gboolean is_modifier_key(guint keyval) {
 static void press(IBusInputContext *ic, guint keyval, guint state) {
     /* Client GTK đẩy surrounding text trước mỗi phím (xem push_surrounding). */
     push_surrounding(ic);
-    gboolean handled = ibus_input_context_process_key_event(ic, keyval, 0, state);
-    pump();
+    gboolean handled = process_counted(ic, keyval, state);
     if (!handled && !is_modifier_key(keyval)) {
         if (g_preedit->len) {
             fprintf(stderr, "B2 vi phạm: app nhận phím khi preedit còn mở (%s)\n", g_preedit->str);
@@ -155,8 +187,7 @@ static void press(IBusInputContext *ic, guint keyval, guint state) {
         }
         app_handles(keyval);
     }
-    ibus_input_context_process_key_event(ic, keyval, 0, state | IBUS_RELEASE_MASK);
-    pump();
+    (void)process_counted(ic, keyval, state | IBUS_RELEASE_MASK);
 }
 
 static void type(IBusInputContext *ic, const char *s) {
@@ -243,6 +274,7 @@ int main(void) {
     g_doc = g_string_new("");
     g_preedit = g_string_new("");
     g_aux = g_string_new("");
+    g_preedit_at_commit = g_string_new("");
 
     IBusInputContext *ic = ibus_bus_create_input_context(bus, "textvn-e2e");
     ibus_input_context_set_capabilities(ic, IBUS_CAP_PREEDIT_TEXT | IBUS_CAP_FOCUS |
@@ -254,6 +286,7 @@ int main(void) {
     g_signal_connect(ic, "update-lookup-table", G_CALLBACK(on_update_lookup), NULL);
     g_signal_connect(ic, "hide-lookup-table", G_CALLBACK(on_hide_lookup), NULL);
     g_signal_connect(ic, "update-auxiliary-text", G_CALLBACK(on_update_auxiliary), NULL);
+    g_signal_connect(ic, "forward-key-event", G_CALLBACK(on_forward_key), NULL);
     ibus_input_context_focus_in(ic);
 
     /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s.
@@ -279,6 +312,14 @@ int main(void) {
     int ok = 1;
     type(ic, "dduocj ");
     ok &= check("telex dduocj+space", "được ");
+    {
+        /* R2-167 (ibus-bamboo#574): lúc commit "được" tới app, preedit "được" vẫn còn —
+         * ẩn preedit trước commit làm Chrome/Messenger lặp từ cuối sau Enter. */
+        int ordered = strcmp(g_preedit_at_commit->str, "được") == 0;
+        printf("%s commit arrives before preedit is hidden (preedit at commit=\"%s\")\n",
+               ordered ? "PASS" : "FAIL", g_preedit_at_commit->str);
+        ok &= ordered;
+    }
     clear(ic);
     type(ic, "Vieetj Nam");
     ok &= check("preedit giữ cả từ", "Việt Nam");
@@ -573,6 +614,31 @@ int main(void) {
     clear(ic);
 
     g_push_surrounding = FALSE;
+
+    /* R2-166: Math template (Latex) dời con trỏ bằng phím Left engine gửi lại. */
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"math\":{\"enabled\":true,\"output_mode\":\"Latex\"}}");
+    pump();
+    type(ic, "`/");
+    {
+        int balanced = g_fwd_press == g_fwd_release && g_fwd_zero_keycode == 0;
+        printf("%s math cursor_left: forwarded Left press=%u release=%u zero-keycode=%u doc=\"%s%s\"\n",
+               balanced ? "PASS" : "FAIL", g_fwd_press, g_fwd_release, g_fwd_zero_keycode,
+               g_doc->str, g_preedit->str);
+        ok &= balanced;
+    }
+    clear(ic);
+    write_textvn_file("config.json", "{\"config_version\":1}");
+    pump();
+
+    /* R2-165: bất biến cả phiên — mỗi lần xử lý phím tối đa 1 commit + 1 xoá. */
+    {
+        int atomic = g_max_commits_per_key <= 1 && g_max_deletes_per_key <= 1;
+        printf("%s per-key edits are atomic for text-input-v3 (max commits=%u deletes=%u)\n",
+               atomic ? "PASS" : "FAIL", g_max_commits_per_key, g_max_deletes_per_key);
+        ok &= atomic;
+    }
 
     printf(ok ? "e2e_ibus: OK\n" : "e2e_ibus: FAILED\n");
     return ok ? 0 : 1;

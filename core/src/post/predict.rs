@@ -50,6 +50,21 @@ fn vn_syllables_sorted() -> &'static [&'static str] {
     })
 }
 
+/// R2-168 (ngosen#613 `Sose2026`): âm tiết có thật trong từ điển âm tiết
+/// (`data/vn_syllables.txt`, ~6.7k mục kiểu dấu cũ) — so cả 3 biến thể kiểu dấu
+/// (nguyên văn / cũ / mới) bằng binary search, không alloc ngoài 2 chuỗi restyle.
+pub fn is_known_vn_syllable(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    if lower.is_empty() {
+        return false;
+    }
+    let sorted = vn_syllables_sorted();
+    let hit = |w: &str| sorted.binary_search(&w).is_ok();
+    hit(&lower)
+        || hit(&restyle(&lower, DiacriticStyle::Old))
+        || hit(&restyle(&lower, DiacriticStyle::New))
+}
+
 /// Từ ghép kèm trọng số: `(word, deaccented, weight)` — deaccent build 1 lần
 /// (trước đây tính strip_diacritics mỗi từ mỗi call → alloc × ~1200 mục).
 fn vn_compounds() -> &'static [(&'static str, &'static str, u32)] {

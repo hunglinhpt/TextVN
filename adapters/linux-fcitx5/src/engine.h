@@ -23,6 +23,7 @@
 #include <string>
 
 #include "lc_compose.h"
+#include "lc_edit_batch.h"
 #include "lc_emoji.h"
 #include "linux_common.h"
 #include "textvn_ffi.h"
@@ -61,6 +62,10 @@ public:
     uint64_t assistUndoTimestampMs = 0;
     /* P12: Bộ chọn Emoji nhẹ qua Fcitx5 CommonCandidateList (X11 + Wayland) */
     lc_emoji_picker emoji{};
+    /* R2-165: chỉnh sửa document của phím đang xử lý (tối đa 1 xoá + 1 commit). */
+    lc_edit_batch edits{};
+    /* R2-167: preedit chỉ được xoá SAU commit đã gom (commit trước, xoá preedit sau). */
+    bool clearPreeditAfterCommit = false;
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {

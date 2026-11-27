@@ -113,6 +113,79 @@ void deleteSelectionRange(fcitx::InputContext *ic, int offset, unsigned int ncha
     ic->deleteSurroundingText(offset, nchars);
 }
 
+/* ---- R2-165: mỗi phím gửi tối đa 1 xoá + 1 commit (lc_edit_batch.h, dùng chung IBus) ----
+ *
+ * text-input-v3 (KWin/mutter/wlroots) chỉ áp trạng thái CUỐI mỗi `done`; fcitx5 qua
+ * input-method-v1/v2 gửi lệnh xoá + commit sang compositor — một phím mà gửi
+ * commit(từ) + commit(trigger) + xoá + commit(bản sửa) thì compositor gộp có thể đè mất chữ
+ * (ngosen#1019/#1016). Trong `keyEvent` mọi xoá-trước-caret/commit gom lại, cuối phím gửi
+ * đúng MỘT `deleteBeforeCaret` + MỘT `commitString`. Ngoài phím gửi thẳng như cũ. */
+static void sendEditsNow(TextVNState *st, uint32_t del, const char *text, size_t len) {
+    if (!st || !st->ic) return;
+    deleteBeforeCaret(st->ic, del);
+    if (len > 0) st->ic->commitString(std::string(text, len));
+}
+
+/* Xoá preedit của client (hoặc panel khi client không vẽ được preedit). */
+static void clearPreeditNow(TextVNState *st) {
+    if (!st || !st->ic) return;
+    auto &panel = st->ic->inputPanel();
+    if (st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) {
+        panel.setClientPreedit(fcitx::Text());
+    } else {
+        panel.setPreedit(fcitx::Text());
+    }
+    st->ic->updatePreedit();
+    st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+}
+
+/* R2-167 (ibus-bamboo#574/#589, PR#581; fcitx5-unikey cùng thứ tự): commit TRƯỚC rồi mới
+ * xoá preedit — xoá trước ⇒ Chrome/Electron huỷ composition rồi chèn riêng ⇒ editor React
+ * (Messenger, Instagram) lặp lại từ cuối sau Enter. */
+static void settlePreeditAfterCommit(TextVNState *st) {
+    if (!st || !st->clearPreeditAfterCommit) return;
+    st->clearPreeditAfterCommit = false;
+    clearPreeditNow(st);
+}
+
+static void flushEdits(TextVNState *st) {
+    if (!st) return;
+    uint32_t del = 0;
+    const char *text = nullptr;
+    size_t len = 0;
+    if (lc_edit_batch_take(&st->edits, &del, &text, &len)) sendEditsNow(st, del, text, len);
+    settlePreeditAfterCommit(st);
+}
+
+static void editsBegin(TextVNState *st) {
+    if (st) lc_edit_batch_begin(&st->edits);
+}
+
+static void editsEnd(TextVNState *st) {
+    if (!st) return;
+    uint32_t del = 0;
+    const char *text = nullptr;
+    size_t len = 0;
+    if (lc_edit_batch_end(&st->edits, &del, &text, &len)) sendEditsNow(st, del, text, len);
+    if (!lc_edit_batch_active(&st->edits)) settlePreeditAfterCommit(st);
+}
+
+static void sendDeleteBefore(TextVNState *st, uint32_t n) {
+    if (!st || !st->ic || n == 0) return;
+    if (lc_edit_batch_active(&st->edits)) {
+        lc_edit_batch_delete(&st->edits, n);
+        return;
+    }
+    deleteBeforeCaret(st->ic, n);
+}
+
+static void sendCommit(TextVNState *st, const std::string &s) {
+    if (!st || !st->ic || s.empty()) return;
+    if (lc_edit_batch_commit(&st->edits, s.data(), s.size())) return;
+    flushEdits(st); /* ngoài phím hoặc hết chỗ: giữ thứ tự */
+    st->ic->commitString(s);
+}
+
 /* Mode 1 (chọn ứng viên trong candidate list): xoá đúng số ký tự cũ rồi gõ
  * bản sửa.
  *
@@ -206,6 +279,7 @@ static bool performSelectionConvert(TextVNState *st) {
         recheck.cursor() != cursor) {
         return true;
     }
+    flushEdits(st); /* R2-165: vùng bôi đen có thể nằm SAU caret — không gom được */
     deleteSelectionRange(st->ic, static_cast<int>(info.del_offset),
                          static_cast<unsigned int>(info.char_len));
     st->ic->commitString(out);
@@ -506,6 +580,12 @@ TextVNState *TextVNEngine::state(fcitx::InputContext *ic) {
 }
 
 void TextVNEngine::showPreedit(TextVNState *st, const uint32_t *text, size_t len) {
+    /* R2-165: preedit MỚI phải tới sau phần commit đã gom (giữ đúng thứ tự). */
+    if (len > 0) flushEdits(st);
+    if (len == 0) {
+        clearPreeditNow(st);
+        return;
+    }
     auto &panel = st->ic->inputPanel();
     fcitx::Text preedit;
     if (len > 0) {
@@ -524,8 +604,13 @@ void TextVNEngine::showPreedit(TextVNState *st, const uint32_t *text, size_t len
 }
 
 void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len) {
-    showPreedit(st, nullptr, 0);
-    if (len > 0) st->ic->commitString(utf32ToUtf8(text, len));
+    /* R2-167: commit TRƯỚC, xoá preedit SAU. */
+    if (len > 0) sendCommit(st, utf32ToUtf8(text, len));
+    if (lc_edit_batch_active(&st->edits)) {
+        st->clearPreeditAfterCommit = true;
+    } else {
+        showPreedit(st, nullptr, 0);
+    }
 }
 
 void TextVNEngine::hideEmojiUI(TextVNState *st) {
@@ -644,8 +729,9 @@ bool TextVNEngine::hotkeyFixSentence(TextVNState *st) {
             st->comp.len = 0;
         }
         clearAssistUI(st);
-        deleteBeforeCaret(st->ic, plan.delete_glyphs);
-        st->ic->commitString(plan.replacement);
+        /* R2-165: chốt preedit + xoá + commit gom thành MỘT xoá + MỘT commit. */
+        sendDeleteBefore(st, plan.delete_glyphs);
+        sendCommit(st, plan.replacement);
     } catch (...) {
         ime_reset(st->inst);
         return true; /* document đã bị chạm — không để engine xử lý tiếp phím này */
@@ -758,7 +844,9 @@ void TextVNEngine::assistIdleArm(TextVNState *st) {
             try {
                 if (viEnabled_ && st->inst && st->comp.len == 0 && !isTerminalState(st) &&
                     !st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
+                    editsBegin(st); /* R2-165 */
                     (void)checkAndApplyAssist(st, 0, false, false, true);
+                    editsEnd(st);
                 }
             } catch (...) {
             }
@@ -912,7 +1000,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                  * xoá (`delete_glyphs`) tính cho CẢ đuôi engine (đã có trigger)
                  * ⇒ xoá sau khi commit trigger là đúng số ký tự. */
                 if (!planEaten && triggerChar != 0) {
-                    st->ic->commitString(utf32ToUtf8(&triggerChar, 1));
+                    sendCommit(st, utf32ToUtf8(&triggerChar, 1));
                 }
                 /* Chỉ xoá **trước** caret (sau caret không thuộc phạm vi sửa —
                  * xoá cả 2 phía ⇒ mất dữ liệu người dùng). Số **glyph** do
@@ -924,9 +1012,11 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                  * phải 0!) — xem `deleteBeforeCaret`. Gọi `(-n, 0)` ⇒ xoá 0 ký tự
                  * ⇒ đuôi câu cũ còn nguyên ⇒ commit bản sửa ⇒ **nhân đôi câu**. */
                 if (fixPlan.delete_glyphs > 0) {
-                    deleteBeforeCaret(st->ic, fixPlan.delete_glyphs);
+                    sendDeleteBefore(st, fixPlan.delete_glyphs);
                 }
-                st->ic->commitString(fixPlan.replacement);
+                /* R2-165: commit(từ) + commit(trigger) + xoá + commit(bản sửa) ⇒ cuối phím
+                 * chỉ còn MỘT xoá + MỘT commit (editsEnd). */
+                sendCommit(st, fixPlan.replacement);
                 /* R-4: sau khi đã thay document, buffer engine phải sạch —
                  * giữ câu cũ ⇒ mỗi trigger lại xoá+commit lại (lặp, nhân bản
                  * history trong app). */
@@ -1028,9 +1118,9 @@ bool TextVNEngine::applyAssistUndo(TextVNState *st) {
          * KHÔNG phải 0 (0 ⇒ xoá 0 ký tự ⇒ hoàn tác không xoá gì ⇒ câu bị nhân
          * đôi khi gõ lại bản sửa). */
         if (st->assistUndoReplacementGlyphs > 0) {
-            deleteBeforeCaret(st->ic, st->assistUndoReplacementGlyphs);
+            sendDeleteBefore(st, st->assistUndoReplacementGlyphs);
         }
-        st->ic->commitString(st->assistUndoOriginalTail);
+        sendCommit(st, st->assistUndoOriginalTail);
         st->assistUndoValid = false;
         ime_reset(st->inst);
         return true;
@@ -1170,6 +1260,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
             const int idx = live - LC_LIVE_APPLY_1;
             auto list = st->ic->inputPanel().candidateList();
             if (list && idx < list->size()) {
+                flushEdits(st); /* R2-165: select() xoá + commit trực tiếp — giữ thứ tự */
                 list->candidate(idx).select(st->ic);
                 assistUiShowing_ = false; /* select() đã reset input panel */
                 return true;
@@ -1246,7 +1337,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         if (res == LC_EMOJI_COMMIT) {
             st->ic->inputPanel().reset();
             st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
-            st->ic->commitString(glyph);
+            sendCommit(st, glyph);
         } else if (res == LC_EMOJI_CLOSED) {
             st->ic->inputPanel().reset();
             st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
@@ -1354,7 +1445,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         }
         /* Xoá `delete_before` ký tự TRƯỚC caret — tham số 2 của API Fcitx5 là
          * SỐ KÝ TỰ CẦN XOÁ (xem `deleteBeforeCaret`). */
-        deleteBeforeCaret(st->ic, plan.delete_before);
+        sendDeleteBefore(st, plan.delete_before);
     }
 
     if (plan.end) {
@@ -1362,9 +1453,17 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         const uint32_t *t = lc_plan_commit_text(&st->comp, &plan, &n);
         commitText(st, t, n);
         if (plan.cursor_left > 0) {
+            /* R2-166: commit đã gom tới app TRƯỚC các phím Left; mỗi phím gửi nhấn LẪN nhả
+             * kèm keycode XKB thật (chỉ nhấn ⇒ compositor coi phím đang giữ: app tự lặp
+             * phím, lần gửi sau bị bỏ — ngosen#1020; keycode 0 ⇒ Wayland không dựng được
+             * wl_keyboard.key). */
+            flushEdits(st);
             const uint16_t steps = plan.cursor_left > 64 ? 64 : plan.cursor_left;
+            const fcitx::Key left(FcitxKey_Left, fcitx::KeyStates(),
+                                  static_cast<int>(LC_XKB_KEY_LEFT));
             for (uint16_t i = 0; i < steps; ++i) {
-                st->ic->forwardKey(fcitx::Key(FcitxKey_Left));
+                st->ic->forwardKey(left, false);
+                st->ic->forwardKey(left, true);
             }
         }
     } else if (plan.has_text) {
@@ -1408,10 +1507,17 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
 void TextVNEngine::keyEvent(const fcitx::InputMethodEntry &, fcitx::KeyEvent &keyEvent) {
     try {
         auto *st = state(keyEvent.inputContext());
-        if (st && handleKey(st, keyEvent.key(), keyEvent.rawKey().states(),
-                            keyEvent.isRelease())) {
-            keyEvent.filterAndAccept();
+        if (!st) return;
+        /* R2-165: mọi chỉnh sửa của phím gom lại, gửi tối đa 1 xoá + 1 commit TRƯỚC khi
+         * phím không nuốt đi tiếp tới app (thứ tự như cũ). */
+        editsBegin(st);
+        bool eaten = false;
+        try {
+            eaten = handleKey(st, keyEvent.key(), keyEvent.rawKey().states(), keyEvent.isRelease());
+        } catch (...) {
         }
+        editsEnd(st);
+        if (eaten) keyEvent.filterAndAccept();
     } catch (...) {
         /* S4: fail-open — không bao giờ làm sập tiến trình fcitx5. */
     }

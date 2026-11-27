@@ -2639,7 +2639,6 @@ hạch
 tỵ
 chốc
 ếch
-too
 sùng
 nhịn
 dom
@@ -2761,7 +2760,6 @@ hé
 lằn
 se
 xoá
-moon
 thính
 lóc
 đút
@@ -2867,7 +2865,6 @@ sạc
 bing
 ừa
 tràng
-boom
 thạo
 lim
 bênh

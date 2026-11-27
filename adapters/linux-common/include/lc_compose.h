@@ -39,6 +39,11 @@ extern "C" {
 #define LC_VK_ESCAPE 0x1Bu
 #define LC_VK_SPACE  0x20u
 
+/* R2-166: keycode thật của phím Left khi bộ gõ gửi lại phím (Math `cursor_left`).
+ * IBus dùng mã evdev (`KEY_LEFT` = 105); Fcitx5 `Key::code()` dùng mã XKB = evdev + 8. */
+#define LC_EVDEV_KEY_LEFT 105u
+#define LC_XKB_KEY_LEFT   (LC_EVDEV_KEY_LEFT + 8u)
+
 typedef enum lc_key_kind {
     LC_KEY_CHAR = 0,  /* sinh ký tự in được (gồm Space) */
     LC_KEY_BACKSPACE,

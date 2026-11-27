@@ -12,6 +12,7 @@
 #include "textvn_ffi.h"
 #include "linux_common.h"
 #include "lc_compose.h"
+#include "lc_edit_batch.h"
 #include "lc_emoji.h"
 
 G_BEGIN_DECLS
@@ -63,6 +64,12 @@ struct _TextVNIbusEngine {
 
     /* P12: Bộ chọn Emoji nhẹ qua IBusLookupTable (X11 + Wayland) */
     lc_emoji_picker       emoji;
+
+    /* R2-165: chỉnh sửa document của phím đang xử lý — gửi tối đa 1 xoá + 1 commit
+     * (text-input-v3/mutter chỉ giữ lệnh cuối mỗi `done`, xem lc_edit_batch.h). */
+    lc_edit_batch         edits;
+    /* R2-167: preedit chỉ được đóng SAU commit đã gom (commit trước, ẩn preedit sau). */
+    gboolean              hide_preedit_after_commit;
 };
 
 struct _TextVNIbusEngineClass {

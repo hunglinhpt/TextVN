@@ -1174,6 +1174,31 @@ pub fn current_distribution() -> &'static str {
 }
 
 /// Số bản ghi panic trong `panic.log` (E70).
+/// R2-166: `gnome-shell --version` ("GNOME Shell 50.1") có thuộc dải mutter 50.0–50.3 bỏ phím
+/// bộ gõ gửi lại (mutter#4853, sửa ở 50.4/51.0) không. Thuần, test được trên mọi OS.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn mutter_drops_forwarded_keys(gnome_shell_version: &str) -> bool {
+    let Some(ver) = gnome_shell_version
+        .split_whitespace()
+        .find(|w| w.starts_with(|c: char| c.is_ascii_digit()))
+    else {
+        return false;
+    };
+    let mut parts = ver.split('.');
+    let major = parts.next().and_then(|p| p.parse::<u32>().ok());
+    let minor = parts
+        .next()
+        .map(|p| p.trim_start_matches(|c: char| !c.is_ascii_digit()))
+        .and_then(|p| {
+            p.chars()
+                .take_while(char::is_ascii_digit)
+                .collect::<String>()
+                .parse::<u32>()
+                .ok()
+        });
+    matches!((major, minor), (Some(50), Some(0..=3)))
+}
+
 pub fn count_panic_records(text: &str) -> usize {
     text.matches("=== TextVN panic").count()
 }
@@ -2135,6 +2160,33 @@ fn collect_linux_diagnostics(diagnostics: &mut Vec<DiagnosticItem>, problems: &m
         }
     }
 
+    // 2b. R2-166 (ngosen#1017, mutter#4853, LP#2169784): GNOME Shell 50.0–50.3 bỏ MỌI phím bộ
+    //     gõ gửi lại cho app trên Wayland (Ubuntu 26.04 LTS đi kèm 50.1) ⇒ mẫu Math không dời
+    //     được con trỏ. Bản sửa có ở 50.4 / 51.0.
+    if s.session.eq_ignore_ascii_case("wayland") && s.desktop.to_ascii_lowercase().contains("gnome")
+    {
+        if let Ok(out) = std::process::Command::new("gnome-shell")
+            .arg("--version")
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            if mutter_drops_forwarded_keys(&text) {
+                diagnostics.push(DiagnosticItem {
+                    code: "W_MUTTER_FORWARD_KEY_BUG",
+                    severity: "warning",
+                    category: "env",
+                    message: format!(
+                        "{} (Wayland) có lỗi bỏ phím bộ gõ gửi lại cho ứng dụng — mẫu Math không dời được con trỏ.",
+                        text.trim()
+                    ),
+                    suggestion:
+                        "Cập nhật GNOME/mutter lên 50.4 trở lên (`sudo apt upgrade`; Ubuntu 26.04 chờ SRU LP#2169784) hoặc dùng phiên X11 khi cần mẫu Math."
+                            .into(),
+                });
+            }
+        }
+    }
+
     // 3. Lệch biến môi trường GTK_IM_MODULE / QT_IM_MODULE / XMODIFIERS.
     if let Some(mismatch) = detect_linux_im_env_mismatch(
         s.ibus_running,
@@ -2394,6 +2446,25 @@ mod tests {
         assert!(out.contains("<REDACTED: 1 mục>"));
         let broken = redact_user_content("{ hỏng 0912345678");
         assert!(!broken.contains("0912345678"));
+    }
+
+    /// R2-166: chỉ mutter 50.0–50.3 bỏ phím bộ gõ gửi lại (ngosen#1017, mutter#4853).
+    #[test]
+    fn r2_166_mutter_forward_key_bug_range() {
+        for bad in ["GNOME Shell 50.0", "GNOME Shell 50.1\n", "GNOME Shell 50.3"] {
+            assert!(mutter_drops_forwarded_keys(bad), "{bad}");
+        }
+        for good in [
+            "GNOME Shell 50.4",
+            "GNOME Shell 51.1",
+            "GNOME Shell 49.5",
+            "GNOME Shell 46.0",
+            "GNOME Shell 50.rc",
+            "",
+            "gnome-shell: not found",
+        ] {
+            assert!(!mutter_drops_forwarded_keys(good), "{good}");
+        }
     }
 
     #[test]

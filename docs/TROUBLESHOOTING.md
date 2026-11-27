@@ -126,6 +126,22 @@ AlmaLinux 9, SLES 15 / openSUSE Leap 15.6, Ubuntu 22.04, Debian 12, Ubuntu 24.04
 Arch Linux; smoke (ldd, CLI chẩn đoán, `--check-abi`, cài/gỡ per-user) trên Ubuntu 20.04 và
 Debian 11.
 
+### Giới hạn đã biết khi gõ trên Linux (0.2.92)
+
+TextVN giữ từ đang gõ trong **preedit** (gạch chân) và không bao giờ gửi lại phím BackSpace,
+nên không dính lớp lỗi "mất chữ/đảo chữ khi gõ nhanh" của bộ gõ gửi thẳng chữ. Các giới hạn còn
+lại nằm ở ứng dụng hoặc compositor (đối chiếu đầy đủ: `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`):
+
+| Hiện tượng | Nguyên nhân | Cách tránh |
+|---|---|---|
+| Thanh địa chỉ Chrome (Wayland) không tự điền URL khi còn gạch chân: `face` + Enter ra tìm kiếm | Chromium tắt tự điền khi đang có preedit | gõ Space hoặc → trước Enter, hoặc Ctrl+Shift sang EN |
+| `sudo` trong terminal: mật khẩu hiện ở gạch chân khi đang bật tiếng Việt | terminal không báo "ô mật khẩu" cho bộ gõ | Ctrl+Shift sang EN trước khi gõ mật khẩu (terminal ở EN nhận phím thẳng) |
+| vim chế độ thường: `dd` thành `đ` | mọi bộ gõ đều nhận phím trước vim | tắt tiếng Việt khi điều khiển vim |
+| Mẫu Math không dời được con trỏ trên GNOME 50.0–50.3 (Ubuntu 26.04) | mutter bỏ phím bộ gõ gửi lại (mutter#4853) | cập nhật lên GNOME ≥ 50.4; `textvn-cli --diagnose` báo `W_MUTTER_FORWARD_KEY_BUG` |
+| Ctrl+Shift+F9 (chuyển mã vùng bôi đen) không chạy với app GTK 3/Firefox trên Wayland | GTK 3 không báo vùng bôi đen cho bộ gõ | dùng app GTK 4/Qt, hoặc phiên X11 |
+| Trợ lý sửa câu không tự sửa trong Chrome/VS Code (X11) và trên Sway | app/compositor không báo chữ quanh con trỏ | an toàn: không sửa khi không xác minh được (D12) |
+| Steam không nhận tiếng Việt | Steam qua XIM không chuyển phím cho bộ gõ | chạy Steam với `LC_CTYPE=zh_CN.UTF-8` |
+
 ## 5. Windows: doanh nghiệp, LTSC, portable, quyền quản trị
 
 | Tình huống | Hành vi / cách xử lý |
@@ -282,6 +298,23 @@ Real CI tests on every push: full E2E on RHEL 8.10 / AlmaLinux 8, RHEL 9 / AlmaL
 SLES 15 / openSUSE Leap 15.6, Ubuntu 22.04, Debian 12, Ubuntu 24.04, Fedora 41 and Arch
 Linux; smoke tests (ldd, diagnostic CLI, `--check-abi`, per-user install/uninstall) on
 Ubuntu 20.04 and Debian 11.
+
+### Known typing limitations on Linux (0.2.92)
+
+TextVN keeps the word being typed in **preedit** (underlined) and never forwards BackSpace, so it
+is immune to the "lost/reordered letters when typing fast" class of bugs of direct-commit IMEs.
+The remaining limitations live in applications or compositors (full comparison:
+`docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`):
+
+| Symptom | Cause | Workaround |
+|---|---|---|
+| Chrome address bar (Wayland) does not inline-autocomplete while a word is underlined: `face` + Enter searches instead | Chromium disables inline autocomplete during preedit | press Space or → before Enter, or switch to EN with Ctrl+Shift |
+| `sudo` in a terminal: the password shows in the underline while Vietnamese is on | terminals do not tell the IME it is a password prompt | switch to EN with Ctrl+Shift before typing the password (EN mode passes keys straight through) |
+| vim normal mode: `dd` becomes `đ` | every IME sees keys before vim | turn Vietnamese off while driving vim |
+| Math templates cannot move the caret on GNOME 50.0–50.3 (Ubuntu 26.04) | mutter drops keys forwarded by IMEs (mutter#4853) | update to GNOME ≥ 50.4; `textvn-cli --diagnose` reports `W_MUTTER_FORWARD_KEY_BUG` |
+| Ctrl+Shift+F9 (convert selection) does nothing in GTK 3 apps/Firefox on Wayland | GTK 3 never reports the selection to the IME | use GTK 4/Qt apps, or an X11 session |
+| The grammar assistant does not auto-fix in Chrome/VS Code (X11) or on Sway | the app/compositor does not report surrounding text | safe by design: no fix when it cannot be verified (D12) |
+| Steam does not accept Vietnamese | Steam over XIM never forwards keys to the IME | start Steam with `LC_CTYPE=zh_CN.UTF-8` |
 
 ## 5. Windows: enterprise, LTSC, portable, administrator rights
 

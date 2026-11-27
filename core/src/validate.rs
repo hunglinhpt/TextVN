@@ -22,9 +22,13 @@ use crate::transform::tone::{current_tone, is_vowel, tone_of};
 use crate::transform::undo::unmark;
 
 /// Phụ âm đầu hợp lệ (P0-1 §1 `validate.rs`).
-pub const ONSETS: [&str; 28] = [
-    "", "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng", "ngh",
-    "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x",
+///
+/// R2-170: thêm `dz` — lối viết phương ngữ/tên riêng (`Dzũng`, `dzô`, `dzậy`) mà
+/// x-unikey 1.0.4 gõ được (oracle) và người dùng Ngó Sen yêu cầu (ngosen#958); thiếu
+/// nó thì Space trả `dzũng` về phím gốc `dzuxng`.
+pub const ONSETS: [&str; 29] = [
+    "", "b", "c", "ch", "d", "dz", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng",
+    "ngh", "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x",
 ];
 
 /// Phụ âm cuối hợp lệ (chuẩn: 8 phụ âm cuối, viết dạng đôi `ch/nh/ng`).
@@ -138,6 +142,21 @@ pub fn coda_after_nucleus_ok(cs: &[char], st: Structure) -> bool {
     !OPEN_NUCLEI.contains(&lower_str(&nucleus).as_str())
 }
 
+/// Rule 8 — R2-169 (ngosen#959 `booots`, OpenKey#41): vần `oo` chỉ có trong âm tiết vay
+/// mượn khép bằng `ng`/`c` (`xoong`, `boong`, `goòng`, `Thoòng`, `moóc`, `soóc`, `voọc`).
+/// `boót`, `soo`, `toon` không phải âm tiết ⇒ `booots` + ranh giới trả về `boots` như
+/// x-unikey 1.0.4, trong khi mọi từ `oòng/oóc` thật vẫn gõ được.
+pub fn oo_coda_ok(cs: &[char], st: Structure) -> bool {
+    let nucleus: Vec<char> = cs[st.onset_end..=st.nucleus_end]
+        .iter()
+        .map(|&c| unmark(c))
+        .collect();
+    if lower_str(&nucleus) != "oo" {
+        return true;
+    }
+    matches!(lower_str(&cs[st.nucleus_end + 1..]).as_str(), "ng" | "c")
+}
+
 pub fn is_valid_word(cs: &[char]) -> bool {
     let Some(st) = decompose(cs) else {
         return false;
@@ -149,6 +168,7 @@ pub fn is_valid_word(cs: &[char]) -> bool {
         && tone_marks_ok(cs)
         && stop_coda_tone_ok(cs, st)
         && coda_after_nucleus_ok(cs, st)
+        && oo_coda_ok(cs, st)
 }
 
 #[cfg(test)]
@@ -157,6 +177,19 @@ mod tests {
 
     fn v(s: &str) -> bool {
         is_valid_word(&s.chars().collect::<Vec<_>>())
+    }
+
+    /// R2-169: vần `oo` chỉ khép bằng `ng`/`c`.
+    #[test]
+    fn oo_nucleus_needs_ng_or_c() {
+        for w in [
+            "xoong", "boong", "goòng", "thoòng", "moóc", "soóc", "voọc", "coóc",
+        ] {
+            assert!(v(w), "{w}");
+        }
+        for w in ["boót", "soo", "toon", "moóp", "noòm"] {
+            assert!(!v(w), "{w}");
+        }
     }
 
     #[test]

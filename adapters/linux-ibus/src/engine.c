@@ -59,8 +59,12 @@ static IBusText *text_from_ucs4(const uint32_t *text, size_t len) {
     return ibus_text_new_from_ucs4(buf);
 }
 
+static void flush_edits(TextVNIbusEngine *self);
+
 static void show_preedit(TextVNIbusEngine *self, const uint32_t *text, size_t len) {
     IBusEngine *engine = (IBusEngine *)self;
+    /* R2-165: preedit MỚI phải tới sau phần commit đã gom (giữ đúng thứ tự trên dây). */
+    if (len > 0) flush_edits(self);
     if (len == 0) {
         ibus_engine_hide_preedit_text(engine);
         ibus_engine_update_preedit_text(engine, ibus_text_new_from_static_string(""), 0, FALSE);
@@ -79,11 +83,82 @@ static void show_preedit(TextVNIbusEngine *self, const uint32_t *text, size_t le
                                               IBUS_ENGINE_PREEDIT_COMMIT);
 }
 
-/* Commit `text` và đóng preedit. */
-static void commit_text(TextVNIbusEngine *self, const uint32_t *text, size_t len) {
-    show_preedit(self, NULL, 0);
+/* ---- R2-165: mỗi phím gửi tối đa 1 xoá + 1 commit (lc_edit_batch.h) ----
+ *
+ * Mọi xoá-trước-caret và commit đi qua 3 hàm dưới. Đang trong một phím (batch active) thì
+ * gom lại; hết phím (`edits_end`) gửi đúng MỘT `delete_surrounding_text` rồi MỘT
+ * `commit_text`. Ngoài phím (focus/reset/timer) gửi thẳng như cũ. Trước khi làm việc phụ
+ * thuộc thứ tự trên dây (forward phím, vẽ preedit mới, xoá vùng bôi đen) phải `flush_edits`. */
+static void send_edits_now(TextVNIbusEngine *self, uint32_t del, const char *text, size_t len) {
+    IBusEngine *engine = (IBusEngine *)self;
+    if (del > 0) ibus_engine_delete_surrounding_text(engine, -(gint)del, del);
     if (len > 0) {
-        ibus_engine_commit_text((IBusEngine *)self, text_from_ucs4(text, len));
+        gchar *s = g_strndup(text, len);
+        ibus_engine_commit_text(engine, ibus_text_new_from_string(s));
+        g_free(s);
+    }
+}
+
+/* R2-167 (ibus-bamboo#574/#589, PR#581): commit TRƯỚC rồi mới đóng preedit. Đóng preedit
+ * trước ⇒ Chrome/Electron coi là huỷ composition rồi chèn chữ mới riêng ⇒ editor React
+ * (Messenger, Instagram, GitHub) lặp lại từ cuối sau Enter hoặc đẩy từ lên đầu câu. */
+static void settle_preedit_after_commit(TextVNIbusEngine *self) {
+    if (!self->hide_preedit_after_commit) return;
+    self->hide_preedit_after_commit = FALSE;
+    show_preedit(self, NULL, 0);
+}
+
+static void flush_edits(TextVNIbusEngine *self) {
+    uint32_t del = 0;
+    const char *text = NULL;
+    size_t len = 0;
+    if (lc_edit_batch_take(&self->edits, &del, &text, &len)) send_edits_now(self, del, text, len);
+    settle_preedit_after_commit(self);
+}
+
+static void edits_begin(TextVNIbusEngine *self) {
+    lc_edit_batch_begin(&self->edits);
+}
+
+static void edits_end(TextVNIbusEngine *self) {
+    uint32_t del = 0;
+    const char *text = NULL;
+    size_t len = 0;
+    if (lc_edit_batch_end(&self->edits, &del, &text, &len)) send_edits_now(self, del, text, len);
+    if (!lc_edit_batch_active(&self->edits)) settle_preedit_after_commit(self);
+}
+
+/* Xoá `n` ký tự Unicode trước caret (đã kiểm IBUS_CAP_SURROUNDING_TEXT ở caller). */
+static void send_delete_before(TextVNIbusEngine *self, uint32_t n) {
+    if (n == 0) return;
+    if (lc_edit_batch_active(&self->edits)) {
+        lc_edit_batch_delete(&self->edits, n);
+        return;
+    }
+    ibus_engine_delete_surrounding_text((IBusEngine *)self, -(gint)n, n);
+}
+
+static void send_commit_utf8(TextVNIbusEngine *self, const char *utf8) {
+    if (!utf8 || !utf8[0]) return;
+    const size_t len = strlen(utf8);
+    if (lc_edit_batch_commit(&self->edits, utf8, len)) return;
+    /* Không gom (ngoài phím) hoặc hết chỗ: giữ thứ tự — gửi phần đã gom trước. */
+    flush_edits(self);
+    ibus_engine_commit_text((IBusEngine *)self, ibus_text_new_from_string(utf8));
+}
+
+/* Commit `text` rồi đóng preedit (R2-167: thứ tự commit → ẩn preedit). */
+static void commit_text(TextVNIbusEngine *self, const uint32_t *text, size_t len) {
+    if (len > 0) {
+        char utf8[LC_COMP_MAX * 4 + 1];
+        if (len > LC_COMP_MAX) len = LC_COMP_MAX;
+        lc_utf32_to_utf8(text, len, utf8, sizeof(utf8));
+        send_commit_utf8(self, utf8);
+    }
+    if (lc_edit_batch_active(&self->edits)) {
+        self->hide_preedit_after_commit = TRUE; /* ẩn ngay sau khi commit đã gom được gửi */
+    } else {
+        show_preedit(self, NULL, 0);
     }
 }
 
@@ -356,10 +431,10 @@ static void apply_assist_candidate(TextVNIbusEngine *self, guint index) {
         /* W1-audit: FFI chỉ trả kế hoạch khi `delete_glyphs` == số char Unicode
            của phần bị xoá (bảng mã xuất ≠ Unicode ⇒ không có kế hoạch), nên
            dùng `delete_glyphs` làm số **char** cho IBus là đúng ngữ nghĩa. */
-        ibus_engine_delete_surrounding_text(engine, -(gint)cand->delete_glyphs, cand->delete_glyphs);
+        send_delete_before(self, cand->delete_glyphs);
     }
     if (cand->replacement[0] != '\0') {
-        ibus_engine_commit_text(engine, ibus_text_new_from_string(cand->replacement));
+        send_commit_utf8(self, cand->replacement);
     }
     /* G19: note correction to style profile for continuous learning */
     if (self->inst && cand->delete_glyphs > 0 && cand->original_tail[0] != '\0' && cand->replacement[0] != '\0') {
@@ -386,13 +461,10 @@ static gboolean apply_assist_undo(TextVNIbusEngine *self) {
     if (!text_before_caret_matches(self, self->assist_undo_replacement, "")) {
         return FALSE;
     }
-    IBusEngine *engine = (IBusEngine *)self;
     if (self->assist_undo_replacement_glyphs > 0) {
-        ibus_engine_delete_surrounding_text(engine,
-            -(gint)self->assist_undo_replacement_glyphs,
-            self->assist_undo_replacement_glyphs);
+        send_delete_before(self, self->assist_undo_replacement_glyphs);
     }
-    ibus_engine_commit_text(engine, ibus_text_new_from_string(self->assist_undo_original_tail));
+    send_commit_utf8(self, self->assist_undo_original_tail);
     self->assist_undo_valid = FALSE;
     ime_reset(self->inst);
     return TRUE;
@@ -467,6 +539,9 @@ static gboolean perform_selection_convert(TextVNIbusEngine *self) {
 
     /* Xoá selection: offset từ caret (âm nếu bắt đầu TRƯỚC caret) — parity
      * `delete_surrounding_text` của đường assist; rồi commit bản mới. */
+    /* R2-165: vùng bôi đen có thể nằm SAU caret — không gom được; gửi phần đã gom trước
+     * (từ vừa chốt) rồi mới xoá + commit (đúng thứ tự cũ). */
+    flush_edits(self);
     ibus_engine_delete_surrounding_text(engine, (gint)info.del_offset, (guint)info.char_len);
     ibus_engine_commit_text(engine, ibus_text_new_from_string(out));
     g_free(out);
@@ -520,8 +595,10 @@ static gboolean hotkey_fix_sentence(TextVNIbusEngine *self) {
         self->comp.len = 0;
     }
     clear_assist_ui(self);
-    ibus_engine_delete_surrounding_text(engine, -(gint)plan.delete_glyphs, plan.delete_glyphs);
-    ibus_engine_commit_text(engine, ibus_text_new_from_string(plan.replacement));
+    /* R2-165: chốt preedit + xoá + commit đều đi qua bộ gom ⇒ trên dây chỉ còn
+     * delete(phần đã có trong document) + commit(bản sửa) — mutter không đè mất chữ. */
+    send_delete_before(self, plan.delete_glyphs);
+    send_commit_utf8(self, plan.replacement);
 
     size_t repl_glyphs = 0;
     if (ime_assist_glyph_len(self->inst, plan.replacement, strlen(plan.replacement), &repl_glyphs) ==
@@ -659,15 +736,18 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                  * document) để document khớp buffer câu của engine, rồi xoá đúng
                  * số glyph và gõ lại bản sửa. */
                 if (!plan_eaten && trigger_char != 0) {
-                    ibus_engine_commit_text(engine, text_from_ucs4(&trigger_char, 1));
+                    char trig[8];
+                    lc_utf32_to_utf8(&trigger_char, 1, trig, sizeof(trig));
+                    send_commit_utf8(self, trig);
                 }
                 if (fix_plan.delete_glyphs > 0) {
                     /* W1-audit: như `apply_assist_candidate` — FFI đã bảo đảm
                        glyph == char Unicode trước khi trả kế hoạch. */
-                    ibus_engine_delete_surrounding_text(engine, -(gint)fix_plan.delete_glyphs,
-                                                        fix_plan.delete_glyphs);
+                    send_delete_before(self, fix_plan.delete_glyphs);
                 }
-                ibus_engine_commit_text(engine, ibus_text_new_from_string(fix_plan.replacement));
+                /* R2-165: commit(từ) + commit(trigger) + xoá + commit(bản sửa) gom thành MỘT
+                 * delete + MỘT commit ở cuối phím (edits_end). */
+                send_commit_utf8(self, fix_plan.replacement);
                 if (self->inst) ime_reset(self->inst);
 
                 size_t repl_glyphs = 0;
@@ -773,7 +853,9 @@ static gboolean assist_idle_fire(gpointer data) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)data;
     self->assist_idle_id = 0;
     if (self->inst && !self->secure && !self->terminal && s_vi_enabled && self->comp.len == 0) {
+        edits_begin(self); /* R2-165 */
         (void)check_and_apply_assist(self, 0, FALSE, FALSE, "", TRUE);
+        edits_end(self);
     }
     return G_SOURCE_REMOVE;
 }
@@ -1013,7 +1095,7 @@ static void engine_property_activate(IBusEngine *engine, const gchar *name, guin
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->property_activate(engine, name, state);
 }
 
-static void engine_candidate_clicked(IBusEngine *engine, guint index, guint button, guint state) {
+static void candidate_clicked_inner(IBusEngine *engine, guint index, guint button, guint state) {
     (void)button;
     (void)state;
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
@@ -1026,7 +1108,7 @@ static void engine_candidate_clicked(IBusEngine *engine, guint index, guint butt
                 ibus_engine_hide_lookup_table(engine);
             }
             ibus_engine_hide_auxiliary_text(engine);
-            ibus_engine_commit_text(engine, ibus_text_new_from_string(glyph));
+            send_commit_utf8(self, glyph);
         }
         return;
     }
@@ -1063,7 +1145,7 @@ static gboolean handle_release(TextVNIbusEngine *self, guint keyval) {
     return FALSE; /* không bao giờ nuốt phím nhả */
 }
 
-static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint keycode,
+static gboolean process_key_inner(IBusEngine *engine, guint keyval, guint keycode,
                                          guint state) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
     (void)keycode;
@@ -1162,7 +1244,7 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                 ibus_engine_hide_lookup_table(engine);
             }
             ibus_engine_hide_auxiliary_text(engine);
-            ibus_engine_commit_text(engine, ibus_text_new_from_string(glyph));
+            send_commit_utf8(self, glyph);
         } else if (res == LC_EMOJI_CLOSED) {
             if (self->lookup_table) {
                 ibus_lookup_table_clear(self->lookup_table);
@@ -1250,8 +1332,7 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
             finish_word(self);
             return FALSE;
         }
-        ibus_engine_delete_surrounding_text(engine, -(gint)plan.delete_before,
-                                            plan.delete_before);
+        send_delete_before(self, plan.delete_before);
     }
 
     /* Text engine vừa commit trong phím này (rỗng nếu không commit) — dùng để
@@ -1267,9 +1348,16 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         commit_text(self, t, n);
         lc_utf32_to_utf8(t, n, committed, sizeof(committed));
         if (plan.cursor_left > 0) {
+            /* R2-166: commit đã gom phải tới app TRƯỚC các phím Left. Mỗi phím gửi cả nhấn
+             * LẪN nhả, kèm keycode evdev thật: chỉ gửi nhấn thì GNOME (thiết bị ảo của
+             * gnome-shell) coi Left còn đang giữ — app tự lặp phím, và lần gửi sau bị bỏ vì
+             * "phím đang giữ" (ngosen#1020); keycode 0 thì mutter không dựng được wl_keyboard.key. */
+            flush_edits(self);
             uint16_t steps = plan.cursor_left > 64 ? 64 : plan.cursor_left;
             for (uint16_t i = 0; i < steps; i++) {
-                ibus_engine_forward_key_event(engine, IBUS_KEY_Left, 0, 0);
+                ibus_engine_forward_key_event(engine, IBUS_KEY_Left, LC_EVDEV_KEY_LEFT, 0);
+                ibus_engine_forward_key_event(engine, IBUS_KEY_Left, LC_EVDEV_KEY_LEFT,
+                                              IBUS_RELEASE_MASK);
             }
         }
     } else if (plan.has_text) {
@@ -1310,6 +1398,24 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         update_preview(self);
     }
     return plan.eaten ? TRUE : FALSE;
+}
+
+/* R2-165: mọi chỉnh sửa document trong MỘT phím gom lại, gửi tối đa 1 xoá + 1 commit
+ * TRƯỚC khi trả lời phím (app nhận phím không nuốt SAU phần đã commit — như cũ). */
+static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint keycode,
+                                         guint state) {
+    TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    edits_begin(self);
+    gboolean eaten = process_key_inner(engine, keyval, keycode, state);
+    edits_end(self);
+    return eaten;
+}
+
+static void engine_candidate_clicked(IBusEngine *engine, guint index, guint button, guint state) {
+    TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
+    edits_begin(self);
+    candidate_clicked_inner(engine, index, button, state);
+    edits_end(self);
 }
 
 static void textvn_ibus_engine_class_init(TextVNIbusEngineClass *klass) {

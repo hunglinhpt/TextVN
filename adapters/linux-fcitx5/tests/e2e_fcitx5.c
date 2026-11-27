@@ -123,6 +123,13 @@ static void die_dbus(const char *where, DBusError *err) {
     exit(1);
 }
 
+/* R2-165: mỗi lần ProcessKeyEvent tối đa 1 commit (text-input-v3 chỉ giữ lệnh cuối mỗi
+ * `done`); R2-166: phím engine gửi lại (ForwardKey) phải cân nhấn/nhả. */
+static unsigned commits_this_key = 0, max_commits_per_key = 0;
+static unsigned fwd_press = 0, fwd_release = 0;
+/* R2-167: preedit đang hiện ĐÚNG lúc CommitString tới (commit trước, xoá preedit sau). */
+static char preedit_at_commit[256] = "";
+
 /* ---- Signal filter: CommitString + UpdateFormattedPreedit ---- */
 static DBusHandlerResult on_signal(DBusConnection *c, DBusMessage *m,
                                    void *user_data) {
@@ -148,12 +155,32 @@ static DBusHandlerResult on_signal(DBusConnection *c, DBusMessage *m,
         if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_STRING) {
             const char *text = NULL;
             dbus_message_iter_get_basic(&iter, &text);
+            snprintf(preedit_at_commit, sizeof preedit_at_commit, "%s",
+                     preedit.data ? preedit.data : "");
             if (text)
                 sb_append(&doc, text);
+            commits_this_key++;
         } else {
             char *sig = dbus_message_iter_get_signature(&iter);
             fprintf(stderr, "CommitString signature lạ: %s\n", sig ? sig : "?");
             dbus_free(sig);
+        }
+        return DBUS_HANDLER_RESULT_HANDLED;
+    }
+    if (strcmp(member, "ForwardKey") == 0) {
+        /* (u keysym, u state, b isRelease) */
+        dbus_uint32_t sym = 0, st = 0;
+        dbus_bool_t rel = FALSE;
+        DBusError e;
+        dbus_error_init(&e);
+        if (dbus_message_get_args(m, &e, DBUS_TYPE_UINT32, &sym, DBUS_TYPE_UINT32, &st,
+                                  DBUS_TYPE_BOOLEAN, &rel, DBUS_TYPE_INVALID)) {
+            if (rel)
+                fwd_release++;
+            else
+                fwd_press++;
+        } else {
+            dbus_error_free(&e);
         }
         return DBUS_HANDLER_RESULT_HANDLED;
     }
@@ -286,9 +313,18 @@ static void app_handles(const char *ch_utf8) {
     }
 }
 
+static void pump(double sec);
+
 static dbus_bool_t send_key(dbus_uint32_t keysym, dbus_uint32_t state,
                             dbus_bool_t release) {
-    return ic_process_key(keysym, state, release);
+    /* Đếm commit của RIÊNG phím này: signal tới trước reply nên pump ngắn là đủ. */
+    pump(0.0);
+    commits_this_key = 0;
+    dbus_bool_t handled = ic_process_key(keysym, state, release);
+    pump(0.02);
+    if (commits_this_key > max_commits_per_key)
+        max_commits_per_key = commits_this_key;
+    return handled;
 }
 
 static void check(const char *label, const char *want) {
@@ -573,6 +609,14 @@ int main(void) {
     /* ---- Telex cơ bản + preedit + Enter + Backspace ---- */
     type_string("dduocj ");
     check("telex dduocj+space", "\xc4\x91\xc6\xb0\xe1\xbb\xa3" "c "); /* "được " */
+    {
+        /* R2-167 (ibus-bamboo#574): lúc commit tới app, preedit cũ vẫn còn. */
+        int ordered = strcmp(preedit_at_commit, "\xc4\x91\xc6\xb0\xe1\xbb\xa3" "c") == 0;
+        if (!ordered)
+            ok = 0;
+        printf("%s commit arrives before preedit is cleared (preedit at commit=\"%s\")\n",
+               ordered ? "PASS" : "FAIL", preedit_at_commit);
+    }
     clear();
     type_string("Vieetj Nam");
     check("preedit gi\xe1\xbb\xaf c\xe1\xba\xa3 t\xe1\xbb\xab",
@@ -755,6 +799,34 @@ int main(void) {
     clear();
     write_textvn_file("config.json", "{\"config_version\": 1}");
     pump(0.3);
+
+    /* ---- R2-166: Math template (Latex) dời con trỏ bằng phím Left gửi lại ---- */
+    write_textvn_file("config.json",
+                      "{\"config_version\": 1, \"auto_capitalize\": false,"
+                      " \"math\": {\"enabled\": true, \"output_mode\": \"Latex\"}}");
+    pump(0.3);
+    clear();
+    type_string("`/");
+    {
+        int balanced = fwd_press == fwd_release;
+        if (!balanced)
+            ok = 0;
+        printf("%s math cursor_left: ForwardKey press=%u release=%u doc=\"%s%s\"\n",
+               balanced ? "PASS" : "FAIL", fwd_press, fwd_release, doc.data ? doc.data : "",
+               preedit.data ? preedit.data : "");
+    }
+    clear();
+    write_textvn_file("config.json", "{\"config_version\": 1}");
+    pump(0.3);
+
+    /* ---- R2-165: bất biến cả phiên — mỗi phím tối đa 1 commit ---- */
+    {
+        int atomic = max_commits_per_key <= 1;
+        if (!atomic)
+            ok = 0;
+        printf("%s per-key commits are atomic (max=%u)\n", atomic ? "PASS" : "FAIL",
+               max_commits_per_key);
+    }
 
     printf(ok ? "e2e_fcitx5: OK\n" : "e2e_fcitx5: FAILED\n");
     free(doc.data);

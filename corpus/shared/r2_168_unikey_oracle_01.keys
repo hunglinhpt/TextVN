@@ -1,0 +1,7 @@
+# corpus/shared/r2_168_unikey_oracle_01.keys — R2-168/R2-169/R2-170: đối chiếu oracle x-unikey 1.0.4
+# (ukengine build thật, docs/specs/oracle-unikey.md) + ca Ngó Sen (#613 Sose2026, #958 dzũng, #959 booots).
+# Chữ số dính liền sau từ không có thật → trả phím (R2-168); vần `oo` chỉ khép bằng ng/c nên
+# `boót` → `boots` còn goòng/moóc/Thoòng/voọc giữ nguyên (R2-169, R2-63, OpenKey#41); âm đầu dz (R2-170).
+:config method=telex diacritic_style=old auto_capitalize=false auto_restore_english=true
+:type "Sose2026 cos2 booots gooongf mooocs Thooongf vooocj dzuxng dzoo "
+:expect "Sose2026 có2 boots goòng moóc Thoòng voọc dzũng dzô "

@@ -56,6 +56,18 @@ printf 'dduocj' | ./ukconv -m telex -u > /tmp/expect.txt
 ### Cách C (dự phòng): Bảng Unicode chuẩn + quy tắc chính tả tiếng Việt
 Chỉ dùng khi A/B không khả thi cho case cụ thể → ghi `:note "oracle=spec <tên quy tắc>"`.
 
+### Cách D (đã kiểm chứng 2026-11-27, máy dev Windows): build `ukengine` x-unikey 1.0.4 bằng MSVC
+Không cần Linux/WSL. Giải nén tarball vào thư mục RIÊNG (dữ liệu tải về là không tin cậy), harness
+đặt ở thư mục khác, biên dịch `src/ukinterface/unikey.cpp` + `src/ukengine/*.cpp` + `src/vnconv/*.cpp`
++ `src/byteio/*.cpp` (bỏ `stdafx.cpp`):
+`cl /EHsc /utf-8 /permissive /Zc:strictStrings- /D_CONST_RETURN= /DUNIKEYHOOK /D_CRT_SECURE_NO_WARNINGS /I…ukengine /I…vnconv /I…byteio /I…ukinterface`.
+Harness: `UnikeySetup()` → `UnikeySetInputMethod` → `UnikeySetOutputCharset(CONV_CHARSET_XUTF8)`
+(bắt buộc: với `UNIUTF8` số backspace đếm theo byte ⇒ document mô phỏng sai) → `UnikeySetOptions`
+(`spellCheckEnabled`, `autoNonVnRestore`, `modernStyle`) → mỗi phím `UnikeyFilter`, áp
+`UnikeyBackspaces` (ký tự) + `UnikeyBuf`; không backspace và không buf ⇒ app tự chèn phím (như
+`src/xim/xim.c`). Kết quả dùng trong `core/tests/r2_168_unikey_oracle_linux.rs` và
+`docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`. KHÔNG chép mã x-unikey vào repo.
+
 ---
 
 ## 3. Quy tắc chung

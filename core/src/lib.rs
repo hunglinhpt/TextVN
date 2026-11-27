@@ -2441,7 +2441,10 @@ impl Engine {
     /// đuôi text (`recent`) khi chữ kế tiếp được gõ.
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
-        let will_restore = was_active && (self.restorable() || self.bracket_word_is_code(c));
+        let will_restore = was_active
+            && (self.restorable()
+                || self.bracket_word_is_code(c)
+                || self.digit_glued_to_non_word(c));
 
         // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — khi
         // `will_restore` = true thì học chuỗi EN thật (`self.word.raw`), tuyệt đối
@@ -2479,6 +2482,36 @@ impl Engine {
         }
 
         self.close_word(c, strategy)
+    }
+
+    /// R2-168 (ngosen#613): chữ số gõ DÍNH LIỀN sau một từ đã biến đổi mà kết quả
+    /// không phải âm tiết có thật (`Sose2026` → `Sóe` + `2`) ⇒ đó là mã/tên riêng
+    /// (`Sose2026`, `Wifi6`…), trả lại phím đã gõ ngay tại chữ số — `sóe` đúng luật
+    /// ghép vần nên `restorable()` không bắt. Âm tiết có thật giữ nguyên như UniKey
+    /// (`cos2` → `có2`, `lớp12`). Chỉ Telex/kiểu gõ coi chữ số là ranh giới mới tới
+    /// đây (VNI dùng chữ số làm phím dấu). (R2-169 `booots` xử lý bằng luật ghép vần
+    /// `validate::oo_coda_ok`, không bằng từ điển — từ thật `Thoòng`/`voọc` không có trong
+    /// `vn_syllables.txt` vẫn phải gõ được.)
+    fn digit_glued_to_non_word(&self, c: char) -> bool {
+        if !c.is_ascii_digit()
+            || self.word.identifier
+            || self.word.rebuilt
+            || !self.opts.auto_restore_english
+            || self.is_intentional_tone_strip()
+        {
+            return false;
+        }
+        let display = &self.word.display;
+        // `50đ2`, `ĐT1`: token không nguyên âm (chỉ có `đ`) giữ như `should_restore`.
+        if !display.iter().any(|&ch| transform::tone::is_vowel(ch)) {
+            return false;
+        }
+        let raw = self.restore_source();
+        if raw.is_empty() || raw == *display {
+            return false;
+        }
+        let folded: String = display.iter().collect();
+        !post::predict::is_known_vn_syllable(&folded)
     }
 
     /// Từ đứng trước ` --` ở đuôi document có chữ Việt (có dấu) không.
