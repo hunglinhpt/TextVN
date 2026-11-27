@@ -53,7 +53,9 @@ $cmd = @(
     "cd /d `"$fwd`" || exit /b 1",
     'cl /nologo /c /Foempty_arm64.obj empty.cpp || exit /b 1',
     'cl /nologo /c /arm64EC /Foempty_x64.obj empty.cpp || exit /b 1',
-    'link /nologo /dll /noentry /machine:arm64x /defArm64Native:arm64.def /def:x64.def empty_arm64.obj empty_x64.obj /out:tsf_min.dll || exit /b 1',
+    'link /lib /nologo /machine:x64 /def:x64.def /out:fwd_x64.lib || exit /b 1',
+    'link /lib /nologo /machine:arm64 /def:arm64.def /out:fwd_arm64.lib || exit /b 1',
+    'link /nologo /dll /noentry /machine:arm64x /defArm64Native:arm64.def /def:x64.def empty_arm64.obj empty_x64.obj /out:tsf_min.dll fwd_arm64.lib fwd_x64.lib || exit /b 1',
     'dumpbin /nologo /headers tsf_min.dll > dumpbin-headers.txt || exit /b 1',
     'dumpbin /nologo /exports tsf_min.dll > dumpbin-exports.txt || exit /b 1'
 )

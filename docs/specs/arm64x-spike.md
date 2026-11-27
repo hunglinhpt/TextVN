@@ -34,8 +34,9 @@ trực tiếp; cần link thủ công `arm64ec-pc-windows-msvc` + `aarch64`). K�
 ## 2. Thiết kế
 
 - `build.ps1` (x64 host): `cargo build --target {x86_64,aarch64}-pc-windows-msvc` cho `tsf-min` + probe;
-  `vswhere` → `vcvarsall x64_arm64` → `cl /c` (ARM64) + `cl /c /arm64EC` (tệp rỗng) → `link /dll /noentry
-  /machine:arm64x /defArm64Native:arm64.def /def:x64.def` → `tsf_min.dll`; kèm `rsi-oracle` ARM64 cho PERF-2.
+  `vswhere` → `vcvarsall x64_arm64` → `cl /c` (ARM64) + `cl /c /arm64EC` (tệp rỗng) → **import lib**
+  `link /lib /machine:x64 /def:x64.def` + `link /lib /machine:arm64 /def:arm64.def` → `link /dll /noentry
+  /machine:arm64x /defArm64Native:arm64.def /def:x64.def <2 obj> <2 lib>` → `tsf_min.dll`; kèm `rsi-oracle` ARM64 cho PERF-2.
 - `run.ps1` (windows-11-arm): chép 3 DLL vào `…\TextVN Spike ARM64X\bin`, chạy probe từ thư mục khác.
 - Probe không ghi registry, không đăng ký TIP; chỉ `DllGetClassObject` → `IClassFactory::CreateInstance
   (ITfTextInputProcessor)` trong chính tiến trình probe. Log HRESULT của DLL mẫu chuyển `LOCALAPPDATA` sang thư mục tạm.
@@ -44,4 +45,7 @@ trực tiếp; cần link thủ công `arm64ec-pc-windows-msvc` + `aarch64`). K�
 
 ## 3. Kết quả CI
 
-_Chờ run `spikes.yml` đầu tiên — ghi link run + dòng `SPK-ARM64X …` của từng probe vào đây._
+- Run 1 [#46028585161](https://github.com/hunglinhpt/TextVN/actions/runs/46028585161): build chéo Rust `aarch64-pc-windows-msvc`
+  trên `windows-2022` **OK**, `cl /arm64EC` **OK**; link forwarder **đỏ** `LNK2001 unresolved DllGetClassObject (EC Symbol /
+  Arm64 Native Symbol)` — thiếu hai import lib (`link /lib`) mà công thức Microsoft truyền vào lệnh link cuối. Đã thêm.
+- Run 2: _chờ kết quả — ghi dòng `SPK-ARM64X …` của từng probe vào đây._
