@@ -221,6 +221,35 @@ X11/XWayland. Chỉ bật khi đạt SF-G1…G6 + e2e Sway/labwc headless trên 
 | **0.2.97 → 0.3.0** | **SF-3 … SF-7**; adapter còn ≤ ~1,5 nghìn dòng mỗi OS; quy tắc "nghiệp vụ chỉ trong session" thành gate | SF-G1…G6 xanh mỗi bước |
 | sau 0.3.0 | backend Wayland input-method-v2 (tuỳ chọn); notarization macOS khi có secrets; kiểm tay Snapdragon/Jetson/DGX | §7.3 |
 
+## 9b. Tương thích & chống tái diễn — yêu cầu xuyên suốt (chủ repo 2026-11-27)
+
+> "Kế hoạch mới phải cover tương thích và build test CI cho toàn bộ Windows, Linux distro phổ biến của cá
+> nhân và doanh nghiệp như đã làm ở các version trước, không chỉ Ubuntu; lỗi đã fix không được tái hiện."
+> Tái cấu trúc (`textvn-session`) và ARM KHÔNG được làm hẹp ma trận đã có; mọi target mới chạy CÙNG bộ test.
+
+### Ma trận phải GIỮ (0.2.94) và MỞ RỘNG
+
+| Nền tảng | Đang có (giữ nguyên) | Mở rộng trong kế hoạch |
+|---|---|---|
+| Windows phiên bản/bản | 10 1507/LTSB → 22H2 và 11 21H2 → 24H2+, Home/Pro/Enterprise/LTSC (E65/E66: sàn API, delay-load, `check-pe-imports`); app x86 (WOW64); AppContainer/LPAC (`sandbox_e2e`); per-user + machine + portable + MSIX; Store validation | CI `windows-2025` cạnh `windows-2022`; **Windows 11 ARM64** (`windows-11-arm`: ARM64 native + x64 giả lập + x86 + AppContainer); kiểm tay trước bản lớn: Win10 22H2 Home, Win11 24H2 Enterprise/LTSC (VM) |
+| Linux doanh nghiệp | RHEL/AlmaLinux 8.10 + 9 (Rocky/Oracle cùng họ), SLES/openSUSE Leap 15.6 — E2E container mỗi bản; tarball `glibc ≥ 2.28` | AlmaLinux 10 (RHEL 10), SLES 16 khi có ảnh; **ảnh arm64** của mọi distro có ảnh |
+| Linux cá nhân | Ubuntu 22.04/Mint 21, Debian 12, Fedora 41 — E2E; Ubuntu 20.04/Mint 20, Debian 11 — smoke; Arch (`ci-aur`), Debian trixie (`ci-deb`) | Ubuntu 24.04 (= DGX OS) + 26.04 (GNOME 50, mutter#4853 — R2-166), Debian 13, Fedora 42/43, openSUSE Tumbleweed, Linux Mint 22; Raspberry Pi OS 64-bit (Debian arm64) |
+| Môi trường desktop | IBus + Fcitx5, GTK3/GTK4/Qt, X11 + Wayland (e2e container) | GNOME Wayland/X11 (IBus), KDE Plasma Wayland (Fcitx5 qua Virtual Keyboard), Xfce/Cinnamon X11, wlroots (Sway/labwc) headless trên CI |
+| macOS | universal arm64 + x86_64, CI arm64 | e2e IMK arm64 (ARM-M2) |
+
+### Chống tái diễn (lỗi đã fix không quay lại)
+
+1. **Sổ hồi quy (REG-1)**: `cargo xtask regression-index` đọc mã đã sửa trong
+   `docs/specs/project-common-errors.md` (E*), `docs/specs/win-test-common-errors.md` (B*),
+   `docs/release/release-process.md` (R*), mã R2-* trong CHANGELOG — mỗi mã phải trỏ tới ≥ 1 test/corpus/gate
+   (`corpus/**/bug_*`, `r2_*`, `core/tests/*`, e2e, gate `xtask`) qua bảng `docs/specs/regression-index.md`;
+   mã "đã sửa" thiếu test ⇒ preflight + CI đỏ. Mã chỉ-quy-trình ghi rõ gate quy trình tương ứng.
+2. **Cùng bộ test cho mọi target**: x86_64 và ARM chạy TOÀN BỘ `cargo test`, replay 4 adapter, e2e — không
+   tập con; distro mới vào ma trận chạy đủ e2e như distro cũ.
+3. **Chuyển nghiệp vụ sang session không xoá test cũ**: test hồi quy của adapter cũ được chuyển thành test
+   của session/vết vàng TRƯỚC khi xoá mã cũ (SF-G1…G6), và e2e trên toàn ma trận phải xanh.
+4. **B4b (G23)** chạy release.yml đầy đủ (mọi distro container + Windows + macOS) trên commit sẽ tag.
+
 ## 10. Rủi ro
 
 | Rủi ro | Giảm thiểu |

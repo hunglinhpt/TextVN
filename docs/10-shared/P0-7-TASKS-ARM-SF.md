@@ -45,6 +45,8 @@ Gồm **DoD 8 mục** của `../01-AGENT-HANDBOOK.md §4`, cộng:
 - [ ] D10 Mã lỗi mới đã cấp qua `board note "alloc E.."` và ghi vào `docs/specs/project-common-errors.md`.
 - [ ] D11 Review bởi agent khác: `review-done … PASS` trên board.
 - [ ] D12 CI `main` xanh sau khi push (G13/G17) — đỏ thì task chưa xong.
+- [ ] D14 **Tương thích + chống tái diễn** (P0-5 §9b): ma trận Windows/Linux distro/desktop hiện có KHÔNG bị
+      thu hẹp; mọi target (x86_64 + ARM) chạy đủ bộ test; mã lỗi đã sửa có test trong `regression-index`.
 - [ ] D13 **G22 — không duplicate**: không thêm nghiệp vụ/chữ UI trùng ở `adapters/`, `tray/`, Swift/C; logic chung
       nằm trong `core/`/`textvn-session`/dữ liệu sinh mã; nếu task chạm vào bản sao cũ thì ghi task hợp nhất.
 
@@ -217,6 +219,33 @@ khi `adapters/` thêm từ khoá nghiệp vụ (P0-5 §3.2); thêm vào prefligh
 **ARM-M2 · E2E IMK gõ thật trên runner arm64 (M, Dep: —)** — `ci-macos.yml`: kịch bản gõ vào TextEdit qua IMK (khi runner cho phép quyền accessibility; nếu không, ghi giới hạn + thay bằng test bridge).
 
 **ARM-M3 · Notarization (S, Dep: secrets Apple)** — chờ chủ repo cấp secret.
+
+### Luồng C — tương thích & chống tái diễn (P0-5 §9b)
+
+**REG-1 · Sổ hồi quy + gate (M, Dep: —)** — `xtask/src/regression_index.rs`, `docs/specs/regression-index.md`,
+preflight + `repo-hygiene`. Acceptance: mọi mã E/B/R/R2 "đã sửa" map ≥ 1 test/corpus/gate; xoá test của một mã ⇒ đỏ.
+
+**REG-2 · Bù test cho mã cũ thiếu (L, Dep: REG-1)** — liệt kê mã chưa có test, viết corpus/test hồi quy (ưu tiên lỗi gõ 3 OS).
+
+**COMPAT-1 · Windows `windows-2025` + ARM64 (M, Dep: ARM-W1)** — `ci-windows.yml`, `release.yml`: cùng e2e/validation trên
+`windows-2022`, `windows-2025`, `windows-11-arm`.
+
+**COMPAT-2 · Mở rộng distro (M, Dep: ARM-L4)** — Ubuntu 24.04/26.04, Debian 13, Fedora 42/43, openSUSE Tumbleweed,
+AlmaLinux 10, Mint 22 (+ ảnh arm64) vào E2E container; giữ nguyên 6 distro + 2 smoke hiện có; README cập nhật số họ distro (G18).
+
+**COMPAT-3 · Môi trường desktop (L, Dep: COMPAT-2)** — e2e GNOME Wayland/X11 (IBus), KDE Plasma Wayland (Fcitx5), Xfce X11,
+Sway/labwc headless (chuẩn bị WL-1).
+
+### Luồng R — Dream RSI 2.0 · vòng lặp · vòng nghiệp vụ (`P0-8-DREAM-RSI-LOOPS.md`)
+
+**RSI-1 · Bench KSR-oracle (M, Dep: —) — ƯU TIÊN CAO** — `tools/bench/src/main.rs` (`bench_dream_rsi` hiện nhấn Tab khi có
+BẤT KỲ chữ mờ, kể cả sai), `perf/baseline-*.json`, `docs/specs/dream-rsi.md`. Acceptance: người dùng mô phỏng chỉ nhận chữ mờ
+là tiền tố đúng của phần còn lại; báo KSR-oracle, precision@ghost, noise/100 phím, chain depth; đột biến "luôn hiện chữ mờ sai"
+⇒ KSR không tăng và noise tăng ⇒ gate đỏ; G19c chuyển sang KSR-oracle; README công bố số mới trung thực.
+
+**RSI-2 · Corpus đánh giá tách tập (M, Dep: RSI-1)** — `corpus/eval/` (giấy phép + `REUSE.toml`), `xtask gen-*-phrases` kiểm
+chồng lấn = 0. **RSI-3…RSI-6, LOOP-1…LOOP-5, BIZ-1…BIZ-3**: định nghĩa + Dep ở P0-8 §10 (cùng DoR/DoD/audit §2–§4; audit
+§4.4 bắt buộc số trước/sau).
 
 ### Luồng P — hiệu năng & chung
 

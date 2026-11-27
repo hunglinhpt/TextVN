@@ -18,6 +18,7 @@
 | [10-shared/P0-5-ARM-PLATFORMS-PLAN.md](10-shared/P0-5-ARM-PLATFORMS-PLAN.md) | Nền tảng thống nhất `textvn-session` (một nghiệp vụ cho 3 OS) + chip ARM: Apple M, Windows on ARM (Snapdragon, NVIDIA — TSF + ARM64X), Linux aarch64 (Jetson/DGX Spark, Raspberry Pi) — nghiên cứu UniKey, Weasel, VietType, Gõ Nhanh, Ngó Sen, kime… |
 | [10-shared/P0-6-SESSION-FRAMEWORK-SPEC.md](10-shared/P0-6-SESSION-FRAMEWORK-SPEC.md) | Giải pháp chi tiết: `textvn-session` (sự kiện/lệnh, C ABI `ime_session_*`, vết vàng, shadow mode), ARM64X forwarder, CI/gói ARM, MSIX bundle |
 | [10-shared/P0-7-TASKS-ARM-SF.md](10-shared/P0-7-TASKS-ARM-SF.md) | Task cho nhiều agent: vai trò, **DoR**, **DoD**, **audit checklist**, thẻ task ARM-L/SF/ARM-W/ARM-M/PERF/WL |
+| [10-shared/P0-8-DREAM-RSI-LOOPS.md](10-shared/P0-8-DREAM-RSI-LOOPS.md) | Dream RSI 2.0 (KSR-oracle, precision, noise), kiến trúc vòng lặp 2 tốc độ, vòng nghiệp vụ + bảng điểm chất lượng mọi tính năng |
 | [../coordination/README.md](../coordination/README.md) | **G21** — giao nhận việc & thông báo giữa agent qua `coordination/board.jsonl` (`cargo xtask board`) |
 
 ## 1. Trạng thái các phần

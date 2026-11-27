@@ -276,8 +276,8 @@ Microsoft.VisualStudio.Component.VC.Tools.ARM64EC`, chạy các lệnh trên, ki
 
 | Workflow | Thêm |
 |---|---|
-| `ci-linux.yml` | job ma trận `runs-on: [ubuntu-24.04, ubuntu-24.04-arm, ubuntu-22.04-arm]` cho test + build adapter + e2e IBus/Fcitx5; E2E distro container chạy lại trên `ubuntu-24.04-arm` (image arm64) |
-| `ci-windows.yml` | job `windows-arm64` (`runs-on: windows-11-arm`): `cargo test --workspace` native, `replay --adapter tsf`, `verify`, gõ TSF thật vào Notepad ARM64 + app x64 giả lập + app x86, `sandbox_e2e` |
+| `ci-linux.yml` | job ma trận `runs-on: [ubuntu-24.04, ubuntu-24.04-arm, ubuntu-22.04-arm]` cho test + build adapter + e2e IBus/Fcitx5; **giữ nguyên** E2E 6 container (AlmaLinux 8/9, openSUSE Leap 15.6, Ubuntu 22.04, Debian 12, Fedora 41) + smoke Ubuntu 20.04/Debian 11, chạy lại trên `ubuntu-24.04-arm` (ảnh arm64); thêm Ubuntu 24.04/26.04, Debian 13, Fedora 42/43, Tumbleweed, AlmaLinux 10 (P0-5 §9b) |
+| `ci-windows.yml` | ma trận `windows-2022` + `windows-2025` (giữ mọi e2e/validation hiện có); job `windows-arm64` (`runs-on: windows-11-arm`): `cargo test --workspace` native, `replay --adapter tsf`, `verify`, gõ TSF thật vào Notepad ARM64 + app x64 giả lập + app x86, `sandbox_e2e` |
 | `ci-shared.yml` | `verify-abi`/`sizes` + replay + Dream RSI trên mỗi target; so hash đầu ra replay giữa target |
 | `release.yml` | job `linux-arm64` (tarball + test gói), `windows` thêm build aarch64 + forwarder + bundle; `publish` kiểm số asset mới; `SHA256SUMS`, `.asc`, `.cosign.*` cho asset ARM |
 | perf | baseline theo target `perf/baseline-<triple>.json` **(mới)**; `xtask preflight` bước 17 chọn đúng baseline |
