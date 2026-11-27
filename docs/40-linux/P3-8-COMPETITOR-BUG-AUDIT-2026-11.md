@@ -109,3 +109,37 @@ x-unikey 1.0.4 (§6).
 | `w` đứng riêng + Space ⇒ `w` (auto-restore EN); trong từ vẫn `nhw`→`như`, `tw`→`tư` | x-unikey `ư` | giữ `w` | `w` một mình gần như luôn là chữ Latin |
 | Backspace quay lại sửa từ đã chốt (`nhu ` ⌫ `w` ⇒ `như`) | fcitx5-lotus #366, OpenKey "phục hồi từ" | `nhuw` | E47: dựng lại chuỗi phím sau Backspace từng chèn phím lạ vào văn bản; giữ WYSIWYG |
 | `[`/`]` ⇒ `ơ`/`ư` | fcitx5-lotus, xkey #70/#43 | như nhau (`t[`→`tơ`, Caps Lock `TƠ`) | — |
+
+## 8. Vòng 3 (2026-11-27) — tầng nền tảng Windows (TSF) và macOS (IMK)
+
+Phạm vi: issue Windows/macOS (không phải engine) của **EVKey** (`lamquangminh/EVKey`, 71), **OpenKey**
+(288 — vòng 1 chỉ lấy ca engine), VietType (40), và nhóm IMK/event tap của Gõ Nhanh, xkey, PHTV, goxkey
+(≈ 870, vòng 2 mới lọc ca engine). Đối chiếu từng nhóm với mã `adapters/windows-tsf`, `tray/`,
+`cli/src/register.rs`, `adapters/macos-imk`, `adapters/macos-tap`; đối chiếu trước đó ở
+`docs/specs/reference-parity.md` (R1–R17) không lặp lại.
+
+### 8.1 Phát hiện còn mở
+
+| ID | Vấn đề | Nguồn đối chiếu | Hiện trạng TextVN | Đề xuất |
+|---|---|---|---|---|
+| R2-26 (P1, đã biết từ 2026-10-09) | Ô tìm kiếm Start, Calculator, ứng dụng Store (AppContainer): TIP nạp được (ACL đọc DLL cho `S-1-15-2-1/2`, `IMMERSIVESUPPORT`) nhưng **không đọc được** `%APPDATA%\TextVN\{config,state}.json` và pipe khay chỉ cho user/SYSTEM/Admins ⇒ luôn Telex mặc định, bỏ qua V/E và cấu hình riêng | EVKey #52, #85; OpenKey #121, #227; VietType chưa giải | `docs/TROUBLESHOOTING.md` §5 (VI+EN) ghi rõ giới hạn (trước đây viết như thể đã chạy) | khay ghi **bản sao không chứa nội dung người dùng** (bỏ `macros`, `emoji`, `english_words`, `style_profile` — như `redact_user_content` của doctor) vào thư mục riêng có ACE đọc kế thừa cho `ALL APPLICATION PACKAGES`; TIP đọc bản sao khi đọc bản chính bị từ chối. Cần kiểm trên tiến trình AppContainer thật (đường `%LOCALAPPDATA%` bị chuyển hướng trong sandbox) trước khi bật |
+| — (kiểm tay mỗi bản) | Explorer đổi tên tệp / hộp Run: mất từ cuối khi Enter hoặc click ra ngoài | VietType #42 | `OnSetFocus` commit composition + Enter đi như phím thật (§7.2) — chưa có kiểm thử tự động trên Explorer thật | thêm vào checklist kiểm tay A-release |
+
+### 8.2 KHÔNG xảy ra ở TextVN (đã kiểm bằng mã)
+
+| Lỗi của bộ gõ khác | Nguồn | TextVN |
+|---|---|---|
+| Layout US-International / phím chết (`'` `"` `` ` `` `~` `^`) lặp dấu hoặc mất dấu | EVKey #18, #14 | `ToUnicodeEx(..., 0x4)` không đổi trạng thái phím chết + `dead_key_armed` (`adapters/windows-tsf/src/key_event.rs`) |
+| Layout Đức/Nhật: phím `z`/`y`, `@` sai | OpenKey #181, #180, #116 | ký tự lấy theo layout hiện hành (`ToUnicodeEx` + `GetKeyboardLayout`) — luật Telex chạy trên ký tự, không trên VK |
+| Ô mật khẩu (1Password, Bitwarden, trình duyệt) | EVKey #33, #37; OpenKey #191 | đọc InputScope + `ES_PASSWORD` ⇒ pass-through (`edit_session.rs`) |
+| Ứng dụng chạy quyền Administrator | EVKey #67 | TSF nạp vào tiến trình nâng quyền cùng tài khoản (TROUBLESHOOTING §5) |
+| Home/End/mũi tên, Emoji panel `Win+.`, Alt+Tab giữa từ | OpenKey #143, #144, #140 | `KeyKind::Other` đóng composition; `OnCompositionTerminated` (`edit_session.rs`) khi app/TSF tự đóng |
+| Mất icon khay, crash khi tự khởi động Win11 | OpenKey #288, #307, #308, #273 | R7/R8 `reference-parity.md` |
+| macOS: phím chuyển V/E chạy nhầm khi Cmd+Tab / tổ hợp phím | Gõ Nhanh #401, #407, #216; xkey #330; OpenKey #155 | chỉ Ctrl+Shift **nhấn-thả không kèm phím khác**; Cmd/Option đặt `otherKeyPressed` ⇒ không chuyển (`TextVNInputController.swift`) |
+| macOS: secure input (Terminal "Secure Keyboard Entry", 1Password) làm bộ gõ ngừng chạy; Spotlight lặp chữ; Backspace giả trong Chrome/Electron/Terminal | xkey #332, #320, #305; Gõ Nhanh #412, #323, #238; OpenKey #315, #255, #246 | đường chính là IMK marked text (không event tap, không Backspace giả); `macos-tap` chỉ chạy khi người dùng tự đặt `engine_owner: "tap"` cho từng app và tự bỏ qua app secure |
+
+### 8.3 Giới hạn chung mọi bộ gõ dùng composition/preedit (3 OS)
+
+| Hiện tượng | Nguồn | Ghi chú |
+|---|---|---|
+| Thanh địa chỉ Chrome/Edge không tự hoàn thành, Excel/AutoCAD không hiện gợi ý hàm (`=s`) khi từ còn gạch chân | xkey #325, VietType #14, OpenKey #194 | ứng dụng tắt gợi ý trong lúc composition; Space/→ chốt từ hoặc chuyển EN (Linux đã ghi ở TROUBLESHOOTING §4) |

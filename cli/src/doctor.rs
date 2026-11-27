@@ -2420,6 +2420,43 @@ pub fn crc32(data: &[u8]) -> u32 {
 mod tests {
     use super::*;
 
+    /// E76: 2 test xuất ZIP chẩn đoán từng treo im lặng cả binary (máy dev > 1 giờ, runner
+    /// Windows của release-candidate v0.2.92 tới timeout 90 phút) khi cùng ghi ZIP vào `%TEMP%`
+    /// song song — nghi bộ quét AV giữ tệp nén. Khoá này cho 2 test ghi ZIP lần lượt.
+    static ZIP_EXPORT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// E76: watchdog — test treo quá `secs` giây thì in mã lỗi rồi `abort` cả binary (exit ≠ 0,
+    /// CI đỏ ngay) thay vì đứng im tới timeout của job. Drop guard = test xong, watchdog thôi.
+    struct HangGuard(Option<std::sync::mpsc::Sender<()>>);
+    impl Drop for HangGuard {
+        fn drop(&mut self) {
+            if let Some(tx) = self.0.take() {
+                let _ = tx.send(());
+            }
+        }
+    }
+    fn hang_guard(name: &'static str, secs: u64) -> HangGuard {
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+        std::thread::spawn(move || {
+            if let Err(std::sync::mpsc::RecvTimeoutError::Timeout) =
+                rx.recv_timeout(std::time::Duration::from_secs(secs))
+            {
+                eprintln!(
+                    "E76 watchdog: test `{name}` treo > {secs} s (ghi ZIP vào %TEMP%) — abort"
+                );
+                std::process::abort();
+            }
+        });
+        HangGuard(Some(tx))
+    }
+
+    /// Thư mục tạm riêng theo tên test + pid (không trùng tệp giữa các test / lần chạy).
+    fn export_test_path(test: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("textvn-test-{}-{test}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        dir.join("diag.zip")
+    }
+
     #[test]
     fn export_config_never_contains_user_authored_content() {
         let raw = r#"{"config_version":1,"method":"vni",
@@ -2513,7 +2550,14 @@ mod tests {
 
     #[test]
     fn export_diagnostics_zip_creates_zip_file_without_user_text() {
-        let temp_zip = std::env::temp_dir().join(format!("textvn_diag_{}.zip", std::process::id()));
+        let _guard = hang_guard(
+            "export_diagnostics_zip_creates_zip_file_without_user_text",
+            120,
+        );
+        let _lock = ZIP_EXPORT_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let temp_zip = export_test_path("zip_no_user_text");
         let report = collect_report();
 
         let bytes_written = export_diagnostics_zip(&report, &temp_zip).unwrap();
@@ -2542,6 +2586,9 @@ mod tests {
             "Diagnostics ZIP thiếu report_summary.md"
         );
         let _ = std::fs::remove_file(&temp_zip);
+        if let Some(dir) = temp_zip.parent() {
+            let _ = std::fs::remove_dir(dir);
+        }
     }
 
     #[test]
@@ -2773,11 +2820,18 @@ mod tests {
 
     #[test]
     fn e70_export_contains_panic_tail_and_build_identity() {
+        let _guard = hang_guard("e70_export_contains_panic_tail_and_build_identity", 120);
+        let _lock = ZIP_EXPORT_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let report = collect_report();
-        let out = std::env::temp_dir().join(format!("textvn-e70-{}.zip", std::process::id()));
+        let out = export_test_path("e70_panic_tail");
         export_diagnostics_zip(&report, &out).expect("export");
         let bytes = std::fs::read(&out).unwrap();
         let _ = std::fs::remove_file(&out);
+        if let Some(dir) = out.parent() {
+            let _ = std::fs::remove_dir(dir);
+        }
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains("panic_tail.log"));
         assert!(text.contains("\"git_sha\""));

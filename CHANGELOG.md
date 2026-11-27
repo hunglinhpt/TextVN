@@ -49,7 +49,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`: đối chiếu 100 issue Ngó Sen, 288 issue OpenKey,
   520 issue ibus-bamboo và oracle x-unikey 1.0.4 — lỗi tương tự đã sửa, lỗi không áp dụng, khác biệt chủ
   đích, giới hạn nền tảng; vòng 2 (§7) thêm 1.250 issue của Gõ Nhanh, fcitx5-lotus, xkey, goxkey, PHTV,
-  fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix (≈ 160 ca gõ chạy qua replay).
+  fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix (≈ 160 ca gõ chạy qua replay); vòng 3
+  (§8) đối chiếu tầng Windows TSF / macOS IMK với EVKey, OpenKey, VietType, Gõ Nhanh, xkey, PHTV, goxkey.
+- `docs/TROUBLESHOOTING.md` §5 (VI + EN): ghi đúng giới hạn **R2-26** — ô tìm kiếm Start, Calculator, ứng dụng
+  Store (AppContainer) gõ Telex mặc định, không theo cấu hình riêng và nút V/E (trước đây viết như thể đã chạy).
 - `docs/TROUBLESHOOTING.md` (VI + EN): mục "Giới hạn đã biết khi gõ trên Linux" (thanh địa chỉ Chrome,
   `sudo` trong terminal, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
 - `docs/specs/oracle-unikey.md` Cách D (build `ukengine` bằng MSVC), `docs/specs/verified-ops.md` B30/B31,
@@ -108,7 +111,11 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   520 ibus-bamboo issues and the x-unikey 1.0.4 oracle — similar bugs fixed, bugs that do not apply,
   intentional differences, platform limitations; round 2 (§7) adds 1,250 issues of Gõ Nhanh, fcitx5-lotus,
   xkey, goxkey, PHTV, fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix (≈ 160 typing
-  cases run through replay).
+  cases run through replay); round 3 (§8) compares the Windows TSF / macOS IMK layers with EVKey, OpenKey,
+  VietType, Gõ Nhanh, xkey, PHTV, goxkey.
+- `docs/TROUBLESHOOTING.md` §5 (VI + EN): states limitation **R2-26** correctly — the Start search box,
+  Calculator and Store apps (AppContainer) type default Telex, ignoring your settings and the V/E toggle
+  (previously worded as if it worked).
 - `docs/TROUBLESHOOTING.md` (VI + EN): "Known typing limitations on Linux" (Chrome address bar, `sudo` in
   terminals, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
 - `docs/specs/oracle-unikey.md` method D (build `ukengine` with MSVC), `docs/specs/verified-ops.md` B30/B31,
