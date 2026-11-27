@@ -7,6 +7,71 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.96] — 2026-11-28
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Thêm / Added
+
+- **Cổng ngôn ngữ cho chữ mờ (RSI-7)**: ở chế độ tiếng Việt, khi tiền tố đang gõ còn lớn lên được thành
+  âm tiết/tiền tố Việt hợp lệ và không có ngữ cảnh tiếng Anh (từ ngay trước là từ tiếng Anh thật thì cổng
+  mở lại — code-switch `gửi report` không vỡ), mọi nguồn gợi ý tiếng Anh tĩnh ngừng hiển thị: `gu` không
+  còn nhảy thành `guy`/`guys`, `ho` thành `horse`, `ba` thành `bars`. Kèm **E84**: lọc âm tiết "Việt"
+  nhiễm từ tiếng Anh ngoài từ điển Việt (`guy`, `king`, `thing`, `my`, `by`, `kong`, `on`, `po`, `them`
+  từ corpus tần suất OpenSubtitles) tại điểm đọc và trong `cargo xtask gen-vocab`. Test `rsi_7_*`
+  (API + engine + Space giữ chữ Việt R2-174 không hồi quy) + `e84_*` (9 mục EN nhiễm + 10 từ Việt ASCII
+  thật phải survive).
+
+### Thay đổi / Changed
+
+- **Bench Dream RSI đo KSR-oracle trung thực (RSI-1 — hấp thụ spike SPK-RSI rồi xoá spike)**: người dùng
+  mô phỏng giờ là oracle (Trnka & McCoy 2008) — chỉ nhận Tab khi `văn bản + chữ mờ` là tiền tố đúng của
+  phần còn lại và hết ở ranh giới từ; chữ mờ sai hiện ra = +1 nhiễu. Số công bố (thay 22% thổi phồng,
+  92% Tab chèn sai): **KSR-oracle tổng 8,6%** (317/3676 phím) · bench 16 từ 5,7% · VI văn phòng
+  **10,1%** (267/2636) · EN **4,4%** (32/725) · precision@ghost 13,4% · nhiễu 33,0/100 phím · chuỗi Tab
+  nối sâu nhất 2. **Gate G19c chuyển sang KSR-oracle**: KSR tổng/VI/EN giảm, NHIỄU TĂNG ("luôn hiện chữ
+  mờ sai" ⇒ đỏ), accepts giảm, vi phạm bất biến chữ mờ≠Tab (R2-173) hay câu lệch đích ⇒ đỏ; đột biến
+  được đo trong unit test `dream_rsi_gate_duot_bien_ghost_sai` (KSR giảm + noise tăng ⇒ đỏ). Baseline
+  `perf/baseline-win.json` re-record; corpus held-out VI/EN dời `tools/bench/eval/`; nhiễu VI 45,2 →
+  33,7/100 (cổng RSI-7 chặn 100% nguồn EN tại tiền tố Việt — phần còn lại là chữ mờ nguồn VN, RSI-4).
+- **`spikes/`**: SPK-RSI xoá sau hấp thụ (`spikes/README.md` ghi Đóng ĐẠT); `spikes.yml` bỏ 3 job
+  rsi-oracle/rsi-determinism — tất định đa kiến trúc đã kiểm chứng đầu ra **giống hệt từng byte** trên
+  Linux x86_64/aarch64, Windows x64/ARM64, macOS arm64 (run 46029470340); PERF-2 sẽ chuyển sang
+  `ci-shared`.
+
+**English** — 0.2.96:
+
+### Added
+
+- **Ghost language gate (RSI-7)**: in Vietnamese mode, while the typed prefix can still grow into a valid
+  Vietnamese syllable and there is no English context (the previous word being a real English word re-opens
+  the gate — code-switching `gửi report` keeps working), every static English suggestion source goes
+  silent: `gu` no longer jumps to `guy`/`guys`, `ho` to `horse`, `ba` to `bars`. Includes **E84**: filtering
+  English-infested "Vietnamese" syllables out of the Vietnamese-syllable data (`guy`, `king`, `thing`,
+  `my`, `by`, `kong`, `on`, `po`, `them` from the OpenSubtitles frequency corpus) at read time and in
+  `cargo xtask gen-vocab`. Tests `rsi_7_*` (API + engine + R2-174 Space-keeps-Vietnamese non-regression)
+  and `e84_*` (9 infested EN entries + 10 genuine ASCII Vietnamese words must survive).
+
+### Changed
+
+- **Dream RSI bench now measures KSR-oracle honestly (RSI-1 — absorbed the SPK-RSI spike, then deleted
+  the spike)**: the simulated user is now an oracle (Trnka & McCoy 2008) — it accepts Tab only when
+  `text + ghost` is a correct prefix of the remaining target text and ends at a word boundary; a wrong
+  ghost shown counts as +1 noise. Published numbers (replacing the inflated 22%, 92% of whose Tab accepts
+  inserted the wrong word): **overall KSR-oracle 8.6%** (317/3676 keys) · bench 16 words 5.7% · office VI
+  **10.1%** (267/2636) · EN **4.4%** (32/725) · precision@ghost 13.4% · noise 33.0/100 keys · deepest
+  chained-Tab run 2. **Gate G19c switches to KSR-oracle**: lower overall/VI/EN KSR, HIGHER noise ("always
+  show wrong ghosts" ⇒ red), fewer accepts, an R2-173 ghost≠Tab-insert invariant break or a diverged
+  sentence all fail; the mutation is measured by the `dream_rsi_gate_duot_bien_ghost_sai` unit test (KSR
+  drop + noise rise ⇒ red). Baseline `perf/baseline-win.json` re-recorded; VI/EN held-out corpora moved
+  to `tools/bench/eval/`; Vietnamese noise 45.2 → 33.7/100 (the RSI-7 gate removes 100% of the EN source
+  at Vietnamese prefixes — the remainder is VN-source noise, RSI-4 scope).
+- **`spikes/`**: SPK-RSI deleted after absorption (`spikes/README.md` marks it closed-passed);
+  `spikes.yml` drops the 3 rsi-oracle/rsi-determinism jobs — cross-architecture determinism is proven with
+  **byte-identical output** on Linux x86_64/aarch64, Windows x64/ARM64 and macOS arm64 (run 46029470340);
+  PERF-2 will move into `ci-shared`.
+
 ## [0.2.95] — 2026-11-27
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -4329,6 +4394,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.96]: https://github.com/hunglinhpt/TextVN/compare/v0.2.95...v0.2.96
 [0.2.95]: https://github.com/hunglinhpt/TextVN/compare/v0.2.94...v0.2.95
 [0.2.94]: https://github.com/hunglinhpt/TextVN/compare/v0.2.93...v0.2.94
 [0.2.93]: https://github.com/hunglinhpt/TextVN/compare/v0.2.92...v0.2.93

@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.96" date="2026-11-28">
+      <description>
+        <p>Ghost language gate: while typing in Vietnamese mode, if the prefix can still grow into a valid Vietnamese syllable and there is no English context, static English suggestion sources go silent (gu no longer jumps to guys); a preceding English word re-opens the gate so code-switching like "gửi report" still completes. English-infested Vietnamese-syllable data entries (guy, king, thing, my, by, kong, on, po, them) are filtered at read time and by the generator (E84). The Dream RSI bench now simulates an oracle user that accepts only correct ghosts and reports honest keystroke savings (overall 8.6%, Vietnamese 10.1%, English 4.4%) with ghost precision, noise per 100 keys and chained-Tab depth; the CI gate fails on lower savings, higher noise, fewer accepts or a ghost-insert invariant break.</p>
+      </description>
+    </release>
     <release version="0.2.95" date="2026-11-27">
       <description>
         <p>With Space completion turned on, Space no longer rewrites a word that is already correct: Vietnamese words typed without diacritics such as "ta", "ra", "gia" or "tra" and complete English words such as "confirm" stay exactly as typed. Tab completion works as before. Typing-savings figures are now measured honestly by accepting only correct suggestions.</p>

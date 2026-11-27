@@ -1,3 +1,15 @@
+textvn (0.2.96-0ppa1) noble; urgency=medium
+
+  * Ghost language gate: no static English suggestions while the typed prefix can
+    still grow into a valid Vietnamese syllable and there is no English context;
+    English context re-opens the gate (code-switching keeps working) (RSI-7).
+  * Filter English-infested Vietnamese-syllable data entries (guy, king, thing,
+    my, by, kong, on, po, them from the OpenSubtitles corpus) at read time and
+    in gen-vocab (E84).
+  * Dream RSI bench measures honest KSR-oracle (overall 8.6%, VI 10.1%, EN 4.4%)
+    with noise/precision/chain-depth reporting; CI gate fails on lower savings,
+    higher noise, fewer accepts or an R2-173 invariant break (RSI-1).
+
 textvn (0.2.95-0ppa1) noble; urgency=medium
 
   * With Space completion enabled, Space no longer rewrites a word that is
