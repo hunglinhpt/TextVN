@@ -273,7 +273,7 @@ fn en_freq_lines() -> &'static [&'static str] {
 }
 
 /// Từ có trong danh sách 10k từ tiếng Anh không (tìm nhị phân trên bản đã sắp).
-fn en_words10k_contains(word: &str) -> bool {
+pub(crate) fn en_words10k_contains(word: &str) -> bool {
     en_words10k_sorted().binary_search(&word).is_ok()
 }
 

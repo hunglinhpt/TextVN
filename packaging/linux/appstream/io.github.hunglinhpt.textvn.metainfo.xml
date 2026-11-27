@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.95" date="2026-11-27">
+      <description>
+        <p>With Space completion turned on, Space no longer rewrites a word that is already correct: Vietnamese words typed without diacritics such as "ta", "ra", "gia" or "tra" and complete English words such as "confirm" stay exactly as typed. Tab completion works as before. Typing-savings figures are now measured honestly by accepting only correct suggestions.</p>
+      </description>
+    </release>
     <release version="0.2.94" date="2026-11-27">
       <description>
         <p>The license now carries a bilingual Vietnamese-English header naming the author, Bui Hung Linh - LinhBH.CoM, with additional terms under GPL v3 Section 7 that require products using TextVN code to credit TextVN; the official GPL text is unchanged and a NOTICE file is included. The About window and package metadata show the author. Dependencies are checked on every architecture including ARM, and network or telemetry libraries are banned to keep TextVN fully offline.</p>

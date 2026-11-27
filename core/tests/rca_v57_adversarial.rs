@@ -145,12 +145,14 @@ fn adv4_cycle_hoc_dung_candidate() {
 fn adv5_drain_2_lan_chi_pending_moi() {
     let mut e = engine();
     let mut buf = Vec::new();
-    press(&mut e, &mut buf, &letter('a'));
-    press(&mut e, &mut buf, &letter('b'));
+    // R2-174: tiền tố CHƯA là từ (`ab` có trong từ điển 10k ⇒ Space giữ nguyên `ab`).
+    for c in "rele".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     press(&mut e, &mut buf, &space());
     let j1 = e.style_drain_json();
     assert!(
-        j1.contains("\"abc\""),
+        j1.contains("\"release\""),
         "lần 1 học kết quả space-complete: {j1}"
     );
     press(&mut e, &mut buf, &letter('c'));

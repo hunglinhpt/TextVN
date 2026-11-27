@@ -1,3 +1,13 @@
+textvn (0.2.95-0ppa1) noble; urgency=medium
+
+  * With Space completion enabled, Space no longer rewrites a word that is
+    already correct: Vietnamese words typed without diacritics (ta, ra, gia,
+    tra) and complete English words (confirm) stay as typed (R2-174).
+  * README reports keystroke savings measured by accepting only correct
+    suggestions. Probe code under spikes/ refreshed (not packaged).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Fri, 27 Nov 2026 23:30:00 +0700
+
 textvn (0.2.94-0ppa1) noble; urgency=medium
 
   * License: bilingual Vietnamese-English header in LICENSE naming the author

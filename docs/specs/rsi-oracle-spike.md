@@ -1,6 +1,6 @@
 # Spike SPK-RSI — KSR-oracle thật của dự đoán so với số Dream RSI 22% (`spikes/rsi-oracle`)
 
-> Task gỡ rủi ro: **RSI-1** (bench KSR-oracle), RSI-2 (tách tập), RSI-3 (ngưỡng tin cậy), PERF-2 (tất định)
+> Task gỡ rủi ro: **RSI-1** (bench KSR-oracle), RSI-2 (tách tập), RSI-4 (ngưỡng tin cậy), RSI-7 (cổng ngôn ngữ), PERF-2 (tất định)
 > — `../10-shared/P0-7-TASKS-ARM-SF.md` Luồng R, `../10-shared/P0-8-DREAM-RSI-LOOPS.md` §2.
 > Spike code: `../../spikes/rsi-oracle/` · CI: `../../.github/workflows/spikes.yml` (`rsi-oracle` ×4 + `arm64x-run`, `rsi-determinism`)
 > Ngày chạy: 2026-11-27 · Máy: Windows 11 x64 · `textvn-core` 0.2.94 + bản sửa R2-174.
@@ -48,10 +48,10 @@ Bất biến "chữ mờ == Tab chèn" (R2-173/E79): **0 vi phạm** trên mọi
    `town`; `lamf` → `law`); KSR thật trên cùng corpus là **5,7%**. Bộ đếm `DreamRsi` trong engine cũng cộng
    các lần nhận sai này (19,0%). ⇒ RSI-1 thay G19c bằng KSR-oracle; README công bố số mới trung thực.
 2. **Nhiễu cao ở chế độ VI**: chữ mờ hiện ở ~45/100 phím nhưng chỉ ~9% đúng — phần lớn là từ tiếng Anh
-   chen vào khi đang gõ âm tiết Việt (`gu` → `guys`, `ho` → `horse`, `ba` → `bars`). ⇒ RSI-3 (ngưỡng tin cậy) +
-   **cổng ngôn ngữ**: không gợi ý từ EN cho tiền tố là âm tiết/tiền tố Việt hợp lệ khi không có ngữ cảnh EN.
+   chen vào khi đang gõ âm tiết Việt (`gu` → `guys`, `ho` → `horse`, `ba` → `bars`). ⇒ RSI-4 (ngưỡng tin cậy) +
+   **RSI-7 cổng ngôn ngữ**: không gợi ý từ EN cho tiền tố là âm tiết/tiền tố Việt hợp lệ khi không có ngữ cảnh EN.
 3. **Học cá nhân chỉ có ở EN**: EN lượt 2 tăng 5,7% → 52,8% (thuộc câu), VI lượt 2 không tăng (12,3% →
-   12,3%) ⇒ RSI-5 (n-gram cá nhân cho cụm Việt) là khoảng trống lớn nhất của "Dream".
+   12,3%) ⇒ RSI-6 (n-gram cá nhân cho cụm Việt) là khoảng trống lớn nhất của "Dream".
 4. **Lỗi thật bắt được — R2-174** (đã sửa cùng spike): bật `suggest.trigger = tab_and_space`, Space viết lại
    từ ĐÃ ĐÚNG: `chúng ta␠` → `chúng taw␠`, `diễn ra␠` → `diễn raw␠`, `tham gia␠` → `tham giai␠`,
    `kiểm tra␠` → `kiểm trao␠`, `confirm␠` → `confirmed␠` (từ Việt gõ ASCII thuần bỏ qua kiểm tra hợp lệ;

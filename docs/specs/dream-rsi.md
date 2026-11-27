@@ -100,6 +100,9 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   phòng 16 từ (8 VN Telex + 8 EN) × 3 vòng, mô phỏng user gõ nửa từ → Tab khi
   có ghost: **deterministic** (debug = release, 3 OS cùng số). Kết quả 0.2.69:
   saved 72/318 phím · **savings-rate 22%** · accepts 36 · engine_chars_saved 57.
+  > ⚠ **Số này bị thổi phồng** (spike SPK-RSI, `rsi-oracle-spike.md`): bench nhấn Tab với mọi chữ mờ và 92% lần
+  > nhận chèn SAI từ; KSR-oracle trên cùng corpus = 5,7%, câu văn phòng VI = 10,1%. Gate G19c vẫn dùng số này
+  > để chặn hồi quy tương đối cho tới khi RSI-1 thay bằng KSR-oracle; KHÔNG dùng làm số công bố.
   Khối `"dream_rsi"` trong `perf/baseline-win.json` (re-record khi phát hành)
   — `check` fail nếu savings-rate **hoặc** accepts giảm so baseline (G19c);
   baseline cũ thiếu khối → bỏ qua kèm ghi chú re-record.

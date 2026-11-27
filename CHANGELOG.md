@@ -7,6 +7,71 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.95] — 2026-11-27
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Sửa lỗi / Fixed
+
+- **R2-174 — Space không còn viết lại từ đã đúng** (chế độ hoàn tất bằng Space, `suggest.trigger =
+  tab_and_space`, cả 3 OS — sửa một lần trong lõi Rust dùng chung): từ Việt gõ không cần biến đổi Telex
+  (`ta`, `ra`, `gia`, `tra`, `kha`…) trước đây bỏ qua kiểm tra âm tiết hợp lệ nên `chúng ta␠` → `chúng taw␠`,
+  `diễn ra␠` → `diễn raw␠`, `tham gia␠` → `tham giai␠`, `kiểm tra␠` → `kiểm trao␠`; từ tiếng Anh đã trọn
+  (`confirm`) bị đổi thành từ dài hơn (`confirmed`). Nay Space giữ nguyên mọi âm tiết Việt hợp lệ và mọi từ
+  có trong từ điển tiếng Anh 10k / từ của người dùng; Tab vẫn hoàn tất như cũ. Phát hiện bởi spike SPK-RSI.
+  Test `r2_174_space_complete_khong_viet_lai_tu_da_dung`; hai test cũ dùng tiền tố là từ đúng (`kha`, `ab`)
+  được sửa theo đúng hợp đồng.
+
+### Thay đổi / Changed
+
+- **Dream RSI công bố trung thực**: README thôi dùng số "tiết kiệm 22% phím" — bench nội bộ nhấn Tab với
+  mọi chữ mờ và 92% lần nhận đó chèn sai từ. Số đo KSR-oracle (chỉ nhận gợi ý đúng, xét tại mọi phím) trên
+  câu văn phòng tách riêng: **10,1% (tiếng Việt)**, 4,4% (tiếng Anh), 52,8% sau khi đã học câu tiếng Anh;
+  precision chữ mờ VI ~9%, nhiễu ~45/100 phím ⇒ ưu tiên RSI-1 (gate KSR-oracle), RSI-4 (ngưỡng tin cậy) +
+  RSI-7 (cổng ngôn ngữ), RSI-6 (học cụm Việt) — `docs/specs/rsi-oracle-spike.md`.
+
+### Quy trình / Process
+
+- **`spikes/` cập nhật theo kế hoạch hiện tại** (`spikes/README.md`): SPK-RSI (`rsi-oracle`, KSR-oracle vs
+  bench), SPK-ARM64X (`arm64x-forwarder`, DLL ARM64X pure forwarder cho TIP — tiến trình x64 giả lập + ARM64
+  native trên `windows-11-arm`), SPK-RUNNER (probe WIN-005 trên `windows-2022`/`windows-2025`/`windows-11-arm`);
+  workflow `spikes.yml` (chỉ dispatch) thay `hook-spike.yml`, gồm so tất định đầu ra x86_64 vs aarch64.
+- Phát hành 0.2.94 hoàn tất (approved, Homebrew tap, hash AUR/cask); kế hoạch P0-5 §9b (ma trận tương thích +
+  chống tái diễn) và P0-8 (Dream RSI 2.0) đã vào `main`.
+
+**English** — 0.2.95:
+
+### Fixed
+
+- **R2-174 — Space no longer rewrites a word that is already correct** (Space completion, `suggest.trigger =
+  tab_and_space`, all 3 OSes — fixed once in the shared Rust core): Vietnamese words that need no Telex
+  transform (`ta`, `ra`, `gia`, `tra`, `kha`…) used to skip the valid-syllable check, so `chúng ta␠` became
+  `chúng taw␠`, `diễn ra␠` → `diễn raw␠`, `tham gia␠` → `tham giai␠`, `kiểm tra␠` → `kiểm trao␠`; a complete
+  English word (`confirm`) was replaced by a longer one (`confirmed`). Space now keeps every valid Vietnamese
+  syllable and every word in the 10k English dictionary or the user's own words; Tab still completes as
+  before. Found by the SPK-RSI spike. Test `r2_174_space_complete_khong_viet_lai_tu_da_dung`; two older tests
+  that used a correct word as the prefix (`kha`, `ab`) were fixed to match the contract.
+
+### Changed
+
+- **Dream RSI reported honestly**: the README no longer claims "22% of keystrokes saved" — the internal bench
+  pressed Tab on every ghost and 92% of those accepts inserted the wrong word. KSR-oracle (accept only correct
+  suggestions, checked at every key) on held-out office sentences: **10.1% (Vietnamese)**, 4.4% (English),
+  52.8% after the English sentences were learned; Vietnamese ghost precision ~9%, noise ~45 per 100 keys ⇒
+  priorities RSI-1 (KSR-oracle gate), RSI-4 (confidence threshold) + RSI-7 (language gate), RSI-6 (Vietnamese
+  phrase learning) — `docs/specs/rsi-oracle-spike.md`.
+
+### Process
+
+- **`spikes/` refreshed for the current plan** (`spikes/README.md`): SPK-RSI (`rsi-oracle`, KSR-oracle vs
+  bench), SPK-ARM64X (`arm64x-forwarder`, ARM64X pure-forwarder DLL for the TIP — emulated x64 and native
+  ARM64 processes on `windows-11-arm`), SPK-RUNNER (the WIN-005 probe on `windows-2022`/`windows-2025`/
+  `windows-11-arm`); dispatch-only workflow `spikes.yml` replaces `hook-spike.yml` and compares outputs
+  byte-for-byte across x86_64 and aarch64.
+- Release 0.2.94 completed (approved, Homebrew tap, AUR/cask hashes); plans P0-5 §9b (compatibility matrix +
+  anti-regression) and P0-8 (Dream RSI 2.0) are on `main`.
+
 ## [0.2.94] — 2026-11-27
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -4264,6 +4329,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.95]: https://github.com/hunglinhpt/TextVN/compare/v0.2.94...v0.2.95
 [0.2.94]: https://github.com/hunglinhpt/TextVN/compare/v0.2.93...v0.2.94
 [0.2.93]: https://github.com/hunglinhpt/TextVN/compare/v0.2.92...v0.2.93
 [0.2.92]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...v0.2.92

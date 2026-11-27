@@ -26,6 +26,11 @@
 
 ## 2. Hiện trạng đo được (2026-11-27, 0.2.94)
 
+> **Số đo thật (spike SPK-RSI, `docs/specs/rsi-oracle-spike.md`, 0.2.95):** trên đúng corpus của bench, chính sách
+> "Tab mọi chữ mờ" báo 22,9% nhưng 33/36 lần Tab (92%) chèn SAI từ; KSR-oracle = **5,7%**. Câu văn phòng tách
+> riêng: KSR-oracle **VI 10,1%** (precision chữ mờ 9,2% xét được, nhiễu 45/100 phím), **EN 4,4%** → 52,8% sau một
+> lượt học; VI học cá nhân không tăng (12,3% → 12,3%). Bất biến chữ mờ == Tab: 0 vi phạm. Spike bắt R2-174.
+
 | Hạng mục | Hiện trạng | Nguồn |
 |---|---|---|
 | Đếm Dream RSI | đúng & trung thực ở mức sự kiện: `keys_typed` loại phím ảo, mọi đường nhận có hook, Backspace gỡ (R2-147), chuỗi R2-173 | `docs/specs/dream-rsi.md`, `core/tests/dream_rsi_100.rs`, `r2_173_prediction_chain.rs` |
@@ -138,6 +143,8 @@ từ) để bắt được trần tiết kiệm thực tế.
 | RSI-4 | M | RSI-3 | ngưỡng tin cậy hiệu chuẩn (M3) |
 | RSI-5 | M | RSI-3 | phạt từ chối có decay (M4) |
 | RSI-6 | L | RSI-3, LOOP-1 | n-gram cá nhân + hợp nhất "giấc mơ" ở đường chậm (M5) |
+| RSI-7 | M | RSI-1 | **cổng ngôn ngữ** cho chữ mờ: không gợi ý từ EN khi tiền tố đang gõ là âm tiết/tiền tố Việt hợp lệ và không có ngữ cảnh EN (SPK-RSI: `gu`→`guys`, `ho`→`horse`, `ba`→`bars` chiếm phần lớn nhiễu VI) |
+| SIM-1 | S | — | **một** bộ mô phỏng văn bản dùng chung (áp `Action` vào buffer) cho test/bench/spike — thay 12 bản sao `apply` trong `core/tests/*` + `core/src/lib.rs` (G22) |
 | LOOP-1 | L | SF-3 | `poll_idle` + thế hệ/huỷ trong session |
 | LOOP-2 | M | — | chỉ mục tiền tố top-k sinh lúc build |
 | LOOP-3 | S | SF-4 | cache chữ mờ liên tục |

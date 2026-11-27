@@ -2774,9 +2774,28 @@ impl Engine {
                     || ((!eff.unambiguous_drops.is_empty() || !eff.ambiguous_drops.is_empty())
                         && restore_src == self.word.display)
             };
+        // R2-174: từ Việt gõ ASCII thuần (không phím nào biến đổi ⇒ `word.active = false`)
+        // vẫn là từ đúng — `ta`, `ra`, `gia`, `tra` không được thành `taw`/`raw`/`giai`/`trao`.
+        // Từ tiếng Anh đã gõ TRỌN (có trong từ điển 10k hoặc từ của người dùng) cũng là từ
+        // đúng: `confirm␠` giữ nguyên, không thành `confirmed␠` (Tab vẫn hoàn tất như cũ).
+        let typed_lower_s = typed_s.to_lowercase();
+        let typed_lower: Vec<char> = typed_lower_s.chars().collect();
+        let in_user_words = self
+            .opts
+            .english_words
+            .iter()
+            .any(|w| w.trim().eq_ignore_ascii_case(&typed_lower_s))
+            || self
+                .opts
+                .style_words
+                .iter()
+                .any(|(w, _)| w.trim().eq_ignore_ascii_case(&typed_lower_s));
         undo_kept_ascii
-            || post::restore_en::is_known_en_word(&typed_s.to_lowercase())
+            || post::restore_en::is_known_en_word(&typed_lower_s)
+            || post::restore_en::en_words10k_contains(&typed_lower_s)
+            || in_user_words
             || (self.word.active && validate::is_valid_word(&self.word.display))
+            || (!self.word.active && validate::is_valid_word(&typed_lower))
             || (self.word.active
                 && self.word.raw != restore_src
                 && post::restore_en::is_real_english_word_for_undo(

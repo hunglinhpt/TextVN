@@ -13,7 +13,7 @@
 | [`uia-probe/`](uia-probe/) (WIN-004) | Độ trễ UIA + `IsPassword` xuyên tiến trình | nhận diện ô (field-detect) | **Đóng** (2026-09-27) | [`uia-spike.md`](../docs/specs/uia-spike.md) |
 | [`hook-probe/`](hook-probe/) (WIN-005 → **SPK-RUNNER**) | Runner GHA có phiên desktop, SendInput, UIA không? Nay hỏi lại cho **`windows-2025` và `windows-11-arm`** | COMPAT-1, ARM-W5 (e2e Windows ARM64) | **Mở lại** 2026-11-27 — job `runner-probe` (ma trận 3 runner) | [`hook-spike.md`](../docs/specs/hook-spike.md) |
 | [`arm64x-forwarder/`](arm64x-forwarder/) (**SPK-ARM64X**, mới) | MỘT CLSID TIP nạp được từ tiến trình **x64 giả lập** và **ARM64 native** qua DLL ARM64X pure forwarder đặt ở thư mục per-user (không System32)? | ARM-W2, ARM-W3 | **Mở** — chỉ chạy được trên CI (`arm64x-build` → `arm64x-run`) | [`arm64x-spike.md`](../docs/specs/arm64x-spike.md) |
-| [`rsi-oracle/`](rsi-oracle/) (**SPK-RSI**, mới) | Số Dream RSI 22% có thật không? KSR-oracle, precision@ghost, nhiễu là bao nhiêu? | RSI-1, RSI-2, RSI-3, PERF-2 | **Có kết quả** 2026-11-27 (bắt được R2-174) — chạy lại trên 5 kiến trúc/OS ở CI | [`rsi-oracle-spike.md`](../docs/specs/rsi-oracle-spike.md) |
+| [`rsi-oracle/`](rsi-oracle/) (**SPK-RSI**, mới) | Số Dream RSI 22% có thật không? KSR-oracle, precision@ghost, nhiễu là bao nhiêu? | RSI-1, RSI-2, RSI-4, RSI-7, PERF-2, SIM-1 | **Có kết quả** 2026-11-27 (bắt được R2-174) — chạy lại trên 5 kiến trúc/OS ở CI | [`rsi-oracle-spike.md`](../docs/specs/rsi-oracle-spike.md) |
 
 ## Luật spike (bổ sung G1–G23)
 

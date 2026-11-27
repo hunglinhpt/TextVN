@@ -187,7 +187,8 @@ khi `adapters/` thêm từ khoá nghiệp vụ (P0-5 §3.2); thêm vào prefligh
 - Acceptance: `cargo test --workspace` native ARM64 xanh; `textvn-tsf-arm64.dll` + tray/CLI ARM64 build được;
   `check-pe-imports` báo machine ARM64; `.ps1` ASCII-only (G7).
 
-**ARM-W2 · Forwarder ARM64X (M, Dep: ARM-W1)**
+**ARM-W2 · Forwarder ARM64X (M, Dep: ARM-W1)** — gỡ rủi ro trước bằng **SPK-ARM64X** (`spikes/arm64x-forwarder`,
+`docs/specs/arm64x-spike.md`): forwarder có tìm được DLL đích nằm cạnh nó trong thư mục cài per-user không.
 - Phạm vi: `installer/windows/arm64x/` (mới: `dummy.c`, `tsf_arm64.def`, `tsf_x64.def`), `xtask/src/win_tools.rs`
   (`build-arm64x`, kiểm machine ARM64X trong `check-pe-imports`).
 - Acceptance: `cargo xtask build-arm64x` sinh `textvn-tsf.dll` machine ARM64X, chỉ export 4 hàm forwarder, không import CRT.
@@ -238,10 +239,17 @@ Sway/labwc headless (chuẩn bị WL-1).
 
 ### Luồng R — Dream RSI 2.0 · vòng lặp · vòng nghiệp vụ (`P0-8-DREAM-RSI-LOOPS.md`)
 
-**RSI-1 · Bench KSR-oracle (M, Dep: —) — ƯU TIÊN CAO** — `tools/bench/src/main.rs` (`bench_dream_rsi` hiện nhấn Tab khi có
+**RSI-1 · Bench KSR-oracle (M, Dep: —) — ƯU TIÊN CAO** — thuật toán + số gốc đã có ở spike **SPK-RSI** (`spikes/rsi-oracle`,
+`docs/specs/rsi-oracle-spike.md`: bench báo 22,9% nhưng KSR-oracle 5,7%; VI 10,1%) — hấp thụ vào `tools/bench` rồi xoá spike; `tools/bench/src/main.rs` (`bench_dream_rsi` hiện nhấn Tab khi có
 BẤT KỲ chữ mờ, kể cả sai), `perf/baseline-*.json`, `docs/specs/dream-rsi.md`. Acceptance: người dùng mô phỏng chỉ nhận chữ mờ
 là tiền tố đúng của phần còn lại; báo KSR-oracle, precision@ghost, noise/100 phím, chain depth; đột biến "luôn hiện chữ mờ sai"
 ⇒ KSR không tăng và noise tăng ⇒ gate đỏ; G19c chuyển sang KSR-oracle; README công bố số mới trung thực.
+
+**RSI-7 · Cổng ngôn ngữ cho chữ mờ (M, Dep: RSI-1)** — không gợi ý từ EN cho tiền tố là âm tiết/tiền tố Việt hợp lệ khi
+không có ngữ cảnh EN. Acceptance: SPK-RSI/bench RSI-1 — nhiễu VI giảm ≥ 50%, KSR-oracle VI không giảm, EN không giảm.
+
+**SIM-1 · Bộ mô phỏng văn bản dùng chung (S, Dep: —)** — một hàm áp `Action` vào buffer cho test/bench/spike (feature
+`sim` của `textvn-core` hoặc crate test-kit), xoá 12 bản sao `apply` (G22). Acceptance: `rg "fn apply\(" core/tests` = 0.
 
 **RSI-2 · Corpus đánh giá tách tập (M, Dep: RSI-1)** — `corpus/eval/` (giấy phép + `REUSE.toml`), `xtask gen-*-phrases` kiểm
 chồng lấn = 0. **RSI-3…RSI-6, LOOP-1…LOOP-5, BIZ-1…BIZ-3**: định nghĩa + Dep ở P0-8 §10 (cùng DoR/DoD/audit §2–§4; audit

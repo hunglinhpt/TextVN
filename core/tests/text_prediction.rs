@@ -914,3 +914,52 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
         "tuyệt đối không học âm tiết Việt sai cấu trúc vào style profile: {learned_vi}"
     );
 }
+
+/// R2-174 — Space-complete (`suggest.trigger = tab_and_space`) KHÔNG BAO GIỜ viết lại từ đã
+/// đúng (hợp đồng `SuggestTrigger::TabAndSpace`). Spike `spikes/rsi-oracle` bắt được: từ Việt
+/// gõ ASCII thuần (không biến đổi Telex ⇒ `word.active = false`) bỏ qua kiểm tra hợp lệ nên
+/// `chúng ta␠` → `chúng taw␠`, `diễn ra␠` → `diễn raw␠`, `tham gia␠` → `tham giai␠`,
+/// `kiểm tra␠` → `kiểm trao␠`; từ tiếng Anh đã đúng cũng bị đổi (`confirm␠` → `confirmed␠`).
+#[test]
+fn r2_174_space_complete_khong_viet_lai_tu_da_dung() {
+    // Từ Việt hợp lệ gõ không biến đổi + từ Anh đúng: Space phải giữ nguyên.
+    for (input, want) in [
+        ("chungs ta ", "chúng ta "),
+        ("dieenx ra ", "diễn ra "),
+        ("tham gia ", "tham gia "),
+        ("kieemr tra ", "kiểm tra "),
+        ("ta ", "ta "),
+        ("ra ", "ra "),
+        ("gia ", "gia "),
+        ("tra ", "tra "),
+        ("la ", "la "),
+        ("ma ", "ma "),
+        ("ba ", "ba "),
+        ("con ", "con "),
+        ("cho ", "cho "),
+        ("anh ", "anh "),
+        ("em ", "em "),
+        ("hay ", "hay "),
+        ("nay ", "nay "),
+        ("could you confirm ", "could you confirm "),
+        ("review ", "review "),
+        ("report ", "report "),
+        ("team ", "team "),
+    ] {
+        let mut e = engine_with_predict();
+        assert_eq!(
+            typed(&mut e, input),
+            want,
+            "Space viết lại từ đã đúng: {input:?}"
+        );
+    }
+    // Đối chứng: tiền tố chưa phải từ vẫn được Space hoàn tất (tính năng không bị tắt).
+    for (input, want) in [("rele ", "release "), ("proj ", "project ")] {
+        let mut e = engine_with_predict();
+        assert_eq!(
+            typed(&mut e, input),
+            want,
+            "Space-complete phải còn chạy: {input:?}"
+        );
+    }
+}

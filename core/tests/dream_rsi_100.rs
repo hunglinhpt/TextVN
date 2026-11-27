@@ -181,16 +181,35 @@ fn d_space_accept_savings() {
         style_words: vec![("khanhpham".into(), 2)],
         ..Default::default()
     });
+    // R2-174: tiền tố phải CHƯA là từ đúng — `kha` là âm tiết Việt hợp lệ nên Space giữ
+    // nguyên (hợp đồng `tab_and_space`); `khanhp` chưa là từ ⇒ Space hoàn tất.
     let mut buf = Vec::new();
-    for c in "kha".chars() {
+    for c in "khanhp".chars() {
         press(&mut e, &mut buf, &letter(c));
     }
     press(&mut e, &mut buf, &space());
     assert_eq!(buf.iter().collect::<String>(), "khanhpham ");
     let s = e.dream_rsi_snapshot();
     assert_eq!(s.accepts, 1);
-    assert_eq!(s.keys_typed, 4); // 3 chữ + Space
-    assert_eq!(s.chars_saved, 6); // completion 9 − typed 3 (không đếm space)
+    assert_eq!(s.keys_typed, 7); // 6 chữ + Space
+    assert_eq!(s.chars_saved, 3); // completion 9 − typed 6 (không đếm space)
+
+    // Âm tiết Việt hợp lệ gõ ASCII thuần: Space không viết lại, không tính accept.
+    let mut e2 = Engine::new(EngineOptions {
+        method: Method::Telex,
+        enabled: true,
+        suggest_vn_complete: true,
+        suggest_space_complete: true,
+        style_words: vec![("khanhpham".into(), 2)],
+        ..Default::default()
+    });
+    let mut buf2 = Vec::new();
+    for c in "kha".chars() {
+        press(&mut e2, &mut buf2, &letter(c));
+    }
+    press(&mut e2, &mut buf2, &space());
+    assert_eq!(buf2.iter().collect::<String>(), "kha ");
+    assert_eq!(e2.dream_rsi_snapshot().accepts, 0);
 }
 
 /// Path VN thật + CYCLE: "ddk" → "đk" (Telex transform, word active)

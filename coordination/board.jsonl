@@ -3,3 +3,4 @@
 {"agent":"claude-opus-c4c5a567","epoch":"1795789292","kind":"rm-lock","msg":"v0.2.94 (gộp: board G21–G23, LICENSE/NOTICE/deny, tác giả, E82 class fix, P0-5/6/7)","to":"*","ts":"2026-11-27T14:21:32Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795793679","kind":"rm-unlock","to":"*","ts":"2026-11-27T15:34:39Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795793683","kind":"notify","msg":"v0.2.94 released (rc 46021786968 10/10, approved 529889b0, tap synced, AUR/cask pinned 2af47ff1). rm-lock released. Next: refresh spikes/ (ARM64X, runner matrix, Dream RSI oracle).","to":"*","ts":"2026-11-27T15:34:43Z"}
+{"agent":"claude-opus-c4c5a567","epoch":"1795795100","kind":"rm-lock","msg":"v0.2.95 (R2-174 + honest Dream RSI + spikes)","to":"*","ts":"2026-11-27T15:58:20Z"}
