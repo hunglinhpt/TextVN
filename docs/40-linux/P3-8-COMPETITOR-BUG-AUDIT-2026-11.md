@@ -3,7 +3,9 @@
 > Phạm vi: toàn bộ issue công khai của **Ngó Sen** (`ngosen/ngosen`, 100 issue), **OpenKey**
 > (`tuyenvm/OpenKey`, 288 issue), **ibus-bamboo** (`BambooEngine/ibus-bamboo`, 520 issue + PR
 > #581/#611/#618), và **oracle x-unikey 1.0.4** (`ukengine` build thật — `docs/specs/oracle-unikey.md`
-> §2 Cách D). Mốc mã: v0.2.91 (`52f28509`). Kết quả sửa: v0.2.92 (R2-165 … R2-170, E73 … E75).
+> §2 Cách D). Mốc mã: v0.2.91 (`52f28509`). Kết quả sửa: v0.2.92 (R2-165 … R2-172, E73 … E77).
+> Vòng 2 (§7): Gõ Nhanh, fcitx5-lotus, xkey, goxkey, PHTV, fcitx5-unikey, ibus-unikey, VietType, vnkey,
+> claude-code-vietnamese-fix — 1.250 issue.
 
 ## 1. Khác biệt kiến trúc quyết định phần lớn kết luận
 
@@ -65,3 +67,45 @@ dev Windows (không cần Linux): `cl /EHsc /utf-8 /permissive /Zc:strictStrings
 /DUNIKEYHOOK …` + harness gọi `UnikeySetup` → `UnikeySetOutputCharset(CONV_CHARSET_XUTF8)` →
 `UnikeyFilter` (áp `UnikeyBackspaces` theo ký tự, phím không đổi gì thì app tự chèn như `xim.c`).
 Chi tiết: `docs/specs/verified-ops.md`. Mã x-unikey KHÔNG được chép vào repo (chỉ dùng sinh kỳ vọng).
+
+## 7. Vòng 2 (2026-11-27) — Gõ Nhanh, fcitx5-lotus, xkey, goxkey, PHTV, fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix
+
+Phạm vi: toàn bộ issue mở + đóng của `khaphanspace/gonhanh.org` (258), `LotusInputMethod/fcitx5-lotus`
+(241), `xmannv/xkey` (313), `huytd/goxkey` (98), `PhamHungTien/PHTV` (201), `fcitx/fcitx5-unikey` (40),
+`vn-input/ibus-unikey` (25), `dinhngtu/VietType` (40 — TSF thuần như TextVN Windows), `marixdev/vnkey`
+(22 — engine Rust), `manhit96/claude-code-vietnamese-fix` (12) — **1.250 issue**. Mọi ca "gõ X ra Y"
+trong tiêu đề (≈ 160 ca) được chạy qua `textvn-cli replay` (cấu hình mặc định) và đối chiếu oracle
+x-unikey 1.0.4 (§6).
+
+### 7.1 Lỗi tương tự CÓ ở TextVN — đã sửa trong 0.2.92
+
+| ID | Lỗi | Nguồn đối chiếu | Sửa | Chặn tái diễn |
+|---|---|---|---|---|
+| R2-171 | Ứng dụng GTK (gedit, GNOME Text Editor, xed, Mousepad…): gõ `ban` Enter `tooi` ra `tôi` thay vì `Tôi` — GtkTextView gọi `gtk_im_context_reset` ngay khi chèn dòng mới, IBus `reset` / Fcitx5 `InputContextReset` tới engine giữa Enter và chữ kế tiếp, `Engine::reset` xoá sạch đuôi văn bản nên mất mốc "đầu dòng" (3 OS dùng chung core) | fcitx5-lotus #597 (đúng nguyên nhân), xkey #303/#289, Gõ Nhanh #245/#302 | `Engine::reset` giữ mốc đầu dòng khi đuôi văn bản kết thúc bằng xuống dòng; reset giữa câu (click, đổi focus, sau `. `) vẫn xoá sạch, không đoán ngữ cảnh | `core/tests/r2_171_caps_after_enter_reset.rs` (6 ca: có/không reset, reset 2 lần, reset giữa câu, sau `. `, tắt auto-capitalize) |
+| R2-172 | Không gõ được địa danh chính thức **Đắk Lắk**, **Đắk Mil**, **Đăk Glei**, **Krông Búk**, **Krông Pắc** — luật ghép vần không có âm cuối `k`, âm đầu `kr` ⇒ Space trả về `DDawks Lawks`, `Kroong` | xkey #135; x-unikey 1.0.4 chỉ gõ được `đắk` khi đặt dấu TRƯỚC `k` (`ddawsk`), `ddawks` ra `đăks` | âm đầu `kr` (`validate::ONSETS`); âm cuối `k` **chỉ** trong `đăk/lăk/buk` với thanh ngang/sắc (`validate::place_name_k_coda`) — dấu trước hay sau `k` đều được | `validate::tests::place_name_k_coda_and_kr_onset` (cả ca phải sai: `hăk dúk túk húk múk đặk krill`), `r2_172_english_words_untouched` (quét `en_words10k.txt`: `hawk`, `kruger`…), `corpus/shared/r2_172_dak_lak_01.keys` (4 adapter); đánh đổi có chủ đích: từ Anh hiếm `busk` thành `búk` |
+
+### 7.2 KHÔNG xảy ra ở TextVN (đã kiểm bằng replay / mã)
+
+| Lỗi của bộ gõ khác | Nguồn | TextVN |
+|---|---|---|
+| Lặp phụ âm/nguyên âm khi auto-restore tiếng Anh: `mos`→`moss`, `sims`→`simss`, `ses`→`sess`, `music`→`mussic`, `business`→`bussiness`, `console`→`conssole`, `momo`→`momoo`, `There`→`Therere`, `respect`→`respeect` | Gõ Nhanh #356 #142 #296 #193 #337 #131 #348 #230 #147 | `mó`, `sím`, `sé`, `music`, `business`, `console`, `momo`, `there`, `respect` (E50/E60 `UndoTracker` đòi liền kề) |
+| Nhân đôi nguyên âm cách quãng biến từ Anh/viết tắt: `SATA`→`SATAA`, `TOTO`→`TÔT`, `MAMA`, `mama`→`mâm` | Gõ Nhanh #367, goxkey #123, x-unikey `mama`→`mâm` | giữ nguyên `SATA TETE TOTO MAMA mama coco` (§7.3) |
+| Từ thường bị hỏng: `tieefn`→`tieên`, `bawngf/thawngf`, `xuaats`, `quowis`, `khoangr`→`khoan`, `nghieepj`, `Tuwowng`, `Giuwxa`→`Giuẵ`, `dduwowcj`, `muwa`, `Uwf`→`Ừ`, `hawngf`, `giusp`→`gíúp`, `cuwowis`, `huowng`, `chuaanr`, `Theer`, `theem`→`thèm`, `giowis` | Gõ Nhanh #272 #262 #259 #243 #200 #105 #99 #74 #14 #151 #122; xkey #196 #139 #150; goxkey #98 #14; PHTV #178 #145 #110 | ra đúng `tiền bằng thằng xuất quới khoảng nghiệp Tương Giữa được mưa Ừ hằng giúp cưới hương chuẩn Thể thêm giới` |
+| Từ Anh bị gán dấu: `useEffect`, `daydream`, `fomo`, `datadog`, `datasuite`, `deadline`, `await`, `cursor`, `view`, `queue`, `year your our ear early their`, `wwork`, `int1234` | Gõ Nhanh #410 #402 #355 #319 #246 #51 #116 #115 #145; xkey #339 #141; PHTV #176 #132 | giữ nguyên tất cả |
+| Caps Lock + phím `[` vẫn ra `ơ` thường | fcitx5-lotus #387 #383 | `TƠ` |
+| Enter chèn ký tự `\n` vào ô đổi tên file thay vì kết thúc composition + gửi phím | VietType #43 | TSF kết thúc composition rồi để Enter đi tới app như phím thật (`KeyKind::native_boundary_char`) |
+| Đổi focus giữa từ làm mất từ | VietType #42 (Run/Explorer rename), fcitx5-unikey #54 | TSF `OnSetFocus` commit composition (test vòng đời `compose.rs`); IBus preedit chế độ `IBUS_ENGINE_PREEDIT_COMMIT`; Fcitx5 FocusOut xử lý như fcitx5-unikey upstream (lỗi #54 nằm ở fcitx5 < 5.1.20 + mutter 50.1). Explorer rename/Run thật: nên kiểm tay mỗi bản |
+| Click đổi chỗ con trỏ nhưng buffer engine không reset ⇒ in lại từ cũ | fcitx5-lotus #548 #9, fcitx5-unikey #53 | IBus/Fcitx5 `reset` ⇒ chốt từ + xoá trạng thái |
+| So sánh lẫn offset UTF-8 ký tự với byte | fcitx5-lotus #436 | IBus đổi `cursor_pos` (ký tự) sang byte bằng vòng lặp riêng; Fcitx5 dùng API `SurroundingText` |
+| Panic xuyên FFI khi mutex bị poison | vnkey #25 | FFI không giữ `Mutex`, mọi hàm bọc `catch_unwind` |
+| Lớp lỗi gửi Backspace giả (Claude Code CLI, Ghostty, Firefox URL bar, Google Sheets, Excel nhảy chữ) | claude-code-vietnamese-fix, Gõ Nhanh #326/#261/#418, xkey #322, fcitx5-lotus uinput (≈ 120 issue) | TextVN không gửi Backspace giả trên cả 3 OS (TSF composition · IMK marked text · preedit) |
+
+### 7.3 Khác biệt CHỦ ĐÍCH (chính sách, không sửa)
+
+| Hành vi | Bộ gõ khác | TextVN | Lý do |
+|---|---|---|---|
+| Nhân đôi nguyên âm **cách quãng**: `neues`→`nếu`, `xauas`→`xấu`, `hieuer`→`hiểu`, `khongo`→`không` | x-unikey, Gõ Nhanh (#182/#183), VietType #28 | chỉ nhân đôi liền kề (`neeus`, `xaaus`, `hieeur`, `khoong`) | chính người dùng Gõ Nhanh báo lỗi ngược (#367 `SATA TETE TOTO MAMA`, #348 `momo`); x-unikey biến `mama` thành `mâm` |
+| Chữ HOA gõ bằng **Shift** là chữ thường lệ (`NGUWOWIF`, `VIEETJ` giữ phím) | UniKey/OpenKey nhận dấu | Caps Lock cho hành vi UniKey (`VIỆT NAM ĐƯỜNG`) | R2-67: `USA`, `JSON`, `SWE` không bị biến đổi (user-guide §3, `telex_caps_lock_01`) |
+| `w` đứng riêng + Space ⇒ `w` (auto-restore EN); trong từ vẫn `nhw`→`như`, `tw`→`tư` | x-unikey `ư` | giữ `w` | `w` một mình gần như luôn là chữ Latin |
+| Backspace quay lại sửa từ đã chốt (`nhu ` ⌫ `w` ⇒ `như`) | fcitx5-lotus #366, OpenKey "phục hồi từ" | `nhuw` | E47: dựng lại chuỗi phím sau Backspace từng chèn phím lạ vào văn bản; giữ WYSIWYG |
+| `[`/`]` ⇒ `ơ`/`ư` | fcitx5-lotus, xkey #70/#43 | như nhau (`t[`→`tơ`, Caps Lock `TƠ`) | — |

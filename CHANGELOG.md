@@ -35,22 +35,31 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   `vn_freq3000.txt` bỏ 3 từ Anh lẫn vào (`too moon boom`), `vn_syllables.txt` sinh lại bằng
   `cargo xtask gen-vocab` (6.669 âm tiết, tổng corpora 53.952 mục). (E75)
 - **R2-170 — engine: âm đầu `dz`** (`dzũng`, `Dzũng`, `dzô`, `dzậy` — Ngó Sen #958, x-unikey gõ được).
+- **R2-171 — engine 3 OS: tự viết hoa sau Enter trong ứng dụng GTK**: GtkTextView reset input context
+  ngay khi xuống dòng nên `ban` Enter `tooi` ra `tôi`; `Engine::reset` nay giữ mốc đầu dòng khi đuôi văn bản
+  kết thúc bằng xuống dòng (reset giữa câu vẫn xoá sạch) — đối chiếu fcitx5-lotus #597, xkey #303.
+- **R2-172 — engine: gõ được địa danh Tây Nguyên** `Đắk Lắk`, `Đắk Mil`, `Đăk Glei`, `Krông Búk`, `Krông Pắc`
+  (xkey #135): âm đầu `kr`, âm cuối `k` chỉ trong `đăk/lăk/buk`; dấu đặt trước hay sau `k` đều được (x-unikey
+  chỉ nhận dấu trước `k`); từ Anh `hawk dusk tusk husk` giữ nguyên.
 
 ### Tài liệu / Docs
 
 - `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`: đối chiếu 100 issue Ngó Sen, 288 issue OpenKey,
   520 issue ibus-bamboo và oracle x-unikey 1.0.4 — lỗi tương tự đã sửa, lỗi không áp dụng, khác biệt chủ
-  đích, giới hạn nền tảng.
+  đích, giới hạn nền tảng; vòng 2 (§7) thêm 1.250 issue của Gõ Nhanh, fcitx5-lotus, xkey, goxkey, PHTV,
+  fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix (≈ 160 ca gõ chạy qua replay).
 - `docs/TROUBLESHOOTING.md` (VI + EN): mục "Giới hạn đã biết khi gõ trên Linux" (thanh địa chỉ Chrome,
   `sudo` trong terminal, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
 - `docs/specs/oracle-unikey.md` Cách D (build `ukengine` bằng MSVC), `docs/specs/verified-ops.md` B30/B31,
-  `docs/specs/project-common-errors.md` E72 (ghi bù) · E73 · E74 · E75.
+  `docs/specs/project-common-errors.md` E72 (ghi bù) · E73 · E74 · E75 · E76 · E77.
 
 ### Kiểm thử / Testing
 
 - `core/tests/r2_168_unikey_oracle_linux.rs` (37 ca oracle x-unikey/Ngó Sen/OpenKey/ibus-bamboo),
   `corpus/shared/r2_168_unikey_oracle_01.keys` (replay 4 adapter), `validate::tests::oo_nucleus_needs_ng_or_c`,
-  `doctor::tests::r2_166_mutter_forward_key_bug_range`.
+  `doctor::tests::r2_166_mutter_forward_key_bug_range`, `core/tests/r2_171_caps_after_enter_reset.rs`
+  (reset sau Enter + quét `en_words10k.txt` cho luật `k`/`kr`), `validate::tests::place_name_k_coda_and_kr_onset`,
+  `corpus/shared/r2_172_dak_lak_01.keys` (replay 4 adapter).
 - `adapters/linux-common/tests/test_edit_batch.c` (mô phỏng mutter gộp lệnh chứng minh lỗi cũ); e2e IBus +
   Fcitx5: bất biến cả phiên "≤ 1 commit, ≤ 1 xoá mỗi phím", "phím gửi lại nhấn == nhả, keycode ≠ 0", "lúc
   commit tới preedit cũ vẫn còn".
@@ -82,22 +91,33 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   drops 3 stray English words (`too moon boom`), `vn_syllables.txt` regenerated with `cargo xtask gen-vocab`
   (6,669 syllables, 53,952 corpus entries in total). (E75)
 - **R2-170 — engine: `dz` onset** (`dzũng`, `Dzũng`, `dzô`, `dzậy` — Ngó Sen #958, typed by x-unikey).
+- **R2-171 — 3-OS engine: auto-capitalize after Enter in GTK apps**: GtkTextView resets the input context
+  right after a newline, so `ban` Enter `tooi` gave `tôi`; `Engine::reset` now keeps the line-start mark when
+  the text tail ends with a newline (a mid-sentence reset still clears everything) — cf. fcitx5-lotus #597,
+  xkey #303.
+- **R2-172 — engine: Central Highlands place names type** `Đắk Lắk`, `Đắk Mil`, `Đăk Glei`, `Krông Búk`,
+  `Krông Pắc` (xkey #135): `kr` onset, coda `k` only in `đăk/lăk/buk`; the tone may go before or after `k`
+  (x-unikey accepts it only before `k`); English `hawk dusk tusk husk` stay intact.
 
 ### Docs
 
 - `docs/40-linux/P3-8-COMPETITOR-BUG-AUDIT-2026-11.md`: comparison with 100 Ngó Sen issues, 288 OpenKey issues,
   520 ibus-bamboo issues and the x-unikey 1.0.4 oracle — similar bugs fixed, bugs that do not apply,
-  intentional differences, platform limitations.
+  intentional differences, platform limitations; round 2 (§7) adds 1,250 issues of Gõ Nhanh, fcitx5-lotus,
+  xkey, goxkey, PHTV, fcitx5-unikey, ibus-unikey, VietType, vnkey, claude-code-vietnamese-fix (≈ 160 typing
+  cases run through replay).
 - `docs/TROUBLESHOOTING.md` (VI + EN): "Known typing limitations on Linux" (Chrome address bar, `sudo` in
   terminals, vim, GNOME 50.0–50.3, GTK 3 Wayland, Sway, Steam).
 - `docs/specs/oracle-unikey.md` method D (build `ukengine` with MSVC), `docs/specs/verified-ops.md` B30/B31,
-  `docs/specs/project-common-errors.md` E72 (backfilled) · E73 · E74 · E75.
+  `docs/specs/project-common-errors.md` E72 (backfilled) · E73 · E74 · E75 · E76 · E77.
 
 ### Testing
 
 - `core/tests/r2_168_unikey_oracle_linux.rs` (37 x-unikey/Ngó Sen/OpenKey/ibus-bamboo oracle cases),
   `corpus/shared/r2_168_unikey_oracle_01.keys` (4-adapter replay), `validate::tests::oo_nucleus_needs_ng_or_c`,
-  `doctor::tests::r2_166_mutter_forward_key_bug_range`.
+  `doctor::tests::r2_166_mutter_forward_key_bug_range`, `core/tests/r2_171_caps_after_enter_reset.rs`
+  (reset after Enter + an `en_words10k.txt` sweep for the `k`/`kr` rule), `validate::tests::place_name_k_coda_and_kr_onset`,
+  `corpus/shared/r2_172_dak_lak_01.keys` (4-adapter replay).
 - `adapters/linux-common/tests/test_edit_batch.c` (a mutter-coalescing simulation proving the old bug); IBus +
   Fcitx5 e2e: session-wide invariants "≤ 1 commit, ≤ 1 delete per key", "forwarded press == release, keycode ≠
   0", "the old preedit is still shown when the commit arrives".

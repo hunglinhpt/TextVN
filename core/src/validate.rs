@@ -26,8 +26,12 @@ use crate::transform::undo::unmark;
 /// R2-170: thêm `dz` — lối viết phương ngữ/tên riêng (`Dzũng`, `dzô`, `dzậy`) mà
 /// x-unikey 1.0.4 gõ được (oracle) và người dùng Ngó Sen yêu cầu (ngosen#958); thiếu
 /// nó thì Space trả `dzũng` về phím gốc `dzuxng`.
-pub const ONSETS: [&str; 29] = [
-    "", "b", "c", "ch", "d", "dz", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng",
+///
+/// R2-172: thêm `kr` — địa danh Tây Nguyên chính thức (`Krông Búk`, `Krông Pắc`, `Krông
+/// Năng`, `Krông Bông`; xkey#135). Từ Anh mở đầu `kr` (`krill`, `kraken`) vẫn không thành
+/// âm tiết vì vần/âm cuối của chúng không hợp lệ.
+pub const ONSETS: [&str; 30] = [
+    "", "b", "c", "ch", "d", "dz", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m", "n", "ng",
     "ngh", "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x",
 ];
 
@@ -104,7 +108,26 @@ pub fn valid_nucleus(cs: &[char], st: Structure) -> bool {
 
 /// Rule 4 — âm cuối hợp lệ.
 pub fn valid_coda(cs: &[char], st: Structure) -> bool {
-    CODAS.contains(&lower_str(&cs[st.nucleus_end + 1..]).as_str())
+    CODAS.contains(&lower_str(&cs[st.nucleus_end + 1..]).as_str()) || place_name_k_coda(cs, st)
+}
+
+/// R2-172 (xkey#135 "không gõ được Đắk Lắk"): âm cuối `k` chỉ có trong địa danh chính thức
+/// `Đắk/Đăk` (Đắk Lắk, Đắk Mil, Đăk Glei, Đắk Tô), `Lắk` và `Búk` (Krông Búk). Giới hạn đúng
+/// 3 âm tiết đó — mở rộng `k` thành âm cuối chung sẽ biến từ Anh `hawk`, `dusk`, `tusk`,
+/// `husk` thành âm tiết Việt mà auto-restore không cứu được.
+fn place_name_k_coda(cs: &[char], st: Structure) -> bool {
+    if lower_str(&cs[st.nucleus_end + 1..]) != "k" {
+        return false;
+    }
+    let onset = lower_str(&cs[..st.onset_end]);
+    let nucleus: Vec<char> = cs[st.onset_end..=st.nucleus_end]
+        .iter()
+        .map(|&c| unmark(c))
+        .collect();
+    matches!(
+        (onset.as_str(), lower_str(&nucleus).as_str()),
+        ("đ" | "l", "ă") | ("b", "u")
+    )
 }
 
 /// Rule 5 — tối đa 1 nguyên âm mang dấu thanh.
@@ -119,6 +142,10 @@ pub fn tone_marks_ok(cs: &[char]) -> bool {
 /// `học`, `ích`, `đẹp`); không dấu, huyền, hỏi, ngã đều không có (`sỏt`, `pảt`, `tẽt`, `viêt`).
 pub fn stop_coda_tone_ok(cs: &[char], st: Structure) -> bool {
     let coda = lower_str(&cs[st.nucleus_end + 1..]);
+    if coda == "k" {
+        // R2-172: địa danh viết cả thanh ngang (`Đăk Glei`) lẫn sắc (`Đắk Lắk`, `Búk`).
+        return matches!(current_tone(cs), 0 | 1);
+    }
     !matches!(coda.as_str(), "c" | "ch" | "p" | "t") || matches!(current_tone(cs), 1 | 5)
 }
 
@@ -177,6 +204,21 @@ mod tests {
 
     fn v(s: &str) -> bool {
         is_valid_word(&s.chars().collect::<Vec<_>>())
+    }
+
+    /// R2-172: địa danh `Đắk Lắk`, `Krông Búk`; âm cuối `k` không mở rộng sang từ Anh.
+    #[test]
+    fn place_name_k_coda_and_kr_onset() {
+        for w in [
+            "Đắk", "đắk", "Đăk", "Lắk", "lắk", "Búk", "Krông", "Pắc", "krông", "Krống",
+        ] {
+            assert!(v(w), "{w}");
+        }
+        for w in [
+            "hăk", "dúk", "túk", "húk", "múk", "đặk", "đẳk", "lak", "đak", "bùk", "kăk", "krill",
+        ] {
+            assert!(!v(w), "{w}");
+        }
     }
 
     /// R2-169: vần `oo` chỉ khép bằng `ng`/`c`.

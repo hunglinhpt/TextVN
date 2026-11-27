@@ -1,0 +1,7 @@
+# corpus/shared/r2_172_dak_lak_01.keys — R2-172 (xkey#135): địa danh Tây Nguyên chính thức.
+# Âm cuối `k` chỉ trong `Đắk/Đăk`, `Lắk`, `Búk`; âm đầu `kr` (`Krông`). Dấu đặt trước hay sau
+# `k` đều được (x-unikey 1.0.4 chỉ nhận dấu trước `k`). Từ Anh `hawk dusk tusk husk back desk`
+# giữ nguyên.
+:config method=telex diacritic_style=old auto_capitalize=false auto_restore_english=true
+:type "DDawks Lawks, DDawsk Mil, DDawk Glei, Kroong Buks, Kroong Pawsc, hawk dusk tusk husk back desk "
+:expect "Đắk Lắk, Đắk Mil, Đăk Glei, Krông Búk, Krông Pắc, hawk dusk tusk husk back desk "
