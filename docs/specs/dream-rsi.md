@@ -85,9 +85,9 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   kèm số đo đang gom. Giới hạn đã biết: Backspace hoàn tác một accept đã được báo (R2-147) làm
   số hiện tại thấp hơn số đã giao → delta kế tiếp bị thiếu 1 accept (sai lệch nhỏ, không âm).
 
-## 5. Gate + bench (G19c)
+## 5. Gate + bench (G19c — KSR-oracle từ 0.2.96)
 
-- **Gate:** `core/tests/dream_rsi_100.rs` — 12 test / 100 case sweep:
+- **Gate unit:** `core/tests/dream_rsi_100.rs` — 12 test / 100 case sweep:
   - `d100_sweep_tab_accept_tich_luy` — 100 case accepts/keys/saved tích lũy
     không trôi + drain JSON khối `rsi` khớp snapshot;
   - 4 accept-path exact-formula tests (VN transform + cycle "ddk"→"đk",
@@ -96,16 +96,32 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   - luật `keys_typed` (loại key-up/injected/modifier/chord/điều hướng);
   - saturating biên u64; engine mới = 0; G8 (Debug không lộ từ);
   - 100 phím tay không accept → rate 0 (metrics trung thực).
-- **Bench:** `cargo run -p textvn-bench --release -- dream-rsi` — corpus văn
-  phòng 16 từ (8 VN Telex + 8 EN) × 3 vòng, mô phỏng user gõ nửa từ → Tab khi
-  có ghost: **deterministic** (debug = release, 3 OS cùng số). Kết quả 0.2.69:
-  saved 72/318 phím · **savings-rate 22%** · accepts 36 · engine_chars_saved 57.
-  > ⚠ **Số này bị thổi phồng** (spike SPK-RSI, `rsi-oracle-spike.md`): bench nhấn Tab với mọi chữ mờ và 92% lần
-  > nhận chèn SAI từ; KSR-oracle trên cùng corpus = 5,7%, câu văn phòng VI = 10,1%. Gate G19c vẫn dùng số này
-  > để chặn hồi quy tương đối cho tới khi RSI-1 thay bằng KSR-oracle; KHÔNG dùng làm số công bố.
-  Khối `"dream_rsi"` trong `perf/baseline-win.json` (re-record khi phát hành)
-  — `check` fail nếu savings-rate **hoặc** accepts giảm so baseline (G19c);
-  baseline cũ thiếu khối → bỏ qua kèm ghi chú re-record.
+- **Bench (RSI-1, hấp thụ spike SPK-RSI):** `cargo run -p textvn-bench --release
+  -- dream-rsi` — mô phỏng **người dùng oracle** (Trnka & McCoy 2008): tại MỌI
+  phím đọc `peek_completion()`, chỉ nhận Tab khi `văn bản + chữ mờ` là tiền tố
+  đúng của văn bản đích và hết ở ranh giới từ; chữ mờ hiện mà sai = +1 nhiễu.
+  Corpus: bench 16 từ ×3 + câu văn phòng held-out VI 40 câu (`tools/bench/eval/
+  heldout_vi.txt`) + EN 20 câu (không trùng `data/*phrases*`). **Deterministic**
+  (không timing, JSON nguyên — 2 lần chạy cùng số, `dream_rsi_sim_deterministic`).
+  Số 0.2.96 (0.2.95 ghi 22% là thổi phồng — 92% Tab chèn sai từ):
+
+  | Chỉ số | Giá trị 0.2.96 |
+  |---|---|
+  | KSR-oracle tổng | **8,6%** (317/3676 phím) |
+  | KSR-oracle bench 16 từ ×3 | 5,7% (18/315) |
+  | KSR-oracle VI văn phòng | **10,1%** (267/2636) |
+  | KSR-oracle EN văn phòng | 4,4% (32/725) |
+  | precision@ghost | 13,4% (xét được 16,7%) |
+  | nhiễu (chữ mờ sai) | 33,0/100 phím (VI 33,7 — cổng RSI-7 chặn hết EN-chèn-vào-Việt) |
+  | chuỗi Tab nối tiếp (R2-173) | sâu nhất 2 |
+  | engine counters | accepts 147 · chars_saved 392 |
+
+  Khối `"dream_rsi"` trong `perf/baseline-win.json` (re-record khi phát hành).
+  Gate `check` (G19c) fail khi: KSR-oracle (tổng/VI/EN) **giảm**, **nhiễu tăng**
+  ("luôn hiện chữ mờ sai" ⇒ đỏ), accepts giảm, bất biến chữ mờ≠Tab (R2-173)
+  vi phạm, hay câu lệch đích. Đột biến được đo trong unit test
+  `dream_rsi_gate_duot_bien_ghost_sai` — harness phải bắt cả hai tiêu chí.
+  Baseline cũ thiếu khối → bỏ qua kèm ghi chú re-record.
 
 ### Bẫy đã ghi nhận (đừng lặp)
 
@@ -128,4 +144,4 @@ Mỗi vòng audit 3× phải có 1 view Dream RSI:
 2. `chars_saved` đúng nghĩa (không đếm space user, không âm)?
 3. `keys_typed` không đếm phím engine inject?
 4. Metrics không lộ nội dung (G8) — Debug/JSON chỉ counter?
-5. Savings-rate bench không giảm so baseline?
+5. KSR-oracle bench (G19c) không giảm + nhiễu không tăng so baseline?

@@ -1,1 +1,11 @@
-{"schema":"textvn-bench.v1","platform":"win","regression_pct":10,"note":"re-recorded 2026-10-02 from CI run 37045279327 after runner-image shift made the 2026-09 baseline stale (perf job red on every recent commit); ime_key/parse_config p50,p99,mean from that run's measured p50, p99/mean padded to the same run's ratio","measurements":[{"name":"ime_key","samples":20000,"p50_ns":850,"p99_ns":2000,"mean_ns":920,"budget_ns":500000},{"name":"parse_config","samples":5000,"p50_ns":2187,"p99_ns":3431,"mean_ns":2253,"budget_ns":0},{"name":"ime_strategy_resolve","samples":20000,"p50_ns":11,"p99_ns":32,"mean_ns":12,"budget_ns":2000000}],"dream_rsi":{"baseline_keys":318,"actual_keys":246,"saved_keys":72,"savings_rate_pct":22,"accepts":36,"engine_chars_saved":57}}
+{
+  "schema": "textvn-bench.v1",
+  "platform": "win",
+  "regression_pct": 10,
+  "measurements": [
+    {"name":"ime_key","samples":20000,"p50_ns":587,"p99_ns":625,"mean_ns":596,"budget_ns":500000},
+    {"name":"parse_config","samples":5000,"p50_ns":1868,"p99_ns":2150,"mean_ns":1886,"budget_ns":0},
+    {"name":"ime_strategy_resolve","samples":20000,"p50_ns":10,"p99_ns":10,"mean_ns":9,"budget_ns":2000000}
+  ],
+  "dream_rsi": {"baseline_keys":3676,"actual_keys":3359,"saved_keys":317,"savings_rate_pct":9,"bench_baseline":315,"bench_saved":18,"vi_baseline":2636,"vi_saved":267,"en_baseline":725,"en_saved":32,"ghosts_shown":1279,"ghosts_good":171,"ghosts_judgeable":1021,"good_midword":24,"vi_ghosts_shown":868,"vi_ghosts_good":70,"vi_actual":2369,"en_ghosts_shown":304,"en_ghosts_good":77,"en_actual":693,"max_chain":2,"chained_accepts":2,"invariant_breaks":0,"diverged":0,"vi_sentences":40,"vi_rejected":0,"en_sentences":15,"en_rejected":5,"accepts":147,"engine_chars_saved":392}
+}

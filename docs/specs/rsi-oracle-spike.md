@@ -1,8 +1,10 @@
-# Spike SPK-RSI — KSR-oracle thật của dự đoán so với số Dream RSI 22% (`spikes/rsi-oracle`)
+# Spike SPK-RSI — KSR-oracle thật của dự đoán so với số Dream RSI 22% (hấp thụ vào `tools/bench`)
 
 > Task gỡ rủi ro: **RSI-1** (bench KSR-oracle), RSI-2 (tách tập), RSI-4 (ngưỡng tin cậy), RSI-7 (cổng ngôn ngữ), PERF-2 (tất định)
 > — `../10-shared/P0-7-TASKS-ARM-SF.md` Luồng R, `../10-shared/P0-8-DREAM-RSI-LOOPS.md` §2.
-> Spike code: `../../spikes/rsi-oracle/` · CI: `../../.github/workflows/spikes.yml` (`rsi-oracle` ×4 + `arm64x-run`, `rsi-determinism`)
+> **Trạng thái: ĐÓNG ĐẠT 2026-11-28 — code spike đã XOÁ, hấp thụ vào `tools/bench` (RSI-1)**
+> `cargo run -p textvn-bench --release -- dream-rsi` in đúng bộ số này + gate G19c KSR-oracle;
+> corpus held-out dời sang `tools/bench/eval/`; chuỗi chữ mờ (R2-173) đo trong `textvn-bench` unit test.
 > Ngày chạy: 2026-11-27 · Máy: Windows 11 x64 · `textvn-core` 0.2.94 + bản sửa R2-174.
 
 ## 1. Câu hỏi và tiêu chí đóng
@@ -42,6 +44,27 @@
 
 Bất biến "chữ mờ == Tab chèn" (R2-173/E79): **0 vi phạm** trên mọi corpus.
 
+**Tất định đa kiến trúc (PERF-2)**: đầu ra spike **giống hệt từng byte** trên Linux x86_64/aarch64,
+Windows x64/ARM64 và macOS arm64 — run [#46029470340](https://github.com/hunglinhpt/TextVN/actions/runs/46029470340),
+job `rsi-determinism` (so hash 5 tệp đầu ra). Sau hấp thụ, tính tất định được khoá bởi unit test
+`dream_rsi_sim_deterministic` (2 lần chạy = cùng số) chạy trên CI 3 OS.
+
+## 3b. Sau hấp thụ — số với cổng ngôn ngữ RSI-7 + lọc E84 (0.2.96, `textvn-bench dream-rsi`)
+
+| Chỉ số | Spike (0.2.95, không cổng) | Sau RSI-7 + E84 | Đánh giá |
+|---|---|---|---|
+| KSR-oracle bench 16 từ ×3 | 5,7% (18/315) | **5,7% (18/315)** | giữ nguyên |
+| KSR-oracle VI | 10,1% (267/2636) | **10,1% (267/2636)** | không giảm (acceptance RSI-7) ✓ |
+| KSR-oracle EN | 4,4% (32/725) | **4,4% (32/725)** | không giảm (acceptance RSI-7) ✓ |
+| Nhiễu VI /100 phím | 45,2 | **33,7** (−25,4%) | phần EN-chèn-vào-tiếng-Việt bị cổng chặn hết; phần còn lại là chữ mờ nguồn VN (RSI-4) |
+| Nhiễu tổng /100 phím | — | 33,0 | precision@ghost 13,4% (xét được 16,7%) |
+
+Acceptance RSI-7 "nhiễu VI giảm ≥ 50%" **chỉ đạt 25% trên tổng nhiễu** — giả thiết "phần lớn nhiễu
+là EN" của spike sai tỷ lệ: EN chỉ chiếm ~25% nhiễu VI. Cổng chặn 100% nguồn EN tại tiền tố Việt
+hợp lệ (tiền tố dài hơn hết thành tiền tố-VN không hợp lệ → EN tự mở lại nên KSR không đổi);
+33,7 còn lại là chữ mờ VN sai — đúng phạm vi **RSI-4 (ngưỡng tin cậy)**. Số công bố trung thực
+trong README/dream-rsi.md, không ghi "giảm ≥ 50%".
+
 ## 4. Kết luận
 
 1. **Số 22% bị thổi phồng**: 92% số Tab mà bench tính là "tiết kiệm" chèn SAI từ (`tooi` nửa từ `to` + Tab →
@@ -65,8 +88,11 @@ Bất biến "chữ mờ == Tab chèn" (R2-173/E79): **0 vi phạm** trên mọi
 ## 5. Tái lập
 
 ```bash
-CARGO_TARGET_DIR=target/spikes cargo run --release --manifest-path spikes/rsi-oracle/Cargo.toml
-SPK_RSI_DEBUG=1 CARGO_TARGET_DIR=target/spikes cargo run --release --manifest-path spikes/rsi-oracle/Cargo.toml
+cargo run -p textvn-bench --release -- dream-rsi        # bộ số KSR-oracle + precision/noise/chain
+cargo run -p textvn-bench --release -- check perf/baseline-win.json   # gate G19c KSR-oracle
+cargo test -p textvn-bench dream_rsi                    # tất định + đột biến "luôn hiện chữ mờ sai" ⇒ gate đỏ
 ```
 
-G8: spike chỉ chạy trên corpus của chính nó; chế độ debug in chữ của corpus spike, không phải phím người dùng.
+G8: sim chỉ chạy trên corpus của chính nó (`tools/bench/eval/`); không log phím/text người dùng.
+Unit test `dream_rsi_gate_duot_bien_ghost_sai` chạy đột biến trên corpus thật — harness bắt được
+"luôn hiện chữ mờ sai" ở CẢ hai tiêu chí (KSR giảm + nhiễu tăng).

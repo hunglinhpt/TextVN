@@ -188,7 +188,8 @@ khi `adapters/` thêm từ khoá nghiệp vụ (P0-5 §3.2); thêm vào prefligh
   `check-pe-imports` báo machine ARM64; `.ps1` ASCII-only (G7).
 
 **ARM-W2 · Forwarder ARM64X (M, Dep: ARM-W1)** — gỡ rủi ro trước bằng **SPK-ARM64X** (`spikes/arm64x-forwarder`,
-`docs/specs/arm64x-spike.md`): forwarder có tìm được DLL đích nằm cạnh nó trong thư mục cài per-user không.
+`docs/specs/arm64x-spike.md`): **ĐẠT 2026-11-27** — forwarder trong thư mục per-user nạp đúng DLL đích cho x64 giả lập và
+ARM64 native trên `windows-11-arm`; build chéo được trên `windows-2022` (công thức: 2 obj rỗng + 2 import lib `link /lib`).
 - Phạm vi: `installer/windows/arm64x/` (mới: `dummy.c`, `tsf_arm64.def`, `tsf_x64.def`), `xtask/src/win_tools.rs`
   (`build-arm64x`, kiểm machine ARM64X trong `check-pe-imports`).
 - Acceptance: `cargo xtask build-arm64x` sinh `textvn-tsf.dll` machine ARM64X, chỉ export 4 hàm forwarder, không import CRT.
@@ -239,14 +240,20 @@ Sway/labwc headless (chuẩn bị WL-1).
 
 ### Luồng R — Dream RSI 2.0 · vòng lặp · vòng nghiệp vụ (`P0-8-DREAM-RSI-LOOPS.md`)
 
-**RSI-1 · Bench KSR-oracle (M, Dep: —) — ƯU TIÊN CAO** — thuật toán + số gốc đã có ở spike **SPK-RSI** (`spikes/rsi-oracle`,
-`docs/specs/rsi-oracle-spike.md`: bench báo 22,9% nhưng KSR-oracle 5,7%; VI 10,1%) — hấp thụ vào `tools/bench` rồi xoá spike; `tools/bench/src/main.rs` (`bench_dream_rsi` hiện nhấn Tab khi có
-BẤT KỲ chữ mờ, kể cả sai), `perf/baseline-*.json`, `docs/specs/dream-rsi.md`. Acceptance: người dùng mô phỏng chỉ nhận chữ mờ
-là tiền tố đúng của phần còn lại; báo KSR-oracle, precision@ghost, noise/100 phím, chain depth; đột biến "luôn hiện chữ mờ sai"
-⇒ KSR không tăng và noise tăng ⇒ gate đỏ; G19c chuyển sang KSR-oracle; README công bố số mới trung thực.
+**RSI-1 · Bench KSR-oracle (M, Dep: —) — ƯU TIÊN CAO** — **ĐẠT 2026-11-28** — hấp thụ spike SPK-RSI vào `tools/bench`
+(`dream_rsi_oracle_run`: người dùng oracle Trnka & McCoy chỉ nhận chữ mờ đúng ở ranh giới từ) rồi xoá spike; corpus held-out
+dời `tools/bench/eval/`; baseline `perf/baseline-win.json` re-record (KSR 8,6%; bench 5,7%; VI 10,1%; EN 4,4%; nhiễu 33,0/100;
+precision@ghost 13,4%; chuỗi nối 2); gate G19c KSR-oracle: KSR tổng/VI/EN giảm, NHIỄU TĂNG, accepts giảm, vi phạm R2-173 hay lệch
+đích ⇒ đỏ; đột biến "luôn hiện chữ mờ sai" được đo trong `dream_rsi_gate_duot_bien_ghost_sai` (KSR giảm + noise tăng ⇒ đỏ);
+README/dream-rsi.md công bố số trung thực (số cũ 22% thổi phồng 92% Tab sai).
 
-**RSI-7 · Cổng ngôn ngữ cho chữ mờ (M, Dep: RSI-1)** — không gợi ý từ EN cho tiền tố là âm tiết/tiền tố Việt hợp lệ khi
-không có ngữ cảnh EN. Acceptance: SPK-RSI/bench RSI-1 — nhiễu VI giảm ≥ 50%, KSR-oracle VI không giảm, EN không giảm.
+**RSI-7 · Cổng ngôn ngữ cho chữ mờ (M, Dep: RSI-1)** — **ĐẠT 2026-11-28 (một phần acceptance trung thực)** — không gợi ý từ
+EN cho tiền tố là âm tiết/tiền tố Việt hợp lệ khi không có ngữ cảnh EN (`predict.rs`: `vn_prefix_possible` + `en_context` qua
+`has_en_context`; `restore_en.rs`: chặn hoàn-tiện-prefix EN; hợp đồng 0.2.80 giữ: lời gọi trần permissive). Kết quả bench
+RSI-1: KSR-oracle VI 267→267 phím (không giảm ✓), EN 32→32 ✓; nhiễu VI tổng 45,2→33,7/100 (−25% — **không đạt mục tiêu
+≥50%**: giả thiết "phần lớn nhiễu là EN" của spike sai tỷ lệ, EN ~25%; cổng chặn 100% nguồn EN tại tiền tố Việt, phần còn lại
+là chữ mờ nguồn VN = phạm vi RSI-4). E84 kèm theo: lọc âm tiết VN nhiễm từ EN ngoài từ điển (`gen-vocab` + runtime +
+`e84_du_lieu_am_tiet_vn_khong_chua_tu_en_ngoai_tu_dien`).
 
 **SIM-1 · Bộ mô phỏng văn bản dùng chung (S, Dep: —)** — một hàm áp `Action` vào buffer cho test/bench/spike (feature
 `sim` của `textvn-core` hoặc crate test-kit), xoá 12 bản sao `apply` (G22). Acceptance: `rg "fn apply\(" core/tests` = 0.
@@ -260,6 +267,10 @@ chồng lấn = 0. **RSI-3…RSI-6, LOOP-1…LOOP-5, BIZ-1…BIZ-3**: định ng
 **PERF-1 · Baseline theo target (M, Dep: ARM-L1, ARM-W1)** — `perf/baseline-<triple>.json`, `xtask/src/preflight.rs` bước 17, `tools/bench`; Acceptance: preflight chọn đúng baseline theo máy; CI so baseline ARM.
 
 **PERF-2 · Tất định đa kiến trúc (S, Dep: ARM-L1)** — `ci-shared.yml`: hash đầu ra replay + Dream RSI x86_64 vs aarch64 giống hệt.
+
+**BOARD-1 · `board` độc lập với build sản phẩm (S, Dep: —)** — E83: `cargo xtask board` biên dịch lại cả workspace nên WIP
+hỏng của một agent chặn điều phối của mọi agent. Tách `board` thành binary/crate chỉ phụ thuộc `std` + `serde_json` (không
+`textvn-core`), alias `cargo board`. Acceptance: làm hỏng cố ý `core/src/lib.rs` ⇒ `cargo board status` vẫn chạy.
 
 **WL-1 · Backend Wayland input-method-v2 (L, Dep: SF-3, SF-4, quyết định chủ repo)** — `adapters/linux-wayland-im/` (Rust, mới); chỉ wlroots (Sway, labwc, Hyprland); e2e headless Sway trên CI; không thay IBus/Fcitx5 (P0-5 §7.3).
 

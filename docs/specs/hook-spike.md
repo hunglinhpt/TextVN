@@ -92,4 +92,5 @@ Kế hoạch ARM/tương thích (P0-5 §9b, P0-7 COMPAT-1/ARM-W5) cần e2e Wind
 **`windows-11-arm`** — câu hỏi của WIN-005 (phiên desktop? SendInput? UIA xuyên tiến trình?) phải được trả
 lời lại cho hai image này. Cùng script `spikes/hook-probe/hook_probe.ps1`, workflow `spikes.yml` job
 `runner-probe` (ma trận `windows-2022` / `windows-2025` / `windows-11-arm`, artifact `spk-runner-<os>`).
-Kết quả: xem `../../spikes/README.md` (cột Kết quả) — cập nhật sau run CI.
+Kết quả (2026-11-27, run [#46028585161](https://github.com/hunglinhpt/TextVN/actions/runs/46028585161) và [#46029470340](https://github.com/hunglinhpt/TextVN/actions/runs/46029470340)): **xanh trên cả 3 runner** — `windows-11-arm`
+có phiên desktop, SendInput tới cửa sổ thật và UIA xuyên tiến trình như runner x64 ⇒ e2e Windows ARM64 (ARM-W5) chạy được trên CI.

@@ -48,4 +48,22 @@ trực tiếp; cần link thủ công `arm64ec-pc-windows-msvc` + `aarch64`). K�
 - Run 1 [#46028585161](https://github.com/hunglinhpt/TextVN/actions/runs/46028585161): build chéo Rust `aarch64-pc-windows-msvc`
   trên `windows-2022` **OK**, `cl /arm64EC` **OK**; link forwarder **đỏ** `LNK2001 unresolved DllGetClassObject (EC Symbol /
   Arm64 Native Symbol)` — thiếu hai import lib (`link /lib`) mà công thức Microsoft truyền vào lệnh link cuối. Đã thêm.
-- Run 2: _chờ kết quả — ghi dòng `SPK-ARM64X …` của từng probe vào đây._
+- Run 2 [#46029470340](https://github.com/hunglinhpt/TextVN/actions/runs/46029470340) — **ĐẠT #1–#5, spike ĐÓNG** (2026-11-27):
+
+```text
+host PROCESSOR_ARCHITECTURE=ARM64
+SPK-ARM64X arch=x86_64  … mode=LoadLibraryExW+ALTERED load=ok factory=ok tip=ok target=tsf_min_x64.dll   => PASS
+SPK-ARM64X arch=x86_64  … mode=LoadLibraryW           load=ok factory=ok tip=ok target=tsf_min_x64.dll   => PASS
+SPK-ARM64X arch=aarch64 … mode=LoadLibraryExW+ALTERED load=ok factory=ok tip=ok target=tsf_min_arm64.dll => PASS
+SPK-ARM64X arch=aarch64 … mode=LoadLibraryW           load=ok factory=ok tip=ok target=tsf_min_arm64.dll => PASS
+SPK-ARM64X arch=x86_64  … tsf_min_arm64.dll trực tiếp: load=FAIL hr=0x800700c1 (đối chứng âm — đúng kỳ vọng)
+dumpbin /headers: AA64 machine (ARM64) (ARM64X)
+dumpbin /exports: DllCanUnloadNow (forwarded to tsf_min_arm64.DllCanUnloadNow), DllGetClassObject (forwarded …)
+```
+
+**Kết luận cho ARM-W2/ARM-W3:** forwarder ARM64X + `textvn_tsf_x64.dll` + `textvn_tsf_arm64.dll` đặt CẠNH nhau trong
+thư mục cài per-user (đường dẫn có dấu cách, thư mục làm việc khác) được nạp đúng kiến trúc từ cả tiến trình x64 giả
+lập lẫn ARM64 native — **không cần System32** như Weasel, không cần phương án B. Build được hoàn toàn trên runner x64
+(`windows-2022`: Rust `aarch64-pc-windows-msvc` + MSVC ARM64/ARM64EC). Còn lại cho task thật: đăng ký TIP + gõ thật
+trong Notepad/Edge trên `windows-11-arm` (ARM-W3/W5 — SPK-RUNNER đã chứng minh runner có phiên desktop + SendInput + UIA).
+

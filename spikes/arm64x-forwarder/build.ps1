@@ -5,7 +5,6 @@
 #   3. ARM64X PURE FORWARDER out\tsf_min.dll: native (ARM64) exports forward to tsf_min_arm64.dll,
 #      EC (x64) exports forward to tsf_min_x64.dll (Microsoft "Arm64X pure forwarder" recipe,
 #      Weasel arm64x_wrapper precedent) - one InprocServer32 path for both process architectures.
-#   4. spikes/rsi-oracle for aarch64 Windows       -> out\rsi-oracle-arm64.exe (PERF-2 determinism)
 # Needs: rustup targets x86_64-pc-windows-msvc + aarch64-pc-windows-msvc; VS C++ ARM64 + ARM64EC tools.
 # Never registers anything; output only under target\spikes\arm64x-out (gitignored).
 param([string]$Out = '')
@@ -29,10 +28,9 @@ foreach ($k in $targets.Keys) {
     Copy-Item (Join-Path $env:CARGO_TARGET_DIR "$t\release\tsf_min.dll") (Join-Path $Out "tsf_min_$k.dll")
     Copy-Item (Join-Path $env:CARGO_TARGET_DIR "$t\release\arm64x-probe.exe") (Join-Path $Out "probe-$k.exe")
 }
-Invoke-Checked 'cargo' @('build', '--release', '--target', 'aarch64-pc-windows-msvc', '--manifest-path', (Join-Path $root 'spikes\rsi-oracle\Cargo.toml'))
-Copy-Item (Join-Path $env:CARGO_TARGET_DIR 'aarch64-pc-windows-msvc\release\rsi-oracle.exe') (Join-Path $Out 'rsi-oracle-arm64.exe')
 
 # --- ARM64X pure forwarder --------------------------------------------------------------
+# (SPK-RSI da hap thu vao tools/bench 2026-11-28 - khong build rsi-oracle-arm64 nua.)
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
 if (-not $vs) { throw 'SPK-ARM64X: Visual Studio C++ ARM64 build tools not found (vswhere)' }
