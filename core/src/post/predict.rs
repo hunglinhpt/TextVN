@@ -655,11 +655,12 @@ fn predict_impl(
     // 2. Tra cứu từ tiếng Anh (khi gõ từ tiếng Anh hoặc thuật ngữ coder/kinh doanh)
     // RSI-7 — **cổng ngôn ngữ cho chữ mờ** (P0-7 Luồng R, SPK-RSI): ở mode VI,
     // tiền tố còn lớn lên được thành âm tiết Việt (tiền tố/âm tiết Việt hợp lệ)
-    // và KHÔNG có ngữ cảnh EN → ngừng MỌI nguồn EN tĩnh. Phần lớn nhiễu chữ mờ
-    // VI là từ tiếng Anh chen vào khi đang gõ âm tiết Việt (`gu`→`guys`,
-    // `ho`→`horse`, `ba`→`bars` — noise ~45/100 phím, precision ~9%). Ngữ cảnh
-    // EN (từ trước là từ EN thật) mở cổng lại — code-switch "gửi report" không
-    // vỡ. Ứng viên CÁ NHÂN (khối 0) giữ nguyên — người dùng đã tự dùng từ đó.
+    // và KHÔNG có ngữ cảnh EN → ngừng MỌI nguồn EN tĩnh — nguồn EN chen vào khi
+    // đang gõ âm tiết Việt (`gu`→`guys`, `ho`→`horse`, `ba`→`bars`). Bench đo
+    // (RSI-1): nguồn EN chiếm ~25% nhiễu VI (45,2→33,7/100 — phần còn lại là
+    // chữ mờ nguồn VN, RSI-4), KSR-oracle VI/EN giữ nguyên. Ngữ cảnh EN (từ
+    // trước là từ EN thật) mở cổng lại — code-switch "gửi report" không vỡ.
+    // Ứng viên CÁ NHÂN (khối 0) giữ nguyên — người dùng đã tự dùng từ đó.
     let en_allowed = !is_vi || en_context || !vn_prefix_possible_unaccented(&typed_unaccented);
     if en_allowed {
         // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
