@@ -34,6 +34,7 @@ làm rate giảm = hồi quy chất lượng gợi ý = **không merge** (G19c).
 | 3 | Space-accept | Space với `suggest_space_complete` | như #2 (space user đã gõ không đếm là saved) | #2 với `append` |
 | 4 | Cycle candidate (không cộng `accepts` — cả vòng là một lượt nhận) | Tab/Ctrl+Space khi `last_predict` mở | `cand_mới.chars − max(glyphs_cand_cũ, glyphs_dài_nhất_đã_chèn)` (saturating — duyệt dài → ngắn → dài không tính hai lần) | `try_cycle_predict` |
 | 5 | Next-phrase | Ctrl+Space/Space sau ngữ cảnh nhiều từ | nguyên số glyph cụm engine chèn (`phrase_glyphs`) | `try_predict_next_phrase` |
+| 6 | **Chuỗi gợi ý (R2-173)** — Tab ngay sau khi nhận, còn cụm nối tiếp khoá ≥ 2 từ | Tab khi `last_predict` mở | ứng viên cũ chốt `accepted`; cụm mới cộng như #5 (`+1 accepts`, `+phrase_glyphs`) — Backspace ngay sau chỉ gỡ cụm mới | `try_chain_after_accept` → `try_predict_next_phrase` |
 
 Mọi hook đều `saturating_add` — không panic, không trôi lùi.
 

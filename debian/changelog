@@ -1,3 +1,19 @@
+textvn (0.2.93-0ppa1) noble; urgency=medium
+
+  * R2-173 (engine, all OSes): suggestion after suggestion. Right after a
+    prediction is accepted with Tab, a continuation phrase keyed by at least
+    two words shows as ghost text and Tab accepts it as well (the ghost text is
+    always exactly what Tab inserts, append-only). Ctrl+Space picks another
+    candidate; one-word keys still cycle with Tab. Space after an accept keeps
+    suggesting; greetings/office phrases gained continuations (xin chao, chuc
+    ban, phat sinh). Dream RSI counts each chained phrase as one accept.
+  * R2-26 (Windows only): Start search / Store apps (AppContainer, LPAC)
+    follow the user's settings via a filtered copy in %APPDATA%\TextVN\sandbox
+    and a restricted sandbox pipe. No change for Linux packages.
+  * E76: diagnostics ZIP export tests run one at a time with a watchdog.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Fri, 27 Nov 2026 18:00:00 +0700
+
 textvn (0.2.92-0ppa1) noble; urgency=medium
 
   * Linux typing robustness audited against Ngó Sen, OpenKey, ibus-bamboo issues

@@ -4,8 +4,10 @@
 //! Crate này không mở named-pipe/socket và không xác thực peer: đó là trách
 //! nhiệm adapter theo OS. Mọi frame vượt giới hạn, răng cưa, UTF-8/JSON sai hay
 //! message lạ đều là lỗi protocol để transport disconnect thay vì cố đoán.
-//! Ngoại lệ duy nhất là [`pipe_client_options`]: cấu hình mở đầu client của pipe
-//! Windows ở MỘT chỗ để không call site nào quên cờ chống impersonation.
+//! Ngoại lệ: [`pipe_client_options`] (cấu hình mở đầu client của pipe Windows ở MỘT chỗ để
+//! không call site nào quên cờ chống impersonation) và module [`sandbox`] (R2-26: mở pipe
+//! khay + xác thực server, pipe sandbox cho AppContainer/LPAC, đường bản sao cấu hình) — dùng
+//! chung TSF + tray để client và server không lệch quy ước.
 
 use std::collections::BTreeMap;
 
@@ -13,6 +15,8 @@ use serde::{Deserialize, Serialize};
 
 /// Giới hạn chống cấp phát theo length prefix từ peer không tin cậy.
 pub const MAX_FRAME_BYTES: usize = 64 * 1024;
+
+pub mod sandbox;
 
 /// Tên pipe IPC v1 trên Windows (`docs/00-INDEX.md` §4).
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";

@@ -138,12 +138,18 @@ fn test_predict_tab_cycling_candidates() {
     press_key(&mut e, &mut doc, &key_for_char('\t'));
     assert_eq!(doc.iter().collect::<String>(), "phát triển");
 
-    // Lần Tab thứ 2 (liên tiếp): duyệt sang ứng viên 2 ("phát sinh")
-    press_key(&mut e, &mut doc, &key_for_char('\t'));
+    // R2-173: "phát triển" còn cụm nối tiếp → chữ mờ hiện cụm đó (Tab sẽ nhận nó);
+    // đổi ứng viên bằng Ctrl+Space.
+    assert_eq!(e.peek_completion().as_deref(), Some(" phần mềm"));
+
+    // Ctrl+Space: duyệt sang ứng viên 2 ("phát sinh")
+    press_key(&mut e, &mut doc, &key_ctrl_space());
     assert_eq!(doc.iter().collect::<String>(), "phát sinh");
 
-    // Lần Tab thứ 3 (liên tiếp): duyệt sang ứng viên 3 ("phát biểu")
-    press_key(&mut e, &mut doc, &key_for_char('\t'));
+    // "phát sinh" cũng có cụm nối tiếp (R2-173 data: "chi phí") → chữ mờ hiện; Ctrl+Space vẫn
+    // duyệt tiếp sang ứng viên 3 ("phát biểu").
+    assert_eq!(e.peek_completion().as_deref(), Some(" chi phí"));
+    press_key(&mut e, &mut doc, &key_ctrl_space());
     assert_eq!(doc.iter().collect::<String>(), "phát biểu");
 
     // Gõ phím khác (dấu cách) chốt từ, huỷ cycling
@@ -180,8 +186,8 @@ fn test_predict_next_phrase_vietnamese() {
     press_key(&mut e2, &mut doc2, &key_for_char('\t'));
     assert_eq!(doc2.iter().collect::<String>(), "Kính gửi quý khách hàng");
 
-    // Bấm Tab tiếp theo: duyệt sang ứng viên cụm từ thứ 2: "ban giám đốc"
-    press_key(&mut e2, &mut doc2, &key_for_char('\t'));
+    // Ctrl+Space: duyệt sang ứng viên cụm từ thứ 2: "ban giám đốc" (R2-173: Tab nối tiếp)
+    press_key(&mut e2, &mut doc2, &key_ctrl_space());
     assert_eq!(doc2.iter().collect::<String>(), "Kính gửi ban giám đốc");
 }
 
@@ -330,10 +336,11 @@ fn test_ctrl_space_prefix_completion_and_cycle() {
     assert!(matches!(action2, Action::Replace { .. }));
     assert_eq!(doc.iter().collect::<String>(), "phát sinh");
 
-    // Nhấn Tab tiếp theo: duyệt tiếp sang "phát biểu" (Tab và Ctrl+Space dùng chung trạng thái duyệt vòng)
+    // R2-173: "phát sinh" có cụm nối tiếp → Tab NỐI TIẾP (chữ mờ đã hiện sẵn), không đổi ứng viên.
+    assert_eq!(e.peek_completion().as_deref(), Some(" chi phí"));
     let action3 = press_key(&mut e, &mut doc, &key_for_char('\t'));
     assert!(matches!(action3, Action::Replace { .. }));
-    assert_eq!(doc.iter().collect::<String>(), "phát biểu");
+    assert_eq!(doc.iter().collect::<String>(), "phát sinh chi phí");
 }
 
 #[test]
@@ -421,10 +428,10 @@ fn r2_120_ngu_canh_nhieu_tu_truoc_hoan_tat_tien_to() {
     ] {
         assert_eq!(typed(&mut predict_engine(old), input), want, "{input:?}");
     }
-    // Duyệt vòng sau khi chốt từ: chỉ thay phần cụm, giữ "Kính gửi".
+    // R2-173: Tab lần 2 NỐI TIẾP cụm kế (chuỗi gợi ý), giữ nguyên chữ đã nhận.
     assert_eq!(
         typed(&mut predict_engine(old), "Kinhs guwir\t\t"),
-        "Kính gửi ban giám đốc"
+        "Kính gửi quý khách hàng tiềm năng"
     );
 }
 
@@ -762,7 +769,8 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
     assert_eq!(e_cycle.peek_completion().as_deref(), Some(" service"));
     press_key(&mut e_cycle, &mut doc_cycle, &key_for_char('\t'));
     assert_eq!(doc_cycle.iter().collect::<String>(), "customer service");
-    press_key(&mut e_cycle, &mut doc_cycle, &key_for_char('\t'));
+    // R2-173: đổi ứng viên bằng Ctrl+Space (Tab nối tiếp khi còn cụm kế).
+    press_key(&mut e_cycle, &mut doc_cycle, &key_ctrl_space());
     assert_eq!(doc_cycle.iter().collect::<String>(), "customer support");
 
     // 1c. Hoàn tất tiền tố từ đơn ở Mode EN (cả từ ngắn từng trùng âm Việt như "con", "pro"):

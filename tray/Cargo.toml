@@ -40,6 +40,8 @@ windows = { version = "0.61", features = [
     "Win32_Storage_Packaging_Appx",
     "Win32_Security",
     "Win32_Security_Authorization",
+    # R2-26: test e2e chạy tiến trình con trong AppContainer/LPAC thật.
+    "Win32_Security_Isolation",
     "Win32_UI_Controls",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Accessibility",

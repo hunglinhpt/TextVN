@@ -58,8 +58,61 @@ pub struct DoctorReport {
     /// Windows giữ Ctrl + Shift để đổi bàn phím (tranh phím chuyển V/E). `None` ngoài Windows.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub ctrl_shift_taken: Option<bool>,
+    /// R2-26: bản sao cấu hình cho tiến trình sandbox (ô tìm kiếm Start, ứng dụng Store):
+    /// `ok` / `missing` / `no_acl` / `stale`. `None` ngoài Windows.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    pub sandbox_mirror: Option<&'static str>,
     pub diagnostics: Vec<DiagnosticItem>,
     pub problems: Vec<String>,
+}
+
+/// R2-26: tình trạng bản sao sandbox `<thư mục config>\sandbox\` so với `config.json` thật.
+/// `stale` = khác bản lọc của config hiện tại (người dùng sửa tay khi tray tắt) — so theo giá trị
+/// JSON, không theo định dạng. Hàm thuần trên nội dung (test trên Windows — `textvn-ipc` chỉ là
+/// phụ thuộc Windows của CLI, R2-162).
+#[cfg(windows)]
+pub fn sandbox_mirror_verdict(
+    real_config: Option<&str>,
+    mirror_config: Option<&str>,
+    mirror_state_present: bool,
+    dir_sddl: Option<&str>,
+) -> &'static str {
+    let Some(mirror) = mirror_config else {
+        return "missing";
+    };
+    if !mirror_state_present {
+        return "missing";
+    }
+    if !dir_sddl.is_some_and(textvn_ipc::sandbox::sddl_grants_sandbox) {
+        return "no_acl";
+    }
+    if let Some(expected) = real_config.and_then(textvn_config::sandbox::sandbox_config_json) {
+        let a = serde_json::from_str::<serde_json::Value>(&expected).ok();
+        let b = serde_json::from_str::<serde_json::Value>(mirror).ok();
+        if a.is_none() || a != b {
+            return "stale";
+        }
+    }
+    "ok"
+}
+
+#[cfg(windows)]
+fn sandbox_mirror_status(config_path: Option<&Path>) -> &'static str {
+    let Some(dir) = config_path
+        .and_then(Path::parent)
+        .map(|d| d.join(textvn_ipc::sandbox::SANDBOX_DIR_NAME))
+    else {
+        return "missing";
+    };
+    let real = config_path.and_then(|p| std::fs::read_to_string(p).ok());
+    let mirror = std::fs::read_to_string(dir.join("config.json")).ok();
+    let sddl = textvn_ipc::sandbox::path_dacl_sddl(&dir);
+    sandbox_mirror_verdict(
+        real.as_deref(),
+        mirror.as_deref(),
+        dir.join("state.json").is_file(),
+        sddl.as_deref(),
+    )
 }
 
 /// Tạo đường dẫn xuất file chẩn đoán mặc định (`<Desktop hoặc HOME>/textvn-diag-<ts>.zip`).
@@ -210,6 +263,22 @@ pub fn collect_report() -> DoctorReport {
                     .into(),
         });
     }
+    #[cfg(windows)]
+    let sandbox_mirror = Some(sandbox_mirror_status(cfg_path.as_deref()));
+    #[cfg(not(windows))]
+    let sandbox_mirror: Option<&'static str> = None;
+    if let Some(state) = sandbox_mirror.filter(|s| *s != "ok") {
+        diagnostics.push(DiagnosticItem {
+            code: "W_SANDBOX_MIRROR",
+            severity: "warning",
+            category: "runtime",
+            message: format!(
+                "Bản sao cấu hình cho ô tìm kiếm Start / ứng dụng Store (AppContainer) đang `{state}` — các ô đó gõ Telex mặc định, không theo cấu hình và nút V/E."
+            ),
+            suggestion: "Thoát rồi mở lại TextVN ở khay hệ thống (tray ghi lại `%APPDATA%\\TextVN\\sandbox` khi khởi động)."
+                .into(),
+        });
+    }
     if cfg!(windows) && ctrl_shift_taken == Some(true) {
         diagnostics.push(DiagnosticItem {
             code: "W_CTRL_SHIFT_TAKEN",
@@ -260,6 +329,7 @@ pub fn collect_report() -> DoctorReport {
         tray_running,
         tip_registered,
         ctrl_shift_taken,
+        sandbox_mirror,
         diagnostics,
         problems,
     }
@@ -337,6 +407,11 @@ impl DoctorReport {
             );
             if let Some(detail) = crate::register::tip_registration_summary() {
                 println!("  TIP detail  : {detail}");
+            }
+            if let Some(state) = self.sandbox_mirror {
+                println!(
+                    "  Sandbox     : {state} (bản sao cho Start search / ứng dụng Store — R2-26)"
+                );
             }
             if let Some(taken) = self.ctrl_shift_taken {
                 println!(
@@ -426,6 +501,7 @@ impl DoctorReport {
                 "tray": self.tray_running,
                 "hook": self.hook_running,
                 "tip": self.tip_registered,
+                "sandbox_mirror": self.sandbox_mirror,
                 "conflicts": win.conflicts,
                 "diagnostics": diag_json,
                 "problems": self.problems.len(),
@@ -496,12 +572,13 @@ impl DoctorReport {
                 redact_sensitive_paths(&win.os_version)
             ));
             md.push_str(&format!(
-                "- **Trạng thái Windows**: TIP={}, Tray={}, Pipe={}, Hook={}, Ctrl+Shift taken={:?}\n",
+                "- **Trạng thái Windows**: TIP={}, Tray={}, Pipe={}, Hook={}, Ctrl+Shift taken={:?}, Sandbox={}\n",
                 self.tip_registered,
                 self.tray_running,
                 self.pipe_listening,
                 self.hook_running,
-                self.ctrl_shift_taken
+                self.ctrl_shift_taken,
+                self.sandbox_mirror.unwrap_or("-")
             ));
             if let Some(detail) = crate::register::tip_registration_summary() {
                 md.push_str(&format!(
@@ -653,6 +730,7 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
         "tray_running": report.tray_running,
         "hook_running": report.hook_running,
         "tip_registered": report.tip_registered,
+        "sandbox_mirror": report.sandbox_mirror,
         "problems": redacted_problems,
         "diagnostics": diag_vals,
     });
@@ -2419,6 +2497,55 @@ pub fn crc32(data: &[u8]) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R2-26: tình trạng bản sao sandbox — thiếu / thiếu ACL / lệch config thật / ổn.
+    #[cfg(windows)]
+    #[test]
+    fn r2_26_sandbox_mirror_verdict() {
+        let real = r#"{"config_version":1,"method":"vni","macros":[{"trigger":"a","expand":"b"}]}"#;
+        let good = textvn_config::sandbox::sandbox_config_json(real).unwrap();
+        let acl = "D:P(A;OICI;FA;;;S-1-5-21-1)(A;OICI;FRFX;;;AC)(A;OICI;FRFX;;;S-1-15-2-2)";
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), Some(&good), true, Some(acl)),
+            "ok"
+        );
+        // Định dạng khác nhưng cùng giá trị JSON vẫn "ok".
+        let compact =
+            serde_json::to_string(&serde_json::from_str::<serde_json::Value>(&good).unwrap())
+                .unwrap();
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), Some(&compact), true, Some(acl)),
+            "ok"
+        );
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), None, true, Some(acl)),
+            "missing"
+        );
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), Some(&good), false, Some(acl)),
+            "missing"
+        );
+        assert_eq!(
+            sandbox_mirror_verdict(
+                Some(real),
+                Some(&good),
+                true,
+                Some("D:(A;;FA;;;S-1-5-21-1)")
+            ),
+            "no_acl"
+        );
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), Some(&good), true, None),
+            "no_acl"
+        );
+        let telex =
+            textvn_config::sandbox::sandbox_config_json(r#"{"config_version":1,"method":"telex"}"#)
+                .unwrap();
+        assert_eq!(
+            sandbox_mirror_verdict(Some(real), Some(&telex), true, Some(acl)),
+            "stale"
+        );
+    }
 
     /// E76: 2 test xuất ZIP chẩn đoán từng treo im lặng cả binary (máy dev > 1 giờ, runner
     /// Windows của release-candidate v0.2.92 tới timeout 90 phút) khi cùng ghi ZIP vào `%TEMP%`

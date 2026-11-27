@@ -122,11 +122,17 @@ impl SvcManager {
         }
         initial_state.assist_default_on = true;
         initial_state.last_version = current_version.to_string();
-        {
+        let state_json = serde_json::to_string_pretty(&initial_state).ok();
+        if let Some(json) = &state_json {
             // Ghi lại state (nhãn phiên bản mới + state reset) một cách atomic.
-            if let Ok(json) = serde_json::to_string_pretty(&initial_state) {
-                let _ = atomic_write_file(&state_file, json.as_bytes());
-            }
+            let _ = atomic_write_file(&state_file, json.as_bytes());
+        }
+        // R2-26: bản sao cho tiến trình sandbox (ô tìm kiếm Start, ứng dụng Store) — ghi mỗi
+        // lần tray khởi động: nâng cấp từ bản cũ, sửa tay config khi tray tắt, ACL bị mất.
+        if let Err(e) =
+            crate::sandbox_mirror::write_mirror(&dir, Some(&doc.to_json()), state_json.as_deref())
+        {
+            eprintln!("TextVN: ghi bản sao sandbox thất bại ({:?})", e.kind());
         }
 
         Arc::new(Self {
@@ -510,13 +516,32 @@ impl SvcManager {
         let path = self.config_dir.join("config.json");
         let mut doc = SettingsDoc::load(&path, DocKind::Config);
         doc.merge_config(cfg);
-        doc.save(&path)
+        doc.save(&path)?;
+        // R2-26: bản sao sandbox ghi TRƯỚC khi caller broadcast ConfigReload — TIP trong
+        // sandbox đọc lại bản sao ngay khi nhận tín hiệu. Lỗi bản sao không làm hỏng lần lưu.
+        if let Err(e) =
+            crate::sandbox_mirror::write_mirror(&self.config_dir, Some(&doc.to_json()), None)
+        {
+            eprintln!(
+                "TextVN: ghi bản sao sandbox (config) thất bại ({:?})",
+                e.kind()
+            );
+        }
+        Ok(())
     }
 
     fn persist_state(&self, state: &StateData) -> Result<(), DocError> {
         let path = self.config_dir.join("state.json");
         let json = serde_json::to_string_pretty(state).map_err(|_| DocError::Io)?;
-        atomic_write_file(&path, json.as_bytes()).map_err(|_| DocError::Io)
+        atomic_write_file(&path, json.as_bytes()).map_err(|_| DocError::Io)?;
+        // R2-26: bản sao sandbox (chỉ công tắc + override theo tên app — không nội dung).
+        if let Err(e) = crate::sandbox_mirror::write_mirror(&self.config_dir, None, Some(&json)) {
+            eprintln!(
+                "TextVN: ghi bản sao sandbox (state) thất bại ({:?})",
+                e.kind()
+            );
+        }
+        Ok(())
     }
 }
 

@@ -362,6 +362,7 @@ fn defer_to_key_down(
 /// Nhả phím: dùng cho phím chuyển Ctrl+Shift và standalone Ctrl tap; không bao giờ ăn phím.
 #[cfg(windows)]
 fn handle_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) -> bool {
+    crate::edit_session::refresh_ghost_after_key_up(shared, ctx, vk);
     let mut toggle = shared.modifier_toggle.get();
     let fire = toggle.on_key_up(vk);
     let held_too_long = toggle.ctrl_held_too_long(std::time::Instant::now());
@@ -592,6 +593,8 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     if !is_modifier_vk(vk) {
         crate::selection_check::cancel_pending();
         // R2-134: chữ mờ chỉ sống tới phím kế tiếp (phím gõ vẽ lại nếu còn gợi ý).
+        // R2-173: phím mới huỷ lượt vẽ hoãn tới key-up của phím trước (gõ nhanh chồng phím).
+        shared.ghost_on_key_up.set(None);
         shared.ghost.hide();
     }
 

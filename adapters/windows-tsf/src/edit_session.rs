@@ -149,6 +149,10 @@ pub struct TsfShared {
     pub overlay: crate::overlay::CandidateOverlay,
     /// R2-134: chữ mờ gợi ý sẵn (ghost text) sau con trỏ.
     pub ghost: crate::ghost::GhostText,
+    /// R2-173: phím vừa đi thẳng cho app (TIP không ăn — Space/Backspace sau chữ đã chốt): app
+    /// chèn/xoá ký tự SAU khi edit session của phím trả về, nên vẽ chữ mờ lúc đó là vẽ ở vị
+    /// trí con trỏ CŨ. Chữ mờ được vẽ ở key-up của đúng VK này; phím mới nào cũng huỷ.
+    pub ghost_on_key_up: Cell<Option<u32>>,
     /// P12: Bảng chọn Emoji nhẹ (Direct2D/DirectWrite màu thật, không cướp focus).
     pub emoji_picker: crate::emoji_picker::EmojiPicker,
     /// Ngữ cảnh TSF khi mở Emoji Picker (dùng cho callback click chuột).
@@ -178,6 +182,7 @@ impl TsfShared {
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
             ghost: crate::ghost::GhostText::new(),
+            ghost_on_key_up: Cell::new(None),
             emoji_picker: crate::emoji_picker::EmojiPicker::new(),
             emoji_ctx: RefCell::new(None),
             assist: RefCell::new(None),
@@ -609,11 +614,17 @@ impl KeyEditSession {
                     super::panel_idle::schedule(&self.shared, &self.ctx);
                 }
                 // R2-134: chữ mờ gợi ý sẵn sau mỗi phím gõ (Tab/phím tắt sẽ chèn đúng nó).
+                // R2-173: phím đi thẳng cho app (Space sau cụm vừa nhận bằng Tab…) — app chưa
+                // chèn ký tự, con trỏ còn ở chỗ cũ ⇒ hoãn tới key-up (`refresh_ghost`).
                 if matches!(
                     self.key,
                     KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab | KeyKind::CtrlSpace
                 ) {
-                    update_ghost(&self.shared, &self.ctx, ec);
+                    if ghost_waits_for_key_up(self.key, plan.eaten) {
+                        shared.ghost_on_key_up.set(Some(self.vk));
+                    } else {
+                        update_ghost(&self.shared, &self.ctx, ec);
+                    }
                 }
                 // P9 (vòng 55): gõ tiếp khi popup sống → ẨN NGAY (không che
                 // vùng gõ); điểm check đã lên lịch sẽ tự re-arm dừng 1s.
@@ -717,6 +728,56 @@ impl KeyEditSession {
                 false
             }
         }
+    }
+}
+
+/// R2-173: chữ mờ của phím này phải đợi key-up? — đúng khi TIP KHÔNG ăn phím sinh/xoá ký tự
+/// (app tự chèn/xoá sau edit session). Hàm thuần — test khoá bảng.
+pub fn ghost_waits_for_key_up(key: KeyKind, eaten: bool) -> bool {
+    !eaten && matches!(key, KeyKind::Char(_) | KeyKind::Backspace)
+}
+
+/// R2-173: key-up của phím đã đi thẳng cho app (`ghost_on_key_up`) — app đã chèn/xoá ký tự,
+/// vẽ chữ mờ ở vị trí con trỏ MỚI. Session đọc đồng bộ; lỗi = không vẽ (fail-open).
+#[cfg(windows)]
+pub fn refresh_ghost_after_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) {
+    if shared.ghost_on_key_up.get() != Some(vk) {
+        return;
+    }
+    shared.ghost_on_key_up.set(None);
+    let Some(ctx) = ctx else { return };
+    let session: ITfEditSession = GhostRefreshSession {
+        _guard: ObjGuard::new(),
+        shared: shared.clone(),
+        ctx: ctx.clone(),
+    }
+    .into();
+    // SAFETY: ctx hợp lệ do TSF cấp trong callback phím; session chỉ đọc.
+    let _ = unsafe {
+        ctx.RequestEditSession(
+            shared.tid,
+            &session,
+            windows::Win32::UI::TextServices::TF_ES_SYNC
+                | windows::Win32::UI::TextServices::TF_ES_READ,
+        )
+    };
+}
+
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+struct GhostRefreshSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for GhostRefreshSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            update_ghost(&self.shared, &self.ctx, ec);
+        }));
+        Ok(())
     }
 }
 
@@ -3140,6 +3201,21 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
 mod tests {
     use crate::input_scope;
     use windows::Win32::UI::TextServices::*;
+
+    /// R2-173: chỉ phím sinh/xoá ký tự mà TIP KHÔNG ăn mới hoãn chữ mờ tới key-up (app chưa
+    /// chèn ký tự lúc edit session chạy). Tab/Ctrl+Space bị ăn (đã chèn gợi ý) → vẽ ngay.
+    #[test]
+    fn r2_173_ghost_waits_for_key_up_only_for_passed_char_keys() {
+        use super::ghost_waits_for_key_up;
+        use crate::compose::KeyKind;
+        assert!(ghost_waits_for_key_up(KeyKind::Char(' '), false));
+        assert!(ghost_waits_for_key_up(KeyKind::Backspace, false));
+        assert!(!ghost_waits_for_key_up(KeyKind::Char(' '), true));
+        assert!(!ghost_waits_for_key_up(KeyKind::Char('a'), true));
+        assert!(!ghost_waits_for_key_up(KeyKind::Tab, true));
+        assert!(!ghost_waits_for_key_up(KeyKind::Tab, false));
+        assert!(!ghost_waits_for_key_up(KeyKind::CtrlSpace, false));
+    }
 
     #[test]
     fn input_scope_constants_match_sdk() {

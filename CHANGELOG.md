@@ -7,6 +7,123 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.93] — 2026-11-27
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Tính năng mới / Added
+
+- **R2-173 — gợi ý nối tiếp gợi ý (3 OS)**: trước đây nhận một gợi ý bằng Tab là chữ mờ tắt hẳn — Tab
+  kế tiếp chỉ đổi ứng viên. Giờ ngay sau khi nhận, nếu còn **cụm nối tiếp** (khoá ≥ 2 từ), chữ mờ hiện
+  luôn và **Tab nhận tiếp** thành chuỗi gợi ý: `phát`+Tab → `phát triển` ░ phần mềm░ → Tab →
+  `phát triển phần mềm`; `Kính gửi`+Tab+Tab → `Kính gửi quý khách hàng tiềm năng`. Luật duy nhất:
+  **Tab chèn đúng chữ mờ đang thấy** và chỉ nối thêm (không xoá chữ của bạn). Đổi ứng viên khác:
+  **Ctrl+Space** (hoặc Tab khi không còn cụm nối tiếp); khoá một từ quá yếu (`customer`) vẫn duyệt vòng
+  như cũ. Space sau khi nhận cũng gợi ý tiếp. Thêm cụm nối tiếp cho lời chào/chúc/văn phòng thường gặp
+  (`xin chào` → `các bạn`, `chúc bạn` → `một ngày tốt lành`, `phát sinh` → `chi phí`). Dream RSI: mỗi cụm
+  nối tiếp là một lần nhận, Backspace ngay sau chỉ gỡ cụm mới (G19).
+- **R2-26 — Windows: ô tìm kiếm Start, Calculator, ứng dụng Store gõ theo đúng cấu hình của bạn**: các
+  tiến trình sandbox AppContainer/LPAC nạp được DLL TextVN nhưng bị từ chối `config.json`/`state.json` và
+  pipe khay, nên luôn gõ Telex mặc định, bỏ qua VNI/kiểu bỏ dấu và nút V/E (EVKey #52/#85, OpenKey
+  #121/#227 cùng lỗi). Đo thật trên tiến trình AppContainer + LPAC (`%LOCALAPPDATA%` bị chuyển hướng,
+  `%APPDATA%` không), khay giờ ghi **bản sao đã lọc** vào `%APPDATA%\TextVN\sandbox\` (DACL bảo vệ, sandbox
+  chỉ đọc; danh sách cho phép — không gõ tắt, emoji riêng, từ tiếng Anh tự thêm, từ đã học) và mở **pipe
+  sandbox** riêng (nhãn toàn vẹn Low) với tập lệnh tối thiểu: đọc trạng thái, Ctrl+Shift toàn cục, bộ đếm
+  Dream RSI; từ chối thoát tray, đổi override app khác, bơm từ, toast; không lộ override app khác; trần 32
+  kết nối · 40 frame/s. `textvn-cli doctor` thêm dòng `Sandbox` + cảnh báo `W_SANDBOX_MIRROR`.
+  Thiết kế + mô hình đe doạ: `docs/specs/sandbox-appcontainer.md`. Audit trước phát hành sửa 2 lỗi của
+  chính bản đầu: ACE pipe sandbox chỉ cấp quyền dữ liệu (`GW` cho phép ứng dụng Store tạo instance
+  pipe giả — E80) và chỉ tiến trình AppContainer thật mới đọc bản sao (ứng dụng thường không bao giờ
+  rơi về bản sao thiếu gõ tắt — E81).
+
+### Sửa lỗi / Fixed
+
+- **R2-173 — Windows: chữ mờ sau Space vẽ đúng chỗ**: Space sau cụm vừa chốt đi thẳng cho ứng dụng, mà
+  chữ mờ được vẽ TRƯỚC khi ứng dụng chèn dấu cách ⇒ lệch về vị trí con trỏ cũ; giờ vẽ ở key-up của phím
+  đó (phím mới huỷ lượt vẽ). (E79)
+
+### Tài liệu / Docs
+
+- `docs/specs/sandbox-appcontainer.md` (mới) · `docs/TROUBLESHOOTING.md` §5 (VI + EN: R2-26 đã sửa, cách
+  kiểm, giới hạn còn lại) · `docs/50-assist/P6-TEXT-PREDICTION.md` P6-1/P6-3/P6-3b · `docs/user-guide.md` ·
+  `docs/specs/dream-rsi.md` (đường nhận #6) · `docs/specs/verified-ops.md` C15 (chạy tiến trình
+  AppContainer/LPAC thật) · `docs/specs/project-common-errors.md` E76 (lặp lại trên CI, gia cố test) · E79 · E80 · E81 ·
+  `docs/00-INDEX.md` (tên pipe sandbox) · P3-8 §8.1.
+
+### Kiểm thử / Testing
+
+- `core/tests/r2_173_prediction_chain.rs` (8 test: chuỗi gợi ý, bất biến "chữ mờ = đúng chữ Tab chèn"
+  trên Mode VI + EN, khoá 1 từ vẫn duyệt vòng, Ctrl+Space luôn duyệt vòng, Dream RSI) · `text_prediction`
+  cập nhật theo luật mới · `adapters/windows-tsf` `r2_173_ghost_waits_for_key_up_only_for_passed_char_keys`.
+- `tray/src/sandbox_e2e.rs` — chạy binary test trong **AppContainer thật và LPAC thật**: config thật lỗi
+  5, bản sao đúng VNI không chứa gõ tắt, pipe đầy đủ lỗi 5 → pipe sandbox, snapshot không lộ app khác, 4
+  lệnh nguy hiểm bị từ chối, Ctrl+Shift tới tray (đột biến DACL cũ ⇒ test đỏ) · `config/src/sandbox.rs`
+  (gate phân loại mọi khoá config) · `ipc/src/sandbox.rs` · `tray/src/sandbox_mirror.rs` (DACL bảo vệ) ·
+  `tray/src/ipc_server.rs` (`sandbox_policy`, `Visibility`, `FrameBudget`) · `cli` `r2_26_sandbox_mirror_verdict`.
+- E76: 2 test xuất ZIP chẩn đoán chạy lần lượt (`ZIP_EXPORT_LOCK`) + watchdog 120 s.
+
+---
+
+**English** — 0.2.93:
+
+### Added
+
+- **R2-173 — suggestion after suggestion (3 OSes)**: accepting a suggestion with Tab used to switch the
+  ghost text off entirely — the next Tab only swapped candidates. Now, right after an accept, if a
+  **continuation phrase** exists (≥ 2-word key) the ghost text shows it at once and **Tab accepts it too**,
+  forming a chain: `phát`+Tab → `phát triển` ░ phần mềm░ → Tab → `phát triển phần mềm`;
+  `Kính gửi`+Tab+Tab → `Kính gửi quý khách hàng tiềm năng`. One rule: **Tab inserts exactly the ghost
+  text you see** and only appends (never deletes your text). Other candidates: **Ctrl+Space** (or Tab when
+  no continuation exists); a weak one-word key (`customer`) still cycles as before. Space after an accept
+  keeps suggesting too. Added continuations for common greetings/wishes/office phrases
+  (`xin chào` → `các bạn`, `chúc bạn` → `một ngày tốt lành`, `phát sinh` → `chi phí`). Dream RSI: each
+  chained phrase is one accept, and Backspace right after removes only the new phrase (G19).
+- **R2-26 — Windows: the Start search box, Calculator and Store apps follow your settings**: these
+  AppContainer/LPAC sandboxed processes can load the TextVN DLL but were denied `config.json`/`state.json`
+  and the tray pipe, so they always typed default Telex, ignoring VNI/tone placement and the V/E toggle
+  (EVKey #52/#85, OpenKey #121/#227 have the same bug). Measured on real AppContainer + LPAC processes
+  (`%LOCALAPPDATA%` is redirected, `%APPDATA%` is not), the tray now writes a **filtered copy** to
+  `%APPDATA%\TextVN\sandbox\` (protected DACL, read-only for sandboxes; allow-list — no macros, personal
+  emoji, added English words or learned words) and opens a separate **sandbox pipe** (Low integrity
+  label) with a minimal command set: read state, global Ctrl+Shift, Dream RSI counters; it refuses quitting
+  the tray, changing other apps' overrides, injecting words and toasts; it never reveals other apps'
+  overrides; capped at 32 connections · 40 frames/s. `textvn-cli doctor` gains a `Sandbox` line + the
+  `W_SANDBOX_MIRROR` warning. Design + threat model: `docs/specs/sandbox-appcontainer.md`. The
+  pre-release audit fixed 2 flaws of the first draft: the sandbox pipe ACE grants data rights only (`GW`
+  let a Store app create a fake pipe instance — E80) and only real AppContainer processes read the copy
+  (regular apps never fall back to the macro-less copy — E81).
+
+### Fixed
+
+- **R2-173 — Windows: ghost text after Space is drawn in the right place**: Space after a committed phrase
+  goes straight to the application, but the ghost text was drawn BEFORE the application inserted the space
+  ⇒ it sat at the old caret position; it is now drawn on that key's key-up (a new key cancels it). (E79)
+
+### Docs
+
+- `docs/specs/sandbox-appcontainer.md` (new) · `docs/TROUBLESHOOTING.md` §5 (VI + EN: R2-26 fixed, how to
+  check, remaining limits) · `docs/50-assist/P6-TEXT-PREDICTION.md` P6-1/P6-3/P6-3b · `docs/user-guide.md` ·
+  `docs/specs/dream-rsi.md` (accept path #6) · `docs/specs/verified-ops.md` C15 (running real
+  AppContainer/LPAC processes) · `docs/specs/project-common-errors.md` E76 (recurred on CI, test hardening) ·
+  E79 · E80 · E81 · `docs/00-INDEX.md` (sandbox pipe name) · P3-8 §8.1.
+
+### Testing
+
+- `core/tests/r2_173_prediction_chain.rs` (8 tests: chaining, the "ghost text = exactly what Tab inserts"
+  invariant on Mode VI + EN, one-word keys still cycle, Ctrl+Space always cycles, Dream RSI) ·
+  `text_prediction` updated to the new rule · `adapters/windows-tsf`
+  `r2_173_ghost_waits_for_key_up_only_for_passed_char_keys`.
+- `tray/src/sandbox_e2e.rs` — runs the test binary in a **real AppContainer and a real LPAC**: real config
+  error 5, the copy has VNI and no macros, full pipe error 5 → sandbox pipe, snapshot hides other apps, 4
+  dangerous commands refused, Ctrl+Shift reaches the tray (old-DACL mutation ⇒ test fails) ·
+  `config/src/sandbox.rs` (gate classifying every config key) · `ipc/src/sandbox.rs` ·
+  `tray/src/sandbox_mirror.rs` (protected DACL) · `tray/src/ipc_server.rs` (`sandbox_policy`,
+  `Visibility`, `FrameBudget`) · `cli` `r2_26_sandbox_mirror_verdict`.
+- E76: the 2 diagnostics ZIP export tests run one at a time (`ZIP_EXPORT_LOCK`) + a 120 s watchdog.
+
+---
+
 ## [0.2.92] — 2026-11-27
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -4054,6 +4171,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...HEAD
+[0.2.93]: https://github.com/hunglinhpt/TextVN/compare/v0.2.92...v0.2.93
 [0.2.92]: https://github.com/hunglinhpt/TextVN/compare/v0.2.91...v0.2.92
 [0.2.91]: https://github.com/hunglinhpt/TextVN/compare/v0.2.90...v0.2.91
 [0.2.90]: https://github.com/hunglinhpt/TextVN/compare/v0.2.89...v0.2.90

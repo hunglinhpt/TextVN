@@ -24,6 +24,9 @@ pub mod icons;
 pub mod ipc_server;
 pub mod menu;
 pub mod package_bootstrap;
+#[cfg(all(test, windows))]
+mod sandbox_e2e;
+pub mod sandbox_mirror;
 pub mod settings;
 pub mod settings_dialog;
 pub mod store;

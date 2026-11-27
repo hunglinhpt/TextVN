@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 pub mod crash;
 pub mod doc;
 pub mod macro_text;
+pub mod sandbox;
 
 pub use doc::{DocError, DocKind, SettingsDoc};
 pub use textvn_math::{MathConfig, MathOutputMode};

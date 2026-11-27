@@ -29,55 +29,31 @@ use windows::core::*;
 use windows::Win32::Foundation::*;
 #[cfg(windows)]
 use windows::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
 };
 #[cfg(windows)]
-use windows::Win32::Security::{
-    GetTokenInformation, TokenUser, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY,
-    TOKEN_USER,
-};
+use windows::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
 #[cfg(windows)]
 use windows::Win32::Storage::FileSystem::*;
 #[cfg(windows)]
 use windows::Win32::System::Pipes::*;
-#[cfg(windows)]
-use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
 /// SEC-05 (audit 2026-10-04): SECURITY_ATTRIBUTES cho named pipe với DACL chỉ
 /// cấp quyền cho user hiện tại — pipe không DACL là mở cho MỌI user cùng máy
 /// (kể cả phiên RDP khác) đọc ConfigReload/StateUpdate và gửi Shutdown giả.
+/// R2-26: `sandbox = true` = pipe sandbox — thêm đọc/ghi cho AppContainer + LPAC và nhãn toàn
+/// vẹn Low (`textvn_ipc::sandbox::pipe_sddl`); mọi client của pipe này bị hạn chế
+/// (`sandbox_policy`). Pipe đầy đủ giữ nguyên DACL cũ — sandbox KHÔNG mở được nó.
 /// Trả None khi API lỗi (rơi về DACL mặc định — pipe vẫn chạy, chỉ kém chặt).
 #[cfg(windows)]
-fn current_user_pipe_security() -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRIPTOR)> {
-    // SAFETY: mọi handle do API cấp được đóng trong hàm; SD trả cho caller
-    // LocalFree SAU khi CreateNamedPipeW đã sao chép descriptor vào kernel.
+fn pipe_security(sandbox: bool) -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRIPTOR)> {
+    let sid = textvn_ipc::sandbox::current_user_sid_string()?;
+    let sddl = HSTRING::from(textvn_ipc::sandbox::pipe_sddl(&sid, sandbox));
+    // SAFETY: SD trả cho caller LocalFree SAU khi CreateNamedPipeW đã sao chép descriptor
+    // vào kernel.
     unsafe {
-        let mut token = HANDLE::default();
-        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).ok()?;
-        // Buffer căn 8 byte (u64) — TOKEN_USER chứa con trỏ, deref trên mảng
-        // u8 sẽ panic "misaligned pointer dereference" (test bắt được).
-        let mut buf = [0u64; 128];
-        let mut ret = 0u32;
-        let queried = GetTokenInformation(
-            token,
-            TokenUser,
-            Some(buf.as_mut_ptr() as *mut _),
-            std::mem::size_of_val(&buf) as u32,
-            &mut ret,
-        );
-        let _ = CloseHandle(token);
-        queried.ok()?;
-        let user = &*(buf.as_ptr() as *const TOKEN_USER);
-        let mut sid_str = PWSTR::null();
-        ConvertSidToStringSidW(user.User.Sid, &mut sid_str).ok()?;
-        let sid = sid_str.to_string().ok();
-        let _ = LocalFree(Some(HLOCAL(sid_str.0 as *mut _)));
-        let sid = sid?;
-        // GA = GENERIC_ALL cho user hiện tại; thêm SYSTEM + Administrators như
-        // quy ước object của Windows (không mở cho Users/NETWORK).
-        let sddl = HSTRING::from(format!("D:(A;;GA;;;{sid})(A;;GA;;;SY)(A;;GA;;;BA)"));
         let mut sd = PSECURITY_DESCRIPTOR::default();
         ConvertStringSecurityDescriptorToSecurityDescriptorW(&sddl, SDDL_REVISION_1, &mut sd, None)
             .ok()?;
@@ -92,6 +68,136 @@ fn current_user_pipe_security() -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRI
     }
 }
 
+/// R2-26 — tập lệnh của client trên pipe sandbox (tiến trình AppContainer/LPAC: ô tìm kiếm
+/// Start, ứng dụng Store; bất kỳ ứng dụng Store nào của người dùng cũng nối được pipe này).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SandboxPolicy {
+    /// Đọc trạng thái, đăng ký nhận broadcast, Ctrl+Shift toàn cục.
+    Allow,
+    /// Drain tự học: chỉ giữ bộ đếm Dream RSI (G19), bỏ từ/cặp sửa (G8, chống bơm từ).
+    RsiOnly,
+    /// Mọi lệnh khác: thoát tray, đổi override app khác, trợ lý, Math, emoji, toast…
+    Deny,
+}
+
+/// Bảng lệnh của pipe sandbox — liệt kê ĐỦ mọi `Message` (thêm biến thể mới mà quên phân
+/// loại thì không biên dịch được).
+pub(crate) fn sandbox_policy(msg: &Message) -> SandboxPolicy {
+    match msg {
+        Message::Hello { .. }
+        | Message::Subscribe { .. }
+        | Message::GetSnapshot
+        | Message::Ping
+        | Message::Pong { .. }
+        | Message::ToggleGlobal => SandboxPolicy::Allow,
+        Message::ToggleViEn { app_id, .. } if app_id == "*" => SandboxPolicy::Allow,
+        Message::StyleUpdate { .. } => SandboxPolicy::RsiOnly,
+        Message::ToggleViEn { .. }
+        | Message::Shutdown
+        | Message::CrashReport { .. }
+        | Message::Snapshot { .. }
+        | Message::Ack
+        | Message::ConfigReload { .. }
+        | Message::StateUpdate { .. }
+        | Message::AssistNotification { .. }
+        | Message::ToggleAssist { .. }
+        | Message::AssistReport { .. }
+        | Message::ToggleMath
+        | Message::CycleMathMode
+        | Message::OpenEmojiPicker => SandboxPolicy::Deny,
+    }
+}
+
+/// R2-26 — chống làm nghẽn tray từ pipe sandbox (mọi ứng dụng Store của người dùng nối được):
+/// tối đa ngần này kết nối sandbox cùng lúc (mỗi kết nối một thread) …
+pub(crate) const SANDBOX_MAX_CONNECTIONS: u32 = 32;
+/// … và mỗi kết nối tối đa ngần này frame trong một cửa sổ 1 giây (TIP thật gửi vài frame lúc
+/// nối + mỗi lần Ctrl+Shift); vượt ⇒ đóng kết nối (spam `ToggleViEn` từng nhân broadcast).
+pub(crate) const SANDBOX_MAX_FRAMES_PER_SEC: u32 = 40;
+
+/// Bộ đếm frame theo cửa sổ 1 giây cho một kết nối sandbox. Thuần (đồng hồ truyền vào).
+#[derive(Debug)]
+pub(crate) struct FrameBudget {
+    window_start: Instant,
+    used: u32,
+}
+
+impl FrameBudget {
+    pub(crate) fn new(now: Instant) -> Self {
+        Self {
+            window_start: now,
+            used: 0,
+        }
+    }
+
+    /// `false` = vượt hạn mức trong cửa sổ hiện tại.
+    pub(crate) fn take(&mut self, now: Instant) -> bool {
+        if now.saturating_duration_since(self.window_start) >= Duration::from_secs(1) {
+            self.window_start = now;
+            self.used = 0;
+        }
+        self.used += 1;
+        self.used <= SANDBOX_MAX_FRAMES_PER_SEC
+    }
+}
+
+/// Client thấy được những khoá trạng thái nào.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Visibility {
+    /// Client pipe đầy đủ — mọi khoá.
+    All,
+    /// Client pipe sandbox — chỉ `*`, `assist` và override của CHÍNH app nó (không lộ danh
+    /// sách app người dùng đã tắt cho ứng dụng Store khác).
+    Sandbox { own_app: Option<String> },
+}
+
+impl Visibility {
+    pub(crate) fn sees(&self, key: &str) -> bool {
+        match self {
+            Visibility::All => true,
+            Visibility::Sandbox { own_app } => {
+                key == "*"
+                    || key == "assist"
+                    || own_app
+                        .as_deref()
+                        .is_some_and(|own| own.eq_ignore_ascii_case(key))
+            }
+        }
+    }
+}
+
+/// app_id (tên exe viết thường — cùng quy ước TIP `normalize_app_id`) của tiến trình client.
+#[cfg(windows)]
+fn client_app_id(pid: u32) -> Option<String> {
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    // SAFETY: handle tiến trình mở ra được đóng ngay; buffer/độ dài hợp lệ.
+    unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut buf = [0u16; 1024];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(
+            process,
+            PROCESS_NAME_FORMAT(0),
+            PWSTR(buf.as_mut_ptr()),
+            &mut len,
+        )
+        .is_ok();
+        let _ = CloseHandle(process);
+        if !ok {
+            return None;
+        }
+        let image = String::from_utf16_lossy(&buf[..(len as usize).min(buf.len())]);
+        image
+            .rsplit(['\\', '/'])
+            .next()
+            .filter(|n| !n.is_empty())
+            .map(str::to_ascii_lowercase)
+    }
+}
+
 /// Ghi frame tới toàn bộ subscriber đang Subscribe. Xóa subscriber ghi lỗi
 /// (client chết / pipe vỡ) khỏi danh sách.
 ///
@@ -101,7 +207,11 @@ fn current_user_pipe_security() -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRI
 /// đọc. Nên handler KHÔNG BAO GIỜ được block trong `read_message` khi còn
 /// subscriber cần broadcast: đọc phải được gate bằng `PeekNamedPipe`
 /// (xem `try_read_pipe_frame`).
-fn write_frame_to_subscribers(subscribers: Arc<Mutex<Vec<ClientSink>>>, frame: Vec<u8>) {
+fn write_frame_to_subscribers(
+    subscribers: Arc<Mutex<Vec<ClientSink>>>,
+    frame: Vec<u8>,
+    state_key: Option<String>,
+) {
     // Clone danh sách sink rồi NHẢ mutex TRƯỚC khi ghi: write vào pipe sync có
     // thể block vô hạn nếu một subscriber bị suspend/ngừng đọc — giữ lock qua
     // write sẽ kẹt toàn bộ broadcast + Subscribe (đường điều khiển trung tâm).
@@ -119,6 +229,8 @@ fn write_frame_to_subscribers(subscribers: Arc<Mutex<Vec<ClientSink>>>, frame: V
         .lock()
         .map(|subs| {
             subs.iter()
+                // R2-26: StateUpdate của app khác không tới client sandbox.
+                .filter(|c| state_key.as_deref().is_none_or(|k| c.visibility.sees(k)))
                 .map(|c| {
                     (
                         Arc::clone(&c.stream),
@@ -278,6 +390,8 @@ struct ClientSink {
     stream: Arc<Mutex<std::fs::File>>,
     write_busy: Arc<AtomicBool>,
     pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    /// R2-26: client sandbox chỉ nhận StateUpdate của khoá nó được thấy.
+    visibility: Visibility,
 }
 
 pub struct IpcServer {
@@ -288,9 +402,13 @@ pub struct IpcServer {
     crash_counter: AtomicU32,
     active_clients: AtomicU32,
     hook_pid: AtomicU32,
-    /// Mỗi tên một vòng accept riêng; subscriber + broadcast dùng chung.
+    /// R2-26: số lệnh client sandbox gửi bị từ chối (chẩn đoán + test).
+    sandbox_denied: AtomicU32,
+    /// R2-26: số kết nối pipe sandbox đang mở (trần `SANDBOX_MAX_CONNECTIONS`).
+    sandbox_active: AtomicU32,
+    /// Mỗi tên một vòng accept riêng; subscriber + broadcast dùng chung. `true` = pipe sandbox.
     #[cfg_attr(not(windows), allow(dead_code))]
-    pipe_names: Vec<String>,
+    pipes: Vec<(String, bool)>,
 }
 
 impl IpcServer {
@@ -302,11 +420,16 @@ impl IpcServer {
         // tới các app ấy cho tới khi chúng mở lại. Client mới luôn thử pipe phiên
         // trước (`textvn_ipc::candidate_pipe_names`); DACL chỉ cho đúng user nên
         // phiên khác không dùng được instance tên cũ của phiên này.
+        // R2-26: + pipe sandbox cho ô tìm kiếm Start / ứng dụng Store (AppContainer).
         #[cfg(windows)]
-        let pipes = [textvn_ipc::session_pipe_name(), String::from(PIPE_NAME)];
+        let pipes = [
+            (textvn_ipc::session_pipe_name(), false),
+            (String::from(PIPE_NAME), false),
+            (textvn_ipc::sandbox::sandbox_pipe_name(), true),
+        ];
         #[cfg(not(windows))]
-        let pipes = [String::from(PIPE_NAME)];
-        Self::with_pipe_names(svc, &pipes)
+        let pipes = [(String::from(PIPE_NAME), false)];
+        Self::with_pipes(svc, &pipes)
     }
 
     /// Test dùng tên pipe riêng: `PIPE_NAME` là namespace toàn máy, tray thật
@@ -314,10 +437,10 @@ impl IpcServer {
     /// trong test đảo V/E của người dùng).
     #[cfg(all(test, windows))]
     fn with_pipe_name(svc: Arc<SvcManager>, pipe_name: &str) -> Arc<Self> {
-        Self::with_pipe_names(svc, &[pipe_name.to_string()])
+        Self::with_pipes(svc, &[(pipe_name.to_string(), false)])
     }
 
-    fn with_pipe_names(svc: Arc<SvcManager>, pipe_names: &[String]) -> Arc<Self> {
+    pub(crate) fn with_pipes(svc: Arc<SvcManager>, pipes: &[(String, bool)]) -> Arc<Self> {
         Arc::new(Self {
             svc,
             start_time: Instant::now(),
@@ -326,8 +449,15 @@ impl IpcServer {
             crash_counter: AtomicU32::new(0),
             active_clients: AtomicU32::new(0),
             hook_pid: AtomicU32::new(0),
-            pipe_names: pipe_names.to_vec(),
+            sandbox_denied: AtomicU32::new(0),
+            sandbox_active: AtomicU32::new(0),
+            pipes: pipes.to_vec(),
         })
+    }
+
+    /// R2-26: số lệnh client sandbox gửi bị từ chối từ lúc tray chạy.
+    pub fn sandbox_denied(&self) -> u32 {
+        self.sandbox_denied.load(Ordering::Acquire)
     }
 
     pub fn uptime_ms(&self) -> u64 {
@@ -372,7 +502,7 @@ impl IpcServer {
             enabled,
             version,
         };
-        self.broadcast_message(&msg);
+        self.broadcast_scoped(&msg, Some(app_id.to_string()));
     }
 
     /// Broadcast thông báo tắt ứng dụng tới toàn bộ client (Hook, TSF).
@@ -388,7 +518,7 @@ impl IpcServer {
         };
         let subscribers = self.subscribers.clone();
         let worker = std::thread::spawn(move || {
-            write_frame_to_subscribers(subscribers, frame);
+            write_frame_to_subscribers(subscribers, frame, None);
         });
         let deadline = Instant::now() + Duration::from_millis(200);
         while !worker.is_finished() && Instant::now() < deadline {
@@ -398,6 +528,11 @@ impl IpcServer {
     }
 
     fn broadcast_message(&self, msg: &Message) {
+        self.broadcast_scoped(msg, None);
+    }
+
+    /// `state_key = Some(k)`: chỉ client thấy khoá `k` nhận (R2-26).
+    fn broadcast_scoped(&self, msg: &Message, state_key: Option<String>) {
         let Ok(frame) = encode_frame(msg) else { return };
         let subscribers = self.subscribers.clone();
 
@@ -405,7 +540,7 @@ impl IpcServer {
         // at any point.  Never perform one on the tray window thread: doing so
         // would turn a stale Hook/TSF client into a frozen Exit/Settings UI.
         std::thread::spawn(move || {
-            write_frame_to_subscribers(subscribers, frame);
+            write_frame_to_subscribers(subscribers, frame, state_key);
         });
     }
 
@@ -416,11 +551,12 @@ impl IpcServer {
             return;
         }
 
-        for pipe_name in &self.pipe_names {
+        for (pipe_name, sandbox) in &self.pipes {
             let this = self.clone();
             let pipe_name = pipe_name.clone();
+            let sandbox = *sandbox;
             std::thread::spawn(move || {
-                this.server_accept_loop(&pipe_name);
+                this.server_accept_loop(&pipe_name, sandbox);
             });
         }
 
@@ -432,7 +568,7 @@ impl IpcServer {
     }
 
     #[cfg(windows)]
-    fn server_accept_loop(self: Arc<Self>, pipe_name: &str) {
+    fn server_accept_loop(self: Arc<Self>, pipe_name: &str, sandbox: bool) {
         let pipe_name_wide: Vec<u16> = pipe_name.encode_utf16().chain(Some(0)).collect();
 
         while self.running.load(Ordering::Acquire) {
@@ -442,7 +578,7 @@ impl IpcServer {
             // hiện tại (+SYSTEM/Administrators như quy ước Windows).
             // SAFETY: descriptor được kernel sao chép khi tạo pipe; LocalFree
             // ngay sau lời gọi (không giữ con trỏ).
-            let security = current_user_pipe_security();
+            let security = pipe_security(sandbox);
             // SAFETY: Tạo named pipe instance
             let handle = unsafe {
                 CreateNamedPipeW(
@@ -491,13 +627,26 @@ impl IpcServer {
                 };
                 let stream = Arc::new(Mutex::new(writer));
 
+                // R2-26: trần kết nối sandbox — quá trần thì đóng ngay (không thread mới).
+                if sandbox
+                    && self.sandbox_active.fetch_add(1, Ordering::AcqRel) >= SANDBOX_MAX_CONNECTIONS
+                {
+                    self.sandbox_active.fetch_sub(1, Ordering::AcqRel);
+                    self.sandbox_denied.fetch_add(1, Ordering::AcqRel);
+                    drop(stream);
+                    drop(reader);
+                    continue;
+                }
                 self.active_clients.fetch_add(1, Ordering::SeqCst);
                 let this = self.clone();
                 let stream_clone = stream.clone();
 
                 std::thread::spawn(move || {
-                    this.handle_client_connection(reader, stream_clone, peer_pid);
+                    this.handle_client_connection(reader, stream_clone, peer_pid, sandbox);
                     this.active_clients.fetch_sub(1, Ordering::SeqCst);
+                    if sandbox {
+                        this.sandbox_active.fetch_sub(1, Ordering::AcqRel);
+                    }
                 });
             } else {
                 let _ = unsafe { CloseHandle(handle) };
@@ -511,8 +660,18 @@ impl IpcServer {
         reader: std::fs::File,
         stream: Arc<Mutex<std::fs::File>>,
         peer_pid: u32,
+        sandbox: bool,
     ) {
         let mut subscribed = false;
+        // R2-26: client pipe sandbox chỉ thấy `*`, `assist` và app của chính nó.
+        let visibility = if sandbox {
+            Visibility::Sandbox {
+                own_app: client_app_id(peer_pid),
+            }
+        } else {
+            Visibility::All
+        };
+        let mut budget = FrameBudget::new(Instant::now());
         // Mỗi process có TIP giữ MỘT kết nối suốt đời; poll cố định 10 ms nhân với
         // vài chục app là hàng nghìn lần đánh thức CPU mỗi giây khi không ai gõ.
         // Client gần như chỉ gửi lúc kết nối/toggle → giãn dần tới 100 ms khi rảnh.
@@ -527,7 +686,7 @@ impl IpcServer {
 
             // Đọc poll-gated: không bao giờ block vô hạn với read-pending trên
             // pipe (read-pending serialize chặn broadcast write → hook mồ côi).
-            let msg = match try_read_pipe_frame(&reader, &self.running) {
+            let mut msg = match try_read_pipe_frame(&reader, &self.running) {
                 PipeFrame::Empty => {
                     std::thread::sleep(poll);
                     poll = (poll * 2).min(POLL_MAX);
@@ -539,6 +698,47 @@ impl IpcServer {
                     m
                 }
             };
+
+            // R2-26: pipe sandbox — bất kỳ ứng dụng Store nào của người dùng cũng nối được, nên
+            // chỉ phục vụ tập lệnh tối thiểu (`sandbox_policy`). Lệnh bị từ chối vẫn nhận Ack
+            // (client không treo chờ) và không làm gì.
+            if sandbox {
+                if !budget.take(Instant::now()) {
+                    // Spam: đóng kết nối (client thật nối lại sau 500 ms–10 s).
+                    self.sandbox_denied.fetch_add(1, Ordering::AcqRel);
+                    break;
+                }
+                let deny = match sandbox_policy(&msg) {
+                    SandboxPolicy::Allow => false,
+                    SandboxPolicy::RsiOnly => match &msg {
+                        Message::StyleUpdate { json } => {
+                            match textvn_config::sandbox::style_drain_rsi_only(json) {
+                                Some(rsi_only) => {
+                                    msg = Message::StyleUpdate { json: rsi_only };
+                                    false
+                                }
+                                None => true,
+                            }
+                        }
+                        _ => true,
+                    },
+                    SandboxPolicy::Deny => true,
+                };
+                if deny {
+                    self.sandbox_denied.fetch_add(1, Ordering::AcqRel);
+                    let ok = stream
+                        .lock()
+                        .ok()
+                        .zip(encode_frame(&Message::Ack).ok())
+                        .is_some_and(|(mut file, frame)| {
+                            file.write_all(&frame).is_ok() && file.flush().is_ok()
+                        });
+                    if !ok {
+                        break;
+                    }
+                    continue;
+                }
+            }
 
             // PID trong wire protocol chỉ để chẩn đoán. Không bao giờ tin giá trị
             // do client tự khai báo: lấy PID từ named-pipe kernel handle để tránh
@@ -553,9 +753,9 @@ impl IpcServer {
             let response = match msg {
                 Message::Hello { pid, .. } => {
                     debug_assert_eq!(pid, peer_pid);
-                    Some(self.build_snapshot())
+                    Some(self.build_snapshot_for(&visibility))
                 }
-                Message::GetSnapshot => Some(self.build_snapshot()),
+                Message::GetSnapshot => Some(self.build_snapshot_for(&visibility)),
                 Message::Subscribe { pid } => {
                     subscribed = true;
                     debug_assert_eq!(pid, peer_pid);
@@ -567,6 +767,7 @@ impl IpcServer {
                             stream: stream.clone(),
                             write_busy: Arc::new(AtomicBool::new(false)),
                             pending: Arc::new(Mutex::new(VecDeque::new())),
+                            visibility: visibility.clone(),
                         });
                     }
                     Some(Message::Ack)
@@ -595,7 +796,7 @@ impl IpcServer {
                     // (bấm đôi trong 250ms, tray restart…) thì response này
                     // kéo TIP về đúng state thật ngay (báo cáo 0.2.9 "icon E
                     // mà vẫn gõ tiếng Việt").
-                    Some(self.build_snapshot())
+                    Some(self.build_snapshot_for(&visibility))
                 }
                 Message::ToggleGlobal => {
                     if crate::try_claim_global_toggle() {
@@ -605,12 +806,12 @@ impl IpcServer {
                     }
                     // Trùng lần bấm — nguồn khác đã toggle trong 250ms: trả
                     // state chuẩn (snapshot) để TIP tự kéo về đúng.
-                    Some(self.build_snapshot())
+                    Some(self.build_snapshot_for(&visibility))
                 }
                 Message::ToggleAssist { enabled } => {
                     let (actual, ver) = self.svc.set_assist_enabled(enabled);
                     self.broadcast_state_update("assist", actual, ver);
-                    Some(self.build_snapshot())
+                    Some(self.build_snapshot_for(&visibility))
                 }
                 Message::AssistNotification { title, message } => {
                     // Kill-switch chặn cả kênh thông báo assist cũ (D20).
@@ -703,10 +904,17 @@ impl IpcServer {
         }
     }
 
+    #[cfg(test)]
     fn build_snapshot(&self) -> Message {
+        self.build_snapshot_for(&Visibility::All)
+    }
+
+    /// Snapshot theo quyền thấy của client (R2-26: client sandbox không thấy override app khác).
+    fn build_snapshot_for(&self, visibility: &Visibility) -> Message {
         // `"*"` = công tắc toàn cục (cùng khóa với StateUpdate). Thiếu khóa này,
         // client kết nối sau khi người dùng tắt tiếng Việt vẫn gõ tiếng Việt.
         let mut state = self.svc.app_states();
+        state.retain(|app, _| visibility.sees(app));
         state.insert("*".into(), self.svc.is_global_enabled());
         state.insert("assist".into(), self.svc.is_assist_enabled());
         Message::Snapshot {
@@ -762,6 +970,97 @@ fn read_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R2-26: pipe sandbox chỉ cho đọc trạng thái + Ctrl+Shift toàn cục; tự học chỉ còn bộ đếm.
+    #[test]
+    fn sandbox_policy_allows_only_minimal_commands() {
+        use SandboxPolicy::*;
+        let allow = [
+            Message::Hello {
+                pid: 1,
+                abi: 1,
+                version: "x".into(),
+            },
+            Message::Subscribe { pid: 1 },
+            Message::GetSnapshot,
+            Message::Ping,
+            Message::Pong { uptime_ms: 0 },
+            Message::ToggleGlobal,
+            Message::ToggleViEn {
+                app_id: "*".into(),
+                enabled: false,
+            },
+        ];
+        for m in &allow {
+            assert_eq!(sandbox_policy(m), Allow, "{m:?}");
+        }
+        assert_eq!(
+            sandbox_policy(&Message::StyleUpdate { json: "{}".into() }),
+            RsiOnly
+        );
+        let deny = [
+            Message::Shutdown,
+            Message::ToggleViEn {
+                app_id: "chrome.exe".into(),
+                enabled: false,
+            },
+            Message::ToggleAssist { enabled: false },
+            Message::ToggleMath,
+            Message::CycleMathMode,
+            Message::OpenEmojiPicker,
+            Message::AssistNotification {
+                title: "t".into(),
+                message: "m".into(),
+            },
+            Message::ConfigReload { version: 1 },
+            Message::Ack,
+        ];
+        for m in &deny {
+            assert_eq!(sandbox_policy(m), Deny, "{m:?}");
+        }
+    }
+
+    /// R2-26: hạn mức frame mỗi giây của kết nối sandbox — reset theo cửa sổ.
+    #[test]
+    fn sandbox_frame_budget_resets_every_second() {
+        let t0 = Instant::now();
+        let mut b = FrameBudget::new(t0);
+        for _ in 0..SANDBOX_MAX_FRAMES_PER_SEC {
+            assert!(b.take(t0));
+        }
+        assert!(
+            !b.take(t0 + Duration::from_millis(500)),
+            "vượt hạn mức trong 1 s"
+        );
+        assert!(b.take(t0 + Duration::from_millis(1000)), "cửa sổ mới");
+    }
+
+    /// R2-26: client sandbox chỉ thấy `*`, `assist` và app của chính nó (không phân biệt hoa).
+    #[test]
+    fn sandbox_visibility_hides_other_apps() {
+        let v = Visibility::Sandbox {
+            own_app: Some("searchhost.exe".into()),
+        };
+        assert!(v.sees("*") && v.sees("assist") && v.sees("SearchHost.exe"));
+        assert!(!v.sees("chrome.exe") && !v.sees("zalo.exe"));
+        let none = Visibility::Sandbox { own_app: None };
+        assert!(none.sees("*") && !none.sees("searchhost.exe"));
+        assert!(Visibility::All.sees("chrome.exe"));
+
+        let temp_dir =
+            std::env::temp_dir().join(format!("textvn_ipc_vis_test_{}", std::process::id()));
+        let svc = SvcManager::new(Some(temp_dir.clone()));
+        svc.set_app_enabled("chrome.exe", false);
+        svc.set_app_enabled("searchhost.exe", false);
+        let server = IpcServer::new(svc);
+        let Message::Snapshot { state, .. } = server.build_snapshot_for(&v) else {
+            panic!("snapshot");
+        };
+        assert_eq!(state.get("searchhost.exe"), Some(&false));
+        assert!(!state.contains_key("chrome.exe"));
+        assert!(state.contains_key("*") && state.contains_key("assist"));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 
     #[test]
     fn server_builds_valid_snapshot() {
@@ -934,7 +1233,8 @@ mod tests {
         let temp_dir =
             std::env::temp_dir().join(format!("textvn_multi_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
-        let server = IpcServer::with_pipe_names(svc, &names);
+        let pipes: Vec<(String, bool)> = names.iter().map(|n| (n.clone(), false)).collect();
+        let server = IpcServer::with_pipes(svc, &pipes);
         server.start();
         std::thread::sleep(Duration::from_millis(100));
 

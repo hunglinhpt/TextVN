@@ -153,14 +153,15 @@ lại nằm ở ứng dụng hoặc compositor (đối chiếu đầy đủ: `do
 | Portable trong `D:\Tools\TextVN`, USB, thư mục có dấu tiếng Việt | Chạy được, không cần quyền quản trị. Cấu hình lưu ở `%APPDATA%\TextVN`, log ở `%LOCALAPPDATA%\TextVN\logs` (xem lưu ý dưới) |
 | Ứng dụng chạy quyền Administrator | TSF nạp TextVN vào cả ứng dụng nâng quyền của cùng tài khoản. Riêng cửa sổ Cài đặt: nếu một bản TextVN đang chạy quyền quản trị, UIPI chặn bản thường mở nó — TextVN báo rõ; thoát bản nâng quyền |
 | SmartScreen / phần mềm diệt virus cảnh báo | Chưa có chữ ký Authenticode (chờ SignPath); xem [antivirus-false-positive.md](specs/antivirus-false-positive.md) |
-| Ô tìm kiếm Start, Calculator, ứng dụng Store (sandbox AppContainer) gõ Telex mặc định, không theo VNI/cấu hình riêng và không theo nút V/E | **Giới hạn đã biết (R2-26)**: các tiến trình này nạp được DLL TextVN nhưng không đọc được cấu hình/trạng thái của bạn và không nối được tới khay. Gõ tiếng Việt vẫn chạy (Telex). Muốn gõ tiếng Anh ở đó: chuyển bàn phím bằng Win+Space |
+| Ô tìm kiếm Start, Calculator, ứng dụng Store (sandbox AppContainer) gõ Telex mặc định, không theo VNI/cấu hình riêng và không theo nút V/E | **Đã sửa ở 0.2.93 (R2-26)**: khay ghi bản sao cấu hình cho sandbox vào `%APPDATA%\TextVN\sandbox\` và mở thêm pipe riêng cho sandbox — kiểu gõ, kiểu bỏ dấu, nút V/E và Ctrl+Shift chạy như mọi ứng dụng. Vẫn Telex mặc định: cập nhật **cả gói** (khay cũ không ghi bản sao) rồi thoát và mở lại TextVN ở khay; chạy `textvn-cli doctor` — dòng `Sandbox` phải là `ok` (cảnh báo `W_SANDBOX_MIRROR` nếu thiếu/thiếu quyền/lệch). Theo thiết kế quyền riêng tư, trong các ô sandbox **không** bung gõ tắt, emoji riêng, từ tiếng Anh tự thêm và không dùng từ đã học (mọi ứng dụng Store đọc được bản sao). `%APPDATA%` chuyển hướng ra ổ mạng (Folder Redirection) thì sandbox không đọc được — vẫn Telex mặc định |
 
 **Vì sao bản portable vẫn lưu cấu hình ở `%APPDATA%`?** Bộ gõ TSF là DLL nạp vào **tiến
 trình của mọi ứng dụng**, kể cả ứng dụng sandbox AppContainer (Edge, ứng dụng Store, ô tìm
 kiếm). Thư mục tuỳ ý như `D:\Tools\TextVN` hay USB thì cả ứng dụng thường lẫn sandbox đều có thể
 không đọc được ổn định; `%APPDATA%` thuộc người dùng hiện tại, mọi ứng dụng desktop đọc được, luôn
-ghi được, không cần quyền quản trị và không đụng `HKLM`. Riêng tiến trình AppContainer vẫn không
-đọc được `%APPDATA%` (giới hạn R2-26 ở bảng trên). Gỡ bản
+ghi được, không cần quyền quản trị và không đụng `HKLM`. Riêng tiến trình AppContainer không
+đọc được `%APPDATA%`: từ 0.2.93 khay ghi bản sao đã lọc vào `%APPDATA%\TextVN\sandbox\` (R2-26 ở bảng
+trên). Gỡ bản
 portable: chuột phải biểu tượng khay → **Gỡ cài đặt** (gỡ đăng ký TSF `HKCU`) rồi xoá thư mục;
 `%APPDATA%\TextVN` được giữ lại để dùng tiếp — xoá tay nếu muốn.
 
@@ -329,15 +330,15 @@ The remaining limitations live in applications or compositors (full comparison:
 | Portable in `D:\Tools\TextVN`, on a USB stick, or in a folder with Vietnamese characters | Works without administrator rights. Configuration is stored in `%APPDATA%\TextVN`, logs in `%LOCALAPPDATA%\TextVN\logs` (see the note below) |
 | Applications running as Administrator | TSF loads TextVN into elevated applications of the same account too. Only the Settings window: if an elevated TextVN instance is running, UIPI blocks a normal instance from opening it — TextVN reports this clearly; exit the elevated instance |
 | SmartScreen / antivirus warning | No Authenticode signature yet (awaiting SignPath); see [antivirus-false-positive.md](specs/antivirus-false-positive.md) |
-| The Start search box, Calculator and Store apps (AppContainer sandbox) type default Telex, ignoring VNI/your settings and the V/E toggle | **Known limitation (R2-26)**: these processes can load the TextVN DLL but cannot read your configuration/state or reach the tray. Vietnamese typing still works (Telex). To type English there, switch keyboards with Win+Space |
+| The Start search box, Calculator and Store apps (AppContainer sandbox) type default Telex, ignoring VNI/your settings and the V/E toggle | **Fixed in 0.2.93 (R2-26)**: the tray writes a sandbox copy of the configuration to `%APPDATA%\TextVN\sandbox\` and opens an extra pipe for sandboxed apps — input method, tone placement, the V/E toggle and Ctrl+Shift work like in every other app. Still default Telex: update **the whole package** (an old tray writes no copy), then quit and reopen TextVN from the tray; run `textvn-cli doctor` — the `Sandbox` line must read `ok` (warning `W_SANDBOX_MIRROR` if missing/no access/out of date). By privacy design, sandboxed boxes do **not** expand macros, personal emoji or your added English words and do not use learned words (every Store app can read the copy). If `%APPDATA%` is redirected to a network share (Folder Redirection), sandboxed apps cannot read it — still default Telex |
 
 **Why does the portable build still store configuration in `%APPDATA%`?** A TSF input method
 is a DLL loaded into **every application's process**, including AppContainer-sandboxed ones
 (Edge, Store apps, the search box). Arbitrary folders such as `D:\Tools\TextVN` or a USB stick may
 not be reliably readable from either regular or sandboxed apps; `%APPDATA%` belongs to the current
 user, is readable by every desktop application, is always writable, needs no administrator rights
-and never touches `HKLM`. AppContainer processes still cannot read `%APPDATA%` (limitation R2-26 in
-the table above). Removing the portable build:
+and never touches `HKLM`. AppContainer processes cannot read `%APPDATA%`: since 0.2.93 the tray
+writes a filtered copy to `%APPDATA%\TextVN\sandbox\` (R2-26 in the table above). Removing the portable build:
 right-click the tray icon → **Gỡ cài đặt** (*uninstall* — removes the `HKCU` TSF registration),
 then delete the folder; `%APPDATA%\TextVN` is kept for reuse — delete it manually if wanted.
 

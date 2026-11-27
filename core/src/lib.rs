@@ -517,6 +517,9 @@ pub struct Engine {
     /// P11 — profile app hiện tại (set_context điền; resolve AutoByApp + guard).
     math_profile: textvn_math::AppProfile,
     last_predict: Option<PredictCycle>,
+    /// R2-173: bản sao thử "Tab nối tiếp" — Tab chỉ được ra cụm nối tiếp khoá ≥ 2 từ
+    /// (`try_chain_after_accept`); luôn `false` trên engine thật.
+    chain_strict: bool,
     /// P7 (vòng 54): dữ liệu học CÁ NHÂN pending (chỉ khi USP bật) —
     /// từ gõ xong + cặp user chấp nhận. Drain qua FFI rồi XÓA (G8: chỉ từ +
     /// count tối thiểu, không giờ/app/câu; Debug không in nội dung).
@@ -688,6 +691,21 @@ struct PredictCycle {
     peak_glyphs: usize,
 }
 
+/// Phần chữ `Replace { delete_count, insert }` NỐI THÊM sau con trỏ: phần bị "xoá" phải
+/// đúng là chữ đang nằm trước con trỏ (`recent`) ⇒ hành động chỉ thêm chữ, không sửa
+/// chữ người dùng. `None` khi không phải nối thêm thuần hoặc phần thêm chỉ là khoảng trắng.
+fn appended_part(recent: &[char], delete_count: u16, insert: &[char]) -> Option<String> {
+    let n = usize::from(delete_count);
+    if insert.len() <= n || n > recent.len() {
+        return None;
+    }
+    if insert[..n] != recent[recent.len() - n..] {
+        return None;
+    }
+    let ghost: String = insert[n..].iter().collect();
+    (!ghost.trim().is_empty()).then_some(ghost)
+}
+
 /// Gõ `chunk` + một dấu cách qua engine mới, mô phỏng document (Replace/Restore
 /// xoá rồi chèn, Commit chèn, Pass chèn chính ký tự) rồi bỏ dấu cách cuối.
 fn retype_chunk(opts: &EngineOptions, chunk: &[char]) -> Vec<char> {
@@ -769,6 +787,7 @@ impl Engine {
             sentence: Vec::new(),
             sentence_widths: Vec::new(),
             last_predict: None,
+            chain_strict: false,
             ctrl_tap_armed: false,
             emoji_mru: post::emoji_catalog::EmojiMru::default(),
             math: MathEngine::new(math_config),
@@ -1473,16 +1492,49 @@ impl Engine {
         else {
             return None;
         };
-        let n = usize::from(delete_count);
-        if insert.len() <= n || n > self.recent.len() {
+        appended_part(&self.recent, delete_count, &insert)
+    }
+
+    /// R2-173 — **gợi ý nối tiếp gợi ý** (chủ repo: "dùng text prediction xong thì gợi ý
+    /// sau đó cũng bị tắt"). Ngay sau khi nhận một gợi ý bằng Tab, engine ở vòng duyệt
+    /// ứng viên nên Tab kế tiếp từng luôn ĐỔI ứng viên — chữ mờ (`peek_completion` = "Tab
+    /// sẽ làm gì") vì thế tắt hẳn. Giờ: nếu sau chữ vừa nhận còn CỤM NỐI TIẾP thì chữ mờ
+    /// hiện cụm đó và Tab nhận nó (chuỗi gợi ý như Copilot); không còn cụm nối tiếp thì
+    /// Tab vẫn duyệt vòng như cũ, Ctrl+Space luôn duyệt vòng. Luật duy nhất: **Tab chèn
+    /// đúng chữ mờ đang thấy**.
+    ///
+    /// Thử trên bản sao (chốt ứng viên đang hiện rồi xử lý Tab như phím thường) và chỉ
+    /// nhận khi kết quả là NỐI THÊM thuần sau con trỏ — không bao giờ xoá chữ người dùng.
+    /// Dream RSI: ứng viên cũ chốt `accepted`, cụm mới tự cộng `accepts`/`chars_saved`
+    /// trong `try_predict_next_phrase` (Backspace ngay sau vẫn gỡ đúng phần cụm mới — G19).
+    fn try_chain_after_accept(&mut self, k: &KeyEvent) -> Option<Outcome> {
+        if self.last_predict.is_none()
+            || !k.key_down
+            || k.is_injected
+            || k.vk != keymap::vk::TAB
+            || k.mods & !keymap::MOD_CAPS != 0
+        {
             return None;
         }
-        // Phần bị "xoá" phải đúng là chữ đang nằm trước con trỏ ⇒ Tab chỉ nối thêm.
-        if insert[..n] != self.recent[self.recent.len() - n..] {
+        // Chỉ cụm nối tiếp khoá ≥ 2 từ ("phát triển" → "phần mềm", "khách hàng" → "tiềm
+        // năng"): khoá 1 từ quá yếu để tự nối (đo thật: "customer"+Tab đã khôi phục từ, Tab
+        // kế từng ra "customer service" bằng duyệt vòng — khoá 1 từ lại ra một câu dài lạc
+        // đề). Không khớp → Tab duyệt vòng như cũ.
+        let mut chained = self.clone();
+        chained.settle_predict(true);
+        chained.chain_strict = true;
+        let out = chained.key(k);
+        chained.chain_strict = false;
+        let Action::Replace {
+            delete_count,
+            ref insert,
+        } = out.action
+        else {
             return None;
-        }
-        let ghost: String = insert[n..].iter().collect();
-        (!ghost.trim().is_empty()).then_some(ghost)
+        };
+        appended_part(&self.recent, delete_count, insert)?;
+        *self = chained;
+        Some(out)
     }
 
     /// `ime_reset_with_tail` (R2-131) — reset rồi ghi nhận `unicode_tail` là đuôi
@@ -1842,6 +1894,9 @@ impl Engine {
 /// Xử lý 1 phím — luôn trả Outcome (fail-open do FFI đảm nhiệm, engine không panic).
 impl Engine {
     pub fn key(&mut self, k: &KeyEvent) -> Outcome {
+        if let Some(out) = self.try_chain_after_accept(k) {
+            return out;
+        }
         // Key-up: xử lý nhả riêng phím Ctrl (Ctrl tap word-lock: `tunx`, Ctrl -> `tũn`,
         // khoá từ tiếng Việt hợp lệ hiện tại và tách từ mới; nếu từ đang active là âm tiết
         // KHÔNG hợp lệ trong tiếng Việt như `sort` -> `sỏt`, khôi phục ngay về `sort`).
@@ -1985,6 +2040,9 @@ impl Engine {
                             return out;
                         }
                     }
+                    if self.chain_strict {
+                        return Outcome::pass();
+                    }
                     if let Some(out) = self.try_english_complete(k, vi_on, append) {
                         return out;
                     }
@@ -2062,6 +2120,9 @@ impl Engine {
                         if let Some(out) = self.try_predict_next_phrase(k, vi_on, 2) {
                             return out;
                         }
+                    }
+                    if self.chain_strict {
+                        return Outcome::pass();
                     }
                     if let Some(out) = self.try_vn_complete(k, vi_on, append) {
                         return out;

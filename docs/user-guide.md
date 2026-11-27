@@ -351,9 +351,9 @@ bạn đang dùng bản cũ, cập nhật lên bản mới rồi bật trong b�
 
 | Bạn gõ | Nhấn | Kết quả |
 |---|---|---|
-| `phát` | Tab | `phát triển` — Tab tiếp: `phát sinh` → `phát biểu` … (duyệt vòng) |
+| `phát` | Tab | `phát triển` + chữ mờ ` phần mềm` — Tab tiếp nhận luôn cụm đó (`phát triển phần mềm`, chuỗi gợi ý — 0.2.93); muốn ứng viên khác (`phát sinh` → `phát biểu` …): Ctrl+Space |
 | `phát triển` (có hoặc chưa có dấu cách) | Tab | `phát triển phần mềm` — ngữ cảnh nhiều từ được ưu tiên hơn hoàn tất âm tiết cuối |
-| `Kính gửi` | Tab | `Kính gửi quý khách hàng` — Tab tiếp: `ban giám đốc` → `quý công ty` … |
+| `Kính gửi` | Tab | `Kính gửi quý khách hàng` — Tab tiếp: `… tiềm năng` (nối tiếp); Ctrl+Space: `ban giám đốc` → `quý công ty` … |
 | `Cộng hòa` · `CỘNG HÒA` | Tab | `Cộng hòa xã hội chủ nghĩa Việt Nam` · `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM` |
 | `Độc lập` | Tab | `Độc lập - Tự do - Hạnh phúc` |
 | `Thank you` · `looking forward to` | Tab | `Thank you very much` · `looking forward to hearing from you` |

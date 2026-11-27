@@ -14,6 +14,7 @@
 | [release/release-process.md](release/release-process.md) | **Quy trình phát hành bắt buộc (G16)** — checklist local → repo/docs cho mọi agent & contributor |
 | [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
 | [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
+| [specs/sandbox-appcontainer.md](specs/sandbox-appcontainer.md) | R2-26: TextVN trong ô tìm kiếm Start / ứng dụng Store (AppContainer, LPAC) — số đo, bản sao cấu hình, pipe sandbox, mô hình đe doạ |
 
 ## 1. Trạng thái các phần
 
@@ -68,7 +69,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 | Tên kho | `textvn` (monorepo, Git) |
 | Crate Rust | `textvn-core`, `textvn-ffi`, `textvn-strategy`, `textvn-config`, `textvn-appdb`, `textvn-ipc`, `textvn-field-detect`, `textvn-win-tsf`, `textvn-win-hook`, `textvn-tray`, `textvn-updater`, `textvn-cli` (+ tool: `textvn-appcomptest`, `textvn-bench`) |
 | Binary Windows | `textvn-tsf.dll`, `textvn-tray.exe`, `textvn-hook.exe`, `textvn.exe` (CLI), `textvn-setup.exe` |
-| Pipe IPC | `\\.\pipe\textvn-ipc-v1` |
+| Pipe IPC | `\\.\pipe\textvn-ipc-v1-s<phiên>` (+ tên cũ `\\.\pipe\textvn-ipc-v1`); sandbox AppContainer/LPAC: `\\.\pipe\textvn-ipc-v1-s<phiên>-sandbox` (tập lệnh hạn chế — R2-26) |
 | Config người dùng | `%APPDATA%\TextVN\config.json` |
 | Preset người dùng | `%APPDATA%\TextVN\appdb.json`; mặc định cài: `<install>\data\appdb.default.json` |
 | Log | `%LOCALAPPDATA%\TextVN\logs\` — **không bao giờ ghi nội dung phím** |

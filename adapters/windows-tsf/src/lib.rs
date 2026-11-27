@@ -455,6 +455,18 @@ impl ThreadState {
 
     /// Nạp lại cấu hình từ file %APPDATA%\TextVN\config.json khi nhận thông báo IPC.
     pub fn reload_config_from_file(&mut self) -> Result<(), i32> {
+        // R2-26: tiến trình AppContainer/LPAC (ô tìm kiếm Start, Calculator, ứng dụng Store) bị
+        // từ chối `config.json` thật (đo thật: lỗi 5) — đọc bản sao tray ghi cho sandbox (không
+        // chứa gõ tắt/emoji/từ đã học). Chỉ trong AppContainer THẬT (audit 0.2.93): ứng dụng
+        // thường đọc tệp thật lỗi thoáng qua thì giữ cấu hình đang có như trước, không rơi về
+        // bản sao thiếu gõ tắt. Thiếu bản sao (tray cũ) → giữ cấu hình đang có.
+        #[cfg(windows)]
+        if textvn_ipc::sandbox::current_process_is_app_container() {
+            return match textvn_ipc::sandbox::read_sandbox_file("config.json") {
+                Some(bytes) => self.reload_config_bytes(&bytes),
+                None => Err(-1),
+            };
+        }
         if let Some(path) = config_file_path() {
             if let Ok(bytes) = std::fs::read(path) {
                 return self.reload_config_bytes(&bytes);

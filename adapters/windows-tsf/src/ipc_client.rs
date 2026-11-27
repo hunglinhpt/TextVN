@@ -5,6 +5,11 @@
 //! dự phòng — `textvn_ipc::candidate_pipe_names`); tray chưa chạy → dùng trạng thái đọc từ
 //! `%APPDATA%\TextVN\state.json` và thử lại định kỳ (offline-tolerant).
 //!
+//! R2-26: tiến trình sandbox (AppContainer/LPAC — ô tìm kiếm Start, ứng dụng Store) bị từ chối
+//! cả `state.json` lẫn pipe khay ⇒ đọc bản sao `%APPDATA%\TextVN\sandbox\state.json` và nối
+//! pipe sandbox (`textvn_ipc::sandbox`). Trên kết nối sandbox, client KHÔNG gửi nội dung người
+//! dùng: drain tự học chỉ còn bộ đếm Dream RSI, không toast/lệnh (tray cũng từ chối).
+//!
 //! Bất biến quan trọng:
 //! - Thread nền **không bao giờ bị join** từ thread UI của app. Bản trước join
 //!   trong `Deactivate` trong khi thread đang chặn ở `read_exact` → app treo khi
@@ -19,8 +24,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
+use textvn_ipc::sandbox::{open_tray_pipe, PipeOpen};
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
-use windows::Win32::Foundation::ERROR_PIPE_BUSY;
 use windows::Win32::System::Pipes::WaitNamedPipeW;
 
 /// Vòng 16 (audit A7): pipe phiên (server cùng phiên) trước, legacy sau.
@@ -28,61 +33,13 @@ pub fn pipe_name_candidates() -> [String; 2] {
     textvn_ipc::candidate_pipe_names()
 }
 
-/// Audit A7b: xác thực server đầu ống là TextVN.exe — chống pipe squatting
-/// (process khác tạo pipe giả phục vụ Snapshot giả).
-/// R2-110: thêm điều kiện CÙNG PHIÊN — namespace pipe là toàn máy nên tiến trình ở
-/// phiên khác (user khác, fast user switching/RDP) tạo trước được pipe mang tên
-/// phiên của ta; và so ĐÚNG tên file `TextVN.exe` (trước chỉ `ends_with`, khớp cả
-/// `notTextVN.exe`).
-fn server_is_textvn(stream: &std::fs::File) -> bool {
-    use std::os::windows::io::AsRawHandle;
-    let pipe_handle = stream.as_raw_handle();
-    use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::Pipes::{GetNamedPipeServerProcessId, GetNamedPipeServerSessionId};
-    use windows::Win32::System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
-        PROCESS_QUERY_LIMITED_INFORMATION,
-    };
-    let mut server_pid = 0u32;
-    let mut server_session = 0u32;
-    // SAFETY: handle hợp lệ từ CreateFile; các handle con đóng ngay.
-    unsafe {
-        let handle = windows::Win32::Foundation::HANDLE(pipe_handle as *mut _);
-        if GetNamedPipeServerProcessId(handle, &mut server_pid).is_err() {
-            return false;
-        }
-        if GetNamedPipeServerSessionId(handle, &mut server_session).is_err()
-            || server_session != textvn_ipc::current_session_id()
-        {
-            return false;
-        }
-        let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, server_pid) else {
-            return false;
-        };
-        let mut buf = [0u16; 1024];
-        let mut len = buf.len() as u32;
-        let ok = QueryFullProcessImageNameW(
-            process,
-            PROCESS_NAME_FORMAT(0),
-            windows::core::PWSTR(buf.as_mut_ptr()),
-            &mut len,
-        )
-        .is_ok();
-        let _ = CloseHandle(process);
-        if !ok {
-            return false;
-        }
-        let image = String::from_utf16_lossy(&buf[..len as usize]);
-        image_is_textvn_exe(&image)
+/// Nối tray (pipe phiên → tên cũ → pipe sandbox khi bị từ chối quyền), đã xác thực server.
+/// Trả `(pipe, sandboxed)`; `None` = tray không chạy / bận / server giả.
+fn connect_tray() -> Option<(std::fs::File, bool)> {
+    match open_tray_pipe() {
+        PipeOpen::Connected { file, sandboxed } => Some((file, sandboxed)),
+        PipeOpen::Busy(_) | PipeOpen::Unavailable => None,
     }
-}
-
-/// Đúng tên file `TextVN.exe` (không phân biệt hoa thường), không chỉ phần đuôi.
-fn image_is_textvn_exe(image: &str) -> bool {
-    image
-        .rsplit(['\\', '/'])
-        .next()
-        .is_some_and(|name| name.eq_ignore_ascii_case("TextVN.exe"))
 }
 
 /// Khóa trong map trạng thái đại diện cho công tắc toàn cục (khớp tray).
@@ -247,34 +204,22 @@ impl IpcClient {
                 //
                 // Vòng 16 (audit A7): thử pipe phiên → legacy; xác thực server là
                 // TextVN.exe (chống squatting).
+                // R2-26: `open_tray_pipe` gồm cả pipe sandbox — Ctrl+Shift trong ô tìm kiếm
+                // Start/ứng dụng Store giờ cũng tới tray và mọi app khác.
                 for _ in 0..3 {
-                    let mut opened = None;
-                    let mut busy = false;
-                    for name in pipe_name_candidates() {
-                        match textvn_ipc::pipe_client_options().open(&name) {
-                            Ok(stream) if server_is_textvn(&stream) => {
-                                opened = Some(stream);
-                                break;
+                    let mut stream = match open_tray_pipe() {
+                        PipeOpen::Connected { file, .. } => file,
+                        PipeOpen::Busy(name) => {
+                            // BUSY → chờ instance rảnh (200 ms) rồi thử lại.
+                            let name_w: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+                            // SAFETY: chuỗi UTF-16 kết thúc NUL sống tới hết lời gọi.
+                            unsafe {
+                                let _ = WaitNamedPipeW(windows::core::PCWSTR(name_w.as_ptr()), 200);
                             }
-                            Ok(stream) => drop(stream),
-                            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
-                                busy = true;
-                                let name_w: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
-                                unsafe {
-                                    let _ =
-                                        WaitNamedPipeW(windows::core::PCWSTR(name_w.as_ptr()), 200);
-                                }
-                            }
-                            Err(_) => continue,
-                        }
-                    }
-                    let Some(mut stream) = opened else {
-                        // BUSY → vòng 0..3 thử lại (WaitNamedPipe đã chờ 200ms);
-                        // lỗi khác → bỏ (toggle hiếm, không chặn phím).
-                        if busy {
                             continue;
                         }
-                        return;
+                        // Tray không chạy → bỏ (toggle hiếm, không chặn phím).
+                        PipeOpen::Unavailable => return,
                     };
                     let _ = send_message(
                         &mut stream,
@@ -320,19 +265,10 @@ pub fn notify_assist_async(title: String, message: String) {
     let spawn = std::thread::Builder::new()
         .name("textvn-assist-notify".into())
         .spawn(move || {
-            let mut opened: Option<std::fs::File> = None;
-            for name in pipe_name_candidates() {
-                match textvn_ipc::pipe_client_options().open(&name) {
-                    Ok(stream) if server_is_textvn(&stream) => {
-                        opened = Some(stream);
-                        break;
-                    }
-                    Ok(stream) => drop(stream),
-                    Err(_) => continue,
-                }
-            }
-            let Some(mut stream) = opened else {
-                return; // tray không chạy → bỏ im lặng (fail-open)
+            // Tray không chạy → bỏ im lặng (fail-open). Sandbox (R2-26): tray không nhận
+            // toast từ tiến trình sandbox — không gửi.
+            let Some((mut stream, false)) = connect_tray() else {
+                return;
             };
             // Gửi xong lắng 1 Ack (tray trả `Message::Ack`) rồi đóng — đứt
             // nghĩa tray vừa thoát, bỏ im lặng.
@@ -354,19 +290,18 @@ pub fn send_style_update_async(json: String) {
     let spawn = std::thread::Builder::new()
         .name("textvn-style-drain".into())
         .spawn(move || {
-            let mut opened: Option<std::fs::File> = None;
-            for name in pipe_name_candidates() {
-                match textvn_ipc::pipe_client_options().open(&name) {
-                    Ok(stream) if server_is_textvn(&stream) => {
-                        opened = Some(stream);
-                        break;
-                    }
-                    Ok(stream) => drop(stream),
-                    Err(_) => continue,
-                }
-            }
-            let Some(mut stream) = opened else {
+            let Some((mut stream, sandboxed)) = connect_tray() else {
                 return; // tray không chạy → giữ pending (fail-open)
+            };
+            // R2-26 · G8: từ/cặp sửa là chữ người dùng gõ — trên kết nối sandbox chỉ gửi bộ
+            // đếm Dream RSI (G19), tray cũng chỉ nhận phần đó.
+            let json = if sandboxed {
+                match textvn_config::sandbox::style_drain_rsi_only(&json) {
+                    Some(rsi_only) => rsi_only,
+                    None => return,
+                }
+            } else {
+                json
             };
             let _ = send_message(&mut stream, &Message::StyleUpdate { json });
             let _ = read_next_message(&mut stream);
@@ -380,18 +315,8 @@ pub fn send_command_async(msg: Message) {
     let spawn = std::thread::Builder::new()
         .name("textvn-tsf-cmd".into())
         .spawn(move || {
-            let mut opened: Option<std::fs::File> = None;
-            for name in pipe_name_candidates() {
-                match textvn_ipc::pipe_client_options().open(&name) {
-                    Ok(stream) if server_is_textvn(&stream) => {
-                        opened = Some(stream);
-                        break;
-                    }
-                    Ok(stream) => drop(stream),
-                    Err(_) => continue,
-                }
-            }
-            let Some(mut stream) = opened else {
+            // Sandbox (R2-26): tray không nhận lệnh Math/Emoji từ tiến trình sandbox.
+            let Some((mut stream, false)) = connect_tray() else {
                 return;
             };
             let _ = send_message(&mut stream, &msg);
@@ -426,10 +351,16 @@ pub fn try_claim_hotkey_toggle() -> bool {
 }
 
 fn read_state_file() -> Option<BTreeMap<String, bool>> {
-    let path = std::path::PathBuf::from(std::env::var_os("APPDATA")?)
-        .join("TextVN")
-        .join("state.json");
-    let bytes = std::fs::read(path).ok()?;
+    // R2-26: tiến trình AppContainer bị từ chối `state.json` thật (lỗi 5) → bản sao sandbox;
+    // chỉ khi token đúng là AppContainer (audit 0.2.93 — xem `reload_config_from_file`).
+    let bytes = if textvn_ipc::sandbox::current_process_is_app_container() {
+        textvn_ipc::sandbox::read_sandbox_file("state.json")?
+    } else {
+        let path = std::path::PathBuf::from(std::env::var_os("APPDATA")?)
+            .join("TextVN")
+            .join("state.json");
+        std::fs::read(path).ok()?
+    };
     parse_state_json(&bytes)
 }
 
@@ -457,19 +388,8 @@ fn run_client_loop(app_id: String, state: Arc<IpcState>) {
     let mut idle_ms: u64 = 2_000;
 
     loop {
-        // Vòng 16 (audit A7): candidates + verify server.
-        let mut opened = None;
-        for name in pipe_name_candidates() {
-            match textvn_ipc::pipe_client_options().open(&name) {
-                Ok(stream) if server_is_textvn(&stream) => {
-                    opened = Some(stream);
-                    break;
-                }
-                Ok(stream) => drop(stream),
-                Err(_) => continue,
-            }
-        }
-        let Some(mut stream) = opened else {
+        // Vòng 16 (audit A7): candidates + verify server; R2-26: + pipe sandbox.
+        let Some((mut stream, _sandboxed)) = connect_tray() else {
             state.connected.store(false, Ordering::Release);
             std::thread::sleep(Duration::from_millis(idle_ms));
             // Tray tắt lâu: giãn nhịp thử lại để không đánh thức CPU vô ích.
@@ -620,20 +540,6 @@ mod tests {
         assert!(!client.is_enabled());
         assert!(client.toggle_global());
         assert!(client.is_enabled());
-    }
-
-    /// R2-110: server phải đúng TÊN FILE `TextVN.exe` — trước chỉ so đuôi chuỗi.
-    #[test]
-    fn server_image_must_be_textvn_exe_by_file_name() {
-        assert!(image_is_textvn_exe(r"C:\Program Files\TextVN\TextVN.exe"));
-        assert!(image_is_textvn_exe(
-            r"C:\Users\a\AppData\Local\Programs\TextVN\textvn.EXE"
-        ));
-        assert!(image_is_textvn_exe("TextVN.exe"));
-        assert!(!image_is_textvn_exe(r"C:\evil\notTextVN.exe"));
-        assert!(!image_is_textvn_exe(r"C:\evil\TextVN.exe.bak"));
-        assert!(!image_is_textvn_exe(r"C:\TextVN.exe\other.exe"));
-        assert!(!image_is_textvn_exe(""));
     }
 
     #[test]
