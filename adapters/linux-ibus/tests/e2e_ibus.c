@@ -101,6 +101,8 @@ static void on_forward_key(IBusInputContext *ic, guint keyval, guint keycode, gu
     if (keycode == 0) g_fwd_zero_keycode++;
 }
 
+static void pump(void);
+
 /* Gọi process_key_event và ghi nhận số commit/xoá của RIÊNG lần gọi này. */
 static gboolean process_counted(IBusInputContext *ic, guint keyval, guint state) {
     g_commits_this_key = 0;
