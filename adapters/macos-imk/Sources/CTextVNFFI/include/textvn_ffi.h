@@ -423,6 +423,64 @@ typedef struct ime_compose_plan {
 int32_t      ime_compose_plan(uint32_t policy, const uint32_t *cur, size_t cur_len,
                               uint32_t key_kind, uint32_t key_ch, const ime_result_v1 *r,
                               ime_compose_plan_v1 *out);
+/* ---- SF-3 pha 3b — kế hoạch áp outcome engine cho macOS IMK (`textvn_session::imk`) ----
+ * Hàm thuần: quyết định chuỗi thao tác (thu hồi marked, xoá, đặt marked, chèn, reset); adapter
+ * Swift thực thi trên IMKTextInput. Chữ của thao tác ở arena[text_off..+text_len] (UTF-8).
+ * Tràn IME_IMK_MAX_OPS/ARENA ⇒ IME_ERR_BUFFER, count = 0 (adapter fail-open). */
+#define IME_IMK_ABI_VERSION 1u
+#define IME_IMK_MAX_OPS 8
+#define IME_IMK_ARENA 1024
+#define IME_IMK_PASS    0u
+#define IME_IMK_REPLACE 1u
+#define IME_IMK_COMMIT  2u
+#define IME_IMK_RESTORE 3u
+#define IME_IMK_STRATEGY_PREEDIT           0u
+#define IME_IMK_STRATEGY_BACKSPACE_TYPE    1u
+#define IME_IMK_STRATEGY_SELECTION_REPLACE 2u
+#define IME_IMK_STRATEGY_FORWARD_AS_COMMIT 3u
+#define IME_IMK_STRATEGY_PASSTHROUGH       4u
+#define IME_IMK_MARKED_RANGE       0x1u  /* app còn marked range */
+#define IME_IMK_SELECTION          0x2u  /* app giữ selection không rỗng */
+#define IME_IMK_PREEDIT_OVER_LIMIT 0x4u  /* preedit mới vượt B11 (8 grapheme, adapter đếm) */
+#define IME_IMK_OP_RETRACT_MARKED      1u
+#define IME_IMK_OP_DELETE_BACKWARD     2u  /* arg = số ký tự */
+#define IME_IMK_OP_SET_MARKED          3u
+#define IME_IMK_OP_INSERT              4u  /* arg = IME_IMK_AT_* */
+#define IME_IMK_OP_CLEAR_MARKED_STATE  5u
+#define IME_IMK_OP_RESET_ENGINE        6u
+#define IME_IMK_AT_CARET        0u
+#define IME_IMK_AT_MARKED_RANGE 1u
+#define IME_IMK_AT_SELECTION    2u
+
+typedef struct ime_imk_input {
+    uint32_t abi_version;     /* IME_IMK_ABI_VERSION */
+    uint32_t action;          /* IME_IMK_PASS … RESTORE */
+    uint32_t strategy;        /* IME_IMK_STRATEGY_* */
+    uint32_t state;           /* bit IME_IMK_MARKED_RANGE | SELECTION | PREEDIT_OVER_LIMIT */
+    uint32_t delete_count;    /* code point */
+    const uint8_t *insert;    /* UTF-8, có thể NULL khi len = 0 */
+    size_t insert_len;
+    const uint8_t *preedit;
+    size_t preedit_len;
+    const uint8_t *marked;    /* marked adapter đang theo dõi */
+    size_t marked_len;
+} ime_imk_input_v1;
+
+typedef struct ime_imk_op {
+    uint32_t kind;            /* IME_IMK_OP_* */
+    uint32_t arg;
+    uint32_t text_off;
+    uint32_t text_len;
+} ime_imk_op_v1;
+
+typedef struct ime_imk_plan {
+    uint32_t abi_version;     /* adapter đặt = IME_IMK_ABI_VERSION trước khi gọi */
+    uint32_t count;
+    ime_imk_op_v1 ops[IME_IMK_MAX_OPS];
+    uint8_t arena[IME_IMK_ARENA];
+} ime_imk_plan_v1;
+
+int32_t      ime_imk_plan(const ime_imk_input_v1 *in, ime_imk_plan_v1 *out);
 #ifdef __cplusplus
 }
 #endif

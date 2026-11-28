@@ -38,6 +38,7 @@
 
 pub mod batch;
 pub mod compose;
+pub mod imk;
 pub mod toggle;
 pub mod toggle_corpus;
 

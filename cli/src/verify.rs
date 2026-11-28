@@ -225,6 +225,55 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
         ("IME_CKEY_CTRL_SPACE", IME_CKEY_CTRL_SPACE as i64),
         ("IME_CKEY_OTHER", IME_CKEY_OTHER as i64),
         ("IME_CKEY_ALTGR", IME_CKEY_ALTGR as i64),
+        // SF-3 pha 3b: kế hoạch áp outcome macOS IMK.
+        ("IME_IMK_ABI_VERSION", IME_IMK_ABI_VERSION as i64),
+        ("IME_IMK_MAX_OPS", IME_IMK_MAX_OPS as i64),
+        ("IME_IMK_ARENA", IME_IMK_ARENA as i64),
+        ("IME_IMK_PASS", IME_IMK_PASS as i64),
+        ("IME_IMK_REPLACE", IME_IMK_REPLACE as i64),
+        ("IME_IMK_COMMIT", IME_IMK_COMMIT as i64),
+        ("IME_IMK_RESTORE", IME_IMK_RESTORE as i64),
+        ("IME_IMK_STRATEGY_PREEDIT", IME_IMK_STRATEGY_PREEDIT as i64),
+        (
+            "IME_IMK_STRATEGY_BACKSPACE_TYPE",
+            IME_IMK_STRATEGY_BACKSPACE_TYPE as i64,
+        ),
+        (
+            "IME_IMK_STRATEGY_SELECTION_REPLACE",
+            IME_IMK_STRATEGY_SELECTION_REPLACE as i64,
+        ),
+        (
+            "IME_IMK_STRATEGY_FORWARD_AS_COMMIT",
+            IME_IMK_STRATEGY_FORWARD_AS_COMMIT as i64,
+        ),
+        (
+            "IME_IMK_STRATEGY_PASSTHROUGH",
+            IME_IMK_STRATEGY_PASSTHROUGH as i64,
+        ),
+        ("IME_IMK_MARKED_RANGE", IME_IMK_MARKED_RANGE as i64),
+        ("IME_IMK_SELECTION", IME_IMK_SELECTION as i64),
+        (
+            "IME_IMK_PREEDIT_OVER_LIMIT",
+            IME_IMK_PREEDIT_OVER_LIMIT as i64,
+        ),
+        (
+            "IME_IMK_OP_RETRACT_MARKED",
+            IME_IMK_OP_RETRACT_MARKED as i64,
+        ),
+        (
+            "IME_IMK_OP_DELETE_BACKWARD",
+            IME_IMK_OP_DELETE_BACKWARD as i64,
+        ),
+        ("IME_IMK_OP_SET_MARKED", IME_IMK_OP_SET_MARKED as i64),
+        ("IME_IMK_OP_INSERT", IME_IMK_OP_INSERT as i64),
+        (
+            "IME_IMK_OP_CLEAR_MARKED_STATE",
+            IME_IMK_OP_CLEAR_MARKED_STATE as i64,
+        ),
+        ("IME_IMK_OP_RESET_ENGINE", IME_IMK_OP_RESET_ENGINE as i64),
+        ("IME_IMK_AT_CARET", IME_IMK_AT_CARET as i64),
+        ("IME_IMK_AT_MARKED_RANGE", IME_IMK_AT_MARKED_RANGE as i64),
+        ("IME_IMK_AT_SELECTION", IME_IMK_AT_SELECTION as i64),
     ]
 }
 
@@ -280,6 +329,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_session_reload_config",
         // SF-3 (P0-6 §5 compose).
         "ime_compose_plan",
+        "ime_imk_plan",
     ]
 }
 
@@ -431,6 +481,40 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 reset_engine,
                 text_len,
                 text,
+            }),
+        ),
+        (
+            "ime_imk_input_v1",
+            field_names!(ime_imk_input_v1 {
+                abi_version,
+                action,
+                strategy,
+                state,
+                delete_count,
+                insert,
+                insert_len,
+                preedit,
+                preedit_len,
+                marked,
+                marked_len,
+            }),
+        ),
+        (
+            "ime_imk_op_v1",
+            field_names!(ime_imk_op_v1 {
+                kind,
+                arg,
+                text_off,
+                text_len,
+            }),
+        ),
+        (
+            "ime_imk_plan_v1",
+            field_names!(ime_imk_plan_v1 {
+                abi_version,
+                count,
+                ops,
+                arena,
             }),
         ),
     ]
@@ -606,6 +690,8 @@ fn is_type_name(name: &str) -> bool {
             | "ime_session_event_v1"
             | "ime_session_out_v1"
             | "ime_compose_plan_v1"
+            | "ime_imk_input_v1"
+            | "ime_imk_plan_v1"
     )
 }
 
@@ -675,6 +761,12 @@ pub fn run(header_path: &str, as_json: bool) -> Result<String, Vec<String>> {
             "sizeof(ime_compose_plan_v1)",
             size_of::<ime_compose_plan_v1>(),
             8 * 4 + IME_COMPOSE_MAX * 4,
+        ),
+        ("sizeof(ime_imk_op_v1)", size_of::<ime_imk_op_v1>(), 16),
+        (
+            "sizeof(ime_imk_plan_v1)",
+            size_of::<ime_imk_plan_v1>(),
+            8 + IME_IMK_MAX_OPS * 16 + IME_IMK_ARENA,
         ),
         (
             "offsetof(ime_session_event_v1, now_ms)",

@@ -35,10 +35,31 @@
   - `ffi` `sf3_*`: 4 test ABI;
   - 2 vết vàng TSF/Linux phải giữ nguyên (`trace-diff`, `ci-linux` `trace_compose`).
 
+### Pha 3b — macOS IMK: quyết định áp outcome vào session — XONG
+- **`session/src/imk.rs`** (`plan_imk`): QUYẾT ĐỊNH của `ApplyReplace.swift` thành hàm thuần, trả chuỗi
+  `ImkOp`:
+  - thu hồi marked;
+  - xoá phần chữ thật = `delete_count − marked` (F3/F4);
+  - đặt marked;
+  - chèn tại caret / marked range (F9) / selection (B1);
+  - B11 commit-early + reset;
+  - REPLACE + preedit rỗng là sửa text thật (F5); Passthrough chỉ áp Mode EN.
+
+  Đo đạc phụ thuộc OS do adapter cung cấp: marked range còn không, selection không rỗng, vượt 8
+  grapheme (Swift `String.count`), nên session không cần crate tách grapheme. 7 test.
+- **C ABI `ime_imk_plan`** (`ffi/src/imk_abi.rs`; `ime_imk_input_v1`/`ime_imk_op_v1`/`ime_imk_plan_v1`,
+  ≤ 8 thao tác, arena 1024 byte UTF-8; header + bản sao macOS; `verify` 36 export). Lỗi tham số/ABI/
+  tràn có mã riêng. 3 test.
+- **Swift**:
+  - `CoreBridge/ImkPlanner.swift` gọi ABI;
+  - `ApplyReplace.apply` chỉ đo trạng thái IMK (chỉ hỏi app khi luật cần) rồi THỰC THI thao tác;
+  - bản cũ chuyển sang `Tests/IMKLibTests/LegacyApplyReplace.swift` làm oracle;
+  - `ApplyReplaceParityTests`: hơn 10 nghìn tổ hợp (outcome × chiến lược × marked × marked range ×
+    selection × xoá thành công/thất bại) phải ra cùng chuỗi lời gọi `TextTarget`, cùng marked, cùng
+    `onReset`, cùng ném lỗi;
+  - `TraceTests` giữ 58 vết mac.
+
 ### Còn lại
-- **3b — macOS** (`ApplyReplace.swift`/`Marked.swift`): IMK mở preedit ở lần biến đổi đầu
-  (`MAC_IMK_PREEDIT_LIFECYCLE`). Cần thêm policy macOS rồi chuyển qua `ime_compose_plan`, vết
-  `corpus/traces/mac` giữ nguyên.
 - **3c — session tự chạy engine + compose** trong `Session::event` (adapter chỉ áp lệnh), có shadow 3 OS,
   luật *reset* R2-171/E78 chuyển vào session, `replay` chạy chính session cho mọi adapter.
 - Xoá oracle C và `lc_key_classify` trùng khi session thành mặc định.
@@ -76,10 +97,32 @@
   - `ffi` `sf3_*`: 4 ABI tests;
   - both TSF/Linux golden traces must stay unchanged (`trace-diff`, `ci-linux` `trace_compose`).
 
+### Phase 3b — macOS IMK: outcome-apply decisions moved into the session — DONE
+- **`session/src/imk.rs`** (`plan_imk`): the DECISIONS of `ApplyReplace.swift` as a pure function
+  returning a sequence of `ImkOp`:
+  - retract marked;
+  - delete the real text = `delete_count − marked` (F3/F4);
+  - set marked;
+  - insert at caret / marked range (F9) / selection (B1);
+  - B11 commit-early + reset;
+  - REPLACE with an empty preedit is a real text change (F5); Passthrough only applies Mode EN.
+
+  OS-dependent measurements come from the adapter: marked range still present, non-empty selection,
+  over 8 graphemes (Swift `String.count`), so the session needs no grapheme crate. 7 tests.
+- **C ABI `ime_imk_plan`** (`ffi/src/imk_abi.rs`; `ime_imk_input_v1`/`ime_imk_op_v1`/
+  `ime_imk_plan_v1`, ≤ 8 ops, 1024-byte UTF-8 arena; header + macOS copy; `verify` 36 exports). Bad
+  arguments, ABI mismatch and overflow have their own codes. 3 tests.
+- **Swift**:
+  - `CoreBridge/ImkPlanner.swift` calls the ABI;
+  - `ApplyReplace.apply` only measures IMK state (asking the app only when a rule needs it), then
+    EXECUTES the ops;
+  - the old version moved to `Tests/IMKLibTests/LegacyApplyReplace.swift` as the oracle;
+  - `ApplyReplaceParityTests`: over 10 thousand combinations (outcome × strategy × marked × marked
+    range × selection × delete success/failure) must give the same `TextTarget` call sequence, the
+    same marked, the same `onReset` and the same throw;
+  - `TraceTests` keeps the 58 mac traces.
+
 ### Remaining
-- **3b — macOS** (`ApplyReplace.swift`/`Marked.swift`): IMK opens preedit on the first transform
-  (`MAC_IMK_PREEDIT_LIFECYCLE`). Needs a macOS policy, then switching to `ime_compose_plan` with
-  `corpus/traces/mac` unchanged.
 - **3c — the session runs engine + compose itself** in `Session::event` (adapters only apply
   commands), with 3-OS shadow, the *reset* rules R2-171/E78 moved into the session, and `replay`
   running the session itself for every adapter.
