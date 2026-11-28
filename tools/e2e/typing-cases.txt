@@ -2,10 +2,13 @@
 # Bộ case gõ thật dùng CHUNG cho mọi harness GUI (G22): macOS `tools/mac/smoke-imk.sh` (IMK +
 # TextEdit) và Linux `scripts/e2e-desktop.sh` (IBus/Fcitx5 + Mousepad/foot trong phiên desktop).
 # Định dạng: <phím Telex>=<chữ mong đợi>. Mọi dòng đã được engine xác nhận (corpus/mac +
-# corpus/shared, replay headless ở CI) — giá trị mong đợi KHÔNG bịa.
+# corpus/shared, replay headless ở CI) — giá trị mong đợi KHÔNG bịa. Cấu hình MẶC ĐỊNH (diacritic_style=old ⇒
+# `hòa`). `scripts/e2e-desktop.sh` replay danh sách này qua engine của gói trước khi gõ (oracle gate):
+# lần chạy đầu (COMPAT-3) bắt được 2 dòng sai có từ bản macOS: `hoaf=hoà` (kiểu new) và `vietj=việt`
+# (Telex cần `ee` cho ê).
 dduocj=được
 chaof=chào
-hoaf=hoà
+hoaf=hòa
 tieengs=tiếng
-vietj=việt
+vieetj=việt
 nguyen=nguyen

@@ -87,6 +87,22 @@ run_cases() {
 }
 export -f run_cases
 
+# Oracle gate: danh sách case phải khớp CHÍNH engine của gói vừa cài (cấu hình mặc định) trước khi
+# gõ GUI — ca sai sẽ đỏ ở đây, không bị đổ cho môi trường desktop (COMPAT-3 bắt 2 dòng sai cũ).
+oracle_cases() {
+    local cli="$HOME/.local/bin/textvn" d="$T/oracle" i=0 keys expect
+    mkdir -p "$d"
+    while IFS='=' read -r keys expect; do
+        [[ -n "$keys" && "$keys" != \#* ]] || continue
+        i=$((i + 1))
+        printf ':config method=telex\n:type "%s"\n:key Space\n:expect "%s "\n' "$keys" "$expect" >"$d/case$i.keys"
+    done <"$CASES_FILE"
+    "$cli" replay "$d" --adapter linux >"$T/oracle.log" 2>&1 || {
+        cat "$T/oracle.log"; echo "FAIL danh sách case lệch engine (oracle) — sửa tools/e2e/typing-cases.txt" >&2; return 1; }
+    echo "[e2e-desktop:$DE] oracle: $(tail -n1 "$T/oracle.log")"
+}
+export -f oracle_cases
+
 case "$DE" in
     xfce-x11)
         for tool in Xvfb xfwm4 mousepad ibus-daemon xdotool xclip; do
@@ -108,6 +124,7 @@ case "$DE" in
             local pkg
             pkg="$(echo "$T"/x/TextVN-*)"
             "$pkg/install.sh" --no-restart >"$T/install.log" 2>&1 || { cat "$T/install.log"; echo "FAIL install.sh" >&2; return 1; }
+            oracle_cases
             set -a
             # shellcheck disable=SC1091
             . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
@@ -129,7 +146,10 @@ case "$DE" in
             xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
             local ok=0
             for _ in $(seq 1 10); do
-                if ibus engine textvn >"$T/engine.err" 2>&1; then ok=1; break; fi
+                ibus engine textvn >"$T/engine.err" 2>&1 || true
+                # Mã thoát của `ibus engine NAME` không tin được (run 46124541408: lỗi nhưng engine ĐÃ là
+                # textvn) ⇒ xác nhận bằng engine hiện hành.
+                if [[ "$(ibus engine 2>/dev/null)" == textvn ]]; then ok=1; break; fi
                 sleep 0.5
             done
             if [[ $ok != 1 ]]; then
@@ -177,11 +197,14 @@ case "$DE" in
             done
             [[ -n "$sock" ]] || { cat "$T/sway.log"; echo "FAIL sway headless không tạo socket Wayland" >&2; return 1; }
             export WAYLAND_DISPLAY="$sock"
+            SWAYSOCK="$(ls "$XDG_RUNTIME_DIR"/sway-ipc.*.sock 2>/dev/null | head -n1 || true)"
+            export SWAYSOCK
             mkdir -p "$T/x"
             tar -C "$T/x" -xzf "$TARBALL"
             local pkg
             pkg="$(echo "$T"/x/TextVN-*)"
             "$pkg/install.sh" --no-restart >"$T/install.log" 2>&1 || { cat "$T/install.log"; echo "FAIL install.sh" >&2; return 1; }
+            oracle_cases
             set -a
             # shellcheck disable=SC1091
             . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
@@ -231,6 +254,7 @@ P
                 echo "--- fcitx5 IM: $(fcitx5-remote -n 2>&1) · sway:"; tail -n 15 "$T/sway.log" || true
                 echo "--- sway app_ids: $(swaymsg -t get_tree 2>&1 | grep -o '"app_id": "[^"]*"' | tr '\n' ' ')"
                 echo "--- sway focused: $(swaymsg -t get_tree 2>&1 | tr -d ' \n' | grep -o '"focused":true' | wc -l) nút"
+                echo "--- editor.log:"; tail -n 20 "$T/editor.log" 2>/dev/null || true; echo "--- mousepad: $(pgrep -a mousepad 2>&1 | head -n1)"
                 echo "--- wtype: $(wtype -k space 2>&1; echo rc=$?) · wl-paste: $(wl-paste -n 2>&1 | head -c 80; echo " rc=$?")"
                 echo "--- fcitx5.log:"; tail -n 25 "$T/fcitx5.log" || true
             fi
