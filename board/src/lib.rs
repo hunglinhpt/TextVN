@@ -648,6 +648,18 @@ fn print_status(st: &State, now: u64) {
     }
 }
 
+/// BOARD-1b — tham số của binary `cargo-board`. Cargo gọi lệnh con ngoài theo quy ước
+/// `cargo-board board <lệnh> …` (argv[1] = tên lệnh con), nên `cargo board status` từng báo
+/// "lệnh con lạ `board`". Bỏ đúng MỘT `board` đứng đầu; chạy thẳng `cargo-board status` hay
+/// `cargo run -p textvn-board -- status` giữ nguyên.
+pub fn cargo_subcommand_args(argv_after_exe: Vec<String>) -> Vec<String> {
+    let mut a = argv_after_exe;
+    if a.first().map(String::as_str) == Some("board") {
+        a.remove(0);
+    }
+    a
+}
+
 pub fn cli(args: &[String]) -> Result<(), String> {
     let sub = args.first().map(String::as_str).unwrap_or("status");
     let a = parse_args(args.get(1..).unwrap_or(&[]));
@@ -777,6 +789,21 @@ pub fn usage() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn board_1b_cargo_external_subcommand_argv() {
+        let v = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        // `cargo board status --agent a` ⇒ cargo-board nhận ["board","status","--agent","a"].
+        assert_eq!(
+            cargo_subcommand_args(v(&["board", "status", "--agent", "a"])),
+            v(&["status", "--agent", "a"])
+        );
+        // Gọi thẳng binary / `cargo run -p textvn-board -- status`: giữ nguyên.
+        assert_eq!(cargo_subcommand_args(v(&["status"])), v(&["status"]));
+        assert_eq!(cargo_subcommand_args(v(&[])), v(&[]));
+        // Chỉ bỏ MỘT `board` đứng đầu.
+        assert_eq!(cargo_subcommand_args(v(&["board", "board"])), v(&["board"]));
+    }
 
     fn e(pairs: &[(&str, &str)]) -> Event {
         pairs

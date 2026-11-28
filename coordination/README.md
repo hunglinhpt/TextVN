@@ -20,7 +20,8 @@ cargo xtask board help
 > `board/` (`textvn-board`, chỉ `std`, không phụ thuộc `textvn-core`) nên WIP hỏng của một agent
 > KHÔNG còn chặn điều phối nữa. Ba đường gọi tương đương, ưu tiên từ trên xuống:
 > 1. `cargo board <lệnh>` — sau khi `cargo install --path board` một lần (binary `cargo-board` vào
->    `~/.cargo/bin`, không cần build lại, chạy được cả khi workspace hỏng);
+>    `~/.cargo/bin`, không cần build lại, chạy được cả khi workspace hỏng); binary là bản CÀI — sau mỗi commit
+>    đổi `board/` chạy lại `cargo install --path board --force` (E85: bản trước BOARD-1b báo "lệnh con lạ `board`");
 > 2. `cargo run -p textvn-board -- <lệnh>` — build riêng crate board, vẫn chạy khi `core/` hỏng;
 > 3. `cargo xtask board <lệnh>` — mượn cùng lib, dùng khi workspace build bình thường.
 > Khi nào cũng có thể đọc thẳng `coordination/board.jsonl`. Không sửa/stash WIP của agent khác (G2).
