@@ -87,7 +87,7 @@
 | E76 | project-common-errors | `test:cli/src/doctor.rs::export_diagnostics_zip_creates_zip_file_without_user_text` · `test:cli/src/doctor.rs::e70_export_contains_panic_tail_and_build_identity` |
 | E77 | project-common-errors | `process:hàm C gọi trước định nghĩa cần prototype static — CI ci-linux/ci-aur biên dịch -Werror chặn` |
 | E78 | project-common-errors | `test:core/tests/r2_171_caps_after_enter_reset.rs::enter_then_click_elsewhere_does_not_capitalize` |
-| E79 | project-common-errors | `test:adapters/windows-tsf/src/edit_session.rs::r2_173_ghost_waits_for_key_up_only_for_passed_char_keys` |
+| E79 | project-common-errors | `test:session/tests/ghost.rs::r2_173_ghost_waits_for_key_up_only_for_passed_char_keys` |
 | E8 | project-common-errors | `gate:xtask/src/preflight.rs` |
 | E80 | project-common-errors | `test:ipc/src/sandbox.rs::sandbox_pipe_sddl_grants_ac_lpac_data_rights_only_and_low_label` · `test:tray/src/sandbox_e2e.rs::sandbox_appcontainer_end_to_end` |
 | E81 | project-common-errors | `test:tray/src/sandbox_e2e.rs::sandbox_appcontainer_end_to_end` · `test:tray/src/sandbox_e2e.rs::child_in_appcontainer` |
@@ -178,7 +178,7 @@
 | R2-170 | CHANGELOG | `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_170_matches_unikey_oracle_or_documented_policy` · `file:corpus/shared/r2_168_unikey_oracle_01.keys` |
 | R2-171 | CHANGELOG | `test:core/tests/r2_171_caps_after_enter_reset.rs::caps_after_enter_survives_toolkit_reset` |
 | R2-172 | CHANGELOG | `test:core/src/validate.rs::place_name_k_coda_and_kr_onset` · `test:core/tests/r2_171_caps_after_enter_reset.rs::caps_after_enter_survives_toolkit_reset` · `test:core/tests/r2_171_caps_after_enter_reset.rs::r2_172_place_names_type_in_both_tone_orders` · `file:corpus/shared/r2_172_dak_lak_01.keys` |
-| R2-173 | CHANGELOG | `test:adapters/windows-tsf/src/edit_session.rs::r2_173_ghost_waits_for_key_up_only_for_passed_char_keys` · `test:core/tests/r2_173_prediction_chain.rs::tab_accept_then_ghost_shows_continuation_and_tab_inserts_it` · `test:core/tests/r2_173_prediction_chain.rs::greeting_and_office_contexts_chain` |
+| R2-173 | CHANGELOG | `test:session/tests/ghost.rs::r2_173_ghost_waits_for_key_up_only_for_passed_char_keys` · `test:core/tests/r2_173_prediction_chain.rs::tab_accept_then_ghost_shows_continuation_and_tab_inserts_it` · `test:core/tests/r2_173_prediction_chain.rs::greeting_and_office_contexts_chain` |
 | R2-174 | CHANGELOG | `test:core/tests/dream_rsi_100.rs::d_space_accept_savings` · `test:core/tests/rca_v57_adversarial.rs::adv5_drain_2_lan_chi_pending_moi` · `test:core/tests/text_prediction.rs::r2_174_space_complete_khong_viet_lai_tu_da_dung` |
 | R2-176 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `test:tools/bench/src/main.rs::r2_176_baseline_khong_provenance_hoac_sai_arch_bi_tu_choi` · `test:xtask/src/preflight.rs::perf1_preflight_chon_dung_baseline_theo_may` |
 | R2-177 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `test:assist/tests/office_mixed_work_v53.rs::v53_nfr_check_câu_văn_phòng_dưới_1ms` · `test:assist/tests/office_mixed_work_v53.rs::v53_abnormal_mo_rong_khong_panic_khong_treo` |
