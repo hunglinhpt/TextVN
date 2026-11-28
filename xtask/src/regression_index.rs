@@ -225,9 +225,11 @@ fn tracked_files(root: &Path) -> Result<HashSet<String>, String> {
 fn test_fn_name(line: &str, lang: &str, after_test_attr: bool) -> Option<String> {
     let t = line.trim_start();
     let ident = |s: &str| -> Option<String> {
+        // R2-177: Rust cho phép identifier Unicode (vd `fn v53_nfr_check_câu_văn_phòng_dưới_1ms`)
+        // — cắt ở ASCII thuần sẽ biến tên thành `v53_nfr_check_c` và so khớp sổ sai.
         let id: String = s
             .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
             .collect();
         (!id.is_empty()).then_some(id)
     };
@@ -773,6 +775,25 @@ mod tests {
         assert!(name_mentions("test_e82_toggle", "E82"));
         assert!(!name_mentions("r2_1740_x", "R2-174"));
         assert!(!name_mentions("e820", "E82"));
+    }
+
+    /// R2-177: identifier Rust cho phép chữ Unicode (tên test tiếng Việt) — parser của
+    /// sổ phải đọc trọn tên, không cắt ở ký tự có dấu (trước đây chỉ nhận ASCII).
+    #[test]
+    fn ten_ham_test_unicode_duoc_nhan_dien_tron_ten() {
+        assert_eq!(
+            test_fn_name(
+                "    fn v53_nfr_check_câu_văn_phòng_dưới_1ms() {",
+                "rs",
+                true
+            ),
+            Some("v53_nfr_check_câu_văn_phòng_dưới_1ms".to_string())
+        );
+        // Tên dừng đúng ở ký tự không phải identifier (ngoặc, khoảng trắng).
+        assert_eq!(
+            test_fn_name("fn ascii_only(", "rs", true),
+            Some("ascii_only".to_string())
+        );
     }
 
     #[test]
