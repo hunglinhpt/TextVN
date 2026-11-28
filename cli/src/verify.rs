@@ -275,6 +275,15 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
         ("IME_IMK_AT_CARET", IME_IMK_AT_CARET as i64),
         ("IME_IMK_AT_MARKED_RANGE", IME_IMK_AT_MARKED_RANGE as i64),
         ("IME_IMK_AT_SELECTION", IME_IMK_AT_SELECTION as i64),
+        // SF-4: cổng chữ mờ.
+        ("IME_GHOST_SECURE", IME_GHOST_SECURE as i64),
+        ("IME_GHOST_TERMINAL", IME_GHOST_TERMINAL as i64),
+        ("IME_GHOST_ASSIST_VISIBLE", IME_GHOST_ASSIST_VISIBLE as i64),
+        ("IME_GHOST_SUGGEST_OFF", IME_GHOST_SUGGEST_OFF as i64),
+        (
+            "IME_GHOST_TEXT_AFTER_CARET",
+            IME_GHOST_TEXT_AFTER_CARET as i64,
+        ),
     ]
 }
 
@@ -331,6 +340,7 @@ fn abi_exports() -> Vec<&'static str> {
         // SF-3 (P0-6 §5 compose).
         "ime_compose_plan",
         "ime_imk_plan",
+        "ime_ghost_label",
     ]
 }
 

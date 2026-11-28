@@ -482,6 +482,16 @@ typedef struct ime_imk_plan {
 } ime_imk_plan_v1;
 
 int32_t      ime_imk_plan(const ime_imk_input_v1 *in, ime_imk_plan_v1 *out);
+/* ---- SF-4 (P0-6 §5 ghost) — cổng + nhãn xem trước chữ mờ dùng chung (`textvn_session::ghost`) ----
+ * `ghost` = chữ mờ (thường là ime_peek_completion, UTF-8). Ghi nhãn "⇥ …" (UTF-8, KHÔNG NUL) vào
+ * out; trả số byte, 0 = ẩn (cổng chặn hoặc chữ mờ rỗng), IME_ERR_BUFFER nếu cap không đủ. */
+#define IME_GHOST_SECURE           0x01u  /* ô mật khẩu/secure (S3) */
+#define IME_GHOST_TERMINAL         0x02u  /* app terminal (R2-144/145) */
+#define IME_GHOST_ASSIST_VISIBLE   0x04u  /* trợ lý ngữ pháp đang hiện */
+#define IME_GHOST_SUGGEST_OFF      0x08u  /* tiếng Việt tắt VÀ gợi ý tắt */
+#define IME_GHOST_TEXT_AFTER_CARET 0x10u  /* sau caret còn chữ trên dòng */
+int32_t      ime_ghost_label(const uint8_t *ghost, size_t len, uint32_t gates,
+                             uint8_t *out, size_t cap);
 #ifdef __cplusplus
 }
 #endif

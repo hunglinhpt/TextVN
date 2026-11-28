@@ -673,17 +673,18 @@ int lc_fixed_sentence(const char *sentence, const char *original_tail,
     return 1;
 }
 
-int lc_preview_label(const char *ghost, char *out, size_t cap) {
+/* SF-4 (G22): cổng + nhãn chữ mờ do `textvn_session::ghost` quyết (C ABI ime_ghost_label). */
+int lc_preview_label_gated(const char *ghost, uint32_t gates, char *out, size_t cap) {
     if (!ghost || !out || cap == 0) return 0;
-    while (*ghost == ' ') ghost++;
-    if (*ghost == '\0') return 0;
-    static const char prefix[] = "\xe2\x87\xa5 "; /* "⇥ " */
-    size_t pl = sizeof(prefix) - 1, gl = strlen(ghost);
-    if (pl + gl + 1 > cap) return 0;
-    memcpy(out, prefix, pl);
-    memcpy(out + pl, ghost, gl);
-    out[pl + gl] = '\0';
+    int32_t n = ime_ghost_label((const uint8_t *)ghost, strlen(ghost), gates, (uint8_t *)out,
+                                cap - 1);
+    if (n <= 0) return 0;
+    out[n] = '\0';
     return 1;
+}
+
+int lc_preview_label(const char *ghost, char *out, size_t cap) {
+    return lc_preview_label_gated(ghost, 0u, out, cap);
 }
 
 int lc_plan_sentence_fix_ex(const ime_instance *inst,

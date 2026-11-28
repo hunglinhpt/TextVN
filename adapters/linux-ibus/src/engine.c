@@ -230,15 +230,17 @@ static void hide_preview(TextVNIbusEngine *self) {
  * nối thêm ở dòng phụ của bảng IBus cạnh con trỏ. Không chèn vào preedit: một
  * số toolkit tự chốt preedit khi mất focus ⇒ chữ gợi ý lọt vào văn bản. */
 static void update_preview(TextVNIbusEngine *self) {
-    if (!self->inst || self->assist_ui_showing || self->secure || self->terminal ||
-        !(s_vi_enabled || self->config.suggest_enabled)) {
-        hide_preview(self);
-        return;
-    }
-    char ghost[512];
+    /* SF-4: cổng P0-6 §5 do session quyết (`ime_ghost_label`); adapter chỉ đo trạng thái. */
+    uint32_t gates = 0;
+    if (self->secure) gates |= IME_GHOST_SECURE;
+    if (self->terminal) gates |= IME_GHOST_TERMINAL;
+    if (self->assist_ui_showing) gates |= IME_GHOST_ASSIST_VISIBLE;
+    if (!(s_vi_enabled || self->config.suggest_enabled)) gates |= IME_GHOST_SUGGEST_OFF;
+    char ghost[512] = "";
     char label[540];
-    if (ime_peek_completion(self->inst, ghost, sizeof(ghost)) <= 0 ||
-        !lc_preview_label(ghost, label, sizeof(label))) {
+    /* Cổng chặn ⇒ không tốn một lượt chạy thử engine (session vẫn là nơi quyết ẩn). */
+    if (!self->inst || (gates == 0 && ime_peek_completion(self->inst, ghost, sizeof(ghost)) <= 0) ||
+        !lc_preview_label_gated(ghost, gates, label, sizeof(label))) {
         hide_preview(self);
         return;
     }

@@ -1311,13 +1311,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// SẼ nối thêm trong bảng ứng viên IMK (không chạm marked text/văn bản — app
     /// có thể tự chốt marked text). Chỉ khi không có gợi ý trợ lý đang hiện.
     private func updatePredictionPreview() {
-        guard currentCandidates.isEmpty, let engine = engine,
-              let ghost = engine.peekCompletion() else {
-            hidePredictionPreview()
-            return
-        }
-        let trimmed = ghost.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else {
+        // SF-4: cổng P0-6 §5 do session quyết (`GhostPolicy` → `ime_ghost_label`); adapter chỉ đo.
+        var gates: UInt32 = 0
+        if !currentCandidates.isEmpty { gates |= GhostPolicy.assistVisible }
+        if secureMode { gates |= GhostPolicy.secure }
+        guard let engine = engine, let ghost = gates == 0 ? engine.peekCompletion() : nil,
+              GhostPolicy.label(ghost, gates: gates) != nil else {
             hidePredictionPreview()
             return
         }
@@ -1334,7 +1333,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Nhãn xem trước trong bảng ứng viên ("⇥ phần mềm").
     static func previewLabel(_ ghost: String) -> String {
-        "⇥ " + ghost.trimmingCharacters(in: .whitespaces)
+        GhostPolicy.label(ghost, gates: 0) ?? ""
     }
 
     /// Áp dụng kế hoạch sửa (A2/A3) — **có precondition** (D12 · R-2 · R-7).

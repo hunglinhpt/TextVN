@@ -631,15 +631,15 @@ impl KeyEditSession {
                 // R2-134: chữ mờ gợi ý sẵn sau mỗi phím gõ (Tab/phím tắt sẽ chèn đúng nó).
                 // R2-173: phím đi thẳng cho app (Space sau cụm vừa nhận bằng Tab…) — app chưa
                 // chèn ký tự, con trỏ còn ở chỗ cũ ⇒ hoãn tới key-up (`refresh_ghost`).
-                if matches!(
-                    self.key,
-                    KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab | KeyKind::CtrlSpace
-                ) {
-                    if ghost_waits_for_key_up(self.key, plan.eaten) {
+                // SF-4: thời điểm vẽ là luật dùng chung `textvn_session::ghost::ghost_timing`.
+                match textvn_session::ghost::ghost_timing(self.key, plan.eaten) {
+                    textvn_session::ghost::GhostTiming::AfterKeyUp => {
                         shared.ghost_on_key_up.set(Some(self.vk));
-                    } else {
+                    }
+                    textvn_session::ghost::GhostTiming::Now => {
                         update_ghost(&self.shared, &self.ctx, ec);
                     }
+                    textvn_session::ghost::GhostTiming::Keep => {}
                 }
                 // P9 (vòng 55): gõ tiếp khi popup sống → ẨN NGAY (không che
                 // vùng gõ); điểm check đã lên lịch sẽ tự re-arm dừng 1s.
@@ -745,12 +745,6 @@ impl KeyEditSession {
     }
 }
 
-/// R2-173: chữ mờ của phím này phải đợi key-up? — đúng khi TIP KHÔNG ăn phím sinh/xoá ký tự
-/// (app tự chèn/xoá sau edit session). Hàm thuần — test khoá bảng.
-pub fn ghost_waits_for_key_up(key: KeyKind, eaten: bool) -> bool {
-    !eaten && matches!(key, KeyKind::Char(_) | KeyKind::Backspace)
-}
-
 /// R2-173: key-up của phím đã đi thẳng cho app (`ghost_on_key_up`) — app đã chèn/xoá ký tự,
 /// vẽ chữ mờ ở vị trí con trỏ MỚI. Session đọc đồng bộ; lỗi = không vẽ (fail-open).
 #[cfg(windows)]
@@ -800,12 +794,33 @@ impl ITfEditSession_Impl for GhostRefreshSession_Impl {
 /// và sau caret không còn chữ trên dòng (không đè lên chữ thật).
 #[cfg(windows)]
 fn update_ghost(shared: &Rc<TsfShared>, ctx: &ITfContext, ec: u32) {
-    let ghost = shared
+    use textvn_session::ghost::{gate, ghost_text};
+    // SF-4: cổng P0-6 §5 dùng chung (terminal / trợ lý đang hiện / tiếng Việt + gợi ý cùng tắt);
+    // ô secure không tới đây (key path passthrough).
+    let (peek, mut gates) = shared
         .thread
         .try_borrow()
         .ok()
-        .and_then(|thread| thread.engine.peek_completion());
+        .map(|thread| {
+            let mut g = 0;
+            if thread.engine.is_terminal() {
+                g |= gate::TERMINAL;
+            }
+            if !(shared.ipc.is_enabled() || thread.suggest_enabled()) {
+                g |= gate::SUGGEST_OFF;
+            }
+            (thread.engine.peek_completion(), g)
+        })
+        .unwrap_or((None, 0));
+    if live_popup_visible(shared) {
+        gates |= gate::ASSIST_VISIBLE;
+    }
+    let mut ghost = ghost_text(peek.as_deref(), gates);
     let after = ghost.is_some() && text_after_caret(ctx, ec);
+    if after {
+        gates |= gate::TEXT_AFTER_CARET;
+        ghost = ghost_text(peek.as_deref(), gates);
+    }
     let anchor = ghost
         .as_ref()
         .filter(|_| !after)
@@ -3278,21 +3293,6 @@ mod tests {
             !assist_buffer_is_ours(false, None, "câu"),
             "không mượn được engine ⇒ không sửa"
         );
-    }
-
-    /// R2-173: chỉ phím sinh/xoá ký tự mà TIP KHÔNG ăn mới hoãn chữ mờ tới key-up (app chưa
-    /// chèn ký tự lúc edit session chạy). Tab/Ctrl+Space bị ăn (đã chèn gợi ý) → vẽ ngay.
-    #[test]
-    fn r2_173_ghost_waits_for_key_up_only_for_passed_char_keys() {
-        use super::ghost_waits_for_key_up;
-        use crate::compose::KeyKind;
-        assert!(ghost_waits_for_key_up(KeyKind::Char(' '), false));
-        assert!(ghost_waits_for_key_up(KeyKind::Backspace, false));
-        assert!(!ghost_waits_for_key_up(KeyKind::Char(' '), true));
-        assert!(!ghost_waits_for_key_up(KeyKind::Char('a'), true));
-        assert!(!ghost_waits_for_key_up(KeyKind::Tab, true));
-        assert!(!ghost_waits_for_key_up(KeyKind::Tab, false));
-        assert!(!ghost_waits_for_key_up(KeyKind::CtrlSpace, false));
     }
 
     #[test]

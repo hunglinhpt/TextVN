@@ -666,16 +666,23 @@ void TextVNEngine::hidePreview(TextVNState *st) {
 /* R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt SẼ
  * nối thêm ở dòng phụ của bảng Fcitx5 cạnh con trỏ — không chạm preedit/văn bản. */
 void TextVNEngine::updatePreview(TextVNState *st) {
-    if (!st || !st->ic || !st->inst || assistUiShowing_ || isTerminalState(st) ||
-        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive) ||
-        !(viEnabled_ || st->config.suggest_enabled)) {
+    if (!st || !st->ic || !st->inst) {
         hidePreview(st);
         return;
     }
-    char ghost[512];
+    /* SF-4: cổng P0-6 §5 do session quyết (`ime_ghost_label`); adapter chỉ đo trạng thái. */
+    uint32_t gates = 0;
+    if (st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
+        gates |= IME_GHOST_SECURE;
+    }
+    if (isTerminalState(st)) gates |= IME_GHOST_TERMINAL;
+    if (assistUiShowing_) gates |= IME_GHOST_ASSIST_VISIBLE;
+    if (!(viEnabled_ || st->config.suggest_enabled)) gates |= IME_GHOST_SUGGEST_OFF;
+    char ghost[512] = "";
     char label[540];
-    if (ime_peek_completion(st->inst, ghost, sizeof(ghost)) <= 0 ||
-        !lc_preview_label(ghost, label, sizeof(label))) {
+    /* Cổng chặn ⇒ không tốn một lượt chạy thử engine (session vẫn là nơi quyết ẩn). */
+    if ((gates == 0 && ime_peek_completion(st->inst, ghost, sizeof(ghost)) <= 0) ||
+        !lc_preview_label_gated(ghost, gates, label, sizeof(label))) {
         hidePreview(st);
         return;
     }

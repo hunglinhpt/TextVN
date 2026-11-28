@@ -395,6 +395,8 @@ int lc_fixed_sentence(const char *sentence, const char *original_tail,
 /* R2-134: nhãn xem trước dự đoán ("⇥ phần mềm") từ kết quả
  * ime_peek_completion — bỏ khoảng trắng đầu. 0 = rỗng / không vừa. */
 int lc_preview_label(const char *ghost, char *out, size_t cap);
+/* SF-4: như lc_preview_label kèm cổng IME_GHOST_* (session quyết ẩn/hiện — P0-6 §5). */
+int lc_preview_label_gated(const char *ghost, uint32_t gates, char *out, size_t cap);
 
 /* Tìm binary bảng cài đặt `textvn-settings` (theo thứ tự): cạnh `self_dir`,
  * `self_dir/../../bin` (prefix/lib/textvn → prefix/bin), $PATH, ~/.local/bin.

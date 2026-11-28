@@ -664,6 +664,11 @@ static void test_assist_hotkey_explicit_preview(void) {
     assert(lc_preview_label("   ", out, sizeof(out)) == 0);
     char tiny[4];
     assert(lc_preview_label("phan mem", tiny, sizeof(tiny)) == 0);
+    /* SF-4: cổng chữ mờ do session quyết — bất kỳ cổng nào cũng ẩn. */
+    assert(lc_preview_label_gated("phan mem", IME_GHOST_ASSIST_VISIBLE, out, sizeof(out)) == 0);
+    assert(lc_preview_label_gated("phan mem", IME_GHOST_SECURE | IME_GHOST_TERMINAL, out,
+                                  sizeof(out)) == 0);
+    assert(lc_preview_label_gated("phan mem", 0u, out, sizeof(out)) == 1);
 
     /* Lỗi chính tả = chỉ-gợi-ý: Mode 2 (không cờ) không sửa, hành động chủ động thì sửa. */
     ime_instance *inst = engine_with(NO_CAPS);

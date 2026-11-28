@@ -17,10 +17,12 @@
 
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
 pub mod compose_abi;
+pub mod ghost_abi;
 pub mod imk_abi;
 pub mod session_abi;
 pub mod settings;
 pub use compose_abi::*;
+pub use ghost_abi::*;
 pub use imk_abi::*;
 pub use session_abi::*;
 
@@ -1960,6 +1962,19 @@ pub extern "C" fn ime_compose_plan(
 #[no_mangle]
 pub extern "C" fn ime_imk_plan(input: *const ime_imk_input_v1, out: *mut ime_imk_plan_v1) -> i32 {
     imk_abi::ime_imk_plan_impl(input, out)
+}
+
+// ---- SF-4 (P0-6 §5 ghost): cổng + nhãn xem trước chữ mờ — thân ở `ghost_abi.rs`. ----
+
+#[no_mangle]
+pub extern "C" fn ime_ghost_label(
+    ghost: *const u8,
+    len: usize,
+    gates: u32,
+    out: *mut u8,
+    cap: usize,
+) -> i32 {
+    ghost_abi::ime_ghost_label_impl(ghost, len, gates, out, cap)
 }
 
 #[cfg(test)]

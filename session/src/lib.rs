@@ -39,6 +39,7 @@
 pub mod batch;
 pub mod compose;
 pub mod emoji;
+pub mod ghost;
 pub mod imk;
 pub mod reset;
 pub mod toggle;
