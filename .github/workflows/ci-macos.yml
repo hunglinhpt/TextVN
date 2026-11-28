@@ -375,30 +375,28 @@ jobs:
         with:
           name: TextVN-macos-candidate-${{ github.sha }}
           path: candidate
-      - name: Cài TextVN-IM.app từ gói candidate vào ~/Library/Input Methods
+      - name: Cài gói .pkg candidate (như người dùng) → /Library/Input Methods
         run: |
           set -euo pipefail
-          zip="$(ls candidate/*.zip | head -n1)"
-          mkdir -p stage
-          ditto -x -k "$zip" stage
-          im="$(find stage -maxdepth 3 -type d -name TextVN-IM.app | head -n1)"
-          test -n "$im"
-          mkdir -p "$HOME/Library/Input Methods"
-          rm -rf "$HOME/Library/Input Methods/TextVN-IM.app"
-          ditto "$im" "$HOME/Library/Input Methods/TextVN-IM.app"
-          xattr -dr com.apple.quarantine "$HOME/Library/Input Methods/TextVN-IM.app" 2>/dev/null || true
-          app="$HOME/Library/Input Methods/TextVN-IM.app"
+          pkg="$(ls candidate/*.pkg | head -n1)"
+          echo "pkg: $pkg"
+          sudo installer -pkg "$pkg" -target / | tail -n 3
+          app="/Library/Input Methods/TextVN-IM.app"
+          test -d "$app"
           exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
           archs="$(lipo -archs "$app/Contents/MacOS/$exe")"
           echo "TextVN-IM archs: $archs"
           grep -qw arm64 <<<"$archs"
           # Chẩn đoán TIS (ARM-M2): chữ ký + khoá input source trong Info.plist.
           codesign -dv --verbose=2 "$app" 2>&1 | grep -E "^(Identifier|Format|Signature|TeamIdentifier|flags)" || echo "(codesign: chưa ký)"
-          for k in CFBundleIdentifier TISInputSourceID InputMethodConnectionName InputMethodServerControllerClass LSBackgroundOnly; do
+          for k in CFBundleIdentifier TISInputSourceID InputMethodConnectionName InputMethodServerControllerClass; do
             echo "  $k = $(/usr/libexec/PlistBuddy -c "Print :$k" "$app/Contents/Info.plist" 2>/dev/null || echo "<thiếu>")"
           done
+          # Lần chạy 08a93cfd: cài vào ~/Library/Input Methods thì TIS (318 nguồn) KHÔNG bao giờ liệt kê
+          # TextVN dù TISRegisterInputSource = noErr ⇒ đi đúng đường gói .pkg + đăng ký LaunchServices.
+          /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f -R "$app"
       - name: Đăng ký + bật + chọn input source (TIS)
-        run: swift tools/mac/tis-select.swift "$HOME/Library/Input Methods/TextVN-IM.app" vn.textvn.im
+        run: swift tools/mac/tis-select.swift "/Library/Input Methods/TextVN-IM.app" vn.textvn.im
       - name: Gõ thật vào TextEdit qua IMK (smoke-imk.sh)
         run: |
           set +e

@@ -4,9 +4,11 @@
 ## VI
 
 - **Job mới `imk-e2e`** (`ci-macos.yml`, `needs: package-candidate`, `macos-latest` = Apple Silicon):
-  1. Kiểm `uname -m = arm64`; lấy **đúng gói candidate** của commit (artifact
-     `TextVN-macos-candidate-<sha>`), giải nén, cài `TextVN-IM.app` vào `~/Library/Input Methods`,
-     gỡ quarantine, kiểm binary có lát `arm64` (`lipo -archs`).
+  1. Kiểm `uname -m = arm64`; cài **đúng gói `.pkg` candidate** của commit (artifact
+     `TextVN-macos-candidate-<sha>`) bằng `sudo installer` như người dùng ⇒ `/Library/Input Methods`,
+     kiểm binary có lát `arm64` (`lipo -archs`), đăng ký LaunchServices (`lsregister -f`). Lần chạy
+     đầu cài thẳng vào `~/Library/Input Methods`: TIS (318 nguồn) không bao giờ liệt kê TextVN dù
+     `TISRegisterInputSource = noErr` — nên đổi sang đường gói thật.
   2. `tools/mac/tis-select.swift` (mới, Swift thuần + Carbon TIS): `TISRegisterInputSource` →
      `TISEnableInputSource` → `TISSelectInputSource`, rồi **xác minh** nguồn hiện hành thuộc bundle
      `vn.textvn.im`. TIS từ chối hoặc không thấy nguồn ⇒ exit 1 = **đỏ thật** (không được coi là SKIP).
@@ -22,10 +24,12 @@
 ## EN
 
 - **New job `imk-e2e`** (`ci-macos.yml`, `needs: package-candidate`, `macos-latest` = Apple Silicon):
-  1. Asserts `uname -m = arm64`; takes **the exact candidate package** of the commit (artifact
-     `TextVN-macos-candidate-<sha>`), unpacks it, installs `TextVN-IM.app` into
-     `~/Library/Input Methods`, clears quarantine and checks the binary has an `arm64` slice
-     (`lipo -archs`).
+  1. Asserts `uname -m = arm64`; installs **the exact candidate `.pkg`** of the commit (artifact
+     `TextVN-macos-candidate-<sha>`) with `sudo installer`, as a user would ⇒ `/Library/Input Methods`,
+     checks the binary has an `arm64` slice (`lipo -archs`) and registers it with LaunchServices
+     (`lsregister -f`). The first run installed straight into `~/Library/Input Methods`: TIS (318
+     sources) never listed TextVN although `TISRegisterInputSource = noErr`, so the job now uses the
+     real package path.
   2. `tools/mac/tis-select.swift` (new, pure Swift + Carbon TIS): `TISRegisterInputSource` →
      `TISEnableInputSource` → `TISSelectInputSource`, then **verifies** that the current input
      source belongs to bundle `vn.textvn.im`. If TIS refuses or finds no source ⇒ exit 1 = a
