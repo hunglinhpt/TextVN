@@ -273,3 +273,85 @@ jobs:
           name: fuzz-artifacts
           path: fuzz/artifacts/
           if-no-files-found: ignore
+
+  # PERF-2 (P0-7 §5): chứng minh tất định tuyệt đối theo kiến trúc — đầu ra replay (4 adapter)
+  # và Dream RSI KSR-oracle trên x86_64 và aarch64 phải cho SHA-256 giống hệt từng byte.
+  determinism-measure:
+    name: determinism (${{ matrix.arch }})
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            os: ubuntu-24.04
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Kiểm tra kiến trúc runner (${{ matrix.arch }})
+        run: |
+          uname -m
+          test "$(uname -m)" = "${{ matrix.arch }}"
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: perf2-det-${{ matrix.arch }}-v1
+      - name: Chạy replay + Dream RSI và ghi SHA256SUMS.txt
+        run: |
+          set -euo pipefail
+          mkdir -p det-out
+          cargo build -q --locked -p textvn-cli
+          cargo build -q --locked --release -p textvn-bench
+          cargo run -q --locked -p textvn-cli -- replay corpus/shared --adapter headless --json | sed -E 's/,"ms":[0-9]+//g' > det-out/replay-headless.json
+          cargo run -q --locked -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf --json | sed -E 's/,"ms":[0-9]+//g' > det-out/replay-tsf.json
+          cargo run -q --locked -p textvn-cli -- replay corpus/shared corpus/mac --adapter mac --json | sed -E 's/,"ms":[0-9]+//g' > det-out/replay-mac.json
+          cargo run -q --locked -p textvn-cli -- replay corpus/shared --adapter linux --json | sed -E 's/,"ms":[0-9]+//g' > det-out/replay-linux.json
+          cargo run -q --locked --release -p textvn-bench -- dream-rsi > det-out/dream-rsi.txt
+          (
+            cd det-out
+            for f in replay-headless.json replay-tsf.json replay-mac.json replay-linux.json dream-rsi.txt; do
+              test -s "$f"
+            done
+            LC_ALL=C sha256sum replay-headless.json replay-tsf.json replay-mac.json replay-linux.json dream-rsi.txt > SHA256SUMS.txt
+            cat SHA256SUMS.txt
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: determinism-${{ matrix.arch }}
+          path: det-out/
+          if-no-files-found: error
+
+  determinism-compare:
+    name: determinism (x86_64 == aarch64)
+    needs: determinism-measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: determinism-x86_64
+          path: det-x86_64
+      - uses: actions/download-artifact@v4
+        with:
+          name: determinism-aarch64
+          path: det-aarch64
+      - name: Đối chiếu SHA-256 giữa x86_64 và aarch64
+        run: |
+          set -euo pipefail
+          test -s det-x86_64/SHA256SUMS.txt
+          test -s det-aarch64/SHA256SUMS.txt
+          test "$(wc -l < det-x86_64/SHA256SUMS.txt)" -eq 5
+          test "$(wc -l < det-aarch64/SHA256SUMS.txt)" -eq 5
+          if ! diff -u det-x86_64/SHA256SUMS.txt det-aarch64/SHA256SUMS.txt; then
+            echo "::error::Đầu ra replay/Dream RSI lệch giữa x86_64 và aarch64!"
+            for f in replay-headless.json replay-tsf.json replay-mac.json replay-linux.json dream-rsi.txt; do
+              diff -u "det-x86_64/$f" "det-aarch64/$f" || true
+            done
+            exit 1
+          fi
+          echo "OK: x86_64 == aarch64 (5/5 tệp khớp SHA-256 tuyệt đối)"
+          cat det-x86_64/SHA256SUMS.txt
