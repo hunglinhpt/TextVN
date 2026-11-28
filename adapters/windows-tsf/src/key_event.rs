@@ -138,7 +138,7 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         // CUAS đã đổi phím thành VK_PROCESSKEY vì pha test nhận nó: từ đã commit, giờ trả
         // phím gốc về cho app, xếp SAU kết quả composition (`replay.rs`).
         if let Some(event) = deferred {
-            if eaten {
+            if deferred_key_disposition(eaten) == DeferredKey::Consumed {
                 // R2-123: TIP đã ĂN phím (Tab hoàn tất/dự đoán, gõ tắt, Ctrl+Space
                 // mở trợ lý, ↑/↓ của overlay) — không có "phím gốc" nào phải trả
                 // cho app; replay ở đây chèn thêm Tab/Ctrl+Space thừa vào app CUAS.
@@ -1063,9 +1063,37 @@ fn translate_key_base(vk: u32, lparam: LPARAM) -> u32 {
     }
 }
 
+/// Phím CUAS được giữ lại ở `OnTestKeyDown` (app IMM32: Notepad++, WinForms…) xử lý thế nào ở
+/// `OnKeyDown`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DeferredKey {
+    /// TIP đã ăn phím (Tab hoàn tất/dự đoán, gõ tắt, Ctrl+Space mở trợ lý, ↑/↓ overlay): không có
+    /// "phím gốc" nào phải trả cho app.
+    Consumed,
+    /// Phím đi qua: đóng composition rồi trả phím gốc cho app (`replay.rs`).
+    Replay,
+}
+
+/// R2-123: replay phím đã bị TIP ăn từng chèn THÊM một Tab/Ctrl+Space thừa vào app CUAS.
+pub(crate) fn deferred_key_disposition(eaten: bool) -> DeferredKey {
+    if eaten {
+        DeferredKey::Consumed
+    } else {
+        DeferredKey::Replay
+    }
+}
+
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
+
+    /// R2-123: phím TIP đã ăn KHÔNG được replay cho app CUAS (Tab/Ctrl+Space thừa); phím đi qua
+    /// thì trả lại đúng một lần.
+    #[test]
+    fn r2_123_phim_tip_da_an_khong_replay_cho_app_cuas() {
+        assert_eq!(deferred_key_disposition(true), DeferredKey::Consumed);
+        assert_eq!(deferred_key_disposition(false), DeferredKey::Replay);
+    }
 
     /// Q-3 (MAJOR): nhấn **Ctrl** (modifier) KHÔNG được huỷ state hoàn tác.
     ///

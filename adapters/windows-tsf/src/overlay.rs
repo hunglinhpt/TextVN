@@ -165,7 +165,12 @@ fn window_dpi_safe(hwnd: HWND) -> u32 {
 #[cfg(windows)]
 fn metrics_for_hwnd(hwnd: HWND) -> Metrics {
     // Panel luôn PerMonitorV2-aware qua manifest host; fail/Win10-1507 → 96.
-    let dpi = window_dpi_safe(hwnd);
+    metrics_for_dpi(window_dpi_safe(hwnd))
+}
+
+/// Số liệu panel cho một DPI (thuần — test được, REG-2/R2-127).
+#[cfg(windows)]
+fn metrics_for_dpi(dpi: u32) -> Metrics {
     let s = |v: i32| (((v as i64) * (dpi as i64) + 48) / 96) as i32;
     Metrics {
         pad: s(PAD),
@@ -1247,6 +1252,29 @@ mod mouse_tests {
 mod tests {
     use super::*;
     use crate::assist::IssueView;
+
+    /// R2-127 (chủ repo 2026-10-26: "popup hơi khó nhìn, cho to ra"): chữ panel ≈1,3× bản cũ
+    /// (15/12/14 px → 20/15/18 px ở 96 DPI) và scale đúng theo DPI màn (150 % ⇒ 30 px).
+    #[cfg(windows)]
+    #[test]
+    fn r2_127_panel_chu_to_va_scale_theo_dpi() {
+        let m = metrics_for_dpi(96);
+        assert_eq!(
+            (m.font_main, m.font_small, m.font_header),
+            (20, 15, 18),
+            "cỡ chữ panel ở 96 DPI (R2-127) — không được nhỏ lại"
+        );
+        assert!(m.font_btn >= 16, "chữ nút ≥ 16 px");
+        let big = metrics_for_dpi(144);
+        assert_eq!(
+            (big.font_main, big.font_small, big.font_header),
+            (30, 23, 27)
+        );
+        assert!(
+            big.line_h > m.line_h && big.max_w > m.max_w,
+            "mọi kích thước scale theo DPI"
+        );
+    }
 
     /// R2-125: caret rỗng cho rect bề rộng 0 (Notepad Win11/RichEdit) vẫn là
     /// vị trí hợp lệ — trước đây bị loại nên panel không bao giờ hiện.

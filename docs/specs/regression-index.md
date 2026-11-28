@@ -7,7 +7,7 @@
 > hoặc `todo:REG-2` (nợ — số dòng todo không được vượt `todo-max`, REG-2 giảm dần). Nhiều bằng chứng cách nhau ` · `.
 > Mã mới: `cargo xtask regression-index --bootstrap --merge` thêm dòng (tự tìm test nhắc mã), rồi sửa tay cho đúng.
 
-<!-- regression-index: todo-max = 11 -->
+<!-- regression-index: todo-max = 0 -->
 
 | Mã | Nguồn | Bằng chứng |
 |---|---|---|
@@ -29,12 +29,12 @@
 | E23 | project-common-errors | `test:adapters/macos-imk/Tests/IMKLibTests/AssistTests.swift::testAssistFixPreconditionUnavailableSkips` |
 | E24 | project-common-errors | `file:adapters/linux-fcitx5/tests/test_delete_surrounding.cpp` |
 | E25 | project-common-errors | `file:adapters/linux-fcitx5/tests/test_surrounding_match.cpp` |
-| E26 | project-common-errors | `todo:REG-2` |
+| E26 | project-common-errors | `test:adapters/windows-tsf/src/assist.rs::a2_lap_tu_xoa_dung_lan_lap` · `test:adapters/windows-tsf/src/assist.rs::plan_sentence_auto_fix_nhieu_loi_objective` |
 | E27 | project-common-errors | `gate:tools/win/e2e-assist-p6.ps1` |
 | E28 | project-common-errors | `test:core/src/method/viqr.rs::freeze_marker_lap` |
 | E29 | project-common-errors | `test:adapters/windows-tsf/src/assist.rs::a2_double_space_va_space_after_punct_sua_dung` · `test:ffi/src/lib.rs::plan_issues_from_raw_double_space_va_space_after_punct` |
 | E3 | project-common-errors | `process:lỗi cú pháp Rust — chặn bởi preflight fmt/clippy/test trước commit` |
-| E30 | project-common-errors | `todo:REG-2` |
+| E30 | project-common-errors | `test:adapters/windows-tsf/src/edit_session.rs::e30_recheck_van_sua_tiep_khi_buffer_da_doi` |
 | E31 | project-common-errors | `gate:.gitattributes` |
 | E32 | project-common-errors | `gate:xtask/src/preflight.rs` |
 | E33 | project-common-errors | `process:script vá có gạch chéo ghi bằng Write rồi chạy; trong script dùng chr(92)/chuỗi raw` |
@@ -103,7 +103,7 @@
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |
 | R2-101 | CHANGELOG | `gate:installer/windows/tests/test-portable.ps1` |
 | R2-102 | CHANGELOG | `gate:installer/windows/tests/test-portable.ps1` |
-| R2-103 | CHANGELOG | `todo:REG-2` |
+| R2-103 | CHANGELOG | `gate:tools/win/e2e-assist-apps.ps1` |
 | R2-104 | CHANGELOG | `test:cli/src/register.rs::user_hive_paths_are_relative_to_hkey_users` · `test:cli/src/register.rs::hkey_users_relative_paths_reach_the_loaded_hive` |
 | R2-105 | CHANGELOG | `gate:installer/windows/tests/test-installer.ps1` |
 | R2-106 | CHANGELOG | `test:tray/src/settings_dialog.rs::labels_match_linux_settings_panel` |
@@ -111,7 +111,7 @@
 | R2-108 | CHANGELOG | `gate:scripts/test-linux-package.sh` |
 | R2-109 | CHANGELOG | `test:tray/src/ipc_server.rs::serves_every_pipe_name` |
 | R2-110 | CHANGELOG | `test:ipc/src/sandbox.rs::server_image_must_be_textvn_exe_by_file_name` |
-| R2-111 | CHANGELOG | `todo:REG-2` |
+| R2-111 | CHANGELOG | `process:bộ cài đăng ký TSF theo AppId/CLSID cố định, không theo /DMyAppName — kiểm khi build bộ cài tuỳ biến (installer/windows/TextVN-setup.iss)` |
 | R2-112 | CHANGELOG | `gate:xtask/src/hygiene.rs` |
 | R2-113 | CHANGELOG | `test:tray/src/settings_dialog.rs::about_text_matches_every_platform` |
 | R2-114 | CHANGELOG | `test:tray/src/lib.rs::no_poison_panicking_lock_unwrap_in_tray` |
@@ -122,24 +122,24 @@
 | R2-120 | CHANGELOG | `test:core/src/post/predict.rs::cum_noi_tiep_giu_chu_hoa_chuan` · `test:core/src/post/predict.rs::khong_du_doan_qua_dong_moi` · `test:core/tests/text_prediction.rs::r2_120_ngu_canh_nhieu_tu_truoc_hoan_tat_tien_to` · `gate:tools/win/e2e-assist-p6.ps1` |
 | R2-120a | CHANGELOG | `process:perf baseline re-record từ run CI (không từ máy dev) — gate preflight bước perf so perf/baseline-win.json` |
 | R2-120g | CHANGELOG | `process:perf baseline compact + re-record khi runner image đổi — gate preflight bước perf` |
-| R2-120h | CHANGELOG | `todo:REG-2` |
+| R2-120h | CHANGELOG | `test:adapters/windows-tsf/src/edit_session.rs::r2_120h_drain_hoc_moi_20_phim` |
 | R2-121 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_plan_edge_cases` · `test:adapters/windows-tsf/src/compose.rs::ctrl_space_plan_never_inserts_space_on_pass` · `test:core/tests/text_prediction.rs::r2_121_ctrl_space_khong_khop_nha_tu_giu_cau` · `gate:tools/win/e2e-assist-p6.ps1` |
 | R2-122 | CHANGELOG | `test:adapters/windows-tsf/src/assist.rs::phim_overlay_theo_p4_0_4_2` · `gate:tools/win/e2e-assist-apps.ps1` · `gate:tools/win/e2e-assist-p6.ps1` |
-| R2-123 | CHANGELOG | `todo:REG-2` |
+| R2-123 | CHANGELOG | `test:adapters/windows-tsf/src/key_event.rs::r2_123_phim_tip_da_an_khong_replay_cho_app_cuas` |
 | R2-124 | CHANGELOG | `gate:installer/windows/tests/test-installer.ps1` |
 | R2-125 | CHANGELOG | `test:adapters/windows-tsf/src/overlay.rs::v49_panel_khong_che_dong_caret_khi_caret_ganh_dinh` · `test:adapters/windows-tsf/src/overlay.rs::r2_125_caret_rect_be_rong_0_van_neo_duoc` |
 | R2-126 | CHANGELOG | `test:tray/src/assist.rs::mode_off_never_notifies` · `test:tray/src/assist.rs::only_auto_fix_shows_a_toast` |
-| R2-127 | CHANGELOG | `todo:REG-2` |
+| R2-127 | CHANGELOG | `test:adapters/windows-tsf/src/overlay.rs::r2_127_panel_chu_to_va_scale_theo_dpi` |
 | R2-128 | CHANGELOG | `test:core/src/post/number_vn.rs::doc_so_chuan_ke_toan` · `test:adapters/windows-tsf/src/compose.rs::op003_money_shorthand_through_adapter` |
 | R2-129 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_assist_mode_semantics` · `test:adapters/windows-tsf/src/assist.rs::phim_overlay_theo_p4_0_4_2` · `gate:tools/win/e2e-assist-p6.ps1` |
 | R2-130 | CHANGELOG | `gate:installer/windows/tests/test-installer.ps1` |
 | R2-131 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_assist_hotkey_explicit_preview` · `test:adapters/macos-imk/Tests/IMKLibTests/AssistTests.swift::testPlanSentenceAutoFixSkipsNonAutoFixableSpelling` · `test:adapters/windows-tsf/src/assist.rs::r2_131_a2_sua_loi_chinh_ta_khi_nguoi_dung_chon` · `gate:tools/win/e2e-assist-apps.ps1` · `gate:tools/win/e2e-assist-p6.ps1` |
-| R2-132 | CHANGELOG | `todo:REG-2` |
+| R2-132 | CHANGELOG | `gate:tools/win/e2e-assist-apps.ps1` |
 | R2-133 | CHANGELOG | `test:adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift::testCtrlSpaceExclusionFromChord` |
 | R2-134 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_assist_hotkey_explicit_preview` · `test:core/tests/text_prediction.rs::r2_134_peek_completion_xem_truoc_dung_phan_tab_noi_them` · `gate:tools/win/e2e-assist-apps.ps1` |
-| R2-135 | CHANGELOG | `todo:REG-2` |
+| R2-135 | CHANGELOG | `gate:tools/win/e2e-assist-apps.ps1` |
 | R2-136 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_assist_hotkey_explicit_preview` · `gate:tools/win/e2e-assist-apps.ps1` |
-| R2-137 | CHANGELOG | `todo:REG-2` |
+| R2-137 | CHANGELOG | `gate:tools/win/e2e-assist-apps.ps1` |
 | R2-138 | CHANGELOG | `test:tray/src/lib.rs::r2_138_nhac_mo_lai_ung_dung_sau_nang_cap` |
 | R2-139 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_transcode_hotkey` · `test:adapters/linux-common/tests/test_compose.c::test_transcode_selection_slice` · `test:adapters/macos-imk/Tests/IMKLibTests/TranscodeSelectionTests.swift::testTranscodeChordChiCtrlShiftF9` · `gate:tools/win/e2e-assist-apps.ps1` |
 | R2-140 | CHANGELOG | `test:core/src/lib.rs::telex_bracket_keys_and_double_bracket_escape_in_engine` · `test:core/tests/audit_r2_140.rs::r2_140_code_va_markdown_giu_nguyen_ngoac` · `test:core/tests/audit_r2_140.rs::r2_140_chu_viet_trong_ngoac_van_go_duoc` |
@@ -148,7 +148,7 @@
 | R2-146 | CHANGELOG | `test:core/tests/audit_r2_140.rs::r2_146_tu_dung_nhieu_song_qua_loat_tu_moi` · `test:core/tests/audit_r2_140.rs::r2_146_tu_moi_lien_tuc_van_giam_trong_so_dinh_ky` · `test:core/tests/style_learning_v59.rs::trigram_khong_hoc_qua_dau_cau` |
 | R2-148 | CHANGELOG | `test:core/tests/audit_r2_140.rs::r2_148_cum_khong_vat_qua_xuong_dong` · `test:core/tests/audit_r2_140.rs::r2_148_cum_can_khoang_trang_that` · `test:core/tests/audit_r2_140.rs::r2_148_drain_uu_tien_tu_go_nhieu_va_khong_mat_phan_con_lai` |
 | R2-150 | CHANGELOG | `test:core/tests/prediction_perf.rs::peek_completion_ho_so_day_ngan_sach_moi_phim` |
-| R2-151 | CHANGELOG | `todo:REG-2` |
+| R2-151 | CHANGELOG | `test:core/tests/audit_r2_140.rs::r2_144_terminal_giu_tab_cho_shell` · `test:core/tests/audit_r2_140.rs::r2_145_terminal_khong_hoc_chu_nao` · `test:adapters/windows-tsf/src/compose.rs::e49_tsf_focus_terminal_state_machine_528` |
 | R2-152 | CHANGELOG | `test:config/tests/style_merge.rs::gop_va_giu_nguyen_khoa_khac` · `test:ffi/src/lib.rs::r2_152_persist_ghi_file_giu_khoa_khac_va_xoa_pending` · `test:ffi/src/lib.rs::r2_152_persist_loi_giu_pending_va_tham_so_hong` |
 | R2-153 | CHANGELOG | `process:audit DFMEA/DRBFM 0.2.69 — docs/release/AUDIT-0.2.69-DFMEA-DRBFM.md (các lỗi con có mã riêng R2-140…R2-152)` |
 | R2-154 | CHANGELOG | `test:adapters/windows-tsf/tests/idle_popup_routing.rs::moi_phim_go_chu_dau_cau_xoa_deu_lap_lich` · `test:adapters/windows-tsf/tests/idle_popup_routing.rs::khong_co_edit_cookie_gia_trong_ma_nguon` · `gate:tools/win/e2e-assist-apps.ps1` |

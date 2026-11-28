@@ -641,9 +641,8 @@ impl KeyEditSession {
                 if matches!(self.key, KeyKind::Char(_) | KeyKind::Backspace) {
                     // R2-120a: is_multiple_of chưa có trên rustc Debian trixie —
                     // counter reset khi chạm 20 (không dùng %).
-                    let n = shared.style_key_counter.get() + 1;
-                    let drain_now = n >= 20;
-                    shared.style_key_counter.set(if drain_now { 0 } else { n });
+                    let (next, drain_now) = style_drain_due(shared.style_key_counter.get());
+                    shared.style_key_counter.set(next);
                     if drain_now {
                         let json = shared
                             .thread
@@ -1743,13 +1742,17 @@ impl ApplyAssistFixSession {
             //    (hoặc popup được dựng ngay từ `recheck_after_fix`, khi đó
             //    Precondition 5 `verify_delete_range` bên dưới xác minh nội dung
             //    thật trong document trước caret). --
-            let buffer_is_ours = self.active.from_recheck
-                || self
-                    .shared
-                    .thread
-                    .try_borrow()
-                    .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.active.sentence)
-                    .unwrap_or(false);
+            let tail_now = self
+                .shared
+                .thread
+                .try_borrow()
+                .ok()
+                .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS));
+            let buffer_is_ours = assist_buffer_is_ours(
+                self.active.from_recheck,
+                tail_now.as_deref(),
+                &self.active.sentence,
+            );
 
             // -- Precondition 4: text store cho lùi ĐÚNG delete_glyphs glyph --
             let Some(want) = backspace_shift(self.plan.delete_glyphs) else {
@@ -3197,10 +3200,70 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
     );
 }
 
+/// R2-120h — throttle drain dữ liệu học: drain mỗi phím sẽ spawn thread IPC liên tục khi gõ nhanh.
+/// Nhận bộ đếm hiện tại, trả `(bộ đếm mới, có drain lúc này)`: drain ở phím thứ 20 rồi về 0
+/// (không dùng `%`/`is_multiple_of` — R2-120a: rustc Debian trixie).
+pub(crate) fn style_drain_due(counter: u32) -> (u32, bool) {
+    let n = counter.saturating_add(1);
+    if n >= 20 {
+        (0, true)
+    } else {
+        (n, false)
+    }
+}
+
+/// E30 — Precondition 3 của sửa câu: buffer câu của core vẫn là câu lúc hiện overlay, HOẶC
+/// popup được dựng từ `recheck_after_fix` (lần sửa trước đã đổi buffer; Precondition 5
+/// `verify_delete_range` vẫn xác minh nội dung thật trước caret). Thiếu nhánh re-check thì lần
+/// sửa thứ hai trong popup re-check không bao giờ chạy.
+pub(crate) fn assist_buffer_is_ours(
+    from_recheck: bool,
+    tail_now: Option<&str>,
+    sentence: &str,
+) -> bool {
+    from_recheck || tail_now == Some(sentence)
+}
+
 #[cfg(all(test, windows))]
 mod tests {
     use crate::input_scope;
     use windows::Win32::UI::TextServices::*;
+
+    /// R2-120h: drain dữ liệu học mỗi 20 phím ranh giới — không phải mỗi phím.
+    #[test]
+    fn r2_120h_drain_hoc_moi_20_phim() {
+        use super::style_drain_due;
+        let mut c = 0;
+        let mut drains = 0;
+        for _ in 0..100 {
+            let (next, due) = style_drain_due(c);
+            c = next;
+            drains += u32::from(due);
+        }
+        assert_eq!(drains, 5, "100 phím ⇒ đúng 5 lần drain");
+        assert_eq!(style_drain_due(18), (19, false));
+        assert_eq!(style_drain_due(19), (0, true));
+        assert_eq!(style_drain_due(u32::MAX), (0, true), "không tràn");
+    }
+
+    /// E30: popup re-check sau lần sửa đầu phải sửa tiếp được (buffer đã đổi); ngoài re-check,
+    /// buffer lệch câu lúc hiện overlay ⇒ không sửa.
+    #[test]
+    fn e30_recheck_van_sua_tiep_khi_buffer_da_doi() {
+        use super::assist_buffer_is_ours;
+        assert!(assist_buffer_is_ours(
+            true,
+            Some("câu sau khi sửa"),
+            "câu lúc hiện popup"
+        ));
+        assert!(assist_buffer_is_ours(true, None, "câu"));
+        assert!(assist_buffer_is_ours(false, Some("câu"), "câu"));
+        assert!(!assist_buffer_is_ours(false, Some("câu khác"), "câu"));
+        assert!(
+            !assist_buffer_is_ours(false, None, "câu"),
+            "không mượn được engine ⇒ không sửa"
+        );
+    }
 
     /// R2-173: chỉ phím sinh/xoá ký tự mà TIP KHÔNG ăn mới hoãn chữ mờ tới key-up (app chưa
     /// chèn ký tự lúc edit session chạy). Tab/Ctrl+Space bị ăn (đã chèn gợi ý) → vẽ ngay.

@@ -16,6 +16,9 @@
 # for ~4 minutes (SendInput). Edge runs with its own --user-data-dir under %TEMP% (the user's
 # Edge is not touched). Only test strings are logged (S2). Trace: %TEMP%\textvn-e2e-apps-trace.log
 # Result 2026-10-26: 44/44 PASS (P6-TEXT-PREDICTION.md section 2b).
+# Regression index (REG-2, docs/specs/regression-index.md): npp = R2-132 (CUAS tail fix), vscode =
+#   R2-135 (deferred fix, Monaco redraw), x86edit = R2-137 (EDIT family EM_REPLACESEL); every fix
+#   case compares the final text, so a failed re-insert that duplicates text fails (R2-103).
 param(
     [Parameter(Mandatory = $true)][string]$DevDir,
     [string]$ProdCli = 'C:\Program Files\TextVN\textvn-cli.exe',
