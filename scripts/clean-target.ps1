@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('All', 'Incremental', 'StaleTriples', 'Sweep')]
+    [ValidateSet('All', 'Incremental', 'StaleTriples', 'Sweep', 'DebugBuild')]
     [string]$Mode = 'All',
 
     [ValidateRange(0, 3650)]
@@ -203,6 +203,34 @@ try {
                     } else {
                         Remove-Item -LiteralPath $td.FullName -Recurse -Force
                         Write-Host ('Removed: {0}' -f $td.FullName)
+                    }
+                }
+            }
+        }
+        'DebugBuild' {
+            $debugBuildDirs = @()
+            $rootDebugBuild = Join-Path $TargetDir 'debug\build'
+            if (Test-Path -LiteralPath $rootDebugBuild) {
+                $debugBuildDirs += $rootDebugBuild
+            }
+            foreach ($d in $topDirs) {
+                if ($d.Name -like '*-*-*') {
+                    $tripleDebugBuild = Join-Path $d.FullName 'debug\build'
+                    if (Test-Path -LiteralPath $tripleDebugBuild) {
+                        $debugBuildDirs += $tripleDebugBuild
+                    }
+                }
+            }
+            Write-Host ''
+            if ($debugBuildDirs.Count -eq 0) {
+                Write-Host 'No debug\build directories found.'
+            } else {
+                foreach ($dbDir in $debugBuildDirs) {
+                    if ($isDryRun) {
+                        Write-Host ('[DRY-RUN] Would remove: {0}' -f $dbDir)
+                    } else {
+                        Remove-Item -LiteralPath $dbDir -Recurse -Force
+                        Write-Host ('Removed: {0}' -f $dbDir)
                     }
                 }
             }

@@ -2,7 +2,7 @@
 
 > File này là **điểm vào tự nạp** cho agent (ZCode/Codex/Claude/…). Nội dung
 > tóm tắt; **luật đầy đủ và có ưu tiên cao hơn**: `docs/00-WORKFLOW.md`
-> (G1–G20) · `docs/01-AGENT-HANDBOOK.md` (DoD/security/review) ·
+> (G1–G24) · `docs/01-AGENT-HANDBOOK.md` (DoD/security/review) ·
 > `docs/release/release-process.md` (checklist phát hành). Mâu thuẫn → làm
 > theo file đó, không tự diễn giải.
 
@@ -10,7 +10,7 @@
 
 0. **`cargo xtask board status --agent <id>` + `cargo xtask board inbox`** — ai đang làm gì, thư gửi
    mình, khoá phát hành (G21, `coordination/README.md`). Nhận việc từ `docs/10-shared/P0-7-TASKS-ARM-SF.md`.
-1. `docs/00-WORKFLOW.md` — ground rules G1–G23 + quy trình audit/fixbug/dọn dẹp/CI.
+1. `docs/00-WORKFLOW.md` — ground rules G1–G24 + quy trình audit/fixbug/dọn dẹp/CI.
 2. `PLAN.md` + `docs/01-AGENT-HANDBOOK.md` — mục tiêu, DoD 8 mục (kèm Dream RSI), security.
 3. `specs/verified-ops.md` + `specs/win-test-common-errors.md` +
    `specs/project-common-errors.md` — cái đã kiểm chứng + lỗi đã gặp (đừng lặp).
@@ -31,6 +31,7 @@
 | G21 | **Nhiều agent cùng làm = giao nhận việc qua `coordination/board.jsonl`** (`cargo xtask board`, luật R1–R14 trong `coordination/README.md`): đầu phiên `board status` + `board inbox`; nhận task bằng `board claim` (task phải đạt DoR, commit riêng tệp board + push); `board reserve` tệp sắp sửa; trước mọi commit `board guard $(git diff --cached --name-only)`; xong `board release --status done --commit` + `notify '*'`; tệp phát hành (CHANGELOG/README/report/version) chỉ agent giữ `board rm-lock` sửa — agent task viết `coordination/changes/<TASK>.md`; cấp mã lỗi mới qua `board note "alloc E.."` |
 | G22 | **Không duplicate code/nghiệp vụ — một framework**: mọi nghiệp vụ chung (luật gõ, composition, phím chuyển, trợ lý, dự đoán/chữ mờ, nhận diện ô, IPC…) và **nguyên lý UI** (chữ hiển thị, nhóm cài đặt, gợi ý, hành vi popup) chỉ có MỘT nguồn trong lớp Rust dùng chung (`core/`, `textvn-session` P0-6, dữ liệu sinh mã `cargo xtask gen-*`); lớp OS chỉ khác ở cách tận dụng sức mạnh hệ điều hành (TSF/IMK/IBus/Fcitx5, toolkit UI native, API OS). Thêm logic vào `adapters/`/`tray/`/Swift/C khi nó thuộc nghiệp vụ chung = vi phạm; gặp bản sao cũ ⇒ mở task hợp nhất (P0-7 SF-*), test parity chỉ là tạm |
 | G23 | **Phát hành không re-work (một lần là xong)**: gộp mọi thay đổi chờ vào MỘT bản; trước khi tag BẮT BUỘC chạy thử `gh workflow run release.yml --ref main` trên đúng commit và chờ mọi job xanh (B4b); lỗi CI/release ⇒ sửa cả LỚP lỗi trên mọi OS/target + gate chống tái diễn rồi mới chạy lại; tag lại chỉ khi publish chưa chạy |
+| G24 | **Dọn sạch `target/debug/build` ngay sau khi release build xong**: sau mỗi lần chạy build/đóng gói release (`build-release.ps1`, bước phát hành B9, hoặc đóng phiên build release), BẮT BUỘC dọn `target/debug/build` (và `target/*/debug/build`) bằng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-target.ps1 -Mode DebugBuild` trên Windows (hoặc `rm -rf target/debug/build target/*/debug/build` trên Linux/macOS) để tránh tích tụ rác hàng trăm thư mục build-script (nhiều GB); `build-release.ps1` đã tự chạy bước này trừ khi truyền `-KeepDebugBuild` |
 | — | Ngôn ngữ: chỉ Rust + C/C++ + Swift native, không thêm runtime mới cho user |
 
 ## 2. Chiến lược phát hành — các mốc bắt buộc theo thứ tự
@@ -55,7 +56,7 @@ repo/docs). Tóm tắt các mốc hay bị bỏ sót:
 6. **Homebrew tap** (B7d): `gh workflow run sync-cask.yml -R hunglinhpt/homebrew-tap`
    → run xanh + `Casks/textvn.rb` trên tap có đúng version/hash bản mới. Tap tự
    sync mỗi 6 giờ — không cần PAT, không thêm bước trong release.yml.
-7. **Memory dự án** cập nhật nếu có bài học mới (B9).
+7. **Dọn dẹp & Memory dự án (B9, G24)**: chạy `scripts/clean-target.ps1 -Mode DebugBuild` dọn sạch `target/debug/build`, cập nhật memory dự án nếu có bài học mới.
 
 ## 3. Kiến trúc & ràng buộc kỹ thuật cốt lõi
 

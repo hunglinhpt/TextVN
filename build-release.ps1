@@ -24,7 +24,8 @@ param(
     [string]$SigningCertificateThumbprint = "",
     [string]$Version = "",
     [ValidateSet("candidate", "production")]
-    [string]$Channel = "candidate"
+    [string]$Channel = "candidate",
+    [switch]$KeepDebugBuild
 )
 
 Set-StrictMode -Version Latest
@@ -494,6 +495,20 @@ if ($BuildInstaller) {
                 if ($LASTEXITCODE -ne 0) { throw "SignPath signing failed: $machineExe" }
             }
             Write-Ok "Installer (machine/HKLM): $machineExe"
+        }
+    }
+}
+
+# G24: clean target\debug\build after release build finishes to avoid gigabytes of stale build-script artifacts.
+if (-not $KeepDebugBuild) {
+    Write-Step "Clean target\debug\build (G24)"
+    $cleanScript = Join-Path $PSScriptRoot "scripts\clean-target.ps1"
+    if (Test-Path -LiteralPath $cleanScript) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $cleanScript -Mode DebugBuild
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "target\debug\build cleanup skipped or partial (exit $LASTEXITCODE - active build/IDE lock?)"
+        } else {
+            Write-Ok "Cleaned target\debug\build"
         }
     }
 }
