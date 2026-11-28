@@ -81,6 +81,8 @@ pub const IME_SCMD_TIMER_START: u32 = 10;
 pub const IME_SCMD_TIMER_CANCEL: u32 = 11;
 pub const IME_SCMD_IPC: u32 = 12;
 pub const IME_SCMD_MODE_INDICATOR: u32 = 13;
+/// SF-3 (R2-171/E78): `arg0` = 1 giữ mốc đầu dòng (`ime_reset_with_tail("\n")`) / 0 xoá sạch.
+pub const IME_SCMD_ENGINE_RESET: u32 = 14;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -299,6 +301,10 @@ pub fn encode_commands(cmds: &[SessionCommand], out: &mut ime_session_out_v1) ->
             SessionCommand::ModeIndicator { vi_on } => {
                 rec.kind = IME_SCMD_MODE_INDICATOR;
                 rec.arg0 = u32::from(*vi_on);
+            }
+            SessionCommand::EngineReset { line_start } => {
+                rec.kind = IME_SCMD_ENGINE_RESET;
+                rec.arg0 = u32::from(*line_start);
             }
         }
         out.cmds[i] = rec;

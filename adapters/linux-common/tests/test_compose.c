@@ -744,7 +744,7 @@ static int sp_down(shadow_pair *p, lc_modifier which, int is_space, int ctrl, in
     lc_modifier_toggle_down(&p->t, which, ctrl, shift, alt);
     int legacy = which == LC_MOD_NONE && is_space && ctrl && shift; /* nhánh ADR-011 */
     if (legacy) lc_modifier_toggle_reset(&p->t);
-    lc_session_shadow_key_down(&p->s, which, is_space, ctrl, shift, alt, legacy);
+    lc_session_shadow_key_down(&p->s, which, is_space, 0, ctrl, shift, alt, legacy);
     p->s.now_override_ms += p->step_ms;
     return legacy;
 }
@@ -763,7 +763,7 @@ static void test_session_shadow_parity(void) {
     unsetenv("TEXTVN_SESSION_SHADOW");
     lc_session_shadow_init(&off);
     assert(off.session == NULL);
-    lc_session_shadow_key_down(&off, LC_MOD_KEY_CTRL, 0, 0, 0, 0, 0);
+    lc_session_shadow_key_down(&off, LC_MOD_KEY_CTRL, 0, 0, 0, 0, 0, 0);
     lc_session_shadow_key_up(&off, LC_MOD_KEY_CTRL, 1);
     lc_session_shadow_reset(&off);
     assert(off.mismatches == 0 && off.toggles == 0);
@@ -1140,6 +1140,37 @@ static void test_sf3_plan_parity_with_legacy(void) {
     assert(bad == 0);
 }
 
+/* SF-3 (R2-171/E78): quyết định reset của session (IME_SCMD_ENGINE_RESET) qua shadow phải khớp
+ * luật cũ của IBus/Fcitx5: reset toolkit < 250 ms sau Enter, không phím/focus xen giữa ⇒ giữ mốc. */
+static void test_session_shadow_reset_parity(void) {
+    lc_session_shadow s;
+    memset(&s, 0, sizeof(s));
+    assert(lc_session_shadow_init_force(&s) == 0);
+    /* Mô hình cũ: enter_at = mốc Enter (0 = không), xoá khi phím khác / đổi focus. */
+    uint64_t enter_at = 0;
+#define KEY(enter, t) do { s.now_override_ms = (t); \
+        lc_session_shadow_key_down(&s, LC_MOD_NONE, 0, (enter), 0, 0, 0, 0); \
+        enter_at = (enter) ? (t) : 0; } while (0)
+#define TOOLKIT_RESET(t) do { s.now_override_ms = (t); \
+        lc_session_shadow_toolkit_reset(&s, enter_at != 0 && (t) - enter_at < 250); } while (0)
+    KEY(1, 1000); TOOLKIT_RESET(1010);           /* ngay sau Enter: giữ mốc */
+    TOOLKIT_RESET(1020);                         /* reset thứ hai trong cửa sổ: vẫn giữ */
+    TOOLKIT_RESET(1300);                         /* quá 250 ms: xoá sạch */
+    KEY(1, 2000); KEY(0, 2005); TOOLKIT_RESET(2010); /* phím khác xen giữa */
+    KEY(1, 3000); s.now_override_ms = 3005; lc_session_shadow_reset(&s); enter_at = 0;
+    TOOLKIT_RESET(3010);                         /* mất focus xen giữa */
+    TOOLKIT_RESET(4000);                         /* không có Enter */
+    KEY(1, 5000); TOOLKIT_RESET(5000 + 249);     /* biên 249 ms */
+#undef KEY
+#undef TOOLKIT_RESET
+    assert(s.mismatches == 0);
+    /* Shadow phải BẮT lệch: mã cũ nói giữ mốc khi session không. */
+    s.now_override_ms = 9000;
+    lc_session_shadow_toolkit_reset(&s, 1);
+    assert(s.mismatches == 1);
+    lc_session_shadow_free(&s);
+}
+
 static void test_engine_ctrl_tap(void) {
     ime_instance *inst = engine_with(NO_CAPS);
     doc d;
@@ -1293,6 +1324,7 @@ int main(void) {
     test_assist_idle_arms();
     test_modifier_ctrl_tap();
     test_session_shadow_parity();
+    test_session_shadow_reset_parity();
     test_toggle_corpus();
     test_sf3_plan_parity_with_legacy();
     test_engine_ctrl_tap();

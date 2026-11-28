@@ -212,6 +212,7 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
         ("IME_SCMD_TIMER_CANCEL", IME_SCMD_TIMER_CANCEL as i64),
         ("IME_SCMD_IPC", IME_SCMD_IPC as i64),
         ("IME_SCMD_MODE_INDICATOR", IME_SCMD_MODE_INDICATOR as i64),
+        ("IME_SCMD_ENGINE_RESET", IME_SCMD_ENGINE_RESET as i64),
         // SF-3 (P0-6 §5 compose): planner dùng chung.
         ("IME_COMPOSE_ABI_VERSION", IME_COMPOSE_ABI_VERSION as i64),
         ("IME_COMPOSE_MAX", IME_COMPOSE_MAX as i64),

@@ -40,6 +40,7 @@ pub mod batch;
 pub mod compose;
 pub mod emoji;
 pub mod imk;
+pub mod reset;
 pub mod toggle;
 pub mod toggle_corpus;
 
@@ -259,6 +260,12 @@ pub enum SessionCommand {
         /// `true` = đang chế độ tiếng Việt.
         vi_on: bool,
     },
+    /// SF-3 (R2-171/E78): adapter reset engine sau [`SessionEvent::Reset`]. `line_start` = giữ mốc
+    /// đầu dòng (`ime_reset_with_tail("\n")`, reset của toolkit ngay sau Enter); `false` = xoá sạch.
+    EngineReset {
+        /// Giữ mốc đầu dòng.
+        line_start: bool,
+    },
 }
 
 /// Chuỗi lệnh trả về cho MỘT sự kiện, chặn luật đầu ra P0-6 §3 ngay lúc dựng
@@ -368,6 +375,7 @@ pub struct Session {
     vi_on: bool,
     last_toggle_outcome: ToggleOutcome,
     batch: EditBatch,
+    reset: reset::ResetTracker,
 }
 
 impl Session {
@@ -380,6 +388,7 @@ impl Session {
             vi_on: true,
             last_toggle_outcome: ToggleOutcome::None,
             batch: EditBatch::new(),
+            reset: reset::ResetTracker::new(),
         }
     }
 
@@ -421,6 +430,8 @@ impl Session {
             SessionEvent::KeyDown {
                 vk, mods, now_ms, ..
             } => {
+                self.reset
+                    .on_key_down(vk == textvn_core::keymap::vk::RETURN, now_ms);
                 let outcome = self.toggle.on_key_down(vk, mods, now_ms);
                 self.last_toggle_outcome = outcome;
                 if toggle::is_toggle_chord(vk, mods) {
@@ -441,9 +452,16 @@ impl Session {
                     out.push(SessionCommand::ModeIndicator { vi_on: self.vi_on });
                 }
             }
-            SessionEvent::FocusOut | SessionEvent::Reset { .. } => {
+            SessionEvent::FocusOut => {
                 self.toggle.reset();
                 self.last_toggle_outcome = ToggleOutcome::None;
+                self.reset.on_context_change();
+            }
+            SessionEvent::Reset { kind, now_ms } => {
+                self.toggle.reset();
+                self.last_toggle_outcome = ToggleOutcome::None;
+                let line_start = self.reset.on_reset(kind, now_ms);
+                out.push(SessionCommand::EngineReset { line_start });
             }
             SessionEvent::Ipc(textvn_ipc::Message::ToggleViEn { app_id, enabled })
             | SessionEvent::Ipc(textvn_ipc::Message::StateUpdate {

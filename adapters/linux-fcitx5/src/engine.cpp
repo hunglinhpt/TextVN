@@ -1188,7 +1188,9 @@ void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &even
         finishWord(st);
     }
     lc_modifier_toggle_reset(&st->toggle);
-    lc_session_shadow_reset(&st->shadow);
+    /* SF-3: reset của toolkit đã báo session ở reset() (R2-171 — KHÔNG xoá mốc Enter); mọi
+     * trường hợp khác (mất focus, đổi bộ gõ) là đổi ngữ cảnh. */
+    if (event.type() != fcitx::EventType::InputContextReset) lc_session_shadow_reset(&st->shadow);
 }
 
 void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
@@ -1220,6 +1222,9 @@ void TextVNEngine::reset(const fcitx::InputMethodEntry &, fcitx::InputContextEve
                                st->enterAtUs != 0 &&
                                monotonicUs() - st->enterAtUs < LC_RESET_AFTER_ENTER_US;
         if (st && event.type() == fcitx::EventType::InputContextFocusOut) st->enterAtUs = 0;
+        if (st && event.type() == fcitx::EventType::InputContextReset) {
+            lc_session_shadow_toolkit_reset(&st->shadow, lineStart); /* SF-3: R2-171 trong session */
+        }
         endWord(st, event);
         if (lineStart && st->inst) ime_reset_with_tail(st->inst, LC_LINE_START_TAIL, 1);
     } catch (...) {
@@ -1266,7 +1271,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     if (st->shadow.session) {
         /* Cùng điều kiện nhánh Ctrl+Shift+Space bên dưới (ADR-011). */
         const int isSpace = key.sym() == FcitxKey_space || key.sym() == FcitxKey_KP_Space;
-        lc_session_shadow_key_down(&st->shadow, which, isSpace, ctrlDown, shiftDown, altOrSuper,
+        const int isEnter = key.sym() == FcitxKey_Return || key.sym() == FcitxKey_KP_Enter ||
+                            key.sym() == FcitxKey_ISO_Enter;
+        lc_session_shadow_key_down(&st->shadow, which, isSpace, isEnter, ctrlDown, shiftDown,
+                                   altOrSuper,
                                    which == LC_MOD_NONE && isSpace && ctrlDown && shiftDown);
     }
     if (which != LC_MOD_NONE) return false;

@@ -178,12 +178,14 @@ void lc_modifier_toggle_reset(lc_modifier_toggle *t) {
 
 /* ---- SF-2 shadow: lc_modifier_toggle vs textvn-session ---- */
 
-static uint32_t shadow_vk(lc_modifier which, int is_space) {
+static uint32_t shadow_vk(lc_modifier which, int is_space, int is_enter) {
     switch (which) {
     case LC_MOD_KEY_CTRL: return LC_VK_CONTROL;
     case LC_MOD_KEY_SHIFT: return LC_VK_SHIFT;
     case LC_MOD_KEY_OTHER_MODIFIER: return LC_VK_MENU; /* Alt/Super/Lock: đều huỷ */
-    default: return is_space ? LC_VK_SPACE : 0u; /* phím thường: không cần mã thật */
+    default:
+        /* phím thường: chỉ Space (chord ADR-011) và Enter (R2-171) cần mã thật */
+        return is_space ? LC_VK_SPACE : (is_enter ? LC_VK_RETURN : 0u);
     }
 }
 
@@ -218,10 +220,11 @@ static uint64_t shadow_now_ms(const lc_session_shadow *s) {
     return (uint64_t)(monotonic_us() / 1000);
 }
 
-/* Đẩy 1 sự kiện vào session; trả 1 nếu session phát MODE_INDICATOR (bật/tắt), 0 nếu không,
+/* Đẩy 1 sự kiện vào session; trả số lệnh `want` (IME_SCMD_*) session phát — với
+ * IME_SCMD_ENGINE_RESET trả 1 + arg0 (1 = xoá sạch, 2 = giữ mốc đầu dòng) — 0 nếu không có,
  * -1 nếu lỗi ABI (khi đó shadow tự tắt — không bao giờ ảnh hưởng mã cũ). */
-static int shadow_feed(lc_session_shadow *s, uint32_t kind, uint32_t vk, uint32_t mods,
-                       uint32_t arg) {
+static int shadow_feed_cmd(lc_session_shadow *s, uint32_t kind, uint32_t vk, uint32_t mods,
+                           uint32_t arg, uint32_t want) {
     ime_session_event_v1 ev;
     memset(&ev, 0, sizeof(ev));
     ev.abi_version = IME_SESSION_ABI_VERSION;
@@ -238,9 +241,17 @@ static int shadow_feed(lc_session_shadow *s, uint32_t kind, uint32_t vk, uint32_
         return -1;
     }
     for (uint32_t i = 0; i < out.count && i < IME_SESSION_MAX_CMDS; i++) {
-        if (out.cmds[i].kind == IME_SCMD_MODE_INDICATOR) return 1;
+        if (out.cmds[i].kind == want) {
+            return want == IME_SCMD_ENGINE_RESET ? 1 + (int)(out.cmds[i].arg0 != 0) : 1;
+        }
     }
     return 0;
+}
+
+/* Bật/tắt Việt–Anh (MODE_INDICATOR) ở sự kiện này? */
+static int shadow_feed(lc_session_shadow *s, uint32_t kind, uint32_t vk, uint32_t mods,
+                       uint32_t arg) {
+    return shadow_feed_cmd(s, kind, vk, mods, arg, IME_SCMD_MODE_INDICATOR);
 }
 
 static void shadow_compare(lc_session_shadow *s, const char *phase, lc_modifier which,
@@ -289,21 +300,34 @@ void lc_session_shadow_reset(lc_session_shadow *s) {
     (void)shadow_feed(s, IME_SEV_RESET, 0, 0, IME_SRESET_FOCUS);
 }
 
+void lc_session_shadow_toolkit_reset(lc_session_shadow *s, int legacy_line_start) {
+    if (!s || !s->session) return;
+    int got = shadow_feed_cmd(s, IME_SEV_RESET, 0, 0, IME_SRESET_TOOLKIT, IME_SCMD_ENGINE_RESET);
+    if (got < 0) return;
+    int session_line_start = got == 2;
+    if (got == 0 || (legacy_line_start != 0) != session_line_start) {
+        s->mismatches++;
+        fprintf(shadow_log(),
+                "textvn: SF2 shadow mismatch reset line_start legacy=%d session=%d (total %u)\n",
+                legacy_line_start != 0, session_line_start, (unsigned)s->mismatches);
+    }
+}
+
 void lc_session_shadow_key_down(lc_session_shadow *s, lc_modifier which, int is_space,
-                                int ctrl_down, int shift_down, int alt_or_super,
+                                int is_enter, int ctrl_down, int shift_down, int alt_or_super,
                                 int legacy_toggled) {
     if (!s || !s->session) return;
     uint32_t mods = 0;
     if (ctrl_down) mods |= IME_MOD_CTRL;
     if (shift_down) mods |= IME_MOD_SHIFT;
     if (alt_or_super) mods |= IME_MOD_ALT;
-    int got = shadow_feed(s, IME_SEV_KEYDOWN, shadow_vk(which, is_space), mods, 0);
+    int got = shadow_feed(s, IME_SEV_KEYDOWN, shadow_vk(which, is_space, is_enter), mods, 0);
     shadow_compare(s, "keydown", which, is_space, legacy_toggled, got);
 }
 
 void lc_session_shadow_key_up(lc_session_shadow *s, lc_modifier which, int legacy_toggled) {
     if (!s || !s->session) return;
-    int got = shadow_feed(s, IME_SEV_KEYUP, shadow_vk(which, 0), 0, 0);
+    int got = shadow_feed(s, IME_SEV_KEYUP, shadow_vk(which, 0, 0), 0, 0);
     shadow_compare(s, "keyup", which, 0, legacy_toggled, got);
 }
 

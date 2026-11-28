@@ -92,12 +92,15 @@ fn sf2_toggle_huy_khi_co_phim_khac_alt_super_hoac_focus_reset() {
 
     s.event(kd(VK_CONTROL, 0, 600));
     s.event(kd(VK_SHIFT, MOD_CTRL, 610));
-    assert!(s
+    // Reset chỉ ra lệnh reset engine (SF-3), KHÔNG bật/tắt Việt–Anh.
+    assert!(!s
         .event(SessionEvent::Reset {
             kind: ResetKind::Toolkit,
             now_ms: 615,
         })
-        .is_empty());
+        .as_slice()
+        .iter()
+        .any(|c| matches!(c, SessionCommand::ModeIndicator { .. })));
     assert!(s.event(ku(VK_SHIFT, MOD_CTRL, 620)).is_empty());
     assert!(s.vi_on());
 }

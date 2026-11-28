@@ -349,6 +349,7 @@ int32_t      ime_emoji_record_use(ime_instance *inst,
 #define IME_SCMD_TIMER_CANCEL      11u  /* arg0 = id */
 #define IME_SCMD_IPC               12u  /* text = JSON message IPC v1 */
 #define IME_SCMD_MODE_INDICATOR    13u  /* arg0 = 1 tiếng Việt / 0 tiếng Anh */
+#define IME_SCMD_ENGINE_RESET      14u  /* SF-3 R2-171/E78: arg0 = 1 giữ mốc đầu dòng (reset_with_tail "\n") / 0 xoá sạch */
 
 typedef struct ime_session ime_session;
 

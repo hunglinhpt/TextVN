@@ -162,11 +162,14 @@ int  lc_session_shadow_init_force(lc_session_shadow *s);
 void lc_session_shadow_free(lc_session_shadow *s);
 /* Mất focus / reset input context (cùng chỗ gọi lc_modifier_toggle_reset). */
 void lc_session_shadow_reset(lc_session_shadow *s);
-/* Gọi ngay sau lc_modifier_toggle_down, cùng tham số; `is_space` = phím Space;
- * `legacy_toggled` = mã cũ sẽ bật/tắt ở phím này (Ctrl+Shift+Space). */
+/* Gọi ngay sau lc_modifier_toggle_down, cùng tham số; `is_space` = phím Space; `is_enter` = phím
+ * Enter (SF-3 R2-171: session nhớ mốc Enter); `legacy_toggled` = mã cũ sẽ bật/tắt ở phím này. */
 void lc_session_shadow_key_down(lc_session_shadow *s, lc_modifier which, int is_space,
-                                int ctrl_down, int shift_down, int alt_or_super,
+                                int is_enter, int ctrl_down, int shift_down, int alt_or_super,
                                 int legacy_toggled);
+/* SF-3 (R2-171/E78): reset của toolkit (IBus engine_reset / Fcitx5 InputContextReset) — so quyết
+ * định "giữ mốc đầu dòng" của mã cũ với lệnh IME_SCMD_ENGINE_RESET của session. */
+void lc_session_shadow_toolkit_reset(lc_session_shadow *s, int legacy_line_start);
 /* Gọi ở key-up sau lc_modifier_ctrl_tap_up/lc_modifier_toggle_up; `legacy_toggled` = mã cũ
  * vừa bật/tắt. */
 void lc_session_shadow_key_up(lc_session_shadow *s, lc_modifier which, int legacy_toggled);

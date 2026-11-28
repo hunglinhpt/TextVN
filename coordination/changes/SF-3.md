@@ -82,6 +82,23 @@
   `check_linux_session_freshness`; lệch là session sai, không được sinh lại vết. Đột biến (chính sách
   LINUX commit ranh giới cùng từ) ⇒ 40 vết đỏ.
 
+### Pha 3d — luật reset R2-171/E78 vào session — XONG
+- **`session/src/reset.rs`** (`ResetTracker`), một nguồn thay bản viết lặp ở IBus `engine_reset` và
+  Fcitx5 `reset`:
+  - mọi key-down (kể cả modifier) ghi mốc Enter hoặc xoá mốc;
+  - mất focus xoá mốc;
+  - reset của toolkit < 250 ms sau Enter ⇒ giữ mốc đầu dòng;
+  - reset khác (focus/app/muộn) ⇒ xoá sạch (E78).
+- **Lệnh mới** `SessionCommand::EngineReset{line_start}` / `IME_SCMD_ENGINE_RESET = 14` (header +
+  bản sao macOS + `verify`): mỗi `Reset` ra đúng một lệnh này. Test khung SF-1a/SF-2 cập nhật theo
+  hợp đồng mới; `session/tests/reset.rs` có 6 luật.
+- **Shadow Linux**:
+  - `lc_session_shadow_key_down` nhận `is_enter`;
+  - `lc_session_shadow_toolkit_reset(legacy_line_start)` so quyết định của mã cũ với lệnh session;
+  - IBus `engine_reset` và Fcitx5 `reset()` báo trước khi áp. Fcitx5 `endWord` không gửi
+    reset-focus cho reset của toolkit (mã cũ không xoá mốc Enter khi đó).
+  - Test C `test_session_shadow_reset_parity`: 8 kịch bản, 0 lệch, có ca bắt lệch giả lập.
+
 ### Còn lại
 - **3c — session tự chạy engine + compose** trong `Session::event` (adapter chỉ áp lệnh), có shadow 3 OS,
   luật *reset* R2-171/E78 chuyển vào session, `replay` chạy chính session cho mọi adapter.
@@ -170,6 +187,25 @@
 - **Gate**: `cargo xtask trace-diff` (preflight, ci-shared) adds `check_linux_session_freshness`; a
   mismatch means the session is wrong, and the traces must not be regenerated. Mutation (LINUX policy
   commits the boundary with the word) ⇒ 40 traces red.
+
+### Phase 3d — reset rules R2-171/E78 moved into the session — DONE
+- **`session/src/reset.rs`** (`ResetTracker`), one source replacing the duplicated versions in IBus
+  `engine_reset` and Fcitx5 `reset`:
+  - every key-down (modifiers included) records or clears the Enter mark;
+  - focus loss clears the mark;
+  - a toolkit reset < 250 ms after Enter ⇒ keep the line-start mark;
+  - any other reset (focus/app/late) ⇒ clear everything (E78).
+- **New command** `SessionCommand::EngineReset{line_start}` / `IME_SCMD_ENGINE_RESET = 14` (header +
+  macOS copy + `verify`): every `Reset` yields exactly one such command. The SF-1a/SF-2 skeleton tests
+  were updated to the new contract; `session/tests/reset.rs` has 6 rules.
+- **Linux shadow**:
+  - `lc_session_shadow_key_down` takes `is_enter`;
+  - `lc_session_shadow_toolkit_reset(legacy_line_start)` compares the old code's decision with the
+    session command;
+  - IBus `engine_reset` and Fcitx5 `reset()` report before applying. Fcitx5 `endWord` does not send a
+    focus reset for a toolkit reset (the old code keeps the Enter mark then).
+  - C test `test_session_shadow_reset_parity`: 8 scenarios, 0 mismatches, plus a simulated mismatch
+    that must be caught.
 
 ### Remaining
 - **3c — the session runs engine + compose itself** in `Session::event` (adapters only apply

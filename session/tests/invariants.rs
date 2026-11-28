@@ -177,11 +177,20 @@ fn khung_rong_event_khac_keydown_tra_rong() {
         },
     ];
     for ev in events {
+        let is_reset = matches!(ev, SessionEvent::Reset { .. });
         let out = session.event(ev);
-        assert!(
-            out.is_empty(),
-            "khung rỗng phải trả chuỗi rỗng cho event không phải KeyDown"
-        );
+        if is_reset {
+            // SF-3 (R2-171/E78): mỗi Reset ra đúng một EngineReset (không có Enter ⇒ xoá sạch).
+            assert_eq!(
+                out.as_slice(),
+                &[SessionCommand::EngineReset { line_start: false }]
+            );
+        } else {
+            assert!(
+                out.is_empty(),
+                "khung rỗng phải trả chuỗi rỗng cho event không phải KeyDown/Reset"
+            );
+        }
     }
 }
 

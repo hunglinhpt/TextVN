@@ -1058,6 +1058,7 @@ static void engine_reset(IBusEngine *engine) {
     const gboolean line_start =
         self->enter_at_us != 0 &&
         g_get_monotonic_time() - self->enter_at_us < LC_RESET_AFTER_ENTER_US;
+    lc_session_shadow_toolkit_reset(&self->shadow, line_start); /* SF-3: R2-171 trong session */
     forget_word(self);
     if (line_start && self->inst) ime_reset_with_tail(self->inst, LC_LINE_START_TAIL, 1);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->reset(engine);
@@ -1173,8 +1174,10 @@ static gboolean process_key_inner(IBusEngine *engine, guint keyval, guint keycod
     if (self->shadow.session) {
         /* Cùng điều kiện nhánh Ctrl+Shift+Space bên dưới (ADR-011). */
         const int is_space = keyval == IBUS_KEY_space || keyval == IBUS_KEY_KP_Space;
-        lc_session_shadow_key_down(&self->shadow, which, is_space, ctrl_down, shift_down,
-                                   alt_or_super,
+        const int is_enter = keyval == IBUS_KEY_Return || keyval == IBUS_KEY_KP_Enter ||
+                             keyval == IBUS_KEY_ISO_Enter;
+        lc_session_shadow_key_down(&self->shadow, which, is_space, is_enter, ctrl_down,
+                                   shift_down, alt_or_super,
                                    which == LC_MOD_NONE && is_space && ctrl_down && shift_down);
     }
     if (which != LC_MOD_NONE) return FALSE; /* modifier đứng riêng: không commit */
