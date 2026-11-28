@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 /// Giới hạn chống cấp phát theo length prefix từ peer không tin cậy.
 pub const MAX_FRAME_BYTES: usize = 64 * 1024;
 
+pub mod client;
 pub mod sandbox;
 
 /// Tên pipe IPC v1 trên Windows (`docs/00-INDEX.md` §4).

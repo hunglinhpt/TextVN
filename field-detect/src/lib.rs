@@ -11,6 +11,8 @@ use std::time::Duration;
 use textvn_appdb::AppDb;
 use textvn_strategy::{ResolveInput, Strategy, IME_FIELD_SECURE, IME_FIELD_UNKNOWN};
 
+pub mod rules_linux;
+pub mod rules_mac;
 pub mod rules_win;
 
 /// Kết luận bảo mật từ OS. `Unknown` cố ý không phải `NonSecure`.
@@ -126,6 +128,26 @@ impl FieldContext {
         element: Option<&rules_win::UiaElement>,
     ) -> bool {
         let result = rules_win::classify(element);
+        self.apply_probe(generation, result.field_role, result.security)
+    }
+
+    /// Phân loại và cập nhật từ snapshot AT-SPI của adapter Linux.
+    pub fn apply_linux_atspi(
+        &mut self,
+        generation: u64,
+        snapshot: Option<&rules_linux::AtspiSnapshot>,
+    ) -> bool {
+        let result = rules_linux::classify(snapshot);
+        self.apply_probe(generation, result.field_role, result.security)
+    }
+
+    /// Phân loại và cập nhật từ snapshot AX của adapter macOS.
+    pub fn apply_macos_ax(
+        &mut self,
+        generation: u64,
+        snapshot: Option<&rules_mac::AxSnapshot>,
+    ) -> bool {
+        let result = rules_mac::classify(snapshot);
         self.apply_probe(generation, result.field_role, result.security)
     }
 
@@ -250,6 +272,51 @@ mod tests {
         assert!(ctx.apply_windows_uia(2, None));
         assert_eq!(ctx.security, SecurityState::Unknown);
         assert_eq!(ctx.resolve_strategy(true, None), Strategy::Passthrough);
+    }
+
+    #[test]
+    fn linux_and_macos_probes_respect_generation_and_security_gate() {
+        use textvn_strategy::IME_CAP_PREEDIT;
+
+        let mut linux_ctx = FieldContext::pending("firefox", IME_CAP_PREEDIT, 3);
+        let entry = rules_linux::AtspiSnapshot {
+            app_id: "firefox".into(),
+            role: "entry".into(),
+            ..Default::default()
+        };
+        assert!(!linux_ctx.apply_linux_atspi(2, Some(&entry)));
+        assert_eq!(linux_ctx.security, SecurityState::Unknown);
+        assert!(linux_ctx.apply_linux_atspi(3, Some(&entry)));
+        assert_eq!(linux_ctx.security, SecurityState::NonSecure);
+        assert_ne!(
+            linux_ctx.resolve_strategy(true, None),
+            Strategy::Passthrough
+        );
+
+        let pwd = rules_linux::AtspiSnapshot {
+            app_id: "firefox".into(),
+            role: "password_text".into(),
+            ..Default::default()
+        };
+        assert!(linux_ctx.apply_linux_atspi(3, Some(&pwd)));
+        assert_eq!(linux_ctx.security, SecurityState::Secure);
+        assert_eq!(
+            linux_ctx.resolve_strategy(true, None),
+            Strategy::Passthrough
+        );
+
+        let mut mac_ctx = FieldContext::pending("com.apple.notes", IME_CAP_PREEDIT, 5);
+        let ax = rules_mac::AxSnapshot {
+            role: Some("AXTextArea".into()),
+            ..Default::default()
+        };
+        assert!(!mac_ctx.apply_macos_ax(4, Some(&ax)));
+        assert_eq!(mac_ctx.security, SecurityState::Unknown);
+        assert!(mac_ctx.apply_macos_ax(5, Some(&ax)));
+        assert_eq!(mac_ctx.security, SecurityState::NonSecure);
+        assert!(mac_ctx.apply_macos_ax(5, None));
+        assert_eq!(mac_ctx.security, SecurityState::Unknown);
+        assert_eq!(mac_ctx.resolve_strategy(true, None), Strategy::Passthrough);
     }
 
     #[test]
