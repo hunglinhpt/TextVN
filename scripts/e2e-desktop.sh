@@ -245,12 +245,16 @@ P
             mousepad "$T/doc.txt" >"$T/editor-sanity.log" 2>&1 &
             local mp_sanity=$!
             sleep 3
+            swaymsg '[app_id="mousepad"] focus' >/dev/null 2>&1 || true
+            sleep 0.5
             local sanity
             sanity="$(type_and_read - abc)"
             echo "[e2e-desktop:$DE] kiểm môi trường (chưa IM): wtype 'abc' → '$sanity'"
             if [[ "$sanity" != abc ]]; then
                 echo "--- sway app_ids: $(swaymsg -t get_tree 2>&1 | grep -o '"app_id": "[^"]*"' | tr '\n' ' ')"
                 echo "--- editor-sanity.log:"; tail -n 20 "$T/editor-sanity.log" || true
+                echo "--- sway seats: $(swaymsg -t get_seats 2>&1 | tr -d ' 
+' | head -c 400)"
                 echo "FAIL môi trường: phím wtype không tới Mousepad trong Sway headless (chưa có IM; tệp sau Ctrl+S: $(wc -c <"$T/doc.txt" 2>/dev/null) byte)" >&2
                 return 1
             fi
