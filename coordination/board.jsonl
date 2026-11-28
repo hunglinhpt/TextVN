@@ -356,3 +356,4 @@
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795856661","kind":"reserve","paths":"coordination/changes/ARM-W5.md","task":"ARM-W5","ts":"2026-11-28T09:04:21Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795856661","kind":"reserve","paths":"installer/windows/portable/uninstall.ps1;installer/windows/tests/test-portable.ps1","task":"ARM-W4","ts":"2026-11-28T09:04:21Z"}
 {"agent":"claude-opus-7e41b2d9","epoch":"1795856758","kind":"claim","msg":"COM load probe sau khi cai tren windows-11-arm: tien trinh x64-gia-lap/ARM64/x86 CoCreateInstance(CLSID TIP that) -> kiem module nap dung kien truc; dot bien thay forwarder bang DLL ARM64 => probe x64 do. Khong can route input (E89).","task":"ARM-W5b","ts":"2026-11-28T09:05:58Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795856832","kind":"unreserve","paths":"coordination/changes/ARM-W5.md;installer/windows/portable/uninstall.ps1;installer/windows/tests/test-portable.ps1","ts":"2026-11-28T09:07:12Z"}
