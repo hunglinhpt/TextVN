@@ -91,3 +91,25 @@
   (writes canonical baseline-win.json directly).
 - Mutations tried: baseline without `run` ⇒ check RED; baseline `triple` ≠ host ⇒ RED;
   deleting an aarch64 baseline ⇒ preflight SKIP (no red, no cross-arch compare).
+
+## VI — Follow-up: số thật từ CI (2026-11-28)
+
+- Đã tải artifact baseline từ run xanh `46109812388` (dcecf9d2, job `determinism`/test
+  ci-linux) và commit:
+  - `perf/baseline-x86_64-unknown-linux-gnu.json` — `run: 46109812388`
+  - `perf/baseline-aarch64-unknown-linux-gnu.json` — `run: 46109812388`
+  - Nguồn còn thiếu (đợi run xanh tương ứng): `baseline-aarch64-pc-windows-msvc.json`
+    (windows-11-arm) và `baseline-win.json` canonical (job Windows package) — bước ghi
+    đã có trong ci-windows.yml; sẽ commit sau run xanh đầu tiên.
+- Gate aarch64-Linux bật lại với số thật; rủi ro đã biết: 2 runner của ma trận
+  (ubuntu-24.04-arm vs 22.04-arm) là máy khác — nếu p50 lệch >10% giữa 2 OS sẽ tách
+  baseline theo OS hoặc nới ngưỡng có lý do.
+
+## English — Follow-up: real numbers from CI (2026-11-28)
+
+- Downloaded baseline artifacts from green run `46109812388` (dcecf9d2, ci-linux) and
+  committed `perf/baseline-x86_64-unknown-linux-gnu.json` and
+  `perf/baseline-aarch64-unknown-linux-gnu.json`, both with `run: 46109812388`.
+- Still pending (waiting for their first green run): `baseline-aarch64-pc-windows-msvc`
+  (windows-11-arm) and the canonical `baseline-win.json` (Windows package job) — the
+  record steps already exist in ci-windows.yml.
