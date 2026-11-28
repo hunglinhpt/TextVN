@@ -43,22 +43,47 @@ if registerStatus != noErr {
     fail("TISRegisterInputSource trả \(registerStatus)")
 }
 
-func sources() -> [TISInputSource] {
-    let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
-    guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() else { return [] }
+func allSources() -> [TISInputSource] {
+    guard let list = TISCreateInputSourceList(nil, true)?.takeRetainedValue() else { return [] }
     return (list as NSArray).map { $0 as! TISInputSource }
 }
 
-// Nguồn vừa đăng ký có thể xuất hiện trễ trong danh sách hệ thống.
+/// Nguồn của bundle: lọc theo `kTISPropertyBundleID`, dự phòng theo tiền tố ID nguồn
+/// (`<bundle>` hoặc `vn.textvn.`) vì vài bản macOS chưa gán BundleID cho mode vừa đăng ký.
+func sources() -> [TISInputSource] {
+    let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
+    if let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue(),
+       (list as NSArray).count > 0 {
+        return (list as NSArray).map { $0 as! TISInputSource }
+    }
+    return allSources().filter { src in
+        let id = stringProperty(src, kTISPropertyInputSourceID) ?? ""
+        return id.hasPrefix(bundleID) || id.hasPrefix("vn.textvn.")
+    }
+}
+
+// Nguồn vừa đăng ký có thể xuất hiện trễ trong danh sách hệ thống (đo trên runner: > 5 s).
 var found = sources()
 var tries = 0
-while found.isEmpty && tries < 20 {
+while found.isEmpty && tries < 120 {
     Thread.sleep(forTimeInterval: 0.25)
     found = sources()
     tries += 1
 }
 if found.isEmpty {
-    fail("TIS không có input source nào cho bundle \(bundleID) sau khi đăng ký")
+    // Chẩn đoán: hệ TIS có hoạt động không (có nguồn hệ thống) và có gì mang tên TextVN.
+    let all = allSources()
+    print("[tis-select] chẩn đoán: \(all.count) input source trong hệ thống")
+    for src in all {
+        let id = stringProperty(src, kTISPropertyInputSourceID) ?? "?"
+        let bid = stringProperty(src, kTISPropertyBundleID) ?? "-"
+        if id.lowercased().contains("textvn") || bid.lowercased().contains("textvn") {
+            print("[tis-select]   liên quan: \(id) (bundle \(bid))")
+        }
+    }
+    let sample = all.prefix(5).map { stringProperty($0, kTISPropertyInputSourceID) ?? "?" }
+    print("[tis-select]   mẫu nguồn hệ thống: \(sample.joined(separator: ", "))")
+    fail("TIS không có input source nào cho bundle \(bundleID) sau 30 s kể từ khi đăng ký")
 }
 
 var selected = false

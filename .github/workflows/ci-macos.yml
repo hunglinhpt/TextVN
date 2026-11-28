@@ -392,6 +392,11 @@ jobs:
           archs="$(lipo -archs "$app/Contents/MacOS/$exe")"
           echo "TextVN-IM archs: $archs"
           grep -qw arm64 <<<"$archs"
+          # Chẩn đoán TIS (ARM-M2): chữ ký + khoá input source trong Info.plist.
+          codesign -dv --verbose=2 "$app" 2>&1 | grep -E "^(Identifier|Format|Signature|TeamIdentifier|flags)" || echo "(codesign: chưa ký)"
+          for k in CFBundleIdentifier TISInputSourceID InputMethodConnectionName InputMethodServerControllerClass LSBackgroundOnly; do
+            echo "  $k = $(/usr/libexec/PlistBuddy -c "Print :$k" "$app/Contents/Info.plist" 2>/dev/null || echo "<thiếu>")"
+          done
       - name: Đăng ký + bật + chọn input source (TIS)
         run: swift tools/mac/tis-select.swift "$HOME/Library/Input Methods/TextVN-IM.app" vn.textvn.im
       - name: Gõ thật vào TextEdit qua IMK (smoke-imk.sh)
