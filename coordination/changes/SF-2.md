@@ -68,8 +68,19 @@
   - (b) Linux cũ không có debounce 250 ms, nên 2 lần bật/tắt cách nhau < 250 ms bị session chặn lần
     thứ hai.
 
-### Còn lại (pha 3, task tiếp tục)
-- **Shadow macOS** (`TextVNInputController.swift`, `otherKeyPressed`).
+### Pha 3a — shadow macOS (IMK) — XONG
+- **`MacModifierTap`** (`IMKLib/ModifierTap.swift`): tách nguyên văn logic `flagsChanged` cũ
+  (Ctrl+Shift nhấn-thả, Ctrl tap ≤ 400 ms, debounce 250 ms, `otherKeyPressed`) khỏi
+  `TextVNInputController.handle` thành struct thuần, có test; hành vi không đổi.
+- **`SessionShadow`** (`CoreBridge/SessionShadow.swift`): bọc C ABI `ime_session_*`, bật bằng
+  `TEXTVN_SESSION_SHADOW=1`. IMK chỉ báo bộ cờ modifier, nên shadow dựng lại key-down/key-up từ chênh
+  lệch cờ (Option/Cmd ⇒ `VK_MENU`), rồi so "có bật/tắt hay không" ở `flagsChanged` và ở keyDown
+  (chord `Ctrl+Shift+Space`). VK lấy từ bảng sinh mã `KeyMapMacGenerated` (G22). G8: log chỉ ghi pha
+  và số đếm.
+- **Test** `SessionShadowTests`: 8 kịch bản (gồm debounce, Option chen giữa, chord, mất focus) ⇒ 4 lần
+  bật/tắt, **0 lệch**; shadow bắt được lệch giả lập; tắt mặc định.
+
+### Còn lại (pha 3b, task tiếp tục)
 - **Đưa batch vào đường áp lệnh** của 3 adapter, kiểm SF-G1/G2 cho corpus toggle, đo shadow 0 lệch trên
   e2e, rồi bật mặc định ở bản kế tiếp.
 - **Nợ G22**: adapter TSF còn module `vk` riêng trong `compose.rs` (không phụ thuộc `textvn-core`); gom
@@ -142,8 +153,19 @@
   - (b) old Linux has no 250 ms debounce, so of two toggles < 250 ms apart the session blocks the
     second.
 
-### Remaining (phase 3, task continues)
-- **macOS shadow** (`TextVNInputController.swift`, `otherKeyPressed`).
+### Phase 3a — macOS shadow (IMK) — DONE
+- **`MacModifierTap`** (`IMKLib/ModifierTap.swift`): the old `flagsChanged` logic (Ctrl+Shift
+  press-release, Ctrl tap ≤ 400 ms, 250 ms debounce, `otherKeyPressed`) moved verbatim out of
+  `TextVNInputController.handle` into a pure, tested struct; behaviour unchanged.
+- **`SessionShadow`** (`CoreBridge/SessionShadow.swift`): wraps the `ime_session_*` C ABI, enabled with
+  `TEXTVN_SESSION_SHADOW=1`. IMK only reports the modifier flag set, so the shadow rebuilds key-down/
+  key-up from the flag difference (Option/Cmd ⇒ `VK_MENU`), then compares "toggled or not" on
+  `flagsChanged` and on keyDown (`Ctrl+Shift+Space` chord). VKs come from the generated
+  `KeyMapMacGenerated` table (G22). G8: the log only records the phase and counters.
+- **Test** `SessionShadowTests`: 8 scenarios (including debounce, Option in between, chord, focus loss)
+  ⇒ 4 toggles, **0 mismatches**; the shadow catches a simulated mismatch; off by default.
+
+### Remaining (phase 3b, task continues)
 - **Route the batch into the apply path** of all 3 adapters, check SF-G1/G2 on the toggle corpus,
   measure 0 shadow mismatches on e2e, then turn it on by default in the next release.
 - **G22 debt**: the TSF adapter still has its own `vk` module in `compose.rs` (it does not depend on

@@ -66,11 +66,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         caps: TextVNInputController.imkCaps
     )
     /// Trạng thái theo dõi tổ hợp Ctrl+Shift tap (như Windows & Linux)
-    private var ctrlDown = false
-    private var ctrlDownTime: TimeInterval = 0
-    private var shiftDown = false
-    private var otherKeyPressed = false
-    private var lastToggleTime: TimeInterval = 0
+    private var modTap = MacModifierTap()
+    /// SF-2: shadow `textvn-session` (chỉ khi `TEXTVN_SESSION_SHADOW=1`, CI/dev).
+    private let sessionShadow = SessionShadow.fromEnvironment()
 
     /// Secure Input mode — đọc mỗi keyDown (Carbon, rẻ) để bịt khoảng trễ của
     /// cache FieldDetect trước khi async AX gather xong (S8).
@@ -178,9 +176,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Vòng 16 (audit B2): focus = thời điểm an toàn để nối lại IPC nếu lần
         // trước violation/timeout (connect() idempotent — guard fd/timer).
         ipc.connect()
-        ctrlDown = false
-        shiftDown = false
-        otherKeyPressed = false
+        resetModifierTap()
         // B7: làm ấm/refresh FieldContext ngay khi activate (có AX timeout +
         // gather-guard). Kết quả không dùng trực tiếp -> gán `_` cho rõ ý định.
         _ = gatherContext(from: sender, force: true)
@@ -193,9 +189,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         commitBeforeHide(sender)
         engine?.reset()
         persistStyleProfile()
-        ctrlDown = false
-        shiftDown = false
-        otherKeyPressed = false
+        resetModifierTap()
         assistUndo = nil
         candidatePanel?.hide()
         emojiPickerPanel.hide()
@@ -207,9 +201,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func commitComposition(_ sender: Any!) {
         commitBeforeHide(sender)
         engine?.reset()
-        ctrlDown = false
-        shiftDown = false
-        otherKeyPressed = false
+        resetModifierTap()
         assistUndo = nil
         candidatePanel?.hide()
         emojiPickerPanel.hide()
@@ -223,9 +215,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func inputControllerWillClose() {
         commitBeforeHide(client())
         engine?.reset()
-        ctrlDown = false
-        shiftDown = false
-        otherKeyPressed = false
+        resetModifierTap()
         assistUndo = nil
         candidatePanel?.hide()
         currentCandidates.removeAll()
@@ -264,56 +254,22 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             let flags = event.modifierFlags
             let isCtrl = flags.contains(.control)
             let isShift = flags.contains(.shift)
-            // Lần bấm mới bắt đầu từ trạng thái không giữ modifier: phím chữ vừa gõ trước đó
-            // không thuộc lần này — thiếu dòng này Ctrl tap không bao giờ chạy sau khi gõ.
-            if (isCtrl || isShift) && !ctrlDown && !shiftDown {
-                otherKeyPressed = false
-            }
             let hasAltOrCmd = flags.contains(.option) || flags.contains(.command)
-            if hasAltOrCmd {
-                otherKeyPressed = true
+            let now = ProcessInfo.processInfo.systemUptime
+            let outcome = modTap.flagsChanged(isCtrl: isCtrl, isShift: isShift,
+                                              hasAltOrCmd: hasAltOrCmd, now: now)
+            sessionShadow?.flagsChanged(ctrl: isCtrl, shift: isShift, altOrCmd: hasAltOrCmd,
+                                        legacyToggled: outcome == .toggle,
+                                        nowMs: Self.shadowMs(now))
+            switch outcome {
+            case .toggle: _ = toggleVietnamese(sender)
+            case .ctrlTap: handleCtrlTap(sender)
+            case .none: break
             }
-
-            if Self.isCtrlShiftTap(
-                wasCtrl: ctrlDown,
-                wasShift: shiftDown,
-                currentCtrl: isCtrl,
-                currentShift: isShift,
-                otherKeyPressed: otherKeyPressed
-            ) {
-                let now = ProcessInfo.processInfo.systemUptime
-                if now - lastToggleTime >= 0.25 {
-                    lastToggleTime = now
-                    _ = toggleVietnamese(sender)
-                }
-                otherKeyPressed = true
-            } else if Self.isCtrlTap(
-                wasCtrl: ctrlDown,
-                wasShift: shiftDown,
-                currentCtrl: isCtrl,
-                currentShift: isShift,
-                hasAltOrCmd: hasAltOrCmd,
-                otherKeyPressed: otherKeyPressed,
-                heldSeconds: ProcessInfo.processInfo.systemUptime - ctrlDownTime
-            ) {
-                handleCtrlTap(sender)
-                otherKeyPressed = true
-            }
-
-            if isCtrl && !ctrlDown {
-                ctrlDownTime = ProcessInfo.processInfo.systemUptime
-            }
-            ctrlDown = isCtrl
-            shiftDown = isShift
-
-            if !isCtrl && !isShift {
-                otherKeyPressed = false
-            }
-
             return false
         }
 
-        otherKeyPressed = true
+        modTap.otherKey()
 
         let mods = KeyTranslator.modifiers(event.modifierFlags)
 
@@ -338,14 +294,18 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Toggle EN/VN: Ctrl+Shift+Space (P2-6 MAC-018; ADR-011 cho CapsLock mode).
         // So MASK (bỏ bit Caps/Fn) — Caps Lock bật vẫn toggle được; so bằng `==`
         // làm hotkey chết khi CapsLock on. Linux so mask y hệt (`engine.cpp` §3).
-        if Self.isToggleChord(mods: mods, keyCode: event.keyCode) {
-            otherKeyPressed = true
+        let isToggleChord = Self.isToggleChord(mods: mods, keyCode: event.keyCode)
+        sessionShadow?.keyDown(isSpace: Int(event.keyCode) == kVK_Space,
+                               legacyToggled: isToggleChord,
+                               nowMs: Self.shadowMs(ProcessInfo.processInfo.systemUptime))
+        if isToggleChord {
+            modTap.otherKey()
             return toggleVietnamese(sender)
         }
 
         // P12: Ctrl+Option+E (Ctrl+Alt+E) mở/đóng Bảng Emoji nhẹ (không cướp focus).
         if event.type == .keyDown, Self.isEmojiPickerChord(mods: mods, keyCode: event.keyCode) {
-            otherKeyPressed = true
+            modTap.otherKey()
             finishWordBeforeChord(sender)
             if emojiPickerPanel.isVisible {
                 emojiPickerPanel.hide()
@@ -755,6 +715,17 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     // ------------------------------------------------------------- helpers
+
+    /// Huỷ lần nhấn Ctrl/Shift đang chờ (mất focus, commit, đóng client).
+    private func resetModifierTap() {
+        modTap.reset()
+        sessionShadow?.reset(nowMs: Self.shadowMs(ProcessInfo.processInfo.systemUptime))
+    }
+
+    /// Đồng hồ ms đơn điệu cho shadow SF-2 (session không có đồng hồ riêng).
+    static func shadowMs(_ uptime: TimeInterval) -> UInt64 {
+        UInt64(max(0, uptime) * 1000)
+    }
 
     private func toggleVietnamese(_ sender: Any!) -> Bool {
         // Vòng 43 (Pass D2 F1): chốt marked + reset engine TRƯỚC khi đổi state —
