@@ -214,6 +214,17 @@ ARM64 native trên `windows-11-arm`; build chéo được trên `windows-2022` (
   `tools/release/verify-store-package.sh`, `xtask verify-msix`.
 - Acceptance: bundle cùng identity/version; verify từng gói; sideload thử trên runner ARM; Store check mode xanh.
 
+**ARM-W7 · Asset phát hành `windows-arm64` (setup + portable) (M, Dep: ARM-W4)**
+- Mục tiêu: release.yml build + publish `TextVN-setup-*-windows-arm64.exe` và
+  `TextVN-portable-*-windows-arm64.zip` (ADR-015: mặc định tách gói x64/arm64 khi
+  phát hành — review ARM-W4 2026-11-28 chỉ ra release.yml chưa có job này).
+- Phạm vi: `.github/workflows/release.yml` (job `windows-arm64` trên `windows-11-arm`,
+  mirrors `linux-arm64`), `tools/release/verify-release-assets.sh` (đếm asset mới),
+  bảng asset trong `docs/release/release-process.md`.
+- Acceptance: release-candidate có đủ setup+portable arm64 + `.asc` + `.cosign.*`,
+  nằm trong `SHA256SUMS.txt`; publish đếm đủ số asset mới; audit riêng: cập nhật số
+  asset ở release-process.md + README (release manager gộp khi B4).
+
 ### Luồng M — macOS Apple Silicon
 
 **ARM-M1 · Gate universal cho mọi binary (S, Dep: —)** — `scripts/build-macos.sh`, `scripts/package-macos-pkg.sh`: mọi Mach-O trong `.app`/`.pkg` phải `arm64 x86_64` (lặp OpenKey #189 ⇒ đỏ).
