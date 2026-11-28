@@ -15,6 +15,10 @@
    - `client.rs`: gom logic client IPC dùng chung gồm `GLOBAL_APP_ID` (`"*"`), `ASSIST_APP_ID` (`"assist"`), bộ lọc sandbox `allowed_in_sandbox` & `encode_outgoing` (E80/E81/R2-26: chặn `StyleUpdate`, `AssistReport`, `AssistNotification`, `Shutdown`…), bộ đệm frame `FrameBuffer` cho socket/pipe non-blocking, máy trạng thái `IpcClientState` (`Snapshot` / `StateUpdate` / `ConfigReload` / đổi `app_id`), `ReconnectBackoff` luỹ tiến có trần (100 ms → 5 000 ms), `parse_state_json` (Phần 1.5: phân tích `state.json` dùng chung), và resolver đường dẫn socket `resolve_linux_socket_path` (giữ guard đường dẫn tuyệt đối C9) + `resolve_macos_socket_path`.
 3. **Phần 1.5 — Nối Windows TSF (`adapters/windows-tsf/src/ipc_client.rs`) vào `textvn_ipc::client`**
    - Dùng trực tiếp `GLOBAL_APP_ID`, `ASSIST_APP_ID`, `allowed_in_sandbox` (trên `notify_assist_async` và `send_command_async`, vẫn giữ nguyên `send_style_update_async` dùng `style_drain_rsi_only` để không mất bộ đếm Dream RSI G19 qua sandbox), `parse_state_json` (xoá bản sao cục bộ), và `ReconnectBackoff::new(2s, 10s)` trong `run_client_loop`.
+4. **Phần 1.6 — Hợp nhất `SandboxPolicy` giữa `textvn-ipc` và `tray/src/ipc_server.rs`**
+   - Chuyển enum đầy đủ `SandboxPolicy` (`Allow` / `RsiOnly` / `Deny`) và hàm match vét cạn `sandbox_policy(&Message)` từ `tray/src/ipc_server.rs` vào `ipc/src/client.rs` làm MỘT nguồn duy nhất; `allowed_in_sandbox` gọi trực tiếp `matches!(sandbox_policy(msg), SandboxPolicy::Allow)`.
+   - Khắc phục sai lệch trước đây giữa client và server: `ToggleViEn` chỉ cho phép trên sandbox khi `app_id == "*"` (chặn `ToggleViEn` theo từng app, `ToggleAssist`, `CrashReport`), cho phép `Pong`, và xếp `StyleUpdate` là `RsiOnly`.
+   - Nối `tray/src/ipc_server.rs` dùng `textvn_ipc::PIPE_NAME`, `textvn_ipc::client::{sandbox_policy, SandboxPolicy}` (`#[cfg(any(windows, test))]`), và `GLOBAL_APP_ID` / `ASSIST_APP_ID` trong `Visibility::sees`.
 
 ### Kiểm chứng
 - `cargo fmt -p textvn-field-detect -p textvn-ipc -- --check`: PASS
@@ -23,7 +27,8 @@
 - `cargo test -p textvn-field-detect`: 25/25 PASS
 - `cargo test -p textvn-ipc`: 21/21 PASS
 - Phần 1.5 (`textvn-ipc` + `textvn-win-tsf`): `cargo fmt -p textvn-ipc -p textvn-win-tsf -- --check`, `cargo clippy` Windows + `--target x86_64-unknown-linux-gnu` (`-D warnings`), `cargo test -p textvn-ipc` (21/21 PASS), `cargo test -p textvn-win-tsf ipc_client` (7/7 PASS)
-- `cargo run -q -p xtask -- regression-index --todo-max 0`: PASS (241 mã, 0 TODO)
+- Phần 1.6 (`textvn-ipc` + `textvn-tray`): `cargo fmt -p textvn-ipc -p textvn-tray -- --check`, `cargo clippy -p textvn-ipc -p textvn-tray --all-targets -- -D warnings` (Windows) và `--target x86_64-unknown-linux-gnu` (`-D warnings`), `cargo test -p textvn-ipc` (21/21 PASS), `cargo test -p textvn-tray ipc_server` (10/10 PASS), `cargo test -p textvn-win-tsf ipc_client` (7/7 PASS)
+- `cargo run -q -p xtask -- regression-index --todo-max 0`: 0 lỗi thuộc `SF-6` (trên cây làm việc có WIP `SF-4` chưa commit ở `adapters/windows-tsf/src/edit_session.rs`)
 - `cargo run -q -p xtask -- hygiene-docs`, `hygiene-secrets`, `hygiene-apis`: PASS
 
 ### Phần còn lại (Phần 2 — mở khi `SF-3` nhả `ffi/`)
@@ -45,6 +50,10 @@
    - `client.rs`: shared IPC client building blocks including `GLOBAL_APP_ID` (`"*"`), `ASSIST_APP_ID` (`"assist"`), sandbox filter `allowed_in_sandbox` & `encode_outgoing` (E80/E81/R2-26 blocking `StyleUpdate`, `AssistReport`, `AssistNotification`, `Shutdown`, etc.), non-blocking `FrameBuffer` accumulator, `IpcClientState` state machine (`Snapshot` / `StateUpdate` / `ConfigReload` / app-switch recalculation), capped exponential `ReconnectBackoff` (100 ms → 5,000 ms), `parse_state_json` (Part 1.5 shared `state.json` parser), and socket path resolvers `resolve_linux_socket_path` (with C9 absolute-path guards) + `resolve_macos_socket_path`.
 3. **Part 1.5 — Windows TSF wiring (`adapters/windows-tsf/src/ipc_client.rs`) to `textvn_ipc::client`**
    - Wired directly to `GLOBAL_APP_ID`, `ASSIST_APP_ID`, `allowed_in_sandbox` (on `notify_assist_async` and `send_command_async`, while keeping `send_style_update_async` intact with `style_drain_rsi_only` so G19 Dream RSI counters still reach tray over sandbox pipes), `parse_state_json` (removed local duplicate), and `ReconnectBackoff::new(2s, 10s)` in `run_client_loop`.
+4. **Part 1.6 — Unify `SandboxPolicy` between `textvn-ipc` and `tray/src/ipc_server.rs`**
+   - Moved the exhaustive `SandboxPolicy` enum (`Allow` / `RsiOnly` / `Deny`) and `sandbox_policy(&Message)` classifier from `tray/src/ipc_server.rs` into `ipc/src/client.rs` as ONE source of truth; `allowed_in_sandbox` now delegates to `matches!(sandbox_policy(msg), SandboxPolicy::Allow)`.
+   - Eliminated prior client/server policy drift: `ToggleViEn` is only allowed on sandbox connections when `app_id == "*"` (denying per-app `ToggleViEn`, `ToggleAssist`, `CrashReport`), `Pong` is allowed, and `StyleUpdate` is classified as `RsiOnly`.
+   - Wired `tray/src/ipc_server.rs` to `textvn_ipc::PIPE_NAME`, `textvn_ipc::client::{sandbox_policy, SandboxPolicy}` (`#[cfg(any(windows, test))]`), and `GLOBAL_APP_ID` / `ASSIST_APP_ID` in `Visibility::sees`.
 
 ## Verification
 - `cargo fmt -p textvn-field-detect -p textvn-ipc -- --check`: PASS
@@ -53,7 +62,8 @@
 - `cargo test -p textvn-field-detect`: 25/25 PASS
 - `cargo test -p textvn-ipc`: 21/21 PASS
 - Part 1.5 (`textvn-ipc` + `textvn-win-tsf`): `cargo fmt -p textvn-ipc -p textvn-win-tsf -- --check`, `cargo clippy` Windows + `--target x86_64-unknown-linux-gnu` (`-D warnings`), `cargo test -p textvn-ipc` (21/21 PASS), `cargo test -p textvn-win-tsf ipc_client` (7/7 PASS)
-- `cargo run -q -p xtask -- regression-index --todo-max 0`: PASS (241 codes, 0 TODOs)
+- Part 1.6 (`textvn-ipc` + `textvn-tray`): `cargo fmt -p textvn-ipc -p textvn-tray -- --check`, `cargo clippy -p textvn-ipc -p textvn-tray --all-targets -- -D warnings` (Windows) and `--target x86_64-unknown-linux-gnu` (`-D warnings`), `cargo test -p textvn-ipc` (21/21 PASS), `cargo test -p textvn-tray ipc_server` (10/10 PASS), `cargo test -p textvn-win-tsf ipc_client` (7/7 PASS)
+- `cargo run -q -p xtask -- regression-index --todo-max 0`: 0 errors from `SF-6` (working tree contains uncommitted `SF-4` WIP in `adapters/windows-tsf/src/edit_session.rs`)
 - `cargo run -q -p xtask -- hygiene-docs`, `hygiene-secrets`, `hygiene-apis`: PASS
 
 ## Remaining Scope (Part 2 — once `SF-3` releases `ffi/`)

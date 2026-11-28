@@ -26,20 +26,49 @@ pub const DEFAULT_BACKOFF_INITIAL_MS: u64 = 100;
 /// Trần độ trễ reconnect mặc định (ms).
 pub const DEFAULT_BACKOFF_MAX_MS: u64 = 5_000;
 
-/// Chỉ các message điều khiển tối thiểu được phép gửi trên kênh sandbox (E80/E81/R2-26).
-/// Tuyệt đối cấm `StyleUpdate`, `AssistReport`, `AssistNotification`, `Shutdown` hoặc hotkey sửa cấu hình.
-pub fn allowed_in_sandbox(msg: &Message) -> bool {
-    matches!(
-        msg,
+/// R2-26 — tập lệnh của client trên pipe sandbox (tiến trình AppContainer/LPAC: ô tìm kiếm
+/// Start, ứng dụng Store). Dùng chung giữa client và server (`tray/src/ipc_server.rs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SandboxPolicy {
+    /// Đọc trạng thái, đăng ký nhận broadcast, Ctrl+Shift toàn cục.
+    Allow,
+    /// Drain tự học: chỉ giữ bộ đếm Dream RSI (G19), bỏ từ/cặp sửa (G8, chống bơm từ).
+    RsiOnly,
+    /// Mọi lệnh khác: thoát tray, đổi override app khác, trợ lý, Math, emoji, toast…
+    Deny,
+}
+
+/// Bảng phân loại đầy đủ mọi biến thể [`Message`] trên kênh sandbox (E80/E81/R2-26).
+/// Liệt kê tường minh để trình biên dịch bắt buộc phân loại khi thêm biến thể mới.
+pub fn sandbox_policy(msg: &Message) -> SandboxPolicy {
+    match msg {
         Message::Hello { .. }
-            | Message::GetSnapshot
-            | Message::Subscribe { .. }
-            | Message::ToggleViEn { .. }
-            | Message::ToggleGlobal
-            | Message::ToggleAssist { .. }
-            | Message::Ping
-            | Message::CrashReport { .. }
-    )
+        | Message::Subscribe { .. }
+        | Message::GetSnapshot
+        | Message::Ping
+        | Message::Pong { .. }
+        | Message::ToggleGlobal => SandboxPolicy::Allow,
+        Message::ToggleViEn { app_id, .. } if app_id == GLOBAL_APP_ID => SandboxPolicy::Allow,
+        Message::StyleUpdate { .. } => SandboxPolicy::RsiOnly,
+        Message::ToggleViEn { .. }
+        | Message::Shutdown
+        | Message::CrashReport { .. }
+        | Message::Snapshot { .. }
+        | Message::Ack
+        | Message::ConfigReload { .. }
+        | Message::StateUpdate { .. }
+        | Message::AssistNotification { .. }
+        | Message::ToggleAssist { .. }
+        | Message::AssistReport { .. }
+        | Message::ToggleMath
+        | Message::CycleMathMode
+        | Message::OpenEmojiPicker => SandboxPolicy::Deny,
+    }
+}
+
+/// Chỉ các message đạt [`SandboxPolicy::Allow`] mới được gửi nguyên bản trên kênh sandbox (E80/E81/R2-26).
+pub fn allowed_in_sandbox(msg: &Message) -> bool {
+    matches!(sandbox_policy(msg), SandboxPolicy::Allow)
 }
 
 /// Mã hoá message outgoing; trả `Ok(None)` nếu đang sandbox và message bị chặn bởi E80/R2-26.
@@ -410,51 +439,57 @@ mod tests {
 
     #[test]
     fn sandbox_filter_blocks_user_content_and_admin_messages() {
-        assert!(allowed_in_sandbox(&Message::Hello {
-            pid: 1,
-            abi: 1,
-            version: "1.0.0".into(),
-        }));
+        assert_eq!(
+            sandbox_policy(&Message::Hello {
+                pid: 1,
+                abi: 1,
+                version: "1.0.0".into(),
+            }),
+            SandboxPolicy::Allow
+        );
         assert!(allowed_in_sandbox(&Message::GetSnapshot));
         assert!(allowed_in_sandbox(&Message::Subscribe { pid: 1 }));
         assert!(allowed_in_sandbox(&Message::ToggleViEn {
-            app_id: "calc.exe".into(),
+            app_id: "*".into(),
             enabled: true,
         }));
         assert!(allowed_in_sandbox(&Message::ToggleGlobal));
-        assert!(allowed_in_sandbox(&Message::ToggleAssist {
-            enabled: false
-        }));
         assert!(allowed_in_sandbox(&Message::Ping));
-        assert!(allowed_in_sandbox(&Message::CrashReport {
-            code: "E1".into(),
-            count: 1,
-        }));
+        assert!(allowed_in_sandbox(&Message::Pong { uptime_ms: 1 }));
 
-        assert!(!allowed_in_sandbox(&Message::StyleUpdate {
-            json: "{}".into(),
-        }));
-        assert!(!allowed_in_sandbox(&Message::AssistReport {
-            issues: vec![],
-            auto_fixed: 0,
-        }));
-        assert!(!allowed_in_sandbox(&Message::AssistNotification {
-            title: "t".into(),
-            message: "m".into(),
-        }));
-        assert!(!allowed_in_sandbox(&Message::Shutdown));
-        assert!(!allowed_in_sandbox(&Message::ToggleMath));
-        assert!(!allowed_in_sandbox(&Message::CycleMathMode));
-        assert!(!allowed_in_sandbox(&Message::OpenEmojiPicker));
+        for denied in [
+            Message::ToggleViEn {
+                app_id: "calc.exe".into(),
+                enabled: true,
+            },
+            Message::ToggleAssist { enabled: false },
+            Message::CrashReport {
+                code: "E1".into(),
+                count: 1,
+            },
+            Message::AssistReport {
+                issues: vec![],
+                auto_fixed: 0,
+            },
+            Message::AssistNotification {
+                title: "t".into(),
+                message: "m".into(),
+            },
+            Message::Shutdown,
+            Message::ToggleMath,
+            Message::CycleMathMode,
+            Message::OpenEmojiPicker,
+        ] {
+            assert_eq!(sandbox_policy(&denied), SandboxPolicy::Deny, "{denied:?}");
+            assert!(!allowed_in_sandbox(&denied), "{denied:?}");
+        }
 
-        assert_eq!(
-            encode_outgoing(&Message::StyleUpdate { json: "{}".into() }, true),
-            Ok(None)
-        );
-        assert!(matches!(
-            encode_outgoing(&Message::StyleUpdate { json: "{}".into() }, false),
-            Ok(Some(_))
-        ));
+        let style = Message::StyleUpdate { json: "{}".into() };
+        assert_eq!(sandbox_policy(&style), SandboxPolicy::RsiOnly);
+        assert!(!allowed_in_sandbox(&style));
+
+        assert_eq!(encode_outgoing(&style, true), Ok(None));
+        assert!(matches!(encode_outgoing(&style, false), Ok(Some(_))));
     }
 
     #[test]

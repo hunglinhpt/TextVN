@@ -38,7 +38,7 @@ use windows::Win32::Storage::FileSystem::*;
 #[cfg(windows)]
 use windows::Win32::System::Pipes::*;
 
-pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
+pub const PIPE_NAME: &str = textvn_ipc::PIPE_NAME;
 
 /// SEC-05 (audit 2026-10-04): SECURITY_ATTRIBUTES cho named pipe với DACL chỉ
 /// cấp quyền cho user hiện tại — pipe không DACL là mở cho MỌI user cùng máy
@@ -68,45 +68,9 @@ fn pipe_security(sandbox: bool) -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRI
     }
 }
 
-/// R2-26 — tập lệnh của client trên pipe sandbox (tiến trình AppContainer/LPAC: ô tìm kiếm
-/// Start, ứng dụng Store; bất kỳ ứng dụng Store nào của người dùng cũng nối được pipe này).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SandboxPolicy {
-    /// Đọc trạng thái, đăng ký nhận broadcast, Ctrl+Shift toàn cục.
-    Allow,
-    /// Drain tự học: chỉ giữ bộ đếm Dream RSI (G19), bỏ từ/cặp sửa (G8, chống bơm từ).
-    RsiOnly,
-    /// Mọi lệnh khác: thoát tray, đổi override app khác, trợ lý, Math, emoji, toast…
-    Deny,
-}
-
-/// Bảng lệnh của pipe sandbox — liệt kê ĐỦ mọi `Message` (thêm biến thể mới mà quên phân
-/// loại thì không biên dịch được).
-pub(crate) fn sandbox_policy(msg: &Message) -> SandboxPolicy {
-    match msg {
-        Message::Hello { .. }
-        | Message::Subscribe { .. }
-        | Message::GetSnapshot
-        | Message::Ping
-        | Message::Pong { .. }
-        | Message::ToggleGlobal => SandboxPolicy::Allow,
-        Message::ToggleViEn { app_id, .. } if app_id == "*" => SandboxPolicy::Allow,
-        Message::StyleUpdate { .. } => SandboxPolicy::RsiOnly,
-        Message::ToggleViEn { .. }
-        | Message::Shutdown
-        | Message::CrashReport { .. }
-        | Message::Snapshot { .. }
-        | Message::Ack
-        | Message::ConfigReload { .. }
-        | Message::StateUpdate { .. }
-        | Message::AssistNotification { .. }
-        | Message::ToggleAssist { .. }
-        | Message::AssistReport { .. }
-        | Message::ToggleMath
-        | Message::CycleMathMode
-        | Message::OpenEmojiPicker => SandboxPolicy::Deny,
-    }
-}
+/// R2-26 — tập lệnh sandbox dùng chung 1 nguồn từ `textvn_ipc::client` (khớp với client).
+#[cfg(any(windows, test))]
+pub(crate) use textvn_ipc::client::{sandbox_policy, SandboxPolicy};
 
 /// R2-26 — chống làm nghẽn tray từ pipe sandbox (mọi ứng dụng Store của người dùng nối được):
 /// tối đa ngần này kết nối sandbox cùng lúc (mỗi kết nối một thread) …
@@ -156,8 +120,8 @@ impl Visibility {
         match self {
             Visibility::All => true,
             Visibility::Sandbox { own_app } => {
-                key == "*"
-                    || key == "assist"
+                key == textvn_ipc::client::GLOBAL_APP_ID
+                    || key == textvn_ipc::client::ASSIST_APP_ID
                     || own_app
                         .as_deref()
                         .is_some_and(|own| own.eq_ignore_ascii_case(key))
