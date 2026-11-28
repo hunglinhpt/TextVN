@@ -123,28 +123,11 @@ const CHARSET_LABELS: [&str; 4] = [
     "TCVN3 (ABC)",
     "VNI Windows",
 ];
-const METHOD_LABELS: [&str; 4] = ["Telex", "VNI", "VIQR", "Telex đơn giản"];
-// CÙNG nhãn + thứ tự với Linux (`settings_model.c`) và macOS (`SettingsView.swift`) —
-// test `labels_match_linux_settings_panel` đối chiếu cả ba.
-const ASSIST_MODE_LABELS: [&str; 3] = ["Tắt", "Chỉ gợi ý", "Tự sửa lỗi an toàn"];
-/// Mô tả một dòng cho từng chế độ (cùng chữ Windows/Linux/macOS — test
-/// `assist_mode_hints_match_every_platform`). Thay cho ô "Tự động sửa" từng đứng cạnh ô Chế độ:
-/// "Tự sửa lỗi an toàn" luôn chỉ sửa lỗi chắc chắn nên không cần lựa chọn thứ hai (0.2.75).
-pub const ASSIST_MODE_HINTS: [&str; 3] = [
-    "Không kiểm tra ngữ pháp và chính tả.",
-    "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa.",
-    "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác.",
-];
-
-/// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test
-/// `about_text_matches_every_platform`): một sản phẩm đa nền tảng, không còn câu
-/// riêng "cho Windows/macOS/Linux" ở mỗi bản.
-const ABOUT_TAGLINE: &str = "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)";
-const ABOUT_DETAILS: [&str; 3] = [
-    "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM",
-    "Giấy phép: GPL-3.0-or-later",
-    "https://github.com/hunglinhpt/TextVN",
-];
+// SF-9 (P0-6 §5b, G22): nhãn phương thức, trợ lý ngữ pháp, About & URL dùng chung từ `data/ui/strings.toml`.
+pub use crate::ui_strings_generated::ASSIST_MODE_HINTS;
+use crate::ui_strings_generated::{ABOUT_DETAILS, ABOUT_TAGLINE};
+#[cfg(any(windows, test))]
+use crate::ui_strings_generated::{ASSIST_MODE_LABELS, METHOD_LABELS};
 
 fn about_text(version: &str) -> String {
     format!(
@@ -169,20 +152,12 @@ từ register.log; sau đó chọn TextVN trong danh sách bộ gõ (Win + Space
 Gặp lỗi (không gõ được dấu, lặp chữ, xung đột bộ gõ cũ...): bấm nút [Chẩn đoán & xuất log] ngay \
 bên dưới — TextVN tự kiểm tra máy và lưu sẵn tệp ZIP an toàn (không chứa chữ bạn gõ) để gửi báo lỗi.";
 
-/// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/macOS/Linux (cửa sổ "Hướng dẫn").
+/// Trang Thảo luận / Báo lỗi / Math & Science — CÙNG URL trên Windows/macOS/Linux (sinh từ `data/ui/strings.toml`).
 #[cfg(windows)]
-const DISCUSSIONS_URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
-
-/// P11 — nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu hướng dẫn
-/// (cùng URL trên cả 3 OS — test `help_window_links_match_every_platform` đối chiếu).
-#[cfg(windows)]
-const MATH_GUIDE_URL: &str =
-    "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
-
-/// Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
-/// khớp `<url type="bugtracker">` của AppStream metainfo.
-#[cfg(windows)]
-const REPORT_ISSUE_URL: &str = "https://github.com/hunglinhpt/TextVN/issues";
+use crate::ui_strings_generated::{
+    URL_DISCUSSIONS as DISCUSSIONS_URL, URL_ISSUES as REPORT_ISSUE_URL,
+    URL_MATH_GUIDE as MATH_GUIDE_URL,
+};
 
 static SETTINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 
@@ -2882,14 +2857,55 @@ mod tests {
         };
         let quoted = |l: &str| format!("\"{l}\"");
         let swift_text = |l: &str| format!("Text(\"{l}\")");
-        for labels in [
-            &CHARSET_LABELS[..],
-            &METHOD_LABELS[..],
-            &ASSIST_MODE_LABELS[..],
-        ] {
-            same_order(&linux, labels, &quoted, "Linux");
-            same_order(macos, labels, &swift_text, "macOS");
-        }
+        let raw = |l: &str| l.to_string();
+        same_order(&linux, &CHARSET_LABELS[..], &quoted, "Linux");
+        same_order(macos, &CHARSET_LABELS[..], &swift_text, "macOS");
+        // SF-9: method_labels & assist_mode_labels dùng hằng sinh từ `data/ui/strings.toml`
+        // trên cả 3 OS (Rust `ui_strings_generated`, C `TV_UI_*`, Swift `UiStrings.*`).
+        assert_eq!(METHOD_LABELS.len(), 4);
+        assert_eq!(ASSIST_MODE_LABELS.len(), 3);
+        same_order(
+            &linux,
+            &[
+                "TV_UI_METHOD_LABELS_0",
+                "TV_UI_METHOD_LABELS_1",
+                "TV_UI_METHOD_LABELS_2",
+                "TV_UI_METHOD_LABELS_3",
+            ],
+            &raw,
+            "Linux",
+        );
+        same_order(
+            &linux,
+            &[
+                "TV_UI_ASSIST_MODE_LABELS_0",
+                "TV_UI_ASSIST_MODE_LABELS_1",
+                "TV_UI_ASSIST_MODE_LABELS_2",
+            ],
+            &raw,
+            "Linux",
+        );
+        same_order(
+            macos,
+            &[
+                "Text(UiStrings.methodLabels[0])",
+                "Text(UiStrings.methodLabels[1])",
+                "Text(UiStrings.methodLabels[2])",
+                "Text(UiStrings.methodLabels[3])",
+            ],
+            &raw,
+            "macOS",
+        );
+        same_order(
+            macos,
+            &[
+                "Text(UiStrings.assistModeLabels[0])",
+                "Text(UiStrings.assistModeLabels[1])",
+                "Text(UiStrings.assistModeLabels[2])",
+            ],
+            &raw,
+            "macOS",
+        );
         // P11: checkbox "Math & Science" trong "Tùy chọn gõ" phải có đủ trên 3 nền tảng.
         for (os, src) in [("Linux", linux.as_str()), ("macOS", macos)] {
             assert!(
@@ -2955,7 +2971,7 @@ mod tests {
         }
     }
 
-    /// 0.2.75: không còn ô "Tự động sửa" — ba chế độ có cùng mô tả trên 3 OS và không OS nào còn nhãn cũ.
+    /// 0.2.75: không còn ô "Tự động sửa" — ba chế độ dùng chung `assist_mode_hints` trên 3 OS (SF-9) và không OS nào còn nhãn cũ.
     #[test]
     fn assist_mode_hints_match_every_platform() {
         let linux = [
@@ -2964,13 +2980,16 @@ mod tests {
         ]
         .concat();
         let mac = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
-        for hint in ASSIST_MODE_HINTS {
+        assert_eq!(ASSIST_MODE_HINTS.len(), 3);
+        for (i, hint) in ASSIST_MODE_HINTS.iter().enumerate() {
             assert!(
                 hint.chars().count() <= 55,
                 "mô tả phải vừa MỘT dòng: `{hint}`"
             );
-            assert!(linux.contains(hint), "Linux thiếu mô tả `{hint}`");
-            assert!(mac.contains(hint), "macOS thiếu mô tả `{hint}`");
+            let c_sym = format!("TV_UI_ASSIST_MODE_HINTS_{i}");
+            let sw_sym = format!("UiStrings.assistModeHints[{i}]");
+            assert!(linux.contains(&c_sym), "Linux thiếu hằng `{c_sym}`");
+            assert!(mac.contains(&sw_sym), "macOS thiếu hằng `{sw_sym}`");
         }
         for src in [linux.as_str(), mac] {
             assert!(!src.contains("Tự động sửa:"), "còn nhãn `Tự động sửa:`");
@@ -2978,7 +2997,9 @@ mod tests {
         }
         #[cfg(windows)]
         assert!(!DIALOG_LAYOUT.iter().any(|c| c.text == "Tự động sửa:"));
-        assert_eq!(ASSIST_MODE_LABELS[2], "Tự sửa lỗi an toàn");
+        assert!(
+            ASSIST_MODE_LABELS[2].contains("Tự sửa") && ASSIST_MODE_LABELS[2].contains("an toàn")
+        );
     }
 
     /// Dòng số liệu tự học + Dream RSI: cùng định dạng 3 nền tảng (macOS dựng ở `ConfigModel.swift`).
@@ -3020,8 +3041,7 @@ mod tests {
             .contains("Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này?"));
     }
 
-    /// Popup "Thông tin": CÙNG câu giới thiệu + chi tiết trên 3 nền tảng (yêu cầu chủ
-    /// repo 2026-10-11 — sản phẩm đa nền tảng, không còn "cho Windows/macOS/Linux").
+    /// Popup "Thông tin": CÙNG nội dung từ `data/ui/strings.toml` trên 3 nền tảng (SF-9).
     #[test]
     fn about_text_matches_every_platform() {
         let linux = include_str!("../../adapters/linux-settings/src/settings_model.c");
@@ -3034,9 +3054,25 @@ mod tests {
         assert!(windows.starts_with("TextVN 9.9.9\r\n"));
         for part in std::iter::once(ABOUT_TAGLINE).chain(ABOUT_DETAILS) {
             assert!(windows.contains(part), "Windows thiếu `{part}`");
-            assert!(linux.contains(part), "Linux thiếu `{part}`");
-            assert!(mac_info.contains(part), "macOS thiếu `{part}`");
         }
+        assert!(
+            linux.contains("TV_UI_ABOUT_TAGLINE"),
+            "Linux thiếu TV_UI_ABOUT_TAGLINE"
+        );
+        for i in 0..ABOUT_DETAILS.len() {
+            assert!(
+                linux.contains(&format!("TV_UI_ABOUT_DETAILS_{i}")),
+                "Linux thiếu TV_UI_ABOUT_DETAILS_{i}"
+            );
+        }
+        assert!(
+            mac_info.contains("UiStrings.aboutTagline"),
+            "macOS thiếu UiStrings.aboutTagline"
+        );
+        assert!(
+            mac_info.contains("UiStrings.aboutDetails"),
+            "macOS thiếu UiStrings.aboutDetails"
+        );
         // Hai popup macOS (Settings + menu bar) cùng đọc AppInfo — không chép chuỗi riêng.
         for src in [mac_settings, mac_delegate] {
             assert!(src.contains("AppInfo.aboutMessage"));
@@ -3054,36 +3090,30 @@ mod tests {
         }
     }
 
-    /// Cửa sổ "Hướng dẫn" có nút Thảo luận + Báo lỗi trên CẢ 3 nền tảng, cùng URL; hàng nút
-    /// chính KHÔNG chứa chúng (hàng đã kín 900 đơn vị — lần thêm trước làm mất nút "Gõ tắt...").
+    /// Cửa sổ "Hướng dẫn" có nút Thảo luận + Báo lỗi trên CẢ 3 nền tảng, cùng URL từ `data/ui/strings.toml` (SF-9).
     #[test]
     fn help_window_links_match_every_platform() {
-        const URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
-        // Nút **Báo lỗi** mở đúng issue tracker — không phải trang Thảo luận.
-        const ISSUES_URL: &str = "https://github.com/hunglinhpt/TextVN/issues";
-        // P11: nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu guide.
-        const MATH_GUIDE_URL: &str =
-            "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
+        use crate::ui_strings_generated::{URL_DISCUSSIONS, URL_ISSUES, URL_MATH_GUIDE};
+        assert!(URL_DISCUSSIONS.ends_with("/discussions"));
+        assert!(URL_ISSUES.ends_with("/issues"));
+        assert!(URL_MATH_GUIDE.ends_with("/MATH_SCIENCE_GUIDE.md"));
         let windows = include_str!("settings_dialog.rs");
         let linux_model = include_str!("../../adapters/linux-settings/src/settings_model.c");
         let linux_win = include_str!("../../adapters/linux-settings/src/settings_window.c");
         let mac_info = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift");
         let mac_view =
             include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
-        for (os, src) in [
-            ("Windows", windows),
-            ("Linux", linux_model),
-            ("macOS", mac_info),
+        for sym in ["URL_DISCUSSIONS", "URL_ISSUES", "URL_MATH_GUIDE"] {
+            assert!(windows.contains(sym), "Windows thiếu `{sym}`");
+            let c_sym = format!("TV_UI_{sym}");
+            assert!(linux_model.contains(&c_sym), "Linux thiếu `{c_sym}`");
+        }
+        for sym in [
+            "UiStrings.urlDiscussions",
+            "UiStrings.urlIssues",
+            "UiStrings.urlMathGuide",
         ] {
-            assert!(src.contains(URL), "{os} thiếu URL Thảo luận");
-            assert!(
-                src.contains(ISSUES_URL),
-                "{os} thiếu URL issue tracker cho Báo lỗi"
-            );
-            assert!(
-                src.contains(MATH_GUIDE_URL),
-                "{os} thiếu URL Math & Science guide"
-            );
+            assert!(mac_info.contains(sym), "macOS thiếu `{sym}`");
         }
         let linux_win_gtk3 =
             include_str!("../../adapters/linux-settings/src/settings_window_gtk3.c");

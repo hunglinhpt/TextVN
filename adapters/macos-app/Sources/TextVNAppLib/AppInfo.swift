@@ -11,27 +11,22 @@ enum AppInfo {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         ?? "0.2.96"
 
-    /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test Rust
-    /// `about_text_matches_every_platform` đối chiếu từng chữ). Hai popup macOS
-    /// (Settings + menu bar) cùng đọc ở đây.
-    static let aboutTagline = "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)"
-    static let aboutDetails =
-        "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM\nGiấy phép: GPL-3.0-or-later\nhttps://github.com/hunglinhpt/TextVN"
+    /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (SF-9: sinh từ
+    /// `data/ui/strings.toml` → `UiStrings`). Hai popup macOS (Settings + menu bar) cùng đọc ở đây.
+    static let aboutTagline = UiStrings.aboutTagline
+    static let aboutDetails = UiStrings.aboutDetails.joined(separator: "\n")
     static var aboutTitle: String { "TextVN \(displayVersion)" }
     static var aboutMessage: String { "\(aboutTagline)\n\n\(aboutDetails)" }
 
-    /// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/Linux/macOS (nút trong cửa sổ
-    /// "Hướng dẫn"; test Rust `help_window_links_match_every_platform` đối chiếu).
-    static let discussionsUrl = "https://github.com/hunglinhpt/TextVN/discussions"
+    /// Trang Thảo luận / Báo lỗi / Math & Science — CÙNG URL trên Windows/Linux/macOS (sinh từ `data/ui/strings.toml`).
+    static let discussionsUrl = UiStrings.urlDiscussions
 
     /// Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
     /// khớp `<url type="bugtracker">` của AppStream metainfo.
-    static let reportIssueUrl = "https://github.com/hunglinhpt/TextVN/issues"
+    static let reportIssueUrl = UiStrings.urlIssues
 
-    /// P11 — nút **Math & Science** trong cửa sổ "Hướng dẫn" mở đúng tài liệu guide
-    /// (cùng URL trên cả 3 OS — test Rust `help_window_links_match_every_platform`).
-    static let mathGuideUrl =
-        "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md"
+    /// P11 — nút **Math & Science** trong cửa sổ "Hướng dẫn" mở đúng tài liệu guide.
+    static let mathGuideUrl = UiStrings.urlMathGuide
 
     static let helpTitle = "Hướng dẫn TextVN"
     static let helpText =

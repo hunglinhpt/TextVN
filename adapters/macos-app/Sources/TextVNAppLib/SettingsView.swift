@@ -264,10 +264,10 @@ public struct SettingsView: View {
                             .frame(width: 80, alignment: .leading)
                             .font(.system(size: 13, weight: .medium))
                         Picker("", selection: $store.config.method) {
-                            Text("Telex").tag("telex")
-                            Text("VNI").tag("vni")
-                            Text("VIQR").tag("viqr")
-                            Text("Telex đơn giản").tag("simple_telex")
+                            Text(UiStrings.methodLabels[0]).tag("telex")
+                            Text(UiStrings.methodLabels[1]).tag("vni")
+                            Text(UiStrings.methodLabels[2]).tag("viqr")
+                            Text(UiStrings.methodLabels[3]).tag("simple_telex")
                         }
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
@@ -428,9 +428,9 @@ public struct SettingsView: View {
                                     .frame(width: 80, alignment: .leading)
                                     .font(.system(size: 12))
                                 Picker("", selection: $store.config.assist.mode) {
-                                    Text("Tắt").tag("off")
-                                    Text("Chỉ gợi ý").tag("highlight")
-                                    Text("Tự sửa lỗi an toàn").tag("autocorrect")
+                                    Text(UiStrings.assistModeLabels[0]).tag("off")
+                                    Text(UiStrings.assistModeLabels[1]).tag("highlight")
+                                    Text(UiStrings.assistModeLabels[2]).tag("autocorrect")
                                 }
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
@@ -521,15 +521,15 @@ public struct SettingsView: View {
         }
     }
 
-    /// Mô tả một dòng cho từng chế độ trợ lý — CÙNG chữ với Windows/Linux (test parity trong `tray`).
+    /// Mô tả một dòng cho từng chế độ trợ lý — CÙNG chữ với Windows/Linux (SF-9: sinh từ `data/ui/strings.toml`).
     private func assistModeHint(_ mode: String) -> String {
         switch mode {
         case "autocorrect":
-            return "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác."
+            return UiStrings.assistModeHints[2]
         case "highlight":
-            return "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa."
+            return UiStrings.assistModeHints[1]
         default:
-            return "Không kiểm tra ngữ pháp và chính tả."
+            return UiStrings.assistModeHints[0]
         }
     }
 

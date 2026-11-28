@@ -233,9 +233,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         let methodItem = NSMenuItem(title: "Chế độ gõ", action: nil, keyEquivalent: "")
         let methodMenu = NSMenu(title: "Chế độ gõ")
         let methods = [
-            ("Telex", "telex"),
-            ("VNI", "vni"),
-            ("VIQR", "viqr"),
+            (UiStrings.methodLabels[0], "telex"),
+            (UiStrings.methodLabels[1], "vni"),
+            (UiStrings.methodLabels[2], "viqr"),
             ("Microsoft (Simple)", "simple_telex")
         ]
         for (name, id) in methods {

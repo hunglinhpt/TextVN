@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SF-9 (P0-6 §5b, G22) — NGUỒN DUY NHẤT cho chữ UI dùng chung Windows/Linux/macOS.
+# Sinh mã: `cargo xtask gen-ui` -> tray/src/ui_strings_generated.rs,
+#          adapters/linux-settings/src/ui_strings_generated.h,
+#          adapters/macos-app/Sources/TextVNAppLib/UiStringsGenerated.swift.
+# `cargo xtask check-ui` (preflight + ci-shared) fail nếu bản sinh lệch nguồn này.
+#
+# Mỗi mục là một [[string]]:
+#   id    = snake_case ổn định (đổi id = đổi tên hằng ở cả 3 OS)
+#   index = (tuỳ chọn) vị trí trong danh sách — các mục cùng id ghép thành mảng theo index 0..n-1,
+#           thứ tự phải khớp giá trị config tương ứng (ghi ở `values`, chỉ để đối chiếu)
+#   vi    = chữ tiếng Việt hiển thị (không dấu `"` / `\` / ký tự điều khiển — generator chặn)
+# Vẽ UI vẫn native (Win32, GTK, AppKit/SwiftUI); chỉ NỘI DUNG chung.
+
+# ---- Popup "Thông tin" (cùng nội dung 3 OS; dòng "TextVN <phiên bản>" ghép ở mỗi OS) ----
+[[string]]
+id = "about_tagline"
+vi = "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)"
+
+[[string]]
+id = "about_details"
+index = 0
+vi = "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM"
+
+[[string]]
+id = "about_details"
+index = 1
+vi = "Giấy phép: GPL-3.0-or-later"
+
+[[string]]
+id = "about_details"
+index = 2
+vi = "https://github.com/hunglinhpt/TextVN"
+
+# ---- Liên kết trong cửa sổ "Hướng dẫn" (cùng URL 3 OS; khớp AppStream bugtracker) ----
+[[string]]
+id = "url_discussions"
+vi = "https://github.com/hunglinhpt/TextVN/discussions"
+
+[[string]]
+id = "url_issues"
+vi = "https://github.com/hunglinhpt/TextVN/issues"
+
+[[string]]
+id = "url_math_guide"
+vi = "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md"
+
+# ---- Kiểu gõ — values: telex, vni, viqr, simple_telex ----
+[[string]]
+id = "method_labels"
+index = 0
+vi = "Telex"
+
+[[string]]
+id = "method_labels"
+index = 1
+vi = "VNI"
+
+[[string]]
+id = "method_labels"
+index = 2
+vi = "VIQR"
+
+[[string]]
+id = "method_labels"
+index = 3
+vi = "Telex đơn giản"
+
+# ---- Trợ lý ngữ pháp: chế độ — values: off, highlight, autocorrect ----
+[[string]]
+id = "assist_mode_labels"
+index = 0
+vi = "Tắt"
+
+[[string]]
+id = "assist_mode_labels"
+index = 1
+vi = "Chỉ gợi ý"
+
+[[string]]
+id = "assist_mode_labels"
+index = 2
+vi = "Tự sửa lỗi an toàn"
+
+# Mô tả MỘT dòng cho từng chế độ (<= 55 ký tự — generator chặn).
+[[string]]
+id = "assist_mode_hints"
+index = 0
+vi = "Không kiểm tra ngữ pháp và chính tả."
+
+[[string]]
+id = "assist_mode_hints"
+index = 1
+vi = "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa."
+
+[[string]]
+id = "assist_mode_hints"
+index = 2
+vi = "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác."

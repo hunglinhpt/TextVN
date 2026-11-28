@@ -153,6 +153,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "check-ui",
+        guards: "SF-9/G22: chữ UI dùng chung 3 OS khớp data/ui/strings.toml và không chép tay",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-ui"],
+        optional: false,
+    },
+    Step {
         name: "check-en-office",
         guards: "data/en_office_phrases.tsv khớp generator Rust (E59)",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-en-office"],

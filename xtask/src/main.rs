@@ -23,6 +23,7 @@ mod eval_leak;
 mod gen_en_office_data;
 mod gen_en_phrases;
 mod gen_mac_corpus;
+mod gen_ui;
 mod gen_vn_phrases;
 mod gen_vocab;
 mod gen_win_corpus;
@@ -84,6 +85,9 @@ fn main() -> ExitCode {
     let result = match cmd {
         "gen-tables" => gen_tables(true),
         "check-tables" => gen_tables(false),
+        // SF-9 (P0-6 §5b, G22): data/ui/strings.toml -> 3 OS (Rust/C/Swift).
+        "gen-ui" => gen_ui::run(true),
+        "check-ui" => gen_ui::run(false),
         // E59: gen en_office_phrases.tsv thay scripts/gen_en_office_phrases.py.
         "gen-en-office" => en_office::run(true),
         "check-en-office" => en_office::run(false),
@@ -149,6 +153,8 @@ fn usage() -> &'static str {
      Usage:\n  \
      cargo xtask gen-tables         # data/tables/*.toml → core (ghi file)\n  \
      cargo xtask check-tables       # kiểm tra file đã sinh có khớp nguồn (exit 1 nếu lệch)\n  \
+     cargo xtask gen-ui             # SF-9: data/ui/strings.toml → 3 OS (Rust/C/Swift)\n  \
+     cargo xtask check-ui           # SF-9: kiểm bản sinh UI khớp nguồn + 0 chép tay\n  \
      cargo xtask gen-en-office      # sinh data/en_office_phrases.tsv (E59)\n  \
      cargo xtask check-en-office    # kiểm tra data/en_office_phrases.tsv khớp nguồn (E59)\n  \
      cargo xtask gen-app-icons      # sinh PNG icon ứng dụng & macOS (E59)\n  \

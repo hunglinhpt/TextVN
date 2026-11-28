@@ -99,6 +99,8 @@ jobs:
         with:
           components: rustfmt
       - run: cargo run -q -p xtask -- check-tables
+      # SF-9 (P0-6 §5b, G22): chữ UI dùng chung 3 OS khớp data/ui/strings.toml và 0 bản chép tay.
+      - run: cargo run -q -p xtask -- check-ui
       # E59: đảm bảo data/en_office_phrases.tsv khớp generator Rust (thay gen_en_office_phrases.py).
       - run: cargo run -q -p xtask -- check-en-office
       # tools/mac/targets/*.json (MAC-061) là nguồn sự thật của harness AX — gate

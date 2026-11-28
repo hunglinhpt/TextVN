@@ -34,6 +34,7 @@ pub mod store;
 pub mod store_win;
 pub mod style_merge;
 pub mod svc;
+pub mod ui_strings_generated;
 
 pub use autostart::{disable_autostart, enable_autostart, is_autostart_enabled};
 pub use ipc_server::IpcServer;

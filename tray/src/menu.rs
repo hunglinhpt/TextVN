@@ -90,14 +90,19 @@ impl TrayMenu {
             let cur_method = self.svc.config().method;
             add_radio_menu_item(
                 method_menu,
-                "Telex",
+                crate::ui_strings_generated::METHOD_LABELS[0],
                 ID_METHOD_TELEX,
                 cur_method == Method::Telex,
             );
-            add_radio_menu_item(method_menu, "VNI", ID_METHOD_VNI, cur_method == Method::Vni);
             add_radio_menu_item(
                 method_menu,
-                "VIQR",
+                crate::ui_strings_generated::METHOD_LABELS[1],
+                ID_METHOD_VNI,
+                cur_method == Method::Vni,
+            );
+            add_radio_menu_item(
+                method_menu,
+                crate::ui_strings_generated::METHOD_LABELS[2],
                 ID_METHOD_VIQR,
                 cur_method == Method::Viqr,
             );

@@ -12,25 +12,25 @@
 #include "lc_compose.h"
 #include "textvn_ffi.h"
 #include "textvn_settings.h"
+#include "ui_strings_generated.h"
 
 const char *const tv_charset_labels[TV_CHARSET_COUNT + 1] = {
     "Unicode dựng sẵn", "Unicode tổ hợp", "TCVN3 (ABC)", "VNI Windows", NULL};
 const char *const tv_charset_values[TV_CHARSET_COUNT] = {
     "unicode_precomposed", "unicode_decomposed", "tcvn3", "vni_windows"};
 const char *const tv_method_labels[TV_METHOD_COUNT + 1] = {
-    "Telex", "VNI", "VIQR", "Telex đơn giản", NULL};
+    TV_UI_METHOD_LABELS_0, TV_UI_METHOD_LABELS_1, TV_UI_METHOD_LABELS_2, TV_UI_METHOD_LABELS_3,
+    NULL};
 const char *const tv_method_values[TV_METHOD_COUNT] = {"telex", "vni", "viqr", "simple_telex"};
 
 /* Trợ lý ngữ pháp (P4-0 §7): giá trị của `assist.mode`, cùng thứ tự enum của engine
- * (off / highlight / autocorrect). Nhãn hiển thị thống nhất với Windows. */
+ * (off / highlight / autocorrect). Nhãn hiển thị sinh từ data/ui/strings.toml (SF-9). */
 const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1] = {
-    "Tắt", "Chỉ gợi ý", "Tự sửa lỗi an toàn", NULL};
+    TV_UI_ASSIST_MODE_LABELS_0, TV_UI_ASSIST_MODE_LABELS_1, TV_UI_ASSIST_MODE_LABELS_2, NULL};
 const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
     "off", "highlight", "autocorrect"};
 const char *const tv_assist_mode_hints[TV_ASSIST_MODE_COUNT] = {
-    "Không kiểm tra ngữ pháp và chính tả.",
-    "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa.",
-    "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác."};
+    TV_UI_ASSIST_MODE_HINTS_0, TV_UI_ASSIST_MODE_HINTS_1, TV_UI_ASSIST_MODE_HINTS_2};
 const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {"off", "safe"};
 
 const char *const tv_help_text =
@@ -50,24 +50,23 @@ const char *const tv_help_text =
     "ngay bên dưới — TextVN sẽ tự kiểm tra máy và lưu sẵn tệp ZIP an toàn (không chứa chữ bạn gõ) "
     "để gửi báo lỗi.";
 
-/* Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test Rust
- * `about_text_matches_every_platform`); dòng "TextVN <phiên bản>" ghép ở on_about. */
+/* Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (SF-9: sinh từ
+ * data/ui/strings.toml); dòng "TextVN <phiên bản>" ghép ở on_about. */
 const char *const tv_about_text =
-    "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)\n\n"
-    "Phát triển bởi: (C) 2026 Bui Hung Linh - LinhBH.CoM\n"
-    "Giấy phép: GPL-3.0-or-later\n"
-    "https://github.com/hunglinhpt/TextVN";
+    TV_UI_ABOUT_TAGLINE "\n\n"
+    TV_UI_ABOUT_DETAILS_0 "\n"
+    TV_UI_ABOUT_DETAILS_1 "\n"
+    TV_UI_ABOUT_DETAILS_2;
 
-const char *const tv_discussions_url = "https://github.com/hunglinhpt/TextVN/discussions";
+const char *const tv_discussions_url = TV_UI_URL_DISCUSSIONS;
 
 /* Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
  * khớp `<url type="bugtracker">` của AppStream metainfo. */
-const char *const tv_issues_url = "https://github.com/hunglinhpt/TextVN/issues";
+const char *const tv_issues_url = TV_UI_URL_ISSUES;
 
 /* P11 — nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu guide
- * (cùng URL trên cả 3 OS — test Rust `help_window_links_match_every_platform`). */
-const char *const tv_math_guide_url =
-    "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
+ * (cùng URL trên cả 3 OS — sinh từ data/ui/strings.toml). */
+const char *const tv_math_guide_url = TV_UI_URL_MATH_GUIDE;
 
 int tv_index_of(const char *const *values, int n, const char *value) {
     if (!value) return 0;
