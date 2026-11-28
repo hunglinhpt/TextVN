@@ -23,7 +23,7 @@ CASES_FILE="$ROOT/tools/e2e/typing-cases.txt"
 say() { echo "[e2e-desktop:$DE] $*"; }
 fail() { echo "FAIL [e2e-desktop:$DE] $*" >&2; exit 1; }
 
-for tool in xdotool xclip dbus-run-session; do
+for tool in dbus-run-session; do
     command -v "$tool" >/dev/null 2>&1 || fail "thiếu $tool"
 done
 
@@ -89,7 +89,7 @@ export -f run_cases
 
 case "$DE" in
     xfce-x11)
-        for tool in Xvfb xfwm4 mousepad ibus-daemon; do
+        for tool in Xvfb xfwm4 mousepad ibus-daemon xdotool xclip; do
             command -v "$tool" >/dev/null 2>&1 || fail "thiếu $tool"
         done
         export DISPLAY=:99
@@ -118,15 +118,22 @@ case "$DE" in
             for _ in $(seq 1 50); do ibus list-engine >/dev/null 2>&1 && break; sleep 0.2; done
             ibus list-engine 2>/dev/null | grep -qw textvn || {
                 cat "$T/ibus.log"; echo "IBUS_COMPONENT_PATH=$IBUS_COMPONENT_PATH"; echo "FAIL engine textvn không có trong ibus list-engine" >&2; return 1; }
-            ibus engine textvn
-            echo "[e2e-desktop:$DE] engine hiện hành: $(ibus engine)"
             : > "$T/doc.txt"
             mousepad "$T/doc.txt" >"$T/editor.log" 2>&1 &
             local win
             win="$(timeout 30 xdotool search --sync --onlyvisible --class mousepad | head -n1 || true)"
             [[ -n "$win" ]] || { cat "$T/editor.log"; echo "FAIL không thấy cửa sổ Mousepad" >&2; return 1; }
             sleep 1
-            ibus engine textvn
+            # Đặt engine SAU khi Mousepad có input context đang focus (IBus từ chối đặt engine toàn cục
+            # khi chưa có IC nào — run 46122048149). Thử lại vài lần, in chẩn đoán nếu vẫn hỏng.
+            xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
+            local ok=0
+            for _ in $(seq 1 10); do
+                if ibus engine textvn 2>"$T/engine.err"; then ok=1; break; fi
+                sleep 0.5
+            done
+            [[ $ok == 1 ]] || { echo "--- ibus engine textvn: $(cat "$T/engine.err")"; echo "FAIL không đặt được engine textvn" >&2; return 1; }
+            echo "[e2e-desktop:$DE] engine hiện hành: $(ibus engine)"
             local rc=0
             run_cases "$win" || rc=$?
             if [[ $rc -ne 0 ]]; then
