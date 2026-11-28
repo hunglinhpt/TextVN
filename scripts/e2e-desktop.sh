@@ -203,6 +203,14 @@ case "$DE" in
             export WAYLAND_DISPLAY="$sock"
             SWAYSOCK="$(ls "$XDG_RUNTIME_DIR"/sway-ipc.*.sock 2>/dev/null | head -n1 || true)"
             export SWAYSOCK
+            # Job 46130919623: `swaymsg -t get_seats` = capabilities 0, devices [] — Sway headless
+            # (WLR_LIBINPUT_NO_DEVICES) KHÔNG có bàn phím; mỗi lệnh wtype tạo rồi huỷ bàn phím ảo nên
+            # năng lực bàn phím của seat bật/tắt, app mở lúc seat chưa có bàn phím không gắn wl_keyboard.
+            # Giữ MỘT bàn phím ảo sống suốt phiên (wtype ngủ 20 phút) TRƯỚC khi mở app.
+            wtype -s 1200000 >/dev/null 2>&1 &
+            local kb_keeper=$!
+            sleep 1
+            echo "[e2e-desktop:$DE] seat: $(swaymsg -t get_seats 2>&1 | grep -o '"capabilities": [0-9]*' | head -n1)"
             mkdir -p "$T/x"
             tar -C "$T/x" -xzf "$TARBALL"
             local pkg
@@ -285,6 +293,7 @@ P
                 echo "--- wtype: $(wtype -k space 2>&1; echo rc=$?) · wl-paste: $(wl-paste -n 2>&1 | head -c 80; echo " rc=$?")"
                 echo "--- fcitx5.log:"; tail -n 25 "$T/fcitx5.log" || true
             fi
+            kill "$kb_keeper" 2>/dev/null || true
             return $rc
         }
         export -f sway_session
