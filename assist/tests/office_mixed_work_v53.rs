@@ -251,11 +251,7 @@ fn v53_abnormal_mo_rong_khong_panic_khong_treo() {
             panic!("quá chậm (hồi quy thật): {worst:?} cho input {:-40}", s);
         }
         if budget > 2_500 {
-            println!(
-                "WARN nhiễu runner: {} ms > ngân sách 2500 ms nhưng ≤ trần mềm 3400 ms — {:-40}",
-                budget,
-                s
-            );
+            println!("WARN nhiễu runner: {budget} ms > 2500 ms, ≤ trần 3400 ms — {:-40}", s);
         }
     }
 }
