@@ -107,6 +107,7 @@ fn main() -> ExitCode {
         "no-python" => hygiene::no_python(),
         // Công cụ kiểm Windows release — thay tools/win/*.py (E59).
         "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
+        "build-arm64x" => win_tools::build_arm64x_cli(&args[1..]),
         "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
         "check-ibus-component" => linux_tools::check_ibus_component(&args[1..]),
         "check-elf-abi" => linux_tools::check_elf_abi(&args[1..]),
@@ -164,7 +165,8 @@ fn usage() -> &'static str {
      cargo xtask iss-tabs           # .iss không chứa TAB (B12/B13)\n  \
      cargo xtask ascii-ps1          # .ps1 ASCII-only (G7/A5)\n  \
      cargo xtask no-python          # E59: không được thêm file Python vào repo\n  \
-     cargo xtask check-pe-imports <file...> # PE không phụ thuộc VC++ runtime (R2-18)\n  \
+     cargo xtask check-pe-imports [--machine x64|x86|arm64|arm64x] <file...> # PE không phụ thuộc VC++ runtime (R2-18)\n  \
+     cargo xtask build-arm64x [--out <dll>] [--def-dir <dir>] # ARM-W2: build ARM64X pure forwarder\n  \
      cargo xtask verify-msix <file.msix> [flags] # luật Partner Center + payload (R2-09)\n  \
      cargo xtask assist-kappa <a.tsv> <b.tsv>     # Cohen's kappa 2 người gán nhãn (E59)\n  \
      cargo xtask assist-score [--verify] [--json] # recall/FPR corpus assist (E59)\n  \

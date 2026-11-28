@@ -1,0 +1,6 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
+; ARM-W2: native ARM64 export forwarders for textvn-tsf.dll (ARM64X pure forwarder).
+; Matches adapters/windows-tsf/src/lib.rs COM exports (registration uses textvn-cli).
+EXPORTS
+    DllGetClassObject=textvn-tsf-arm64.DllGetClassObject
+    DllCanUnloadNow=textvn-tsf-arm64.DllCanUnloadNow

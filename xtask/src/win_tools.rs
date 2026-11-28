@@ -53,17 +53,144 @@ fn u64_at(d: &[u8], off: usize) -> Result<u64, String> {
         .ok_or_else(|| format!("ZIP: thiếu byte tại 0x{off:X}"))
 }
 
+/// Cấu trúc PE đã đọc header & bảng section — dùng chung cho `pe_imports_bytes`,
+/// `pe_is_arm64x`, và `pe_forwarded_exports` (G15/G22).
+struct PeView<'a> {
+    data: &'a [u8],
+    machine: u16,
+    magic: u16,
+    opt: usize,
+    opt_size: usize,
+    dd_rel: usize,
+    dd: usize,
+    num_dd: usize,
+    /// Đủ N section theo chỉ số 0-based: `(va, raw_size, raw_ptr)` (DVRT trỏ theo 1-based section index).
+    raw_sections: Vec<(usize, usize, usize)>,
+    /// Các section có dữ liệu (`raw_size > 0`) để ánh xạ RVA → file offset.
+    mapped_sections: Vec<(usize, usize, usize)>,
+}
+
+impl<'a> PeView<'a> {
+    fn parse(d: &'a [u8]) -> Result<Self, String> {
+        if d.len() < 0x40 || &d[..2] != b"MZ" {
+            return Err("không phải PE (thiếu MZ)".into());
+        }
+        let pe = u32_at(d, 0x3C)? as usize;
+        let pe_sig_end = pe
+            .checked_add(4)
+            .ok_or_else(|| "PE: tràn offset chữ ký PE".to_string())?;
+        if d.get(pe..pe_sig_end) != Some(b"PE\0\0") {
+            return Err("không phải PE (thiếu chữ ký PE)".into());
+        }
+        let machine = u16_at(d, pe.checked_add(4).ok_or("PE: tràn Machine")?)?;
+        let nsec = u16_at(d, pe.checked_add(6).ok_or("PE: tràn nsec")?)? as usize;
+        let opt_size = u16_at(d, pe.checked_add(20).ok_or("PE: tràn opt_size")?)? as usize;
+        let opt = pe.checked_add(24).ok_or("PE: tràn optional header")?;
+        let magic = u16_at(d, opt)?;
+        let dd_rel: usize = match magic {
+            0x10B => 96,  // PE32
+            0x20B => 112, // PE32+
+            other => return Err(format!("PE: magic lạ 0x{other:X}")),
+        };
+        let dd = opt.checked_add(dd_rel).ok_or("PE: tràn data directory")?;
+        let sec = opt.checked_add(opt_size).ok_or("PE: tràn section table")?;
+        let sec_bytes = nsec
+            .checked_mul(40)
+            .and_then(|n| sec.checked_add(n))
+            .ok_or("PE: tràn bảng section")?;
+        if sec_bytes > d.len() {
+            return Err("PE: bảng section vượt quá kích thước file".into());
+        }
+        let mut raw_sections = Vec::with_capacity(nsec);
+        let mut mapped_sections = Vec::with_capacity(nsec);
+        for i in 0..nsec {
+            let off = sec + 40 * i;
+            let vsize = u32_at(d, off + 8)? as usize;
+            let va = u32_at(d, off + 12)? as usize;
+            let rawsize = u32_at(d, off + 16)? as usize;
+            let rawptr = u32_at(d, off + 20)? as usize;
+            raw_sections.push((va, rawsize, rawptr));
+            // Chỉ ánh xạ vùng thực sự có trong file (bỏ qua .bss rawsize == 0 và phần đuôi ảo).
+            if rawsize > 0 {
+                let span = if vsize == 0 {
+                    rawsize
+                } else {
+                    vsize.min(rawsize)
+                };
+                mapped_sections.push((va, span, rawptr));
+            }
+        }
+        let num_dd = if opt_size < dd_rel {
+            0
+        } else {
+            u32_at(d, dd - 4)? as usize
+        };
+        Ok(Self {
+            data: d,
+            machine,
+            magic,
+            opt,
+            opt_size,
+            dd_rel,
+            dd,
+            num_dd,
+            raw_sections,
+            mapped_sections,
+        })
+    }
+
+    fn data_dir(&self, idx: usize) -> Option<(usize, usize)> {
+        let needed = (idx + 1).checked_mul(8)?;
+        if self.num_dd <= idx || self.opt_size < self.dd_rel.checked_add(needed)? {
+            return None;
+        }
+        let rva = u32_at(self.data, self.dd + idx * 8).ok()? as usize;
+        let size = u32_at(self.data, self.dd + idx * 8 + 4).ok()? as usize;
+        if rva == 0 || size == 0 {
+            None
+        } else {
+            Some((rva, size))
+        }
+    }
+
+    fn rva_to_off(&self, rva: usize) -> Result<usize, String> {
+        for &(va, span, raw) in &self.mapped_sections {
+            if rva >= va {
+                let delta = rva - va;
+                if delta < span {
+                    let file_off = raw
+                        .checked_add(delta)
+                        .ok_or_else(|| format!("PE: tràn file offset từ RVA 0x{rva:X}"))?;
+                    if file_off < self.data.len() {
+                        return Ok(file_off);
+                    }
+                    return Err(format!(
+                        "PE: file offset 0x{file_off:X} vượt quá kích thước file"
+                    ));
+                }
+            }
+        }
+        Err(format!("RVA 0x{rva:X} ngoài mọi section có dữ liệu"))
+    }
+
+    fn read_cstr(&self, rva: usize) -> Result<String, String> {
+        let noff = self.rva_to_off(rva)?;
+        let tail = self
+            .data
+            .get(noff..)
+            .ok_or_else(|| format!("PE: offset tên 0x{noff:X} ngoài file"))?;
+        let end = tail
+            .iter()
+            .position(|b| *b == 0)
+            .ok_or_else(|| "PE: chuỗi không kết thúc bằng \\0".to_string())?;
+        Ok(String::from_utf8_lossy(&tail[..end]).into_owned())
+    }
+}
+
 /// ARM-W1 — trường `Machine` của COFF header (`IMAGE_FILE_MACHINE_*`): 0x8664 x64, 0x14C x86,
-/// 0xAA64 ARM64 (cả ảnh ARM64X — phân biệt bằng bảng CHPE, ngoài phạm vi kiểm này).
+/// 0xAA64 ARM64 (ảnh ARM64X dùng `pe_is_arm64x` để kiểm tra bảng DVRT symbol 6).
 pub fn pe_machine(d: &[u8]) -> Result<u16, String> {
-    if d.len() < 0x40 || &d[..2] != b"MZ" {
-        return Err("không phải PE (thiếu MZ)".into());
-    }
-    let pe = u32_at(d, 0x3C)? as usize;
-    if d.get(pe..pe.saturating_add(4)) != Some(b"PE\0\0") {
-        return Err("không phải PE (thiếu chữ ký PE)".into());
-    }
-    u16_at(d, pe.checked_add(4).ok_or("PE: tràn Machine")?)
+    Ok(PeView::parse(d)?.machine)
 }
 
 /// Tên kiến trúc ↔ mã `Machine` cho `check-pe-imports --machine`.
@@ -76,102 +203,118 @@ pub fn machine_code(name: &str) -> Option<u16> {
     }
 }
 
+/// ARM-W2 — Kiểm tra ảnh PE32+ có phải **ARM64X** thật hay không: COFF `Machine == 0xAA64`
+/// VÀ Load Config (`DataDirectory[10]`, size >= 0xE6) trỏ tới Dynamic Value Relocation Table
+/// (`IMAGE_DYNAMIC_RELOCATION_TABLE`, version 1) có entry `Symbol == 6` (`IMAGE_DYNAMIC_RELOCATION_ARM64X`).
+pub fn pe_is_arm64x(d: &[u8]) -> Result<bool, String> {
+    let view = PeView::parse(d)?;
+    if view.machine != 0xAA64 || view.magic != 0x20B {
+        return Ok(false);
+    }
+    let Some((cfg_rva, _)) = view.data_dir(10) else {
+        return Ok(false);
+    };
+    let cfg_off = view.rva_to_off(cfg_rva)?;
+    let cfg_size = u32_at(d, cfg_off)? as usize;
+    if cfg_size < 0xE6 {
+        return Ok(false);
+    }
+    let dvrt_offset = u32_at(d, cfg_off.checked_add(0xE0).ok_or("PE: tràn DVRT offset")?)? as usize;
+    let dvrt_section =
+        u16_at(d, cfg_off.checked_add(0xE4).ok_or("PE: tràn DVRT section")?)? as usize;
+    if dvrt_section == 0 {
+        return Ok(false);
+    }
+    let &(_, raw_size, raw_ptr) = view
+        .raw_sections
+        .get(dvrt_section - 1)
+        .ok_or("PE: DVRT section index ngoài bảng section")?;
+    if dvrt_offset >= raw_size {
+        return Err("PE: DVRT offset vượt quá section".into());
+    }
+    let dvrt_pos = raw_ptr
+        .checked_add(dvrt_offset)
+        .ok_or("PE: tràn vị trí DVRT")?;
+    let version = u32_at(d, dvrt_pos)?;
+    if version != 1 {
+        return Ok(false);
+    }
+    let table_size = u32_at(d, dvrt_pos.checked_add(4).ok_or("PE: tràn DVRT size")?)? as usize;
+    let mut pos = dvrt_pos.checked_add(8).ok_or("PE: tràn DVRT header")?;
+    let table_end = pos.checked_add(table_size).ok_or("PE: tràn bảng DVRT")?;
+    if table_end > d.len() {
+        return Err("PE: bảng DVRT vượt quá kích thước file".into());
+    }
+    while pos + 12 <= table_end {
+        let symbol = u64_at(d, pos)?;
+        let base_reloc_size = u32_at(d, pos + 8)? as usize;
+        if symbol == 6 {
+            return Ok(true);
+        }
+        let next = pos
+            .checked_add(12)
+            .and_then(|p| p.checked_add(base_reloc_size))
+            .ok_or("PE: tràn khối DVRT")?;
+        if next > table_end {
+            return Err("PE: entry DVRT vượt quá bảng DVRT".into());
+        }
+        pos = next;
+    }
+    Ok(false)
+}
+
+/// ARM-W2 — Đọc bảng export (`DataDirectory[0]`): trả về `(export_name, Some(forwarder_target))`
+/// nếu hàm là pure forwarder (`func_rva` nằm trong `[exp_rva, exp_rva + exp_size)`), hoặc `None`
+/// nếu là code export thật.
+pub fn pe_forwarded_exports(d: &[u8]) -> Result<Vec<(String, Option<String>)>, String> {
+    let view = PeView::parse(d)?;
+    let Some((exp_rva, exp_size)) = view.data_dir(0) else {
+        return Ok(Vec::new());
+    };
+    let exp_off = view.rva_to_off(exp_rva)?;
+    let num_funcs = u32_at(d, exp_off.checked_add(20).ok_or("PE: tràn Export")?)? as usize;
+    let num_names = u32_at(d, exp_off.checked_add(24).ok_or("PE: tràn Export")?)? as usize;
+    if num_names == 0 {
+        return Ok(Vec::new());
+    }
+    if num_names > 65_536 {
+        return Err("PE: số lượng export quá lớn".into());
+    }
+    let funcs_rva = u32_at(d, exp_off.checked_add(28).ok_or("PE: tràn Export")?)? as usize;
+    let names_rva = u32_at(d, exp_off.checked_add(32).ok_or("PE: tràn Export")?)? as usize;
+    let ords_rva = u32_at(d, exp_off.checked_add(36).ok_or("PE: tràn Export")?)? as usize;
+    let funcs_off = view.rva_to_off(funcs_rva)?;
+    let names_off = view.rva_to_off(names_rva)?;
+    let ords_off = view.rva_to_off(ords_rva)?;
+    let exp_end = exp_rva.saturating_add(exp_size);
+
+    let mut out = Vec::with_capacity(num_names);
+    for i in 0..num_names {
+        let name_rva = u32_at(d, names_off.checked_add(i * 4).ok_or("PE: tràn Names")?)? as usize;
+        let name = view.read_cstr(name_rva)?;
+        let ord = u16_at(d, ords_off.checked_add(i * 2).ok_or("PE: tràn Ords")?)? as usize;
+        if ord >= num_funcs {
+            return Err("PE: export ordinal vượt AddressOfFunctions".into());
+        }
+        let func_rva = u32_at(d, funcs_off.checked_add(ord * 4).ok_or("PE: tràn Funcs")?)? as usize;
+        let target = if func_rva >= exp_rva && func_rva < exp_end {
+            Some(view.read_cstr(func_rva)?)
+        } else {
+            None
+        };
+        out.push((name, target));
+    }
+    Ok(out)
+}
+
 /// Đọc bảng import (và delay-load import nếu có) của một PE (Portable Executable)
 /// — parser thuần byte với kiểm tra biên/tràn đầy đủ, KHÔNG cần dumpbin/Visual Studio.
 pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
-    if d.len() < 0x40 || &d[..2] != b"MZ" {
-        return Err("không phải PE (thiếu MZ)".into());
-    }
-    let pe = u32_at(d, 0x3C)? as usize;
-    let pe_sig_end = pe
-        .checked_add(4)
-        .ok_or_else(|| "PE: tràn offset chữ ký PE".to_string())?;
-    if d.get(pe..pe_sig_end) != Some(b"PE\0\0") {
-        return Err("không phải PE (thiếu chữ ký PE)".into());
-    }
-    let nsec = u16_at(d, pe.checked_add(6).ok_or("PE: tràn nsec")?)? as usize;
-    let opt_size = u16_at(d, pe.checked_add(20).ok_or("PE: tràn opt_size")?)? as usize;
-    let opt = pe.checked_add(24).ok_or("PE: tràn optional header")?;
-    let magic = u16_at(d, opt)?;
-    let dd_rel: usize = match magic {
-        0x10B => 96,  // PE32
-        0x20B => 112, // PE32+
-        other => return Err(format!("PE: magic lạ 0x{other:X}")),
-    };
-    let dd = opt.checked_add(dd_rel).ok_or("PE: tràn data directory")?;
-    let sec = opt.checked_add(opt_size).ok_or("PE: tràn section table")?;
-    let sec_bytes = nsec
-        .checked_mul(40)
-        .and_then(|n| sec.checked_add(n))
-        .ok_or("PE: tràn bảng section")?;
-    if sec_bytes > d.len() {
-        return Err("PE: bảng section vượt quá kích thước file".into());
-    }
-    let mut sections: Vec<(usize, usize, usize)> = Vec::with_capacity(nsec);
-    for i in 0..nsec {
-        let off = sec + 40 * i;
-        let vsize = u32_at(d, off + 8)? as usize;
-        let va = u32_at(d, off + 12)? as usize;
-        let rawsize = u32_at(d, off + 16)? as usize;
-        let rawptr = u32_at(d, off + 20)? as usize;
-        // Chỉ ánh xạ vùng thực sự có trong file (bỏ qua .bss rawsize == 0 và phần đuôi ảo).
-        if rawsize == 0 {
-            continue;
-        }
-        let span = if vsize == 0 {
-            rawsize
-        } else {
-            vsize.min(rawsize)
-        };
-        sections.push((va, span, rawptr));
-    }
-
-    // Nếu OptionalHeader nhỏ hơn NumberOfRvaAndSizes hoặc không có DataDirectory[1] → 0 import.
-    if opt_size < dd_rel {
-        return Ok(Vec::new());
-    }
-    let num_dd = u32_at(d, dd - 4)? as usize;
-    if num_dd <= 1 || opt_size < dd_rel + 16 {
-        return Ok(Vec::new());
-    }
-    let imp_rva = u32_at(d, dd + 8)? as usize;
-    let imp_size = u32_at(d, dd + 12)? as usize;
-
-    let rva_to_off = |rva: usize| -> Result<usize, String> {
-        for &(va, span, raw) in &sections {
-            if rva >= va {
-                let delta = rva - va;
-                if delta < span {
-                    let file_off = raw
-                        .checked_add(delta)
-                        .ok_or_else(|| format!("PE: tràn file offset từ RVA 0x{rva:X}"))?;
-                    if file_off < d.len() {
-                        return Ok(file_off);
-                    }
-                    return Err(format!(
-                        "PE: file offset 0x{file_off:X} vượt quá kích thước file"
-                    ));
-                }
-            }
-        }
-        Err(format!("RVA 0x{rva:X} ngoài mọi section có dữ liệu"))
-    };
-
-    let read_cstr = |rva: usize| -> Result<String, String> {
-        let noff = rva_to_off(rva)?;
-        let tail = d
-            .get(noff..)
-            .ok_or_else(|| format!("PE: offset tên DLL 0x{noff:X} ngoài file"))?;
-        let end = tail
-            .iter()
-            .position(|b| *b == 0)
-            .ok_or_else(|| "PE: tên DLL không kết thúc bằng \\0".to_string())?;
-        Ok(String::from_utf8_lossy(&tail[..end]).into_owned())
-    };
-
+    let view = PeView::parse(d)?;
     let mut names = Vec::new();
-    if imp_rva != 0 && imp_size != 0 {
-        let mut off = rva_to_off(imp_rva)?;
+    if let Some((imp_rva, imp_size)) = view.data_dir(1) {
+        let _ = imp_size;
+        let mut off = view.rva_to_off(imp_rva)?;
         loop {
             let orig = u32_at(d, off)?;
             let ts = u32_at(d, off.checked_add(4).ok_or("PE: tràn descriptor")?)?;
@@ -186,47 +329,43 @@ pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
             if name_rva == 0 {
                 return Err("PE: import descriptor có Name RVA = 0".into());
             }
-            names.push(read_cstr(name_rva as usize)?);
+            names.push(view.read_cstr(name_rva as usize)?);
             off = off.checked_add(20).ok_or("PE: tràn offset import table")?;
         }
     }
 
     // Kiểm thêm Delay-Load Import Directory (DataDirectory[13]) để chặn `/DELAYLOAD:vcruntime*.dll`.
-    if num_dd > 13 && opt_size >= dd_rel + 14 * 8 {
-        let delay_rva = u32_at(d, dd + 13 * 8)? as usize;
-        let delay_size = u32_at(d, dd + 13 * 8 + 4)? as usize;
-        if delay_rva != 0 && delay_size != 0 {
-            let pe32_image_base = if magic == 0x10B {
-                u32_at(d, opt.checked_add(28).ok_or("PE: tràn ImageBase")?)? as usize
-            } else {
-                0
-            };
-            let mut off = rva_to_off(delay_rva)?;
-            loop {
-                let attrs = u32_at(d, off)?;
-                let name_rva = u32_at(d, off.checked_add(4).ok_or("PE: tràn delay descriptor")?)?;
-                let iat = u32_at(d, off.checked_add(12).ok_or("PE: tràn delay descriptor")?)?;
-                let int = u32_at(d, off.checked_add(16).ok_or("PE: tràn delay descriptor")?)?;
-                if name_rva == 0 && iat == 0 && int == 0 {
-                    break;
-                }
-                if name_rva == 0 {
-                    return Err("PE: delay-load descriptor có Name RVA = 0".into());
-                }
-                let resolved_rva = if (attrs & 1) != 0 {
-                    name_rva as usize
-                } else if magic == 0x10B {
-                    (name_rva as usize)
-                        .checked_sub(pe32_image_base)
-                        .ok_or("PE: delay-load VA nhỏ hơn ImageBase")?
-                } else {
-                    return Err(
-                        "PE: PE32+ delay-load descriptor thiếu cờ RVA (grAttrs & 1 == 0)".into(),
-                    );
-                };
-                names.push(read_cstr(resolved_rva)?);
-                off = off.checked_add(32).ok_or("PE: tràn offset delay table")?;
+    if let Some((delay_rva, _)) = view.data_dir(13) {
+        let pe32_image_base = if view.magic == 0x10B {
+            u32_at(d, view.opt.checked_add(28).ok_or("PE: tràn ImageBase")?)? as usize
+        } else {
+            0
+        };
+        let mut off = view.rva_to_off(delay_rva)?;
+        loop {
+            let attrs = u32_at(d, off)?;
+            let name_rva = u32_at(d, off.checked_add(4).ok_or("PE: tràn delay descriptor")?)?;
+            let iat = u32_at(d, off.checked_add(12).ok_or("PE: tràn delay descriptor")?)?;
+            let int = u32_at(d, off.checked_add(16).ok_or("PE: tràn delay descriptor")?)?;
+            if name_rva == 0 && iat == 0 && int == 0 {
+                break;
             }
+            if name_rva == 0 {
+                return Err("PE: delay-load descriptor có Name RVA = 0".into());
+            }
+            let resolved_rva = if (attrs & 1) != 0 {
+                name_rva as usize
+            } else if view.magic == 0x10B {
+                (name_rva as usize)
+                    .checked_sub(pe32_image_base)
+                    .ok_or("PE: delay-load VA nhỏ hơn ImageBase")?
+            } else {
+                return Err(
+                    "PE: PE32+ delay-load descriptor thiếu cờ RVA (grAttrs & 1 == 0)".into(),
+                );
+            };
+            names.push(view.read_cstr(resolved_rva)?);
+            off = off.checked_add(32).ok_or("PE: tràn offset delay table")?;
         }
     }
 
@@ -260,24 +399,38 @@ fn is_forbidden_eager_graphics_dll(name: &str) -> bool {
     )
 }
 
-/// CLI: `xtask check-pe-imports <files>...` — Err khi PE nào phụ thuộc
-/// VC++ runtime, link tĩnh DLL đồ họa nặng (E66), hoặc không đọc được.
+#[derive(Clone, Copy)]
+enum MachineExpect {
+    Exact(u16),
+    Arm64X,
+}
+
+/// CLI: `xtask check-pe-imports [--machine x64|x86|arm64|arm64x] <files>...` — Err khi PE nào phụ thuộc
+/// VC++ runtime, link tĩnh DLL đồ họa nặng (E66), sai kiến trúc / thiếu ARM64X pure forwarder, hoặc không đọc được.
 pub fn check_pe_imports_cli(args: &[String]) -> Result<(), String> {
-    // `--machine <x64|x86|arm64>` (ARM-W1): mọi tệp phải đúng kiến trúc — chặn bản ARM64 lẫn
-    // DLL x64 (hoặc ngược lại) khi đóng gói nhiều kiến trúc.
-    let mut want_machine: Option<u16> = None;
+    // `--machine <x64|x86|arm64|arm64x>` (ARM-W1/W2): mọi tệp phải đúng kiến trúc — chặn bản ARM64 lẫn
+    // DLL x64 hoặc nhầm DLL ARM64 thường làm forwarder ARM64X.
+    let mut want_machine: Option<MachineExpect> = None;
     let mut files: Vec<&String> = Vec::new();
     let mut it = args.iter();
     while let Some(a) = it.next() {
         if a == "--machine" {
-            let name = it.next().ok_or("--machine cần giá trị x64|x86|arm64")?;
-            want_machine = Some(machine_code(name).ok_or_else(|| format!("--machine lạ: {name}"))?);
+            let name = it
+                .next()
+                .ok_or("--machine cần giá trị x64|x86|arm64|arm64x")?;
+            want_machine = Some(if name == "arm64x" {
+                MachineExpect::Arm64X
+            } else {
+                MachineExpect::Exact(
+                    machine_code(name).ok_or_else(|| format!("--machine lạ: {name}"))?,
+                )
+            });
         } else {
             files.push(a);
         }
     }
     if files.is_empty() {
-        return Err("cách dùng: cargo xtask check-pe-imports [--machine x64|x86|arm64] <file.exe|file.dll> [...]".into());
+        return Err("cách dùng: cargo xtask check-pe-imports [--machine x64|x86|arm64|arm64x] <file.exe|file.dll> [...]".into());
     }
     let mut bad = 0usize;
     for path in files {
@@ -289,18 +442,52 @@ pub fn check_pe_imports_cli(args: &[String]) -> Result<(), String> {
                 continue;
             }
         };
-        if let Some(want) = want_machine {
-            match pe_machine(&data) {
-                Ok(m) if m == want => println!("OK   {path}: Machine 0x{m:04X}"),
-                Ok(m) => {
-                    println!("FAIL {path}: Machine 0x{m:04X}, cần 0x{want:04X}");
-                    bad += 1;
-                    continue;
-                }
-                Err(e) => {
-                    println!("FAIL {path}: {e}");
-                    bad += 1;
-                    continue;
+        if let Some(expect) = want_machine {
+            match expect {
+                MachineExpect::Exact(want) => match pe_machine(&data) {
+                    Ok(m) if m == want => println!("OK   {path}: Machine 0x{m:04X}"),
+                    Ok(m) => {
+                        println!("FAIL {path}: Machine 0x{m:04X}, cần 0x{want:04X}");
+                        bad += 1;
+                        continue;
+                    }
+                    Err(e) => {
+                        println!("FAIL {path}: {e}");
+                        bad += 1;
+                        continue;
+                    }
+                },
+                MachineExpect::Arm64X => {
+                    match pe_is_arm64x(&data) {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            println!("FAIL {path}: không phải ảnh ARM64X (thiếu DVRT symbol 6)");
+                            bad += 1;
+                            continue;
+                        }
+                        Err(e) => {
+                            println!("FAIL {path}: {e}");
+                            bad += 1;
+                            continue;
+                        }
+                    }
+                    match pe_forwarded_exports(&data) {
+                        Ok(exps) if !exps.is_empty() && exps.iter().all(|(_, t)| t.is_some()) => {
+                            println!("OK   {path}: ARM64X pure forwarder ({} export)", exps.len());
+                        }
+                        Ok(exps) => {
+                            println!(
+                                "FAIL {path}: ARM64X forwarder phải chỉ có export chuyển tiếp (tìm thấy {exps:?})"
+                            );
+                            bad += 1;
+                            continue;
+                        }
+                        Err(e) => {
+                            println!("FAIL {path}: {e}");
+                            bad += 1;
+                            continue;
+                        }
+                    }
                 }
             }
         }
@@ -350,6 +537,190 @@ pub fn check_pe_imports_cli(args: &[String]) -> Result<(), String> {
             "{bad} file vi phạm kiểm tra PE imports (VC++ runtime / eager graphics DLL / lỗi đọc PE)"
         ))
     }
+}
+
+// ---------------------------------------------------------------------------
+// build-arm64x — ARM-W2 pure forwarder ARM64X (P0-5 §6.2, SPK-ARM64X)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, PartialEq, Eq)]
+struct BuildArm64xArgs {
+    out: String,
+    def_dir: String,
+}
+
+fn parse_build_arm64x_args(args: &[String]) -> Result<BuildArm64xArgs, String> {
+    let mut out = "target/arm64x/textvn-tsf.dll".to_string();
+    let mut def_dir = "installer/windows/arm64x".to_string();
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" => {
+                i += 1;
+                out = args.get(i).ok_or("--out cần đường dẫn")?.clone();
+            }
+            a if a.starts_with("--out=") => {
+                out = a["--out=".len()..].to_string();
+            }
+            "--def-dir" => {
+                i += 1;
+                def_dir = args.get(i).ok_or("--def-dir cần thư mục")?.clone();
+            }
+            a if a.starts_with("--def-dir=") => {
+                def_dir = a["--def-dir=".len()..].to_string();
+            }
+            other => return Err(format!("tham số lạ cho build-arm64x: {other}")),
+        }
+        i += 1;
+    }
+    if out.trim().is_empty() || def_dir.trim().is_empty() {
+        return Err("--out và --def-dir không được rỗng".into());
+    }
+    Ok(BuildArm64xArgs { out, def_dir })
+}
+
+fn validate_arm64x_def_dir(def_dir: &Path) -> Result<(), String> {
+    let dummy = def_dir.join("dummy.c");
+    let arm64_def = def_dir.join("tsf_arm64.def");
+    let x64_def = def_dir.join("tsf_x64.def");
+    if !dummy.is_file() {
+        return Err(format!("thiếu {}", dummy.display()));
+    }
+    let a64 = fs::read_to_string(&arm64_def)
+        .map_err(|e| format!("không đọc {}: {e}", arm64_def.display()))?;
+    let x64 = fs::read_to_string(&x64_def)
+        .map_err(|e| format!("không đọc {}: {e}", x64_def.display()))?;
+    for req in [
+        "DllGetClassObject=textvn-tsf-arm64.DllGetClassObject",
+        "DllCanUnloadNow=textvn-tsf-arm64.DllCanUnloadNow",
+    ] {
+        if !a64.contains(req) {
+            return Err(format!("{} thiếu dòng `{req}`", arm64_def.display()));
+        }
+    }
+    for req in [
+        "DllGetClassObject=textvn-tsf-x64.DllGetClassObject",
+        "DllCanUnloadNow=textvn-tsf-x64.DllCanUnloadNow",
+    ] {
+        if !x64.contains(req) {
+            return Err(format!("{} thiếu dòng `{req}`", x64_def.display()));
+        }
+    }
+    Ok(())
+}
+
+/// CLI (ARM-W2): `cargo xtask build-arm64x [--out <dll>] [--def-dir <dir>]`.
+pub fn build_arm64x_cli(args: &[String]) -> Result<(), String> {
+    let opts = parse_build_arm64x_args(args)?;
+    let def_dir = Path::new(&opts.def_dir);
+    validate_arm64x_def_dir(def_dir)?;
+    if !cfg!(windows) {
+        return Err("build-arm64x chỉ chạy trên Windows với MSVC ARM64/ARM64EC tools".into());
+    }
+    let out_path = Path::new(&opts.out);
+    let out_dir = out_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
+    let abs_out = fs::canonicalize(out_dir)
+        .map_err(|e| format!("canonicalize {}: {e}", out_dir.display()))?
+        .join(
+            out_path
+                .file_name()
+                .ok_or("đường dẫn --out thiếu tên file")?,
+        );
+    let abs_def = fs::canonicalize(def_dir)
+        .map_err(|e| format!("canonicalize {}: {e}", def_dir.display()))?;
+
+    let pf86 = std::env::var("ProgramFiles(x86)")
+        .unwrap_or_else(|_| r"C:\Program Files (x86)".to_string());
+    let vswhere = Path::new(&pf86).join(r"Microsoft Visual Studio\Installer\vswhere.exe");
+    let vs_out = std::process::Command::new(&vswhere)
+        .args([
+            "-latest",
+            "-products",
+            "*",
+            "-requires",
+            "Microsoft.VisualStudio.Component.VC.Tools.ARM64",
+            "-property",
+            "installationPath",
+        ])
+        .output()
+        .map_err(|e| format!("chạy vswhere ({}): {e}", vswhere.display()))?;
+    if !vs_out.status.success() {
+        return Err("vswhere không tìm thấy VS C++ ARM64 build tools".into());
+    }
+    let vs_root = String::from_utf8_lossy(&vs_out.stdout).trim().to_string();
+    if vs_root.is_empty() {
+        return Err(
+            "chưa cài Microsoft.VisualStudio.Component.VC.Tools.ARM64 (ARM64/ARM64EC)".into(),
+        );
+    }
+    let vcvars = Path::new(&vs_root).join(r"VC\Auxiliary\Build\vcvarsall.bat");
+    let vc_arch = if std::env::consts::ARCH == "aarch64" {
+        "arm64"
+    } else {
+        "x64_arm64"
+    };
+    let work_dir = out_dir.join("arm64x-obj");
+    fs::create_dir_all(&work_dir).map_err(|e| format!("mkdir {}: {e}", work_dir.display()))?;
+    let abs_work = fs::canonicalize(&work_dir).map_err(|e| format!("canonicalize work: {e}"))?;
+    let cmd_file = abs_work.join("build-arm64x.cmd");
+    let dummy_c = abs_def.join("dummy.c");
+    let a64_def = abs_def.join("tsf_arm64.def");
+    let x64_def = abs_def.join("tsf_x64.def");
+    let cmd_body = format!(
+        "@echo off\r\n\
+         call \"{}\" {} >nul || exit /b 1\r\n\
+         cd /d \"{}\" || exit /b 1\r\n\
+         cl /nologo /c /Foempty_arm64.obj \"{}\" || exit /b 1\r\n\
+         cl /nologo /c /arm64EC /Foempty_x64.obj \"{}\" || exit /b 1\r\n\
+         link /lib /nologo /machine:x64 /def:\"{}\" /out:fwd_x64.lib || exit /b 1\r\n\
+         link /lib /nologo /machine:arm64 /def:\"{}\" /out:fwd_arm64.lib || exit /b 1\r\n\
+         link /nologo /dll /noentry /machine:arm64x /defArm64Native:\"{}\" /def:\"{}\" empty_arm64.obj empty_x64.obj /out:\"{}\" fwd_arm64.lib fwd_x64.lib || exit /b 1\r\n",
+        vcvars.display(),
+        vc_arch,
+        abs_work.display(),
+        dummy_c.display(),
+        dummy_c.display(),
+        x64_def.display(),
+        a64_def.display(),
+        a64_def.display(),
+        x64_def.display(),
+        abs_out.display(),
+    );
+    fs::write(&cmd_file, cmd_body).map_err(|e| format!("ghi {}: {e}", cmd_file.display()))?;
+    let st = std::process::Command::new("cmd.exe")
+        .args(["/c", &cmd_file.to_string_lossy()])
+        .status()
+        .map_err(|e| format!("chạy cmd.exe build-arm64x: {e}"))?;
+    if !st.success() {
+        return Err(format!("build-arm64x link thất bại (exit {:?})", st.code()));
+    }
+    let dll = fs::read(&abs_out).map_err(|e| format!("đọc {}: {e}", abs_out.display()))?;
+    if !pe_is_arm64x(&dll)? {
+        return Err(format!("{} không mang chữ ký ARM64X", abs_out.display()));
+    }
+    let exps = pe_forwarded_exports(&dll)?;
+    if exps.len() < 2 || exps.iter().any(|(_, t)| t.is_none()) {
+        return Err(format!(
+            "{} phải chỉ có export pure forwarder: {exps:?}",
+            abs_out.display()
+        ));
+    }
+    if !pe_imports_bytes(&dll)?.is_empty() {
+        return Err(format!(
+            "{} không được import DLL/CRT nào",
+            abs_out.display()
+        ));
+    }
+    println!(
+        "OK   {}: ARM64X pure forwarder ({} export, 0 import)",
+        abs_out.display(),
+        exps.len()
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1965,5 +2336,177 @@ mod tests {
         assert!(contains_vietnamese("Bộ gõ tiếng Việt"));
         assert!(contains_vietnamese("tr\u{1EA3}n chữ thường"));
         assert!(!contains_vietnamese("plain english only"));
+    }
+
+    fn build_synthetic_arm64x_pe(
+        machine: u16,
+        dvrt_symbol: Option<u64>,
+        forwarded_export: bool,
+    ) -> Vec<u8> {
+        let pe_off = 0x80usize;
+        let opt_off = pe_off + 24;
+        let dd_rel = 112usize;
+        let opt_size = dd_rel + 16 * 8;
+        let sec_off = opt_off + opt_size;
+        let raw_off = 0x400usize;
+        let va_base = 0x1000usize;
+
+        // Layout inside `.rdata`:
+        // [0x000..0x040) Export Directory (40 bytes)
+        // [0x040..0x070) Funcs / Names / Ords
+        // [0x070..exp_end_off) Export names & forwarder strings
+        // [0x200..0x300) Load Config Directory (0xE8 bytes)
+        // [0x300..0x330) DVRT header (8) + entry (12) + dummy block (4)
+        // [0x340..0x350) dummy code byte at VA va_base + 0x340 (strictly outside Export Dir)
+        let mut sec = vec![0u8; 0x070];
+
+        let put_cstr = |buf: &mut Vec<u8>, s: &str| -> u32 {
+            let rva = (va_base + buf.len()) as u32;
+            buf.extend_from_slice(s.as_bytes());
+            buf.push(0);
+            rva
+        };
+
+        let exp_va = va_base as u32;
+        let funcs_off = 0x040usize;
+        let names_off = 0x050usize;
+        let ords_off = 0x060usize;
+        let n1_rva = put_cstr(&mut sec, "DllCanUnloadNow");
+        let n2_rva = put_cstr(&mut sec, "DllGetClassObject");
+        let t1_rva = put_cstr(&mut sec, "textvn-tsf-arm64.DllCanUnloadNow");
+        let t2_rva = put_cstr(&mut sec, "textvn-tsf-arm64.DllGetClassObject");
+        let exp_end_off = sec.len();
+        assert!(exp_end_off <= 0x200);
+        sec.resize(0x360, 0);
+
+        sec[20..24].copy_from_slice(&2u32.to_le_bytes()); // NumberOfFunctions
+        sec[24..28].copy_from_slice(&2u32.to_le_bytes()); // NumberOfNames
+        sec[28..32].copy_from_slice(&((va_base + funcs_off) as u32).to_le_bytes());
+        sec[32..36].copy_from_slice(&((va_base + names_off) as u32).to_le_bytes());
+        sec[36..40].copy_from_slice(&((va_base + ords_off) as u32).to_le_bytes());
+        let code_rva = (va_base + 0x340) as u32;
+        sec[funcs_off..funcs_off + 4].copy_from_slice(&t1_rva.to_le_bytes());
+        sec[funcs_off + 4..funcs_off + 8]
+            .copy_from_slice(&(if forwarded_export { t2_rva } else { code_rva }).to_le_bytes());
+        sec[names_off..names_off + 4].copy_from_slice(&n1_rva.to_le_bytes());
+        sec[names_off + 4..names_off + 8].copy_from_slice(&n2_rva.to_le_bytes());
+        sec[ords_off..ords_off + 2].copy_from_slice(&0u16.to_le_bytes());
+        sec[ords_off + 2..ords_off + 4].copy_from_slice(&1u16.to_le_bytes());
+
+        let load_cfg_off = 0x200usize;
+        let dvrt_rel_off = 0x300usize;
+        sec[load_cfg_off..load_cfg_off + 4].copy_from_slice(&0xE8u32.to_le_bytes());
+        if let Some(sym) = dvrt_symbol {
+            sec[load_cfg_off + 0xE0..load_cfg_off + 0xE4]
+                .copy_from_slice(&(dvrt_rel_off as u32).to_le_bytes());
+            sec[load_cfg_off + 0xE4..load_cfg_off + 0xE6].copy_from_slice(&1u16.to_le_bytes());
+            sec[dvrt_rel_off..dvrt_rel_off + 4].copy_from_slice(&1u32.to_le_bytes()); // Version = 1
+            sec[dvrt_rel_off + 4..dvrt_rel_off + 8].copy_from_slice(&16u32.to_le_bytes()); // Size = 16
+            sec[dvrt_rel_off + 8..dvrt_rel_off + 16].copy_from_slice(&sym.to_le_bytes());
+            sec[dvrt_rel_off + 16..dvrt_rel_off + 20].copy_from_slice(&4u32.to_le_bytes());
+        }
+
+        let mut pe = vec![0u8; raw_off + sec.len()];
+        pe[0..2].copy_from_slice(b"MZ");
+        pe[0x3C..0x40].copy_from_slice(&(pe_off as u32).to_le_bytes());
+        pe[pe_off..pe_off + 4].copy_from_slice(b"PE\0\0");
+        pe[pe_off + 4..pe_off + 6].copy_from_slice(&machine.to_le_bytes());
+        pe[pe_off + 6..pe_off + 8].copy_from_slice(&1u16.to_le_bytes());
+        pe[pe_off + 20..pe_off + 22].copy_from_slice(&(opt_size as u16).to_le_bytes());
+        pe[opt_off..opt_off + 2].copy_from_slice(&0x20Bu16.to_le_bytes()); // PE32+
+        let dd_off = opt_off + dd_rel;
+        pe[dd_off - 4..dd_off].copy_from_slice(&16u32.to_le_bytes());
+        // DataDirectory[0] = Export
+        pe[dd_off..dd_off + 4].copy_from_slice(&exp_va.to_le_bytes());
+        pe[dd_off + 4..dd_off + 8].copy_from_slice(&(exp_end_off as u32).to_le_bytes());
+        // DataDirectory[10] = Load Config
+        if dvrt_symbol.is_some() {
+            pe[dd_off + 10 * 8..dd_off + 10 * 8 + 4]
+                .copy_from_slice(&((va_base + load_cfg_off) as u32).to_le_bytes());
+            pe[dd_off + 10 * 8 + 4..dd_off + 10 * 8 + 8].copy_from_slice(&0xE8u32.to_le_bytes());
+        }
+        pe[sec_off..sec_off + 6].copy_from_slice(b".rdata");
+        pe[sec_off + 8..sec_off + 12].copy_from_slice(&(sec.len() as u32).to_le_bytes());
+        pe[sec_off + 12..sec_off + 16].copy_from_slice(&(va_base as u32).to_le_bytes());
+        pe[sec_off + 16..sec_off + 20].copy_from_slice(&(sec.len() as u32).to_le_bytes());
+        pe[sec_off + 20..sec_off + 24].copy_from_slice(&(raw_off as u32).to_le_bytes());
+        pe[raw_off..raw_off + sec.len()].copy_from_slice(&sec);
+        pe
+    }
+
+    /// ARM-W2: `pe_is_arm64x` và `check-pe-imports --machine arm64x` phân biệt được ARM64X
+    /// pure forwarder với ARM64 thường, ARM64EC, x64, và forwarder bị chèn export code.
+    #[test]
+    fn arm_w2_pe_is_arm64x_phan_biet_arm64x_voi_arm64_thuong_va_x64() {
+        let arm64x = build_synthetic_arm64x_pe(0xAA64, Some(6), true);
+        assert!(pe_is_arm64x(&arm64x).unwrap());
+        let exps = pe_forwarded_exports(&arm64x).unwrap();
+        assert_eq!(exps.len(), 2);
+        assert!(exps.iter().all(|(_, t)| t.is_some()));
+
+        let tmp_dir = std::env::temp_dir().join(format!("textvn-arm64x-{}", std::process::id()));
+        let _ = fs::create_dir_all(&tmp_dir);
+        let p_ok = tmp_dir.join("ok_arm64x.dll");
+        let p_plain = tmp_dir.join("plain_arm64.dll");
+        let p_code = tmp_dir.join("code_arm64x.dll");
+        fs::write(&p_ok, &arm64x).unwrap();
+        let plain_arm64 = build_synthetic_arm64x_pe(0xAA64, None, true);
+        fs::write(&p_plain, &plain_arm64).unwrap();
+        let non_fwd = build_synthetic_arm64x_pe(0xAA64, Some(6), false);
+        fs::write(&p_code, &non_fwd).unwrap();
+
+        assert!(check_pe_imports_cli(&[
+            "--machine".into(),
+            "arm64x".into(),
+            p_ok.to_string_lossy().into_owned(),
+        ])
+        .is_ok());
+        assert!(check_pe_imports_cli(&[
+            "--machine".into(),
+            "arm64x".into(),
+            p_plain.to_string_lossy().into_owned(),
+        ])
+        .is_err());
+        assert!(check_pe_imports_cli(&[
+            "--machine".into(),
+            "arm64".into(),
+            p_plain.to_string_lossy().into_owned(),
+        ])
+        .is_ok());
+        assert!(check_pe_imports_cli(&[
+            "--machine".into(),
+            "arm64x".into(),
+            p_code.to_string_lossy().into_owned(),
+        ])
+        .is_err());
+        let _ = fs::remove_dir_all(&tmp_dir);
+
+        assert!(!pe_is_arm64x(&plain_arm64).unwrap());
+        let arm64ec_other = build_synthetic_arm64x_pe(0xAA64, Some(3), true);
+        assert!(!pe_is_arm64x(&arm64ec_other).unwrap());
+        let x64 = build_synthetic_arm64x_pe(0x8664, Some(6), true);
+        assert!(!pe_is_arm64x(&x64).unwrap());
+    }
+
+    #[test]
+    fn arm_w2_def_files_va_args_hop_le() {
+        let def_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("installer/windows/arm64x");
+        validate_arm64x_def_dir(&def_dir).expect("def files của ARM-W2 phải hợp lệ");
+
+        let parsed = parse_build_arm64x_args(&[
+            "--out=dist/textvn-tsf.dll".into(),
+            "--def-dir".into(),
+            "installer/windows/arm64x".into(),
+        ])
+        .unwrap();
+        assert_eq!(parsed.out, "dist/textvn-tsf.dll");
+        assert_eq!(parsed.def_dir, "installer/windows/arm64x");
+        assert!(parse_build_arm64x_args(&["--unknown".into()]).is_err());
+        if !cfg!(windows) {
+            assert!(build_arm64x_cli(&[]).is_err());
+        }
     }
 }
