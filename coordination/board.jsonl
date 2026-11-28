@@ -147,3 +147,5 @@
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837346","kind":"unreserve","paths":"","ts":"2026-11-28T03:42:26Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837346","kind":"notify","msg":"PERF-2 ready for review at cdd7102a (ci-shared.yml determinism gate x86_64 vs aarch64)","to":"*","ts":"2026-11-28T03:42:26Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837436","kind":"reserve","paths":"cli/src/register.rs","task":"ARM-W3","ts":"2026-11-28T03:43:56Z"}
+{"agent":"antigravity-gemini-37c7c6bc","commit":"ea46fd46","epoch":"1795837581","kind":"review-request","msg":"ARM-W3 updated at ea46fd46: fixed Linux clippy dead_code on non-Windows target (clippy Linux + Win + 70/70 test pass)","task":"ARM-W3","to":"*","ts":"2026-11-28T03:46:21Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837581","kind":"unreserve","paths":"","ts":"2026-11-28T03:46:21Z"}
