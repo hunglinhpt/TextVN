@@ -178,3 +178,31 @@
      architecture") remains gated by REAL typing.
 - E89 stays open only in the runner-image sense: when GitHub ships a windows-11-arm
   image with an input desktop, removing the skip probe restores full ARM64 typing.
+
+## VI — E89 SỬA LỖI PROBE (2026-11-28, run 504960ff)
+
+- **Lỗi probe do tôi**: dùng `OpenInputDesktop` thất bại làm dấu hiệu skip — nhưng
+  nó CŨNG thất bại trên windows-2022/2025 nơi typing VẪN HOẠT ĐỘNG (batch trước
+  pass) ⇒ run 504960ff skip NHẦM typing trên MỌI runner — gate bị tự vô hiệu hóa
+  mà vẫn xanh. Đúng nguyên tắc review: "gate không bao giờ được vũ trang" — và bài
+  học kiểm tra: **green phải kèm bằng chứng gate CHẠY, không chỉ job xanh**.
+- **Sửa**: bỏ probe OpenInputDesktop; skip theo `PROCESSOR_ARCHITECTURE -eq 'ARM64'`
+  (nơi có 4 vòng bằng chứng thực nghiệm: foreground không đổi + con trỏ không đến
+  điểm click), x64 luôn gõ thật.
+- Đính chính kết luận E89: dấu hiệu quyết định là **hành vi đo được trên ARM64**
+  (cursor probe + fg bất biến), KHÔNG phải OpenInputDesktop.
+
+## English — E89 PROBE BUGFIX (2026-11-28, run 504960ff)
+
+- **My probe bug**: using OpenInputDesktop failure as the skip signal — but it ALSO
+  fails on windows-2022/2025 where typing demonstrably WORKS (previous batch
+  passed) ⇒ run 504960ff wrongly skipped typing on EVERY runner while staying
+  green — a disarmed gate. Per the review principle "a gate must never be
+  disabled": and the testing lesson: **green must come with evidence the gate RAN,
+  not merely that the job succeeded**.
+- **Fix**: dropped the OpenInputDesktop probe; skip only when
+  `PROCESSOR_ARCHITECTURE -eq 'ARM64'` (where 4 rounds of empirical evidence show
+  foreground unchanged + cursor never reaching the click point); x64 always types
+  for real.
+- E89 narrative correction: the decisive signal is **measured ARM64 behaviour**
+  (cursor probe + invariant foreground), NOT OpenInputDesktop.

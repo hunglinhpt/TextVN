@@ -301,14 +301,15 @@ if (Get-Process -Name TextVN,notepad,wordpad -ErrorAction SilentlyContinue) {
     throw 'Close existing TextVN/Notepad/WordPad before running the destructive typing smoke test'
 }
 
-# E89 (ket luan 2026-11-28, run cb28db20): runner windows-11-arm KHONG mo duoc
-# input desktop (OpenInputDesktop that bai - anh runner khong route input vao
-# phien) => SendInput/click vo nghia, khong the E2E go chu. Skip SACH se voi
-# canh bao thay vi do; may dev + windows-2022/2025 van route input binh thuong.
-$deskDiag = [TvKeys]::InputDesktopDiag()
-if ($deskDiag -match 'KHONG MO DUOC') {
-    Write-Host "SKIP E2E go chu (E89): session khong route input - $deskDiag"
-    Write-Host '  Runner anh windows-11-arm hien khong ho tro GUI input; cac gate khac (build/verify/ACL/installer) van chay that. Ma tran kien truc x64/x86 do o job windows-2022/2025.'
+# E89 (ket luan 2026-11-28, 4 vong bang chung 46113896660/46116060861/cb28db20):
+# runner windows-11-arm (PROCESSOR_ARCHITECTURE=ARM64) khong route input — thang
+# focus 4 muc + click virtual-screen + probe cursor deu bat kiet: foreground KHONG
+# doi, con tro KHONG den dung diem. CANH BAO: OpenInputDesktop that bai KHONG phai
+# dau hieu — no cung that bai tren windows-2022 noi typing van hoat dong (run
+# 504960ff skip nham ca 2022/2025 — da sua). Skip theo ARCH, x64 luon go that.
+if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
+    Write-Host 'SKIP E2E go chu (E89): anh runner Windows ARM64 (windows-11-arm) hien khong route input - thang focus/click/probe cursor deu bat kiet (bang chung run 46116060861 + cb28db20).'
+    Write-Host '  Cac gate khac cua job ARM64 (build/verify/PE/ACL/installer/portable structure) van chay that. Ma tran kien truc x64/x86 do o job windows-2022/2025.'
     exit 0
 }
 $script:ownedEditor = $null
