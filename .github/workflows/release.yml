@@ -438,6 +438,108 @@ jobs:
               fi
             '
 
+  # ARM-L4: E2E 6 distro Linux trên container arm64 (gói TextVN-*-linux-aarch64.tar.gz).
+  linux-arm64-distro-matrix:
+    name: Linux ARM64 E2E (${{ matrix.label }})
+    needs: linux-arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: almalinux-8
+            label: RHEL 8.10 / AlmaLinux 8
+            image: almalinux:8
+            mode: el8
+          - tag: almalinux-9
+            label: RHEL 9 / AlmaLinux 9
+            image: almalinux:9
+            mode: matrix
+          - tag: opensuse-leap-15-6
+            label: SLES 15 / openSUSE Leap 15.6
+            image: opensuse/leap:15.6
+            mode: matrix
+          - tag: ubuntu-22-04
+            label: Ubuntu 22.04 LTS / Mint 21
+            image: ubuntu:22.04
+            mode: matrix
+          - tag: debian-12
+            label: Debian 12 Bookworm
+            image: debian:12
+            mode: matrix
+          - tag: fedora-41
+            label: Fedora 41 / RHEL 10 upstream
+            image: fedora:41
+            mode: matrix
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Kiểm tra kiến trúc runner phải là aarch64
+        run: test "$(uname -m)" = aarch64
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-linux-arm64
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-arm64-e2e-helpers
+          path: e2e-helpers
+      - name: Run container E2E on ${{ matrix.label }} (arm64)
+        env:
+          DISTRO_TAG: ${{ matrix.tag }}
+          DISTRO_IMAGE: ${{ matrix.image }}
+          TEST_MODE: ${{ matrix.mode }}
+        run: |
+          chmod +x e2e-helpers/e2e_ibus e2e-helpers/e2e_fcitx5 2>/dev/null || true
+          TARBALL_NAME="$(basename "$(ls dist/TextVN-*-linux-aarch64.tar.gz | head -n1)")"
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          docker run --rm \
+            -v "$PWD:/src:ro" \
+            -e DISTRO_TAG="$DISTRO_TAG" \
+            -e TEST_MODE="$TEST_MODE" \
+            -e TARBALL_NAME="$TARBALL_NAME" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            "$DISTRO_IMAGE" bash -euo pipefail -c '
+              test "$(uname -m)" = aarch64
+              case "$DISTRO_TAG" in
+                almalinux-8|almalinux-9)
+                  dnf install -y --setopt=install_weak_deps=False \
+                    ibus gtk3 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
+                  ;;
+                fedora-41)
+                  dnf install -y --setopt=install_weak_deps=False \
+                    ibus fcitx5 gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
+                  if [[ ! -s /etc/machine-id ]]; then
+                    dbus-uuidgen > /etc/machine-id
+                    chmod 0444 /etc/machine-id
+                  fi
+                  ;;
+                opensuse-leap-15-6)
+                  zypper --non-interactive install --no-recommends \
+                    ibus libgtk-3-0 dbus-1 procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
+                  ;;
+                ubuntu-22-04|debian-12)
+                  export DEBIAN_FRONTEND=noninteractive
+                  apt-get update -qq
+                  apt-get install -y -qq --no-install-recommends \
+                    ibus fcitx5 fcitx5-modules libgtk-4-1 dbus dbus-x11 procps gawk dconf-cli xkb-data diffutils findutils tar gzip libdbus-1-3 >/dev/null
+                  ;;
+              esac
+              groupadd -f -g "$HOST_GID" tester || true
+              useradd -m -u "$HOST_UID" -g "$HOST_GID" -o tester
+              if [[ "$TEST_MODE" == el8 ]]; then
+                su -s /bin/bash tester -c "LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-el8-package.sh /src/dist/$TARBALL_NAME /src/e2e-helpers/e2e_ibus"
+                LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-el8-package.sh --system-only /src/dist/$TARBALL_NAME /src/e2e-helpers/e2e_ibus
+              else
+                su -s /bin/bash tester -c "LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-distro-matrix.sh $DISTRO_TAG /src/dist/$TARBALL_NAME /src/e2e-helpers/e2e_ibus /src/e2e-helpers/e2e_fcitx5"
+                LC_ALL=C.UTF-8 LANG=C.UTF-8 bash /src/scripts/test-linux-distro-matrix.sh --system-only "$DISTRO_TAG" "/src/dist/$TARBALL_NAME" /src/e2e-helpers/e2e_ibus /src/e2e-helpers/e2e_fcitx5
+              fi
+            '
+
   macos:
     runs-on: macos-latest
     timeout-minutes: 90
@@ -471,7 +573,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, linux, linux-arm64, linux-distro-matrix, macos]
+    needs: [windows, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
     # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
     # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
