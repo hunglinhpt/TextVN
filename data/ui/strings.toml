@@ -66,6 +66,27 @@ id = "method_labels"
 index = 3
 vi = "Telex đơn giản"
 
+# ---- Bảng mã — values: unicode_precomposed, unicode_decomposed, tcvn3, vni_windows ----
+[[string]]
+id = "charset_labels"
+index = 0
+vi = "Unicode dựng sẵn"
+
+[[string]]
+id = "charset_labels"
+index = 1
+vi = "Unicode tổ hợp"
+
+[[string]]
+id = "charset_labels"
+index = 2
+vi = "TCVN3 (ABC)"
+
+[[string]]
+id = "charset_labels"
+index = 3
+vi = "VNI Windows"
+
 # ---- Trợ lý ngữ pháp: chế độ — values: off, highlight, autocorrect ----
 [[string]]
 id = "assist_mode_labels"

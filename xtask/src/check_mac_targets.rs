@@ -61,7 +61,7 @@ const LOCATOR_KEYS: [&str; 5] = [
 
 /// JSON tối thiểu — chỉ 6 kiểu mà schema này cần.
 #[derive(Debug, PartialEq)]
-enum Json {
+pub(crate) enum Json {
     Null,
     Bool(bool),
     Num(f64),
@@ -71,24 +71,40 @@ enum Json {
 }
 
 impl Json {
-    fn get(&self, key: &str) -> Option<&Json> {
+    pub(crate) fn get(&self, key: &str) -> Option<&Json> {
         match self {
             Json::Obj(o) => o.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
-    fn as_str(&self) -> Option<&str> {
+    pub(crate) fn as_str(&self) -> Option<&str> {
         match self {
             Json::Str(s) => Some(s),
             _ => None,
         }
     }
-    fn as_arr(&self) -> Option<&[Json]> {
+    pub(crate) fn as_bool(&self) -> Option<bool> {
+        match self {
+            Json::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+    pub(crate) fn as_num(&self) -> Option<f64> {
+        match self {
+            Json::Num(n) => Some(*n),
+            _ => None,
+        }
+    }
+    pub(crate) fn as_arr(&self) -> Option<&[Json]> {
         match self {
             Json::Arr(a) => Some(a),
             _ => None,
         }
     }
+}
+
+pub(crate) fn parse_json(text: &str) -> Result<Json, String> {
+    P::parse(text)
 }
 
 /// Thu thập mọi giá trị của khoá `id` trong cây appdb — đó chính là **tên preset**

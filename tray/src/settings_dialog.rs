@@ -115,19 +115,11 @@ const EM_LINEINDEX: u32 = 0x00BB;
 const EM_LINELENGTH: u32 = 0x00C1;
 const EM_SETLIMITTEXT: u32 = 0x00C5;
 
-/// Nhãn hiển thị — **giống hệt** bảng cài đặt Linux (`adapters/linux-settings`);
-/// đổi ở đây phải đổi cả bên đó và `docs/release/ui-spec.md`.
-const CHARSET_LABELS: [&str; 4] = [
-    "Unicode dựng sẵn",
-    "Unicode tổ hợp",
-    "TCVN3 (ABC)",
-    "VNI Windows",
-];
-// SF-9 (P0-6 §5b, G22): nhãn phương thức, trợ lý ngữ pháp, About & URL dùng chung từ `data/ui/strings.toml`.
+// SF-9 (P0-6 §5b, G22): nhãn bảng mã, phương thức, trợ lý ngữ pháp, About & URL dùng chung từ `data/ui/strings.toml`.
 pub use crate::ui_strings_generated::ASSIST_MODE_HINTS;
 use crate::ui_strings_generated::{ABOUT_DETAILS, ABOUT_TAGLINE};
 #[cfg(any(windows, test))]
-use crate::ui_strings_generated::{ASSIST_MODE_LABELS, METHOD_LABELS};
+use crate::ui_strings_generated::{ASSIST_MODE_LABELS, CHARSET_LABELS, METHOD_LABELS};
 
 fn about_text(version: &str) -> String {
     format!(
@@ -2855,15 +2847,34 @@ mod tests {
                 last = pos;
             }
         };
-        let quoted = |l: &str| format!("\"{l}\"");
-        let swift_text = |l: &str| format!("Text(\"{l}\")");
-        let raw = |l: &str| l.to_string();
-        same_order(&linux, &CHARSET_LABELS[..], &quoted, "Linux");
-        same_order(macos, &CHARSET_LABELS[..], &swift_text, "macOS");
-        // SF-9: method_labels & assist_mode_labels dùng hằng sinh từ `data/ui/strings.toml`
+        // SF-9: charset_labels, method_labels & assist_mode_labels dùng hằng sinh từ `data/ui/strings.toml`
         // trên cả 3 OS (Rust `ui_strings_generated`, C `TV_UI_*`, Swift `UiStrings.*`).
+        let raw = |l: &str| l.to_string();
+        assert_eq!(CHARSET_LABELS.len(), 4);
         assert_eq!(METHOD_LABELS.len(), 4);
         assert_eq!(ASSIST_MODE_LABELS.len(), 3);
+        same_order(
+            &linux,
+            &[
+                "TV_UI_CHARSET_LABELS_0",
+                "TV_UI_CHARSET_LABELS_1",
+                "TV_UI_CHARSET_LABELS_2",
+                "TV_UI_CHARSET_LABELS_3",
+            ],
+            &raw,
+            "Linux",
+        );
+        same_order(
+            macos,
+            &[
+                "Text(UiStrings.charsetLabels[0])",
+                "Text(UiStrings.charsetLabels[1])",
+                "Text(UiStrings.charsetLabels[2])",
+                "Text(UiStrings.charsetLabels[3])",
+            ],
+            &raw,
+            "macOS",
+        );
         same_order(
             &linux,
             &[

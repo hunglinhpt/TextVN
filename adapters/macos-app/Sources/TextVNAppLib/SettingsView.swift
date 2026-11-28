@@ -248,10 +248,10 @@ public struct SettingsView: View {
                         // R2-106: CÙNG nhãn + thứ tự với Windows/Linux (ui-spec.md §1,
                         // test `labels_match_linux_settings_panel`).
                         Picker("", selection: $store.config.output_charset) {
-                            Text("Unicode dựng sẵn").tag("unicode_precomposed")
-                            Text("Unicode tổ hợp").tag("unicode_decomposed")
-                            Text("TCVN3 (ABC)").tag("tcvn3")
-                            Text("VNI Windows").tag("vni_windows")
+                            Text(UiStrings.charsetLabels[0]).tag("unicode_precomposed")
+                            Text(UiStrings.charsetLabels[1]).tag("unicode_decomposed")
+                            Text(UiStrings.charsetLabels[2]).tag("tcvn3")
+                            Text(UiStrings.charsetLabels[3]).tag("vni_windows")
                         }
                         .labelsHidden()
                         .frame(maxWidth: .infinity)

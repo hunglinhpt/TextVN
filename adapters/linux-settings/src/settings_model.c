@@ -15,23 +15,27 @@
 #include "ui_strings_generated.h"
 
 const char *const tv_charset_labels[TV_CHARSET_COUNT + 1] = {
-    "Unicode dựng sẵn", "Unicode tổ hợp", "TCVN3 (ABC)", "VNI Windows", NULL};
+    TV_UI_CHARSET_LABELS_0, TV_UI_CHARSET_LABELS_1, TV_UI_CHARSET_LABELS_2, TV_UI_CHARSET_LABELS_3,
+    NULL};
 const char *const tv_charset_values[TV_CHARSET_COUNT] = {
-    "unicode_precomposed", "unicode_decomposed", "tcvn3", "vni_windows"};
+    TV_UI_OUTPUT_CHARSET_VALUES_0, TV_UI_OUTPUT_CHARSET_VALUES_1,
+    TV_UI_OUTPUT_CHARSET_VALUES_2, TV_UI_OUTPUT_CHARSET_VALUES_3};
 const char *const tv_method_labels[TV_METHOD_COUNT + 1] = {
     TV_UI_METHOD_LABELS_0, TV_UI_METHOD_LABELS_1, TV_UI_METHOD_LABELS_2, TV_UI_METHOD_LABELS_3,
     NULL};
-const char *const tv_method_values[TV_METHOD_COUNT] = {"telex", "vni", "viqr", "simple_telex"};
+const char *const tv_method_values[TV_METHOD_COUNT] = {
+    TV_UI_METHOD_VALUES_0, TV_UI_METHOD_VALUES_1, TV_UI_METHOD_VALUES_2, TV_UI_METHOD_VALUES_3};
 
 /* Trợ lý ngữ pháp (P4-0 §7): giá trị của `assist.mode`, cùng thứ tự enum của engine
  * (off / highlight / autocorrect). Nhãn hiển thị sinh từ data/ui/strings.toml (SF-9). */
 const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1] = {
     TV_UI_ASSIST_MODE_LABELS_0, TV_UI_ASSIST_MODE_LABELS_1, TV_UI_ASSIST_MODE_LABELS_2, NULL};
 const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
-    "off", "highlight", "autocorrect"};
+    TV_UI_ASSIST_MODE_VALUES_0, TV_UI_ASSIST_MODE_VALUES_1, TV_UI_ASSIST_MODE_VALUES_2};
 const char *const tv_assist_mode_hints[TV_ASSIST_MODE_COUNT] = {
     TV_UI_ASSIST_MODE_HINTS_0, TV_UI_ASSIST_MODE_HINTS_1, TV_UI_ASSIST_MODE_HINTS_2};
-const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {"off", "safe"};
+const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {
+    TV_UI_ASSIST_AUTO_FIX_VALUES_0, TV_UI_ASSIST_AUTO_FIX_VALUES_1};
 
 const char *const tv_help_text =
     "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc "

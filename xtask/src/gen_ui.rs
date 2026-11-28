@@ -12,9 +12,12 @@
 
 use std::path::Path;
 
+use crate::check_mac_targets::{self, Json};
 use crate::toml::{self, Value};
 
 const SRC: &str = "data/ui/strings.toml";
+const MODEL_SRC: &str = "data/ui/settings_model.toml";
+const SCHEMA_SRC: &str = "schemas/config.v1.schema.json";
 const OUT_RUST: &str = "tray/src/ui_strings_generated.rs";
 const OUT_C: &str = "adapters/linux-settings/src/ui_strings_generated.h";
 const OUT_SWIFT: &str = "adapters/macos-app/Sources/TextVNAppLib/UiStringsGenerated.swift";
@@ -152,6 +155,292 @@ pub fn parse(input: &str) -> Result<Vec<UiString>, String> {
     Ok(out)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SettingKind {
+    Bool,
+    Enum,
+    U32,
+}
+
+impl SettingKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            SettingKind::Bool => "bool",
+            SettingKind::Enum => "enum",
+            SettingKind::U32 => "u32",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SettingDefault {
+    Bool(bool),
+    Str(String),
+    U32(u32),
+}
+
+impl SettingDefault {
+    fn as_literal(&self) -> String {
+        match self {
+            SettingDefault::Bool(b) => b.to_string(),
+            SettingDefault::Str(s) => s.clone(),
+            SettingDefault::U32(n) => n.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingGroup {
+    pub id: String,
+    pub label_vi: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingSpec {
+    pub id: String,
+    pub group: String,
+    pub config_key: String,
+    pub kind: SettingKind,
+    pub values: Vec<String>,
+    pub default: SettingDefault,
+    pub depends_on: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SettingsModel {
+    pub groups: Vec<SettingGroup>,
+    pub settings: Vec<SettingSpec>,
+}
+
+fn check_snake_id(id: &str, what: &str) -> Result<(), String> {
+    if id.is_empty()
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        || id.starts_with(|c: char| c.is_ascii_digit())
+    {
+        return Err(format!("{what} `{id}` phải là snake_case ASCII"));
+    }
+    Ok(())
+}
+
+pub fn parse_settings_model(input: &str) -> Result<SettingsModel, String> {
+    let doc = toml::parse(input)?;
+    let mut groups: Vec<SettingGroup> = Vec::new();
+    for g in doc.array("group")? {
+        for k in g.values.keys() {
+            if !matches!(k.as_str(), "id" | "label_vi") {
+                return Err(format!("[[group]] khoá lạ `{k}`"));
+            }
+        }
+        let id = g.str("id")?;
+        check_snake_id(&id, "group id")?;
+        if groups.iter().any(|x| x.id == id) {
+            return Err(format!("group id `{id}` trùng"));
+        }
+        let label_vi = g.str("label_vi")?;
+        check_text(&id, &label_vi)?;
+        groups.push(SettingGroup { id, label_vi });
+    }
+
+    let mut settings: Vec<SettingSpec> = Vec::new();
+    for s in doc.array("setting")? {
+        for k in s.values.keys() {
+            if !matches!(
+                k.as_str(),
+                "id" | "group" | "config_key" | "kind" | "values" | "default" | "depends_on"
+            ) {
+                return Err(format!("[[setting]] khoá lạ `{k}`"));
+            }
+        }
+        let id = s.str("id")?;
+        check_snake_id(&id, "setting id")?;
+        if settings.iter().any(|x| x.id == id) {
+            return Err(format!("setting id `{id}` trùng"));
+        }
+        let group = s.str("group")?;
+        if !groups.iter().any(|g| g.id == group) {
+            return Err(format!(
+                "`{id}`: group `{group}` chưa khai báo trong [[group]]"
+            ));
+        }
+        let config_key = s.str("config_key")?;
+        if config_key.is_empty()
+            || config_key
+                .split('.')
+                .any(|seg| seg.is_empty() || seg.contains('"'))
+        {
+            return Err(format!("`{id}`: config_key `{config_key}` không hợp lệ"));
+        }
+        let kind_str = s.str("kind")?;
+        let kind = match kind_str.as_str() {
+            "bool" => SettingKind::Bool,
+            "enum" => SettingKind::Enum,
+            "u32" => SettingKind::U32,
+            _ => return Err(format!("`{id}`: kind `{kind_str}` lạ (chỉ bool/enum/u32)")),
+        };
+        let values = match s.values.get("values") {
+            Some(_) => s.str_list("values")?,
+            None => Vec::new(),
+        };
+        for v in &values {
+            check_text(&id, v)?;
+        }
+        let def_val = s.get("default")?;
+        let default = match (&kind, def_val) {
+            (SettingKind::Bool, Value::Bool(b)) => {
+                if !values.is_empty() {
+                    return Err(format!("`{id}`: bool không dùng `values`"));
+                }
+                SettingDefault::Bool(*b)
+            }
+            (SettingKind::Enum, Value::Str(sv)) => {
+                if values.is_empty() {
+                    return Err(format!("`{id}`: enum thiếu `values`"));
+                }
+                if !values.iter().any(|v| v == sv) {
+                    return Err(format!(
+                        "`{id}`: default `{sv}` không nằm trong `values` {values:?}"
+                    ));
+                }
+                check_text(&id, sv)?;
+                SettingDefault::Str(sv.clone())
+            }
+            (SettingKind::U32, Value::Int(iv)) => {
+                if !values.is_empty() {
+                    return Err(format!("`{id}`: u32 không dùng `values`"));
+                }
+                if *iv < 0 || *iv > u32::MAX as i64 {
+                    return Err(format!("`{id}`: u32 default `{iv}` ngoài miền"));
+                }
+                SettingDefault::U32(*iv as u32)
+            }
+            (k, other) => {
+                return Err(format!(
+                    "`{id}`: default {other:?} không khớp kind `{}`",
+                    k.as_str()
+                ))
+            }
+        };
+        let depends_on = match s.values.get("depends_on") {
+            Some(v) => {
+                let d = v.as_str()?.to_string();
+                check_text(&id, &d)?;
+                Some(d)
+            }
+            None => None,
+        };
+        settings.push(SettingSpec {
+            id,
+            group,
+            config_key,
+            kind,
+            values,
+            default,
+            depends_on,
+        });
+    }
+
+    Ok(SettingsModel { groups, settings })
+}
+
+fn schema_prop<'a>(root: &'a Json, dot_key: &str) -> Result<&'a Json, String> {
+    let mut node = root;
+    for seg in dot_key.split('.') {
+        node = node
+            .get("properties")
+            .and_then(|p| p.get(seg))
+            .ok_or_else(|| format!("schema thiếu `properties.{seg}` cho khoá `{dot_key}`"))?;
+    }
+    Ok(node)
+}
+
+pub fn verify_against_schema(model: &SettingsModel, schema_text: &str) -> Result<(), String> {
+    let schema = check_mac_targets::parse_json(schema_text)
+        .map_err(|e| format!("parse {SCHEMA_SRC}: {e}"))?;
+    for spec in &model.settings {
+        let prop = schema_prop(&schema, &spec.config_key)?;
+        match spec.kind {
+            SettingKind::Bool => {
+                let ty = prop.get("type").and_then(Json::as_str);
+                if ty != Some("boolean") {
+                    return Err(format!(
+                        "`{}`: schema type={ty:?} != `boolean`",
+                        spec.config_key
+                    ));
+                }
+                let sd = prop.get("default").and_then(Json::as_bool).ok_or_else(|| {
+                    format!("`{}`: schema thiếu `default` boolean", spec.config_key)
+                })?;
+                if SettingDefault::Bool(sd) != spec.default {
+                    return Err(format!(
+                        "`{}`: default model `{}` != schema `{sd}`",
+                        spec.config_key,
+                        spec.default.as_literal()
+                    ));
+                }
+            }
+            SettingKind::Enum => {
+                let enum_arr = prop
+                    .get("enum")
+                    .and_then(Json::as_arr)
+                    .ok_or_else(|| format!("`{}`: schema thiếu `enum`", spec.config_key))?;
+                let schema_vals: Vec<String> = enum_arr
+                    .iter()
+                    .map(|j| {
+                        j.as_str().map(str::to_string).ok_or_else(|| {
+                            format!("`{}`: phần tử enum không phải chuỗi", spec.config_key)
+                        })
+                    })
+                    .collect::<Result<_, _>>()?;
+                if schema_vals != spec.values {
+                    return Err(format!(
+                        "`{}`: values model {:?} != schema {:?}",
+                        spec.config_key, spec.values, schema_vals
+                    ));
+                }
+                let sd = prop.get("default").and_then(Json::as_str).ok_or_else(|| {
+                    format!("`{}`: schema thiếu `default` string", spec.config_key)
+                })?;
+                if spec.default != SettingDefault::Str(sd.to_string()) {
+                    return Err(format!(
+                        "`{}`: default model `{}` != schema `{sd}`",
+                        spec.config_key,
+                        spec.default.as_literal()
+                    ));
+                }
+            }
+            SettingKind::U32 => {
+                let ty = prop.get("type").and_then(Json::as_str);
+                if ty != Some("integer") {
+                    return Err(format!(
+                        "`{}`: schema type={ty:?} != `integer`",
+                        spec.config_key
+                    ));
+                }
+                let sd = prop.get("default").and_then(Json::as_num).ok_or_else(|| {
+                    format!("`{}`: schema thiếu `default` integer", spec.config_key)
+                })?;
+                if sd < 0.0 || sd.fract() != 0.0 || sd > u32::MAX as f64 {
+                    return Err(format!(
+                        "`{}`: schema default `{sd}` không phải u32",
+                        spec.config_key
+                    ));
+                }
+                if spec.default != SettingDefault::U32(sd as u32) {
+                    return Err(format!(
+                        "`{}`: default model `{}` != schema `{}`",
+                        spec.config_key,
+                        spec.default.as_literal(),
+                        sd as u32
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn upper(id: &str) -> String {
     id.to_ascii_uppercase()
 }
@@ -176,16 +465,35 @@ fn header(line_comment: &str, digest: u64) -> String {
     format!(
         "{c} {SPDX_KEY}: {LICENSE}\n\
          {c} == GENERATED FILE — KHÔNG SỬA TAY ==\n\
-         {c} Nguồn: {SRC} (digest FNV-1a 64 = 0x{digest:016x}) · sinh bằng `cargo xtask gen-ui` (SF-9, P0-6 §5b).\n\
-         {c} Đổi chữ: sửa {SRC} rồi chạy lại `cargo xtask gen-ui`; `cargo xtask check-ui` (CI) fail nếu lệch.\n",
+         {c} Nguồn: {SRC} + {MODEL_SRC} (digest FNV-1a 64 = 0x{digest:016x}) · sinh bằng `cargo xtask gen-ui` (SF-9, P0-6 §5b).\n\
+         {c} Đổi chữ/cài đặt: sửa nguồn TOML rồi chạy lại `cargo xtask gen-ui`; `cargo xtask check-ui` (CI) fail nếu lệch.\n",
         c = line_comment
     )
 }
 
-pub fn render_rust(items: &[UiString], digest: u64) -> String {
+fn push_rust_str_array(s: &mut String, name: &str, v: &[String]) {
+    let inline = v
+        .iter()
+        .map(|x| format!("\"{x}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let single = format!("pub const {name}: [&str; {}] = [{inline}];", v.len());
+    if single.chars().count() <= 100 {
+        s.push_str(&single);
+        s.push('\n');
+    } else {
+        s.push_str(&format!("pub const {name}: [&str; {}] = [\n", v.len()));
+        for x in v {
+            s.push_str(&format!("    \"{x}\",\n"));
+        }
+        s.push_str("];\n");
+    }
+}
+
+pub fn render_rust(items: &[UiString], model: &SettingsModel, digest: u64) -> String {
     let mut s = header("//", digest);
     s.push_str(
-        "//! Chữ UI dùng chung Windows/Linux/macOS (G22) — chỉ NỘI DUNG; vẽ UI vẫn native.\n",
+        "//! Chữ UI & mô hình cài đặt dùng chung Windows/Linux/macOS (G22) — chỉ NỘI DUNG; vẽ UI vẫn native.\n",
     );
     s.push_str("#![allow(dead_code)]\n");
     for u in items {
@@ -203,41 +511,46 @@ pub fn render_rust(items: &[UiString], digest: u64) -> String {
                     s.push('\n');
                 }
             }
-            UiValue::List(v) => {
-                let inline = v
-                    .iter()
-                    .map(|x| format!("\"{x}\""))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let single = format!(
-                    "pub const {}: [&str; {}] = [{inline}];",
-                    upper(&u.id),
-                    v.len()
-                );
-                if single.chars().count() <= 100 {
-                    s.push_str(&single);
-                    s.push('\n');
-                } else {
-                    s.push_str(&format!(
-                        "pub const {}: [&str; {}] = [\n",
-                        upper(&u.id),
-                        v.len()
-                    ));
-                    for x in v {
-                        s.push_str(&format!("    \"{x}\",\n"));
-                    }
-                    s.push_str("];\n");
-                }
+            UiValue::List(v) => push_rust_str_array(&mut s, &upper(&u.id), v),
+        }
+    }
+    for spec in &model.settings {
+        if spec.kind == SettingKind::Enum {
+            s.push('\n');
+            let name = format!("{}_VALUES", upper(&spec.id));
+            push_rust_str_array(&mut s, &name, &spec.values);
+        } else if spec.id == "assist_idle_ms" {
+            if let SettingDefault::U32(n) = spec.default {
+                s.push_str(&format!("\npub const ASSIST_IDLE_MS_DEFAULT: u32 = {n};\n"));
             }
         }
     }
+    s.push_str(
+        "\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\npub struct UiSettingSpec {\n    pub id: &'static str,\n    pub group: &'static str,\n    pub config_key: &'static str,\n    pub kind: &'static str,\n    pub default_val: &'static str,\n    pub depends_on: &'static str,\n}\n",
+    );
+    s.push_str(&format!(
+        "\npub const SETTINGS_MODEL: [UiSettingSpec; {}] = [\n",
+        model.settings.len()
+    ));
+    for spec in &model.settings {
+        let dep = spec.depends_on.as_deref().unwrap_or("");
+        s.push_str(&format!(
+            "    UiSettingSpec {{\n        id: \"{}\",\n        group: \"{}\",\n        config_key: \"{}\",\n        kind: \"{}\",\n        default_val: \"{}\",\n        depends_on: \"{dep}\",\n    }},\n",
+            spec.id,
+            spec.group,
+            spec.config_key,
+            spec.kind.as_str(),
+            spec.default.as_literal(),
+        ));
+    }
+    s.push_str("];\n");
     s
 }
 
-pub fn render_c(items: &[UiString], digest: u64) -> String {
+pub fn render_c(items: &[UiString], model: &SettingsModel, digest: u64) -> String {
     let mut s = header("//", digest);
     s.push_str(
-        "/* Chữ UI dùng chung Windows/Linux/macOS (G22). Macro chuỗi để ghép lúc biên dịch\n \
+        "/* Chữ UI & mô hình cài đặt dùng chung Windows/Linux/macOS (G22). Macro chuỗi/giá trị\n \
          * (vd `TV_UI_ABOUT_TAGLINE \"\\n\\n\" TV_UI_ABOUT_DETAILS_0`) — không thêm tệp .c vào build. */\n",
     );
     s.push_str("#ifndef TEXTVN_UI_STRINGS_GENERATED_H\n#define TEXTVN_UI_STRINGS_GENERATED_H\n");
@@ -254,14 +567,31 @@ pub fn render_c(items: &[UiString], digest: u64) -> String {
             }
         }
     }
+    for spec in &model.settings {
+        if spec.kind == SettingKind::Enum {
+            let name = format!("TV_UI_{}_VALUES", upper(&spec.id));
+            s.push_str(&format!("\n#define {name}_COUNT {}\n", spec.values.len()));
+            for (i, x) in spec.values.iter().enumerate() {
+                s.push_str(&format!("#define {name}_{i} \"{x}\"\n"));
+            }
+        } else if spec.id == "assist_idle_ms" {
+            if let SettingDefault::U32(n) = spec.default {
+                s.push_str(&format!("\n#define TV_UI_ASSIST_IDLE_MS_DEFAULT {n}\n"));
+            }
+        }
+    }
+    s.push_str(&format!(
+        "\n#define TV_UI_SETTINGS_MODEL_COUNT {}\n",
+        model.settings.len()
+    ));
     s.push_str("\n#endif /* TEXTVN_UI_STRINGS_GENERATED_H */\n");
     s
 }
 
-pub fn render_swift(items: &[UiString], digest: u64) -> String {
+pub fn render_swift(items: &[UiString], model: &SettingsModel, digest: u64) -> String {
     let mut s = header("//", digest);
     s.push_str(
-        "\n/// Chữ UI dùng chung Windows/Linux/macOS (G22) — chỉ NỘI DUNG; vẽ UI vẫn native.\n",
+        "\n/// Chữ UI & mô hình cài đặt dùng chung Windows/Linux/macOS (G22) — chỉ NỘI DUNG; vẽ UI vẫn native.\n",
     );
     s.push_str("enum UiStrings {\n");
     for (n, u) in items.iter().enumerate() {
@@ -279,7 +609,41 @@ pub fn render_swift(items: &[UiString], digest: u64) -> String {
             }
         }
     }
-    s.push_str("}\n");
+    s.push_str("}\n\n");
+    s.push_str("struct UiSettingSpec: Equatable {\n");
+    s.push_str("    let id: String\n    let group: String\n    let configKey: String\n    let kind: String\n    let defaultVal: String\n    let dependsOn: String\n}\n\n");
+    s.push_str("enum UiSettingsModel {\n");
+    for spec in &model.settings {
+        if spec.kind == SettingKind::Enum {
+            let list = spec
+                .values
+                .iter()
+                .map(|v| format!("\"{v}\""))
+                .collect::<Vec<_>>()
+                .join(", ");
+            s.push_str(&format!(
+                "    static let {}Values: [String] = [{list}]\n",
+                camel(&spec.id)
+            ));
+        } else if spec.id == "assist_idle_ms" {
+            if let SettingDefault::U32(n) = spec.default {
+                s.push_str(&format!("    static let assistIdleMsDefault: Int = {n}\n"));
+            }
+        }
+    }
+    s.push_str("    static let settingsModel: [UiSettingSpec] = [\n");
+    for spec in &model.settings {
+        let dep = spec.depends_on.as_deref().unwrap_or("");
+        s.push_str(&format!(
+            "        UiSettingSpec(id: \"{}\", group: \"{}\", configKey: \"{}\", kind: \"{}\", defaultVal: \"{}\", dependsOn: \"{dep}\"),\n",
+            spec.id,
+            spec.group,
+            spec.config_key,
+            spec.kind.as_str(),
+            spec.default.as_literal(),
+        ));
+    }
+    s.push_str("    ]\n}\n");
     s
 }
 
@@ -409,12 +773,20 @@ pub fn run(write: bool) -> Result<(), String> {
     let src = std::fs::read_to_string(root.join(SRC))
         .map_err(|e| format!("đọc {SRC}: {e}"))?
         .replace("\r\n", "\n");
+    let model_src = std::fs::read_to_string(root.join(MODEL_SRC))
+        .map_err(|e| format!("đọc {MODEL_SRC}: {e}"))?
+        .replace("\r\n", "\n");
+    let schema_src = std::fs::read_to_string(root.join(SCHEMA_SRC))
+        .map_err(|e| format!("đọc {SCHEMA_SRC}: {e}"))?;
     let items = parse(&src)?;
-    let digest = toml::digest(src.as_bytes());
+    let model = parse_settings_model(&model_src)?;
+    verify_against_schema(&model, &schema_src)?;
+    let combined = format!("{src}\n---\n{model_src}");
+    let digest = toml::digest(combined.as_bytes());
     let outs = [
-        (OUT_RUST, render_rust(&items, digest)),
-        (OUT_C, render_c(&items, digest)),
-        (OUT_SWIFT, render_swift(&items, digest)),
+        (OUT_RUST, render_rust(&items, &model, digest)),
+        (OUT_C, render_c(&items, &model, digest)),
+        (OUT_SWIFT, render_swift(&items, &model, digest)),
     ];
     let mut stale = Vec::new();
     for (rel, want) in &outs {
@@ -433,7 +805,7 @@ pub fn run(write: bool) -> Result<(), String> {
     }
     if !stale.is_empty() {
         return Err(format!(
-            "check-ui: {} tệp lệch {SRC} — chạy `cargo xtask gen-ui` rồi commit: {}",
+            "check-ui: {} tệp lệch nguồn UI — chạy `cargo xtask gen-ui` rồi commit: {}",
             stale.len(),
             stale.join(", ")
         ));
@@ -449,9 +821,11 @@ pub fn run(write: bool) -> Result<(), String> {
     }
     let n: usize = items.iter().map(|u| u.texts().len()).sum();
     println!(
-        "{}: {} mục / {n} chuỗi, 3 bản sinh khớp nguồn, 0 bản chép tay",
+        "{}: {} mục / {n} chuỗi + {} nhóm / {} cài đặt khớp schema, 3 bản sinh khớp nguồn, 0 bản chép tay",
         if write { "gen-ui" } else { "check-ui" },
-        items.len()
+        items.len(),
+        model.groups.len(),
+        model.settings.len()
     );
     Ok(())
 }
@@ -509,17 +883,108 @@ vi = "Một"
     #[test]
     fn sf9_ba_ban_sinh_cung_noi_dung() {
         let items = parse(SAMPLE).unwrap();
-        let rs = render_rust(&items, 1);
-        let c = render_c(&items, 1);
-        let sw = render_swift(&items, 1);
+        let model = parse_settings_model(
+            r#"
+[[group]]
+id = "typing"
+label_vi = "Điều khiển"
+
+[[setting]]
+id = "method"
+group = "typing"
+config_key = "method"
+kind = "enum"
+values = ["telex", "vni"]
+default = "telex"
+"#,
+        )
+        .unwrap();
+        let rs = render_rust(&items, &model, 1);
+        let c = render_c(&items, &model, 1);
+        let sw = render_swift(&items, &model, 1);
         assert!(rs.contains("pub const ABOUT_TAGLINE: &str = \"Bộ gõ, đa nền tảng\";"));
         assert!(rs.contains("pub const ASSIST_MODE_HINTS: [&str; 2] = [\"Một\", \"Hai\"];"));
+        assert!(rs.contains("pub const METHOD_VALUES: [&str; 2] = [\"telex\", \"vni\"];"));
         assert!(c.contains("#define TV_UI_ABOUT_TAGLINE \"Bộ gõ, đa nền tảng\""));
         assert!(c.contains(
             "#define TV_UI_ASSIST_MODE_HINTS_COUNT 2\n#define TV_UI_ASSIST_MODE_HINTS_0 \"Một\""
         ));
+        assert!(c.contains("#define TV_UI_METHOD_VALUES_0 \"telex\""));
         assert!(sw.contains("    static let aboutTagline = \"Bộ gõ, đa nền tảng\""));
         assert!(sw.contains("    static let assistModeHints: [String] = [\n        \"Một\",\n        \"Hai\",\n    ]"));
+        assert!(sw.contains("    static let methodValues: [String] = [\"telex\", \"vni\"]"));
+    }
+
+    #[test]
+    fn sf9_part2_settings_model_va_schema_cross_check() {
+        let root = crate::assist_tools::repo_root();
+        let m = std::fs::read_to_string(root.join(MODEL_SRC)).unwrap();
+        let s = std::fs::read_to_string(root.join(SCHEMA_SRC)).unwrap();
+        let model = parse_settings_model(&m).unwrap();
+        assert_eq!(model.groups.len(), 5);
+        assert_eq!(model.settings.len(), 18);
+        verify_against_schema(&model, &s).unwrap();
+    }
+
+    #[test]
+    fn sf9_part2_tu_choi_lech_schema_va_model_loi() {
+        let schema = r#"{
+          "properties": {
+            "free_marking": { "type": "boolean", "default": true },
+            "method": { "enum": ["telex", "vni"], "default": "telex" }
+          }
+        }"#;
+        let bad_default = parse_settings_model(
+            r#"
+[[group]]
+id = "options"
+label_vi = "Tuỳ chọn"
+[[setting]]
+id = "free_marking"
+group = "options"
+config_key = "free_marking"
+kind = "bool"
+default = false
+"#,
+        )
+        .unwrap();
+        assert!(verify_against_schema(&bad_default, schema)
+            .unwrap_err()
+            .contains("default model"));
+
+        let bad_enum = parse_settings_model(
+            r#"
+[[group]]
+id = "typing"
+label_vi = "Gõ"
+[[setting]]
+id = "method"
+group = "typing"
+config_key = "method"
+kind = "enum"
+values = ["vni", "telex"]
+default = "telex"
+"#,
+        )
+        .unwrap();
+        assert!(verify_against_schema(&bad_enum, schema)
+            .unwrap_err()
+            .contains("!= schema"));
+
+        let bad_group = r#"
+[[group]]
+id = "typing"
+label_vi = "Gõ"
+[[setting]]
+id = "x"
+group = "unknown"
+config_key = "free_marking"
+kind = "bool"
+default = true
+"#;
+        assert!(parse_settings_model(bad_group)
+            .unwrap_err()
+            .contains("chưa khai báo"));
     }
 
     /// Thay test `about_text_matches_every_platform` / `assist_mode_hints_match_every_platform`

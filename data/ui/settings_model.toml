@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SF-9 Phần 2 (P0-6 §5b, G22) — MỘT NGUỒN SỰ THẬT cho mô hình cài đặt 3 OS (Windows/macOS/Linux).
+# Được `cargo xtask check-ui` đối chiếu 1:1 với `schemas/config.v1.schema.json` (kiểu, enum, default).
+# Sinh mã vào `ui_strings_generated.rs`, `ui_strings_generated.h`, `UiStringsGenerated.swift`.
+
+[[group]]
+id = "typing"
+label_vi = "Điều khiển"
+
+[[group]]
+id = "options"
+label_vi = "Tùy chọn gõ"
+
+[[group]]
+id = "assist"
+label_vi = "Trợ lý ngữ pháp"
+
+[[group]]
+id = "math"
+label_vi = "Math & Science"
+
+[[group]]
+id = "system"
+label_vi = "Hệ thống"
+
+[[setting]]
+id = "method"
+group = "typing"
+config_key = "method"
+kind = "enum"
+values = ["telex", "vni", "viqr", "simple_telex"]
+default = "telex"
+
+[[setting]]
+id = "output_charset"
+group = "typing"
+config_key = "output_charset"
+kind = "enum"
+values = ["unicode_precomposed", "unicode_decomposed", "tcvn3", "vni_windows"]
+default = "unicode_precomposed"
+
+[[setting]]
+id = "diacritic_style"
+group = "typing"
+config_key = "diacritic_style"
+kind = "enum"
+values = ["new", "old"]
+default = "old"
+
+[[setting]]
+id = "free_marking"
+group = "options"
+config_key = "free_marking"
+kind = "bool"
+default = true
+
+[[setting]]
+id = "auto_restore_english"
+group = "options"
+config_key = "auto_restore_english"
+kind = "bool"
+default = true
+
+[[setting]]
+id = "auto_capitalize"
+group = "options"
+config_key = "auto_capitalize"
+kind = "bool"
+default = true
+
+[[setting]]
+id = "quick_telex"
+group = "options"
+config_key = "quick_telex"
+kind = "bool"
+default = false
+depends_on = "method=telex"
+
+[[setting]]
+id = "allow_macro_when_vi_off"
+group = "options"
+config_key = "allow_macro_when_vi_off"
+kind = "bool"
+default = false
+
+[[setting]]
+id = "show_dialog_on_startup"
+group = "system"
+config_key = "show_dialog_on_startup"
+kind = "bool"
+default = true
+
+[[setting]]
+id = "assist_mode"
+group = "assist"
+config_key = "assist.mode"
+kind = "enum"
+values = ["off", "highlight", "autocorrect"]
+default = "highlight"
+
+[[setting]]
+id = "assist_auto_fix"
+group = "assist"
+config_key = "assist.auto_fix"
+kind = "enum"
+values = ["off", "safe"]
+default = "off"
+depends_on = "assist.mode=autocorrect"
+
+[[setting]]
+id = "assist_idle_ms"
+group = "assist"
+config_key = "assist.display.idle_ms"
+kind = "u32"
+default = 700
+
+[[setting]]
+id = "suggest_enabled"
+group = "assist"
+config_key = "suggest.enabled"
+kind = "bool"
+default = false
+
+[[setting]]
+id = "style_profile_enabled"
+group = "assist"
+config_key = "style_profile.enabled"
+kind = "bool"
+default = true
+
+[[setting]]
+id = "math_enabled"
+group = "math"
+config_key = "math.enabled"
+kind = "bool"
+default = false
+
+[[setting]]
+id = "math_sticky"
+group = "math"
+config_key = "math.sticky_math_mode"
+kind = "bool"
+default = false
+depends_on = "math.enabled=true"
+
+[[setting]]
+id = "math_altgr"
+group = "math"
+config_key = "math.altgr_enabled"
+kind = "bool"
+default = false
+depends_on = "math.enabled=true"
+
+[[setting]]
+id = "math_smart_paste"
+group = "math"
+config_key = "math.clipboard_smart_paste"
+kind = "bool"
+default = true
+depends_on = "math.enabled=true"
