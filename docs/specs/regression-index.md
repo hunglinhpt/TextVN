@@ -97,6 +97,7 @@
 | E85 | project-common-errors | `test:board/src/lib.rs::board_1b_cargo_external_subcommand_argv` |
 | E86 | project-common-errors | `gate:.github/workflows/ci-linux.yml` · `gate:.github/workflows/ci-shared.yml` |
 | E87 | project-common-errors | `process:script .sh commit từ Windows phải git update-index --chmod=+x; ci-macos chạy trực tiếp script nên đỏ khi thiếu bit x` |
+| E88 | project-common-errors | `test:xtask/src/regression_index.rs::e88_bootstrap_chi_dem_file_git_tracked` |
 | E9 | project-common-errors | `gate:xtask/src/preflight.rs` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
@@ -161,9 +162,9 @@
 | R2-162 | CHANGELOG | `process:dependency thừa gây warning manifest cargo — cargo build/clippy -D warnings trong preflight + cargo deny` |
 | R2-163 | CHANGELOG | `gate:.github/workflows/ci-macos.yml` |
 | R2-164 | CHANGELOG | `process:heredoc bash bóc lớp backslash khi sinh docs — cùng lớp E33: ghi tệp bằng Write, không qua heredoc` |
-| R2-165 | CHANGELOG | `test:session/tests/invariants.rs::thuoc_tinh_moi_event_toi_da_1_xoa_1_commit` · `test:session/tests/invariants.rs::commands_tu_choi_2_commit` · `test:session/tests/invariants.rs::commands_tu_choi_2_xoa` |
+| R2-165 | CHANGELOG | `file:adapters/linux-common/tests/test_edit_batch.c` · `file:adapters/linux-ibus/tests/e2e_ibus.c` · `file:adapters/linux-fcitx5/tests/e2e_fcitx5.c` |
 | R2-166 | CHANGELOG | `test:cli/src/doctor.rs::r2_166_mutter_forward_key_bug_range` |
-| R2-167 | CHANGELOG | `test:session/tests/invariants.rs::thuoc_tinh_commit_truoc_khi_an_preedit` · `test:session/tests/invariants.rs::commands_cho_phep_commit_truoc_an_preedit` · `test:session/tests/invariants.rs::commands_tu_choi_commit_sau_an_preedit` |
+| R2-167 | CHANGELOG | `file:adapters/linux-ibus/tests/e2e_ibus.c` · `file:adapters/linux-fcitx5/tests/e2e_fcitx5.c` |
 | R2-168 | CHANGELOG | `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_170_matches_unikey_oracle_or_documented_policy` · `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_digit_after_space_keeps_word` · `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_169_respect_auto_restore_switch` · `file:corpus/shared/r2_168_unikey_oracle_01.keys` |
 | R2-169 | CHANGELOG | `test:core/src/validate.rs::oo_nucleus_needs_ng_or_c` · `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_170_matches_unikey_oracle_or_documented_policy` · `file:corpus/shared/r2_168_unikey_oracle_01.keys` |
 | R2-170 | CHANGELOG | `test:core/tests/r2_168_unikey_oracle_linux.rs::r2_168_170_matches_unikey_oracle_or_documented_policy` · `file:corpus/shared/r2_168_unikey_oracle_01.keys` |

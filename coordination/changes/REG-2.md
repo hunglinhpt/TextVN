@@ -2,6 +2,12 @@
 
 ## VI
 
+- **E88 (fix sau part 2)**: repo-hygiene đỏ trên main vì R2-165/R2-167 map sang test trong `session/`
+  chưa commit (WIP của SF-1a) — part 2 đã remap sang test C Linux sống (`test_edit_batch` ctest,
+  `e2e_ibus`/`e2e_fcitx5` qua `scripts/e2e-linux.sh`); layer-fix: `discover()` chỉ đếm file git-tracked
+  (E88 fail-closed, test `e88_bootstrap_chi_dem_file_git_tracked`). Khi SF-1b merge crate `session/`,
+  `--bootstrap --merge` sẽ tự nâng dòng này nếu test invariants nhắc mã.
+
 - **Sổ hồi quy còn 0 nợ**: 230 mã lỗi (E*, `win/*`, R*, R2-*) đều có bằng chứng — 190 tham chiếu test,
   64 gate, 16 corpus/chương trình test, 56 bài học harness Windows, 36 mã chỉ-quy-trình; `todo-max = 0` ⇒ từ nay
   mã lỗi mới phải có bằng chứng thật ngay khi ghi (gate `regression-index` đỏ nếu thiếu).

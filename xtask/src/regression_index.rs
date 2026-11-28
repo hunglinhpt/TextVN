@@ -16,9 +16,10 @@
 //! đầu tiên bằng cách tìm test/corpus/gate đang nhắc mã (tên hàm `r2_174_*`, chú thích `E82`…);
 //! `--bootstrap --merge` chỉ thêm dòng cho mã mới, giữ nguyên dòng đã có.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const INDEX: &str = "docs/specs/regression-index.md";
 const TODO_MAX_TAG: &str = "<!-- regression-index: todo-max = ";
@@ -194,6 +195,30 @@ fn rel(root: &Path, p: &Path) -> String {
         .unwrap_or(p)
         .to_string_lossy()
         .replace('\\', "/")
+}
+
+/// Tập tệp git-tracked (`git ls-files`) — CHỈ file đã vào git index mới được làm bằng chứng.
+/// E88: `--bootstrap` quét toàn cây kể cả file untracked (WIP chưa commit của agent khác) ⇒ doc
+/// sinh ra trỏ tới test không tồn tại trên main ⇒ CI đỏ. Fail-closed: không chạy được git ⇒ lỗi
+/// thay vì bỏ lọc (bỏ lọc chính là tái diễn E88).
+fn tracked_files(root: &Path) -> Result<HashSet<String>, String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files", "-z"])
+        .output()
+        .map_err(|e| {
+            format!("E88: không chạy được `git ls-files` ({e}) — bootstrap chỉ chạy trong repo git")
+        })?;
+    if !out.status.success() {
+        return Err("E88: `git ls-files` thất bại — bootstrap chỉ chạy trong repo git".into());
+    }
+    Ok(out
+        .stdout
+        .split(|b| *b == 0)
+        .filter(|b| !b.is_empty())
+        .map(|b| String::from_utf8_lossy(b).into_owned())
+        .collect())
 }
 
 /// Tên hàm test trong một dòng: Rust `fn x(` (sau `#[test]`), C `void test_x(`, Swift `func testX(`.
@@ -477,9 +502,19 @@ fn check_ref(root: &Path, code: &str, r: &Ref) -> Option<String> {
 // Dựng bảng (bootstrap)
 // ---------------------------------------------------------------------------------------
 
-fn discover(root: &Path, codes: &BTreeMap<String, &'static str>) -> BTreeMap<String, Vec<Ref>> {
-    let mut files = Vec::new();
-    walk(root, &mut files);
+fn discover(
+    root: &Path,
+    codes: &BTreeMap<String, &'static str>,
+) -> Result<BTreeMap<String, Vec<Ref>>, String> {
+    let tracked = tracked_files(root)?;
+    let mut all = Vec::new();
+    walk(root, &mut all);
+    // E88: chỉ file git-tracked — WIP untracked của agent khác không phải bằng chứng sống trên main.
+    let mut files: Vec<PathBuf> = all
+        .into_iter()
+        .filter(|p| tracked.contains(&rel(root, p)))
+        .collect();
+    files.sort();
     let tests = collect_tests(root, &files);
     let texts: Vec<(String, String)> = files
         .iter()
@@ -544,7 +579,7 @@ fn discover(root: &Path, codes: &BTreeMap<String, &'static str>) -> BTreeMap<Str
         }
         out.insert(code.clone(), refs);
     }
-    out
+    Ok(out)
 }
 
 /// `cap` = `todo-max` cũ khi `--merge`: ratchet chỉ được GIẢM (mã mới không được đẩy nợ lên —
@@ -588,7 +623,7 @@ pub fn cli(args: &[String]) -> Result<(), String> {
     let bootstrap = args.iter().any(|a| a == "--bootstrap");
     let merge = args.iter().any(|a| a == "--merge");
     if bootstrap {
-        let found = discover(&root, &codes);
+        let found = discover(&root, &codes)?;
         let mut rows: BTreeMap<String, (String, Vec<Ref>)> = BTreeMap::new();
         let mut cap = None;
         if merge {
@@ -753,5 +788,40 @@ mod tests {
             .contains("không còn"));
         assert!(Ref::parse("`foo:bar`").is_err());
         assert!(Ref::parse("`todo:REG-3`").is_err());
+    }
+
+    #[test]
+    fn e88_bootstrap_chi_dem_file_git_tracked() {
+        // Tái hiện E88: file untracked (WIP chưa commit của agent khác) không được làm bằng chứng.
+        if Command::new("git").arg("--version").output().is_err() {
+            eprintln!("bỏ qua: không có git trong PATH");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("textvn-regidx-e88-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("tracked.rs"), "// foo\n").unwrap();
+        fs::write(dir.join("untracked_wip.rs"), "// wip của agent khác\n").unwrap();
+        let run = |a: &[&str]| {
+            let o = Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(a)
+                .output()
+                .unwrap();
+            assert!(o.status.success(), "git {:?} thất bại", a);
+        };
+        run(&["init", "-q"]);
+        run(&["add", "tracked.rs"]);
+        let set = tracked_files(&dir).unwrap();
+        assert!(
+            set.contains("tracked.rs"),
+            "file đã `git add` phải được đếm làm bằng chứng"
+        );
+        assert!(
+            !set.contains("untracked_wip.rs"),
+            "E88: file untracked phải bị loại khỏi bằng chứng"
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 }
