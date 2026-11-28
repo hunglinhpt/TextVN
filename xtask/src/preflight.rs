@@ -331,6 +331,40 @@ pub fn baseline_path_for(root: &std::path::Path, arch: &str, os: &str) -> Option
     (triple == "x86_64-pc-windows-msvc").then(|| "perf/baseline-win.json".to_string())
 }
 
+/// Số lần đo lại trước khi kết luận hồi quy hiệu năng (E97).
+pub const PERF_ATTEMPTS: usize = 3;
+
+/// E97: bước perf build bench rồi chạy THẲNG binary (không qua `cargo run` — trên máy dev Windows,
+/// cùng một binary chạy qua `cargo run` đo `ime_key` p50 725–750 ns, chạy thẳng 587 ns; commit chỉ
+/// sửa board.jsonl cũng nhảy 587 → 1412 ns). Nhiễu chỉ làm số TĂNG, hồi quy thật thì lần đo nào cũng
+/// thấy ⇒ chỉ FAIL khi cả [`PERF_ATTEMPTS`] lần đều vượt ngưỡng.
+fn run_perf_check(baseline: &str) -> std::io::Result<std::process::ExitStatus> {
+    let build = Command::new("cargo")
+        .args(["build", "-q", "--release", "-p", "textvn-bench"])
+        .status()?;
+    if !build.success() {
+        return Ok(build);
+    }
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("target"));
+    let exe = target
+        .join("release")
+        .join(format!("textvn-bench{}", std::env::consts::EXE_SUFFIX));
+    let mut last = None;
+    for attempt in 1..=PERF_ATTEMPTS {
+        let status = Command::new(&exe).args(["check", baseline]).status()?;
+        if status.success() {
+            if attempt > 1 {
+                print!("(lần đo {attempt}/{PERF_ATTEMPTS} — các lần trước là nhiễu, E97) ");
+            }
+            return Ok(status);
+        }
+        last = Some(status);
+    }
+    Ok(last.expect("PERF_ATTEMPTS >= 1"))
+}
+
 pub fn run() -> Result<(), String> {
     println!("preflight — mirror các gate CI, chạy trước khi commit/tag");
     println!("(không pipe, fail-fast; working tree = những gì CI sẽ thấy)\n");
@@ -358,13 +392,7 @@ pub fn run() -> Result<(), String> {
                 skipped += 1;
                 continue;
             };
-            let mut argv: Vec<&str> = step.argv[1..].to_vec();
-            if let Some(last) = argv.last_mut() {
-                *last = baseline;
-            }
-            let mut cmd = Command::new(step.argv[0]);
-            cmd.args(&argv);
-            match cmd.status() {
+            match run_perf_check(baseline) {
                 Ok(s) if s.success() => println!("PASS"),
                 Ok(s) => {
                     println!("FAIL (exit {})", s.code().unwrap_or(-1));
@@ -424,6 +452,26 @@ pub fn run() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// E97: gate perf local chỉ FAIL khi MỌI lần đo đều vượt ngưỡng (≥ 3 lần) và chạy thẳng binary
+    /// bench (không `cargo run`) — một lần đo nhiễu không được làm đỏ preflight.
+    #[test]
+    fn e97_perf_gate_retries_and_runs_binary_directly() {
+        const { assert!(PERF_ATTEMPTS >= 3) };
+        let src = include_str!("preflight.rs");
+        let body = &src[src.find("fn run_perf_check").unwrap()..];
+        let body = &body[..body
+            .find(
+                "
+pub fn run()",
+            )
+            .unwrap()];
+        assert!(
+            body.contains("EXE_SUFFIX"),
+            "phải chạy thẳng binary textvn-bench"
+        );
+        assert!(!body.contains("\"run\""), "không được đo qua `cargo run`");
+    }
 
     #[test]
     fn perf1_preflight_chon_dung_baseline_theo_may() {

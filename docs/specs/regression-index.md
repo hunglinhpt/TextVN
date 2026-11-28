@@ -107,6 +107,7 @@
 | E94 | project-common-errors | `gate:scripts/test-macos-universal-gate.sh` · `gate:scripts/build-macos.sh` |
 | E95 | project-common-errors | `test:board/src/lib.rs::e95_unknown_flag_rejected_before_write` · `test:board/src/lib.rs::e95_missing_deps_needs_release_done` · `test:board/src/lib.rs::e95_task_deps_from_plan_card` |
 | E96 | project-common-errors | `test:xtask/src/trace_diff.rs::sf1f_rule_kiem_gia_tri_so_xoa_va_ranh_gioi` · `gate:xtask/src/trace_diff.rs` |
+| E97 | project-common-errors | `test:xtask/src/preflight.rs::e97_perf_gate_retries_and_runs_binary_directly` · `gate:xtask/src/preflight.rs` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |
