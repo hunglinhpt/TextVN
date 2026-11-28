@@ -877,13 +877,23 @@ mod tests {
     #[test]
     fn e93_cmd_digit_redirect_bat_dung_dang_loi() {
         // dạng gây lỗi E93 (ARM-W5b ci-windows, run 46130107118)
-        assert_eq!(find_cmd_digit_redirect("          echo TEXTVN_TIP_PROBE_MUTATION=1>>\"%GITHUB_ENV%\"\n"), vec![1]);
-        assert_eq!(find_cmd_digit_redirect("echo A=x\necho N=2>out.txt\n"), vec![2]);
+        assert_eq!(
+            find_cmd_digit_redirect(
+                "          echo TEXTVN_TIP_PROBE_MUTATION=1>>\"%GITHUB_ENV%\"\n"
+            ),
+            vec![1]
+        );
+        assert_eq!(
+            find_cmd_digit_redirect("echo A=x\necho N=2>out.txt\n"),
+            vec![2]
+        );
         // dạng đúng / không phải echo
         assert!(find_cmd_digit_redirect("(echo X=1)>>\"%GITHUB_ENV%\"\n").is_empty());
         assert!(find_cmd_digit_redirect("echo X=1 >> f\n").is_empty());
         assert!(find_cmd_digit_redirect("echo x >nul 2>&1\n").is_empty());
-        assert!(find_cmd_digit_redirect("echo TEXTVN_TIP_PROBES=%P%>>\"%GITHUB_ENV%\"\n").is_empty());
+        assert!(
+            find_cmd_digit_redirect("echo TEXTVN_TIP_PROBES=%P%>>\"%GITHUB_ENV%\"\n").is_empty()
+        );
         assert!(find_cmd_digit_redirect("cargo run 2>&1 | tee log\n").is_empty());
     }
 
