@@ -205,6 +205,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "textvn-session"
+version = "0.2.96"
+dependencies = [
+ "textvn-ipc",
+]
+
+[[package]]
 name = "textvn-strategy"
 version = "0.2.96"
 

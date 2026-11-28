@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "textvn-session"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Khung session nghiep vu dung chung 3 OS (P0-6 §3) — thuan logic, khong I/O. Shared session framework: pure logic, no I/O, one business core for TSF/IMK/IBus/Fcitx5."
+
+# SF-1a — lý do dependency (P0-7 §4.3: "crate mới = review giấy phép + lý do"):
+# KHÔNG có crate nào ngoài crates.io mới trong crate này. Duy nhất một path-dep
+# NỘI BỘ workspace `textvn-ipc` vì P0-6 §3 định kiểu variant
+# `Ipc(textvn_ipc::Message)` cho cả SessionEvent lẫn SessionCommand — giữ đúng
+# hợp đồng spec từ ngày đầu, SF-1b (C ABI) và SF-6 (field + ipc) không phải đổi
+# kiểu public sau này. serde/serde_json (và `windows` trên target Windows) là
+# dependency bậc hai đã có sẵn trong đồ thị của MỌI adapter tiêu thụ session
+# (TSF/IMK/IBus/Fcitx5 đều đã dùng textvn-ipc) ⇒ không thêm crate mới, không
+# thêm giấy phép mới cho `cargo deny`. Session vẫn thuần logic: không fs/net,
+# không thread, không đồng hồ (P0-6 §2 bất biến 1).
+[dependencies]
+textvn-ipc = { path = "../ipc" }
