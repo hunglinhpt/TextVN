@@ -492,6 +492,69 @@ int32_t      ime_imk_plan(const ime_imk_input_v1 *in, ime_imk_plan_v1 *out);
 #define IME_GHOST_TEXT_AFTER_CARET 0x10u  /* sau caret còn chữ trên dòng */
 int32_t      ime_ghost_label(const uint8_t *ghost, size_t len, uint32_t gates,
                              uint8_t *out, size_t cap);
+/* ---- SF-7 (P0-6 §5): bộ chọn Emoji DÙNG CHUNG 3 OS (`textvn_session::emoji::EmojiPicker`) ----
+ * Adapter chỉ ánh xạ phím ⇒ IME_EPK_KEY_*, vẽ theo ime_emoji_view_v1, chèn glyph khi nhận
+ * IME_EPK_COMMIT. Tìm/MRU qua engine của `inst` (MRU chung với `:shortcode:` + Dream RSI G19).
+ * Không callback, không cấp phát chéo; G8: không log ô tìm hay glyph. */
+#define IME_EMOJI_PICKER_ABI_VERSION 1u
+#define IME_EPK_LAYOUT_GRID 0u  /* lưới 8×5, 120 mục, cuộn trượt (macOS / Windows) */
+#define IME_EPK_LAYOUT_LIST 1u  /* danh sách 9/trang, 36 mục, nhảy theo trang (IBus/Fcitx5) */
+
+#define IME_EPK_KEY_ESCAPE    1u
+#define IME_EPK_KEY_ENTER     2u
+#define IME_EPK_KEY_TAB       3u
+#define IME_EPK_KEY_SHIFT_TAB 4u
+#define IME_EPK_KEY_BACKSPACE 5u
+#define IME_EPK_KEY_LEFT      6u
+#define IME_EPK_KEY_RIGHT     7u
+#define IME_EPK_KEY_UP        8u
+#define IME_EPK_KEY_DOWN      9u
+#define IME_EPK_KEY_CHAR     10u  /* ch = code point Unicode */
+
+/* Kết quả (>= 0); lỗi = IME_ERR_* (< 0). */
+#define IME_EPK_NOT_OPEN 0
+#define IME_EPK_REDRAW   1
+#define IME_EPK_COMMIT   2
+#define IME_EPK_CLOSED   3
+
+#define IME_EPK_VIEW_MAX  64
+#define IME_EPK_TEXT_MAX  32   /* byte glyph / shortcode kể cả NUL */
+#define IME_EPK_QUERY_MAX 132  /* 32 ký tự × 4 byte + NUL, làm tròn bội 4 */
+
+typedef struct ime_emoji_picker ime_emoji_picker;
+
+typedef struct {
+    uint8_t glyph[IME_EPK_TEXT_MAX];     /* UTF-8 + NUL */
+    uint8_t shortcode[IME_EPK_TEXT_MAX]; /* ASCII + NUL */
+} ime_emoji_item_v1;
+
+typedef struct {
+    uint32_t abi_version;   /* adapter đặt = IME_EMOJI_PICKER_ABI_VERSION trước khi gọi */
+    uint32_t open;
+    uint32_t category;      /* 0 = Gần đây, 1..7 */
+    uint32_t selected;      /* chỉ số trong toàn bộ kết quả */
+    uint32_t first_visible; /* chỉ số (toàn bộ) của items[0] */
+    uint32_t total;         /* tổng số kết quả đã nạp */
+    uint32_t count;         /* số mục hợp lệ trong items */
+    uint32_t query_len;     /* byte của query (không tính NUL) */
+    uint8_t query[IME_EPK_QUERY_MAX];
+    ime_emoji_item_v1 items[IME_EPK_VIEW_MAX];
+} ime_emoji_view_v1;
+
+int32_t ime_emoji_picker_new(uint32_t layout, ime_emoji_picker **out);
+void    ime_emoji_picker_free(ime_emoji_picker *p);
+int32_t ime_emoji_picker_open(ime_emoji_picker *p, const ime_instance *inst);
+int32_t ime_emoji_picker_close(ime_emoji_picker *p);
+int32_t ime_emoji_picker_switch_category(ime_emoji_picker *p, const ime_instance *inst, uint32_t category);
+int32_t ime_emoji_picker_scroll(ime_emoji_picker *p, int32_t rows);
+/* IME_EPK_COMMIT ⇒ glyph_out = UTF-8 + NUL, *glyph_len = byte (không NUL); MRU + Dream RSI đã ghi. */
+int32_t ime_emoji_picker_key(ime_emoji_picker *p, ime_instance *inst, uint32_t key, uint32_t ch,
+                             uint8_t *glyph_out, size_t glyph_cap, size_t *glyph_len);
+/* Chọn trực tiếp mục idx (click). Sai chỉ số ⇒ IME_EPK_REDRAW; thiếu chỗ ⇒ lỗi TRƯỚC khi ghi MRU. */
+int32_t ime_emoji_picker_pick(ime_emoji_picker *p, ime_instance *inst, uint32_t idx,
+                              uint8_t *glyph_out, size_t glyph_cap, size_t *glyph_len);
+int32_t ime_emoji_picker_view(const ime_emoji_picker *p, ime_emoji_view_v1 *out);
+
 #ifdef __cplusplus
 }
 #endif

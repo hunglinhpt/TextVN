@@ -17,11 +17,13 @@
 
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
 pub mod compose_abi;
+pub mod emoji_picker_abi;
 pub mod ghost_abi;
 pub mod imk_abi;
 pub mod session_abi;
 pub mod settings;
 pub use compose_abi::*;
+pub use emoji_picker_abi::*;
 pub use ghost_abi::*;
 pub use imk_abi::*;
 pub use session_abi::*;
@@ -1975,6 +1977,87 @@ pub extern "C" fn ime_ghost_label(
     cap: usize,
 ) -> i32 {
     ghost_abi::ime_ghost_label_impl(ghost, len, gates, out, cap)
+}
+
+// ---- SF-7 (P0-6 §5): bộ chọn Emoji dùng chung — cài đặt ở `emoji_picker_abi` ----
+
+/// Tạo bộ chọn (`IME_EPK_LAYOUT_GRID` / `IME_EPK_LAYOUT_LIST`).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_new(layout: u32, out: *mut *mut ime_emoji_picker) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_new_impl(layout, out)
+}
+
+/// Giải phóng (NULL = bỏ qua).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_free(p: *mut ime_emoji_picker) {
+    emoji_picker_abi::ime_emoji_picker_free_impl(p)
+}
+
+/// Mở ở nhóm Gần đây (MRU của engine `inst`).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_open(
+    p: *mut ime_emoji_picker,
+    inst: *const ime_instance,
+) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_open_impl(p, inst)
+}
+
+/// Đóng + xoá ô tìm (G8).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_close(p: *mut ime_emoji_picker) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_close_impl(p)
+}
+
+/// Chuyển nhóm (click tab).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_switch_category(
+    p: *mut ime_emoji_picker,
+    inst: *const ime_instance,
+    category: u32,
+) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_switch_category_impl(p, inst, category)
+}
+
+/// Cuộn `rows` hàng (bánh xe chuột).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_scroll(p: *mut ime_emoji_picker, rows: i32) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_scroll_impl(p, rows)
+}
+
+/// Một phím chuẩn hoá (`IME_EPK_KEY_*`). `IME_EPK_COMMIT` ⇒ glyph đã ở `glyph_out`.
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_key(
+    p: *mut ime_emoji_picker,
+    inst: *mut ime_instance,
+    key: u32,
+    ch: u32,
+    glyph_out: *mut u8,
+    glyph_cap: usize,
+    glyph_len: *mut usize,
+) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_key_impl(p, inst, key, ch, glyph_out, glyph_cap, glyph_len)
+}
+
+/// Chọn trực tiếp mục `idx` (click chuột).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_pick(
+    p: *mut ime_emoji_picker,
+    inst: *mut ime_instance,
+    idx: u32,
+    glyph_out: *mut u8,
+    glyph_cap: usize,
+    glyph_len: *mut usize,
+) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_pick_impl(p, inst, idx, glyph_out, glyph_cap, glyph_len)
+}
+
+/// Ảnh chụp để vẽ (adapter đặt `out->abi_version`).
+#[no_mangle]
+pub extern "C" fn ime_emoji_picker_view(
+    p: *const ime_emoji_picker,
+    out: *mut ime_emoji_view_v1,
+) -> i32 {
+    emoji_picker_abi::ime_emoji_picker_view_impl(p, out)
 }
 
 #[cfg(test)]

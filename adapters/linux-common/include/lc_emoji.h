@@ -44,6 +44,8 @@ typedef struct lc_emoji_picker {
     lc_emoji_item items[LC_EMOJI_MAX_ITEMS];
     size_t        count;
     size_t        selected;
+    /* SF-7: bộ chọn dùng chung (`ime_emoji_picker_*`) — chỉ sống khi bảng đang mở. */
+    ime_emoji_picker *core;
 } lc_emoji_picker;
 
 /* Khởi tạo cấu trúc rỗng. */

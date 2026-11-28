@@ -25,9 +25,16 @@
   người dùng thấy; lưới (`GRID`) vẫn trượt từng hàng. Test `sf7_danh_sach_phan_trang_va_chon_nhanh_theo_trang`.
 - **Ghi nhận (có từ trước, không do SF-7)**: chọn emoji ở tray Windows KHÔNG được đếm Dream RSI vì tray không
   có engine (MRU chỉ trong RAM của tray). Phần 2 nên gửi bộ đếm qua IPC `StyleUpdate` (đường `RsiOnly` đã có).
-- **Phần 2 (sau khi SF-3 nhả `ffi/`)**: C ABI `ime_emoji_picker_*` + Linux (`emoji_picker.c`) và macOS
-  (`EmojiPickerModel`) gọi bản dùng chung; khi đó xoá 2 bản sao, và nhãn/biểu tượng nhóm (đang lặp ở
-  `CATEGORY_TABS` tray, `CATEGORY_NAMES` Linux, `tabs` macOS) chuyển vào `data/ui/strings.toml` (SF-9).
+- **Phần 2a — C ABI + Linux dùng bản chung**: `ffi/src/emoji_picker_abi.rs` xuất 9 hàm `ime_emoji_picker_*`
+  (new/free/open/close/switch_category/scroll/key/pick/view) + `ime_emoji_view_v1` (ảnh chụp để vẽ: nhóm, ô tìm,
+  mục chọn, phần đang hiện ≤ 64 mục, glyph/shortcode 32 byte) + `ime_emoji_item_v1`; nguồn tìm/MRU là engine của
+  `ime_instance` (MRU chung `:shortcode:` + Dream RSI). `pick` kiểm chỗ bộ đệm TRƯỚC khi ghi MRU (thiếu chỗ không đếm
+  Dream RSI mà không chèn). `adapters/linux-common/src/emoji_picker.c` bỏ toàn bộ máy trạng thái riêng (ô tìm, Tab,
+  mũi tên, chọn nhanh, tải kết quả) — chỉ còn ánh xạ phím Linux ⇒ `IME_EPK_KEY_*`, chép view vào `lc_emoji_picker`
+  cho IBus/Fcitx5 vẽ (API `lc_emoji_*` giữ nguyên, engine.c/engine.cpp KHÔNG đổi) và dòng aux; bộ chọn dùng chung
+  chỉ sống khi bảng mở (giải phóng ở mọi đường đóng). `textvn-cli verify`: 46 export, 20 hằng, 2 struct, sizeof/offset.
+- **Phần 2b (sau)**: macOS `EmojiPickerModel`/`EmojiPickerPanel` gọi C ABI (cần vòng ci-macos — máy dev không có
+  Swift); rồi chuyển nhãn/biểu tượng nhóm vào `data/ui/strings.toml` (SF-9).
 
 ## EN
 - **SF-7 part 1 — ONE shared Emoji picker state machine (P0-6 §5, G22)**: `session/src/emoji.rs`
@@ -57,9 +64,17 @@
 - **Noted (pre-existing, not caused by SF-7)**: emoji picked in the Windows tray are NOT counted in Dream RSI because
   the tray has no engine (its MRU lives only in tray RAM). Part 2 should send the counters over IPC `StyleUpdate`
   (the `RsiOnly` path already exists).
-- **Part 2 (after SF-3 releases `ffi/`)**: C ABI `ime_emoji_picker_*` + Linux (`emoji_picker.c`) and macOS
-  (`EmojiPickerModel`) call the shared one; then delete the 2 copies, and move the category labels/icons (repeated in
-  the tray's `CATEGORY_TABS`, Linux `CATEGORY_NAMES`, macOS `tabs`) into `data/ui/strings.toml` (SF-9).
+- **Part 2a — C ABI + Linux uses the shared picker**: `ffi/src/emoji_picker_abi.rs` exports 9 `ime_emoji_picker_*`
+  functions (new/free/open/close/switch_category/scroll/key/pick/view) + `ime_emoji_view_v1` (a drawing snapshot:
+  category, search box, selection, visible part ≤ 64 items, 32-byte glyph/shortcode) + `ime_emoji_item_v1`; the
+  search/MRU source is the `ime_instance` engine (MRU shared with `:shortcode:` + Dream RSI). `pick` checks the buffer
+  BEFORE recording the MRU (too small never counts Dream RSI without inserting). `adapters/linux-common/src/emoji_picker.c`
+  drops its whole private state machine (search box, Tab, arrows, quick pick, result loading) — it only maps Linux keys
+  ⇒ `IME_EPK_KEY_*`, copies the view into `lc_emoji_picker` for IBus/Fcitx5 to draw (the `lc_emoji_*` API is unchanged,
+  engine.c/engine.cpp NOT touched) and builds the aux line; the shared picker only lives while the panel is open (freed
+  on every close path). `textvn-cli verify`: 46 exports, 20 constants, 2 structs, sizeof/offset.
+- **Part 2b (later)**: macOS `EmojiPickerModel`/`EmojiPickerPanel` call the C ABI (needs ci-macos rounds — no Swift on
+  the dev machine); then move the category labels/icons into `data/ui/strings.toml` (SF-9).
 
 ## Kiểm thử / Testing
 - `cargo test -p textvn-session` = 72 passed, gồm 14 test `sf7_*` (đóng không xử lý phím; mở nhóm Gần đây; Esc
@@ -72,3 +87,8 @@
 - `cargo test -p textvn-tray emoji` xanh (test cũ `tray_emoji_state_pick_and_surrogate_utf16` giữ nguyên ý);
   `cargo clippy -p textvn-tray -p textvn-session --all-targets -D warnings` sạch trên Windows và
   `--target x86_64-unknown-linux-gnu`; rustfmt sạch.
+- **Phần 2a — kiểm thử**: `cargo test -p textvn-ffi` 69 passed gồm 4 test `sf7_abi_*` (tìm + Enter chèn glyph + đếm
+  Dream RSI qua ABI; tham số sai / phím lạ / code point hỏng / ABI lệch; nhóm + cuộn + view lưới; catalog vừa bộ đệm
+  cố định) + `const assert` lúc biên dịch; **test C Linux `adapters/linux-common/tests/test_emoji_picker.c` KHÔNG sửa
+  chạy PASS trên bản chung** (MSVC `/W4 /WX /std:c11` + lib ffi trên máy dev); `textvn-cli verify` x86_64 + i686;
+  clippy Windows + Linux.

@@ -284,6 +284,30 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             "IME_GHOST_TEXT_AFTER_CARET",
             IME_GHOST_TEXT_AFTER_CARET as i64,
         ),
+        // SF-7: bộ chọn Emoji dùng chung.
+        (
+            "IME_EMOJI_PICKER_ABI_VERSION",
+            IME_EMOJI_PICKER_ABI_VERSION as i64,
+        ),
+        ("IME_EPK_LAYOUT_GRID", IME_EPK_LAYOUT_GRID as i64),
+        ("IME_EPK_LAYOUT_LIST", IME_EPK_LAYOUT_LIST as i64),
+        ("IME_EPK_KEY_ESCAPE", IME_EPK_KEY_ESCAPE as i64),
+        ("IME_EPK_KEY_ENTER", IME_EPK_KEY_ENTER as i64),
+        ("IME_EPK_KEY_TAB", IME_EPK_KEY_TAB as i64),
+        ("IME_EPK_KEY_SHIFT_TAB", IME_EPK_KEY_SHIFT_TAB as i64),
+        ("IME_EPK_KEY_BACKSPACE", IME_EPK_KEY_BACKSPACE as i64),
+        ("IME_EPK_KEY_LEFT", IME_EPK_KEY_LEFT as i64),
+        ("IME_EPK_KEY_RIGHT", IME_EPK_KEY_RIGHT as i64),
+        ("IME_EPK_KEY_UP", IME_EPK_KEY_UP as i64),
+        ("IME_EPK_KEY_DOWN", IME_EPK_KEY_DOWN as i64),
+        ("IME_EPK_KEY_CHAR", IME_EPK_KEY_CHAR as i64),
+        ("IME_EPK_NOT_OPEN", IME_EPK_NOT_OPEN as i64),
+        ("IME_EPK_REDRAW", IME_EPK_REDRAW as i64),
+        ("IME_EPK_COMMIT", IME_EPK_COMMIT as i64),
+        ("IME_EPK_CLOSED", IME_EPK_CLOSED as i64),
+        ("IME_EPK_VIEW_MAX", IME_EPK_VIEW_MAX as i64),
+        ("IME_EPK_TEXT_MAX", IME_EPK_TEXT_MAX as i64),
+        ("IME_EPK_QUERY_MAX", IME_EPK_QUERY_MAX as i64),
     ]
 }
 
@@ -341,6 +365,16 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_compose_plan",
         "ime_imk_plan",
         "ime_ghost_label",
+        // SF-7: bộ chọn Emoji dùng chung 3 OS.
+        "ime_emoji_picker_new",
+        "ime_emoji_picker_free",
+        "ime_emoji_picker_open",
+        "ime_emoji_picker_close",
+        "ime_emoji_picker_switch_category",
+        "ime_emoji_picker_scroll",
+        "ime_emoji_picker_key",
+        "ime_emoji_picker_pick",
+        "ime_emoji_picker_view",
     ]
 }
 
@@ -528,6 +562,25 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 arena,
             }),
         ),
+        (
+            "ime_emoji_item_v1",
+            field_names!(ime_emoji_item_v1 { glyph, shortcode }),
+        ),
+        (
+            "ime_emoji_view_v1",
+            field_names!(ime_emoji_view_v1 {
+                abi_version,
+                open,
+                category,
+                selected,
+                first_visible,
+                total,
+                count,
+                query_len,
+                query,
+                items,
+            }),
+        ),
     ]
 }
 
@@ -703,6 +756,9 @@ fn is_type_name(name: &str) -> bool {
             | "ime_compose_plan_v1"
             | "ime_imk_input_v1"
             | "ime_imk_plan_v1"
+            | "ime_emoji_picker"
+            | "ime_emoji_item_v1"
+            | "ime_emoji_view_v1"
     )
 }
 
@@ -798,6 +854,38 @@ pub fn run(header_path: &str, as_json: bool) -> Result<String, Vec<String>> {
             "offsetof(ime_session_out_v1, arena)",
             offset_of!(ime_session_out_v1, arena),
             8 + 16 * 20,
+        ),
+    ] {
+        if got != want {
+            bad.push(Mismatch {
+                what: what.into(),
+                header: want.to_string(),
+                rust: got.to_string(),
+            });
+        }
+    }
+
+    // 1c) SF-7: bộ chọn Emoji — chỉ u8/u32 nên MỌI target cùng kích thước/offset.
+    for (what, got, want) in [
+        (
+            "sizeof(ime_emoji_item_v1)",
+            size_of::<ime_emoji_item_v1>(),
+            64usize,
+        ),
+        (
+            "sizeof(ime_emoji_view_v1)",
+            size_of::<ime_emoji_view_v1>(),
+            32 + 132 + 64 * 64,
+        ),
+        (
+            "offsetof(ime_emoji_view_v1, query)",
+            offset_of!(ime_emoji_view_v1, query),
+            32,
+        ),
+        (
+            "offsetof(ime_emoji_view_v1, items)",
+            offset_of!(ime_emoji_view_v1, items),
+            32 + 132,
         ),
     ] {
         if got != want {

@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* emoji_picker.c — Bộ chọn Emoji nhẹ cho Linux IBus/Fcitx5 (P12). */
+/* emoji_picker.c — Bộ chọn Emoji cho Linux IBus/Fcitx5 (P12).
+ *
+ * SF-7 (P0-6 §5, G22): máy trạng thái (ô tìm, nhóm, chọn, trang, chọn nhanh 1..9, MRU + Dream RSI)
+ * là bản DÙNG CHUNG `textvn_session::emoji::EmojiPicker` qua C ABI `ime_emoji_picker_*`
+ * (bố cục LIST: 1 cột, trang 9, 36 mục). File này chỉ còn: ánh xạ phím Linux ⇒ IME_EPK_KEY_*,
+ * chép ảnh chụp (`ime_emoji_view_v1`) vào `lc_emoji_picker` cho IBus/Fcitx5 vẽ lookup table, và
+ * dòng aux. G8: không log ô tìm hay emoji được chọn. */
 
 #include "lc_emoji.h"
 
@@ -28,97 +34,44 @@ static const char *const CATEGORY_NAMES[8] = {
     "Hoạt động"
 };
 
-static size_t append_utf8_char(char *buf, size_t len, size_t cap, uint32_t cp) {
-    char tmp[4];
-    size_t n = 0;
-    if (cp < 0x80u) {
-        tmp[0] = (char)cp;
-        n = 1;
-    } else if (cp < 0x800u) {
-        tmp[0] = (char)(0xC0u | (cp >> 6));
-        tmp[1] = (char)(0x80u | (cp & 0x3Fu));
-        n = 2;
-    } else if (cp < 0x10000u) {
-        tmp[0] = (char)(0xE0u | (cp >> 12));
-        tmp[1] = (char)(0x80u | ((cp >> 6) & 0x3Fu));
-        tmp[2] = (char)(0x80u | (cp & 0x3Fu));
-        n = 3;
-    } else if (cp <= 0x10FFFFu) {
-        tmp[0] = (char)(0xF0u | (cp >> 18));
-        tmp[1] = (char)(0x80u | ((cp >> 12) & 0x3Fu));
-        tmp[2] = (char)(0x80u | ((cp >> 6) & 0x3Fu));
-        tmp[3] = (char)(0x80u | (cp & 0x3Fu));
-        n = 4;
-    } else {
-        return len;
-    }
-    if (len + n + 1 >= cap) {
-        return len;
-    }
-    memcpy(buf + len, tmp, n);
-    buf[len + n] = '\0';
-    return len + n;
-}
-
-static void pop_utf8_char(char *buf, size_t *len) {
-    if (*len == 0) return;
-    size_t i = *len - 1;
-    while (i > 0 && ((unsigned char)buf[i] & 0xC0u) == 0x80u) {
-        i--;
-    }
-    buf[i] = '\0';
-    *len = i;
-}
-
-static void reload_items(lc_emoji_picker *p, const ime_instance *inst) {
-    uint8_t raw[4096];
-    size_t out_len = 0;
-    p->count = 0;
-    p->selected = 0;
-
-    int32_t rc = ime_emoji_search(
-        inst,
-        p->query_len > 0 ? (const uint8_t *)p->query : NULL,
-        p->query_len,
-        p->category,
-        (uint32_t)LC_EMOJI_MAX_ITEMS,
-        raw,
-        sizeof(raw),
-        &out_len
-    );
-    if (rc != IME_OK || out_len == 0) {
+/* Chép ảnh chụp của bộ chọn dùng chung vào struct mà IBus/Fcitx5 đọc. Chỉ trang ĐANG HIỆN được
+ * điền (`items[first_visible + k]`) — engine chỉ vẽ trang `selected / LC_EMOJI_PAGE_SIZE`, trùng
+ * `first_visible` vì bố cục LIST phân trang. */
+static void sync_view(lc_emoji_picker *p) {
+    ime_emoji_view_v1 v;
+    memset(&v, 0, sizeof(v));
+    v.abi_version = IME_EMOJI_PICKER_ABI_VERSION;
+    if (!p->core || ime_emoji_picker_view(p->core, &v) != IME_OK || !v.open) {
+        p->active = 0;
+        p->count = 0;
+        p->selected = 0;
+        p->query[0] = '\0';
+        p->query_len = 0;
         return;
     }
+    p->active = 1;
+    p->category = (uint8_t)(v.category < 8u ? v.category : 0u);
+    p->selected = v.selected;
+    p->count = v.total < LC_EMOJI_MAX_ITEMS ? v.total : LC_EMOJI_MAX_ITEMS;
+    size_t q = v.query_len < LC_EMOJI_QUERY_MAX - 1 ? v.query_len : LC_EMOJI_QUERY_MAX - 1;
+    memcpy(p->query, v.query, q);
+    p->query[q] = '\0';
+    p->query_len = q;
+    for (uint32_t k = 0; k < v.count; k++) {
+        size_t idx = (size_t)v.first_visible + k;
+        if (idx >= LC_EMOJI_MAX_ITEMS) break;
+        lc_emoji_item *it = &p->items[idx];
+        snprintf(it->glyph, sizeof(it->glyph), "%s", (const char *)v.items[k].glyph);
+        snprintf(it->shortcode, sizeof(it->shortcode), "%s", (const char *)v.items[k].shortcode);
+        it->category = p->category;
+    }
+}
 
-    size_t pos = 0;
-    while (pos < out_len && p->count < LC_EMOJI_MAX_ITEMS) {
-        size_t line_start = pos;
-        while (pos < out_len && raw[pos] != '\n') pos++;
-        size_t line_end = pos;
-        if (pos < out_len && raw[pos] == '\n') pos++;
-
-        size_t t1 = line_start;
-        while (t1 < line_end && raw[t1] != '\t') t1++;
-        if (t1 >= line_end) continue;
-        size_t t2 = t1 + 1;
-        while (t2 < line_end && raw[t2] != '\t') t2++;
-        if (t2 >= line_end) continue;
-
-        size_t g_len = t1 - line_start;
-        size_t s_len = t2 - (t1 + 1);
-        if (g_len == 0 || g_len >= LC_EMOJI_GLYPH_MAX ||
-            s_len == 0 || s_len >= LC_EMOJI_SHORTCODE_MAX) {
-            continue;
-        }
-        lc_emoji_item *it = &p->items[p->count];
-        memcpy(it->glyph, raw + line_start, g_len);
-        it->glyph[g_len] = '\0';
-        memcpy(it->shortcode, raw + t1 + 1, s_len);
-        it->shortcode[s_len] = '\0';
-        it->category = (t2 + 1 < line_end && raw[t2 + 1] >= '0' && raw[t2 + 1] <= '9')
-            ? (uint8_t)(raw[t2 + 1] - '0')
-            : 1u;
-        p->count++;
+/* Giải phóng bộ chọn dùng chung — gọi ở MỌI đường đóng (Esc, chèn, close) nên không rò theo IC. */
+static void drop_core(lc_emoji_picker *p) {
+    if (p->core) {
+        ime_emoji_picker_free(p->core);
+        p->core = NULL;
     }
 }
 
@@ -136,108 +89,84 @@ int lc_is_emoji_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super_
 
 void lc_emoji_open(lc_emoji_picker *p, const ime_instance *inst) {
     if (!p) return;
-    p->active = 1;
-    p->category = 0;
-    p->query[0] = '\0';
-    p->query_len = 0;
-    reload_items(p, inst);
+    drop_core(p);
+    if (!inst || ime_emoji_picker_new(IME_EPK_LAYOUT_LIST, &p->core) != IME_OK) {
+        p->core = NULL;
+        sync_view(p);
+        return;
+    }
+    (void)ime_emoji_picker_open(p->core, inst);
+    sync_view(p);
 }
 
 void lc_emoji_close(lc_emoji_picker *p) {
     if (!p) return;
-    p->active = 0;
-    p->query[0] = '\0';
-    p->query_len = 0;
-    p->count = 0;
-    p->selected = 0;
+    drop_core(p);
+    sync_view(p);
 }
 
 int lc_emoji_pick_index(lc_emoji_picker *p, ime_instance *inst,
                         size_t idx, char *out_glyph, size_t out_cap) {
-    if (!p || !p->active || idx >= p->count || !out_glyph || out_cap == 0) {
+    if (!p || !p->active || !p->core || !inst || !out_glyph || out_cap == 0) {
         return 0;
     }
-    size_t n = strlen(p->items[idx].glyph);
-    if (n + 1 > out_cap) {
+    size_t n = 0;
+    int32_t rc = ime_emoji_picker_pick(p->core, inst, (uint32_t)idx,
+                                       (uint8_t *)out_glyph, out_cap, &n);
+    if (rc != IME_EPK_COMMIT) {
         return 0;
-    }
-    memcpy(out_glyph, p->items[idx].glyph, n + 1);
-    if (inst) {
-        (void)ime_emoji_record_use(inst, (const uint8_t *)out_glyph, n);
     }
     lc_emoji_close(p);
     return 1;
 }
 
+/* Phím Linux (VK canonical + code point) ⇒ phím chuẩn của bộ chọn dùng chung. 0 = bỏ qua. */
+static uint32_t map_key(uint32_t vk, uint32_t ch, int shift) {
+    switch (vk) {
+    case 0x1Bu: return IME_EPK_KEY_ESCAPE;
+    case 0x0Du: return IME_EPK_KEY_ENTER;
+    case 0x09u: return shift ? IME_EPK_KEY_SHIFT_TAB : IME_EPK_KEY_TAB;
+    case 0x08u: return IME_EPK_KEY_BACKSPACE;
+    case 0x25u: return IME_EPK_KEY_LEFT;
+    case 0x26u: return IME_EPK_KEY_UP;
+    case 0x27u: return IME_EPK_KEY_RIGHT;
+    case 0x28u: return IME_EPK_KEY_DOWN;
+    default: break;
+    }
+    if (ch >= 0x20u && ch != 0x7Fu) {
+        return IME_EPK_KEY_CHAR;
+    }
+    return 0;
+}
+
 int lc_emoji_handle_key(lc_emoji_picker *p, ime_instance *inst,
                         uint32_t vk, uint32_t ch, int shift,
                         char *out_glyph, size_t out_cap) {
-    if (!p || !p->active) {
+    if (!p || !p->active || !p->core) {
         return LC_EMOJI_CLOSED;
     }
-
-    /* Esc */
-    if (vk == 0x1Bu) {
+    uint32_t key = map_key(vk, ch, shift);
+    if (key == 0) {
+        return LC_EMOJI_UPDATE;
+    }
+    size_t n = 0;
+    int32_t rc = ime_emoji_picker_key(p->core, inst, key, ch, (uint8_t *)out_glyph, out_cap, &n);
+    switch (rc) {
+    case IME_EPK_COMMIT:
+        lc_emoji_close(p);
+        return LC_EMOJI_COMMIT;
+    case IME_EPK_REDRAW:
+        sync_view(p);
+        return LC_EMOJI_UPDATE;
+    case IME_EPK_CLOSED:
+    case IME_EPK_NOT_OPEN:
         lc_emoji_close(p);
         return LC_EMOJI_CLOSED;
+    default:
+        /* Lỗi (bộ đệm glyph thiếu chỗ, tham số sai): không chèn gì, giữ trạng thái hiện có. */
+        sync_view(p);
+        return p->active ? LC_EMOJI_UPDATE : LC_EMOJI_CLOSED;
     }
-
-    /* Enter */
-    if (vk == 0x0Du) {
-        if (p->count > 0 && lc_emoji_pick_index(p, inst, p->selected, out_glyph, out_cap)) {
-            return LC_EMOJI_COMMIT;
-        }
-        lc_emoji_close(p);
-        return LC_EMOJI_CLOSED;
-    }
-
-    /* Tab / Shift+Tab: đổi nhóm 0..7 */
-    if (vk == 0x09u) {
-        p->category = shift ? (uint8_t)((p->category + 7u) % 8u) : (uint8_t)((p->category + 1u) % 8u);
-        p->query[0] = '\0';
-        p->query_len = 0;
-        reload_items(p, inst);
-        return LC_EMOJI_UPDATE;
-    }
-
-    /* Backspace */
-    if (vk == 0x08u) {
-        if (p->query_len > 0) {
-            pop_utf8_char(p->query, &p->query_len);
-            reload_items(p, inst);
-        }
-        return LC_EMOJI_UPDATE;
-    }
-
-    /* Mũi tên di chuyển chọn */
-    if (vk == 0x25u || vk == 0x26u) {
-        if (p->selected > 0) p->selected--;
-        return LC_EMOJI_UPDATE;
-    }
-    if (vk == 0x27u || vk == 0x28u) {
-        if (p->selected + 1 < p->count) p->selected++;
-        return LC_EMOJI_UPDATE;
-    }
-
-    /* Số 1..9 chọn nhanh trên trang hiện tại khi chưa nhập chữ tìm kiếm */
-    if (p->query_len == 0 && ch >= '1' && ch <= '9') {
-        size_t page_start = (p->selected / LC_EMOJI_PAGE_SIZE) * LC_EMOJI_PAGE_SIZE;
-        size_t idx = page_start + (size_t)(ch - '1');
-        if (idx < p->count && lc_emoji_pick_index(p, inst, idx, out_glyph, out_cap)) {
-            return LC_EMOJI_COMMIT;
-        }
-        return LC_EMOJI_UPDATE;
-    }
-
-    /* Ký tự in được: nối vào query tìm kiếm VI/EN không dấu */
-    if (ch >= 0x20u && ch != 0x7Fu) {
-        size_t next_len = append_utf8_char(p->query, p->query_len, sizeof(p->query), ch);
-        if (next_len != p->query_len) {
-            p->query_len = next_len;
-            reload_items(p, inst);
-        }
-    }
-    return LC_EMOJI_UPDATE;
 }
 
 void lc_emoji_format_aux(const lc_emoji_picker *p, char *out, size_t out_cap) {
