@@ -162,7 +162,9 @@ if ($env:TEXTVN_TIP_PROBES) {
         if ($LASTEXITCODE -ne 0) { throw "ARM-W5b: $exe khong nap dung $dll (exit $LASTEXITCODE)" }
     }
     Write-Host "PASS ARM-W5b TIP nap dung kien truc trong $($probes.Count) tien trinh (CoCreateInstance qua registry that)"
-    if ($env:TEXTVN_TIP_PROBE_MUTATION -eq '1') {
+    # E93: dot bien BAT BUOC mac dinh (chi tat tuong minh bang TEXTVN_TIP_PROBE_MUTATION=0) - truoc day
+    # cmd 'echo X=1>>file' ghi X rong (1>> = chuyen huong handle 1) nen dot bien bi bo qua im lang.
+    if ($env:TEXTVN_TIP_PROBE_MUTATION -ne '0') {
         # Dot bien: forwarder ARM64X bi thay bang DLL ARM64 thuong => tien trinh x64 KHONG duoc nap TIP.
         $x64 = $probes | Where-Object { $_ -like '*,textvn-tsf-x64.dll' } | Select-Object -First 1
         if (-not $x64) { throw 'ARM-W5b mutation: thieu probe x64' }

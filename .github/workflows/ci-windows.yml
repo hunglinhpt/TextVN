@@ -162,7 +162,6 @@ jobs:
           set "P=%CD%\tip-load-probe-arm64.exe,textvn-tsf-arm64.dll;%CD%\tip-load-probe-x64.exe,textvn-tsf-x64.dll"
           if exist tip-load-probe-x86.exe set "P=%P%;%CD%\tip-load-probe-x86.exe,textvn-tsf-x86.dll"
           echo TEXTVN_TIP_PROBES=%P%>>"%GITHUB_ENV%"
-          echo TEXTVN_TIP_PROBE_MUTATION=1>>"%GITHUB_ENV%"
       - name: ARM-W4 portable E2E (test-portable.ps1)
         shell: powershell
         run: |

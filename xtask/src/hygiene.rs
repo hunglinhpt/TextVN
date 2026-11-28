@@ -694,6 +694,31 @@ pub fn no_python() -> Result<(), String> {
     }
 }
 
+/// E93: trong `cmd`, `echo X=1>>file` là CHUYỂN HƯỚNG handle 1 (`1>>`) — file nhận `X=` rỗng
+/// (bước ARM-W5b bị bỏ qua im lặng). Trả số dòng (1-based) có `echo` mà ngay trước `>`/`>>` là
+/// một chữ số dính sau ký tự không phải khoảng trắng/chữ số. Viết đúng: `(echo X=1)>>file`.
+#[cfg(test)]
+fn find_cmd_digit_redirect(text: &str) -> Vec<usize> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if !line.to_ascii_lowercase().contains("echo ") {
+            continue;
+        }
+        let b = line.as_bytes();
+        let hit = (2..b.len()).any(|j| {
+            b[j] == b'>'
+                && b[j - 1].is_ascii_digit()
+                && !b[j - 2].is_ascii_digit()
+                && !b[j - 2].is_ascii_whitespace()
+                && b[j - 2] != b'('
+        });
+        if hit {
+            out.push(i + 1);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -847,5 +872,36 @@ mod tests {
         assert!(!has_python_shebang(b"#!/usr/bin/env bash # no python\n"));
         assert!(!has_python_shebang(b"#!/usr/bin/env bash\necho python\n"));
         assert!(!has_python_shebang(b"#!/usr/bin/env python3\x00bin"));
+    }
+
+    #[test]
+    fn e93_cmd_digit_redirect_bat_dung_dang_loi() {
+        // dạng gây lỗi E93 (ARM-W5b ci-windows, run 46130107118)
+        assert_eq!(find_cmd_digit_redirect("          echo TEXTVN_TIP_PROBE_MUTATION=1>>\"%GITHUB_ENV%\"\n"), vec![1]);
+        assert_eq!(find_cmd_digit_redirect("echo A=x\necho N=2>out.txt\n"), vec![2]);
+        // dạng đúng / không phải echo
+        assert!(find_cmd_digit_redirect("(echo X=1)>>\"%GITHUB_ENV%\"\n").is_empty());
+        assert!(find_cmd_digit_redirect("echo X=1 >> f\n").is_empty());
+        assert!(find_cmd_digit_redirect("echo x >nul 2>&1\n").is_empty());
+        assert!(find_cmd_digit_redirect("echo TEXTVN_TIP_PROBES=%P%>>\"%GITHUB_ENV%\"\n").is_empty());
+        assert!(find_cmd_digit_redirect("cargo run 2>&1 | tee log\n").is_empty());
+    }
+
+    #[test]
+    fn e93_workflow_khong_co_echo_chuyen_huong_handle_so() {
+        // Gate repo: mọi workflow (bước shell: cmd lẫn bash) không được có dạng E93.
+        let dir = repo_root().join(".github").join("workflows");
+        let mut bad = Vec::new();
+        for e in std::fs::read_dir(&dir).expect("đọc .github/workflows") {
+            let p = e.expect("entry").path();
+            if p.extension().and_then(|x| x.to_str()) != Some("yml") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&p).expect("đọc workflow");
+            for n in find_cmd_digit_redirect(&text) {
+                bad.push(format!("{}:{n}", p.display()));
+            }
+        }
+        assert!(bad.is_empty(), "E93: echo X=N>>file trong cmd là chuyển hướng handle N — dùng (echo X=N)>>file: {bad:?}");
     }
 }
