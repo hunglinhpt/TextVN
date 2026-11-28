@@ -45,16 +45,18 @@ trap cleanup EXIT
 # X11: xdotool (XTest) + clipboard (xclip). Wayland: wtype (virtual-keyboard-v1) + LƯU tệp (Ctrl+S)
 # rồi đọc `$T/doc.txt` — run 46126*: wl-paste trong Sway headless báo "Nothing is copied" kể cả khi
 # chưa có IM ⇒ không dựa vào clipboard trên Wayland.
+# Mỗi lệnh wtype tạo virtual-keyboard + keymap MỚI: `-s 300` chờ client GTK nhận keymap trước phím
+# (gợi ý claude-opus-7e41b2d9 sau job 140932417807: 'abc' → tệp 0 byte).
 # Dấu cách cuối cam kết từ đang soạn (preedit không có trong buffer của app).
 type_and_read() {
     local win="$1" keys="$2"
     if [[ -n "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
-        wtype -M ctrl a -m ctrl -k Delete
+        wtype -s 300 -M ctrl a -m ctrl -k Delete
         sleep 0.3
-        wtype -d 90 -- "$keys"
-        wtype -k space
+        wtype -s 300 -d 90 -- "$keys"
+        wtype -s 300 -k space
         sleep 0.6
-        wtype -M ctrl s -m ctrl
+        wtype -s 300 -M ctrl s -m ctrl
         sleep 0.8
         sed 's/[[:space:]]*$//' "$T/doc.txt" 2>/dev/null | tr -d '\n' || true
     else
@@ -255,6 +257,7 @@ P
                 echo "--- editor-sanity.log:"; tail -n 20 "$T/editor-sanity.log" || true
                 echo "--- sway seats: $(swaymsg -t get_seats 2>&1 | tr -d ' 
 ' | head -c 400)"
+                echo "--- sway.log (virtual/keyboard/seat):"; grep -iE 'virtual|keyboard|seat' "$T/sway.log" | tail -n 15 || true
                 echo "FAIL môi trường: phím wtype không tới Mousepad trong Sway headless (chưa có IM; tệp sau Ctrl+S: $(wc -c <"$T/doc.txt" 2>/dev/null) byte)" >&2
                 return 1
             fi
