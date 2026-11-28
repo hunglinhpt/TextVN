@@ -2060,7 +2060,10 @@ mod tests {
                         if last != Some(p) {
                             last = Some(p);
                             k += 1;
-                            if n_chars == 2 || k.is_multiple_of(7) {
+                            // `k % 7` thay `is_multiple_of` (Rust 1.87): ci-deb/ci-aur dùng rustc 1.85.
+                            #[allow(clippy::manual_is_multiple_of)]
+                            let sampled = k % 7 == 0;
+                            if n_chars == 2 || sampled {
                                 prefixes.push(p);
                             }
                         }
