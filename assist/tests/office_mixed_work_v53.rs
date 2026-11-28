@@ -301,7 +301,7 @@ fn v53_nfr_check_câu_văn_phòng_dưới_1ms() {
             panic!("{s:.30?}: {best:?}/call > trần mềm 1.4ms (hồi quy thật)");
         }
         if us > 1_000 {
-            println!("WARN nhiễu runner: {us} µs/call > ngân sách 1000 µs nhưng ≤ trần mềm 1400 µs");
+            println!("WARN nhiễu runner: {us} µs/call > 1000 µs, ≤ trần 1400 µs");
         }
     }
 }
