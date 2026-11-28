@@ -247,7 +247,9 @@ pub fn collect_report() -> DoctorReport {
     let hook_running = check_instance_mutex(r"Local\TextVNHookMutex");
     let tray_running = check_instance_mutex(r"Local\TextVNTray");
     let tip_registered = crate::register::tip_registration_ok();
-    let ctrl_shift_taken = crate::register::ctrl_shift_taken_by_windows();
+    // Windows: hotkey đổi bố cục; Linux: Fcitx5 5.0.x gắn Ctrl+Shift vào EnumerateForwardKeys (R2-175).
+    let ctrl_shift_taken =
+        crate::register::ctrl_shift_taken_by_windows().or_else(linux_fcitx5_ctrl_shift_taken);
     if cfg!(windows) && !tip_registered {
         let msg =
             "TSF TIP chưa đăng ký hoặc trỏ tới DLL không còn tồn tại — chạy `textvn-cli register`"
@@ -279,15 +281,25 @@ pub fn collect_report() -> DoctorReport {
                 .into(),
         });
     }
-    if cfg!(windows) && ctrl_shift_taken == Some(true) {
+    if ctrl_shift_taken == Some(true) {
+        // Cùng MỘT mã trên mọi OS (G22) — chỉ khác ai giữ phím và cách trả lại.
+        let (message, suggestion) = if cfg!(windows) {
+            (
+                "Windows đang giữ phím Ctrl+Shift để đổi bố cục bàn phím.",
+                "Bật 'Dành Ctrl + Shift cho TextVN' trong Bảng điều khiển hoặc chạy `TextVN.exe --free-ctrl-shift`.",
+            )
+        } else {
+            (
+                "Fcitx5 đang giữ phím Ctrl+Shift để đổi bộ gõ (Enumerate Input Method Forward/Backward — mặc định của Fcitx5 5.0.x trên Ubuntu 22.04, Mint 21, Debian 12): bấm Ctrl+Shift chỉ đổi sang keyboard-us, công tắc V/E của TextVN không chạy.",
+                "Mở `fcitx5-configtool` → Tuỳ chọn chung (Global Options) → xoá phím ở 'Enumerate Input Method Forward' và 'Backward' (hoặc thêm `[Hotkey/EnumerateForwardKeys]` và `[Hotkey/EnumerateBackwardKeys]` để trống vào `~/.config/fcitx5/config` rồi `fcitx5 -r`); hoặc dùng Ctrl+Shift+Space để bật/tắt tiếng Việt.",
+            )
+        };
         diagnostics.push(DiagnosticItem {
             code: "W_CTRL_SHIFT_TAKEN",
             severity: "warning",
             category: "conflict",
-            message: "Windows đang giữ phím Ctrl+Shift để đổi bố cục bàn phím.".into(),
-            suggestion:
-                "Bật 'Dành Ctrl + Shift cho TextVN' trong Bảng điều khiển hoặc chạy `TextVN.exe --free-ctrl-shift`."
-                    .into(),
+            message: message.into(),
+            suggestion: suggestion.into(),
         });
     }
 
@@ -416,9 +428,12 @@ impl DoctorReport {
             if let Some(taken) = self.ctrl_shift_taken {
                 println!(
                     "  Ctrl+Shift  : {}",
-                    if taken {
+                    if taken && cfg!(windows) {
                         "Windows đang dùng để đổi bàn phím — bật \"Dành Ctrl + Shift cho TextVN\" \
                          trong Bảng điều khiển (hoặc `TextVN.exe --free-ctrl-shift`)"
+                    } else if taken {
+                        "Fcitx5 đang dùng để đổi bộ gõ (R2-175) — xoá phím \"Enumerate Input Method \
+                         Forward/Backward\" trong fcitx5-configtool, hoặc dùng Ctrl+Shift+Space"
                     } else {
                         "dành cho TextVN"
                     }
@@ -1070,6 +1085,94 @@ pub fn detect_linux_im_env_mismatch(
             "fcitx5 đang chạy nhưng biến môi trường trỏ tới IBus (GTK={gtk_im}, QT={qt_im}, XMOD={xmod})"
         ));
     }
+    None
+}
+
+/// `fcitx5 --version` (vd "fcitx5 5.0.14", "5.1.7") → (major, minor, patch).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn parse_fcitx5_version(out: &str) -> Option<(u32, u32, u32)> {
+    out.split_whitespace().find_map(|tok| {
+        let mut it = tok.split('.').map(|p| p.parse::<u32>().ok());
+        let (a, b) = (it.next()??, it.next()??);
+        let c = it.next().flatten().unwrap_or(0);
+        Some((a, b, c))
+    })
+}
+
+/// Một phím Fcitx5 (`Control+Shift_L`, `Shift+Control_R`) chỉ gồm Ctrl + Shift — đúng công tắc V/E
+/// của TextVN.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn fcitx5_key_is_ctrl_shift(key: &str) -> bool {
+    let toks: Vec<&str> = key.split('+').map(str::trim).collect();
+    let ctrl = |t: &&str| matches!(*t, "Control" | "Ctrl" | "Control_L" | "Control_R");
+    let shift = |t: &&str| matches!(*t, "Shift" | "Shift_L" | "Shift_R");
+    !toks.is_empty()
+        && toks.iter().all(|t| ctrl(t) || shift(t))
+        && toks.iter().any(ctrl)
+        && toks.iter().any(shift)
+}
+
+/// R2-175 — Fcitx5 có giữ Ctrl+Shift (đổi input method / bật-tắt) TRƯỚC khi phím tới TextVN không?
+/// Fcitx5 5.0.x (Ubuntu 22.04, Mint 21, Debian 12) mặc định gắn Ctrl+Shift vào
+/// `EnumerateForwardKeys`/`EnumerateBackwardKeys` ⇒ Ctrl+Shift đổi `textvn` ⇄ `keyboard-us`, công tắc V/E
+/// của TextVN không chạy, `state.json` không đổi (bằng chứng CI ARM-L1). Fcitx5 ≥ 5.1 mặc định trống.
+/// `config_text` = nội dung `~/.config/fcitx5/config` (None = chưa có tệp ⇒ mặc định của phiên bản).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn fcitx5_ctrl_shift_taken(version_output: Option<&str>, config_text: Option<&str>) -> bool {
+    const ENUM: [&str; 2] = ["EnumerateForwardKeys", "EnumerateBackwardKeys"];
+    const OTHER: [&str; 4] = [
+        "TriggerKeys",
+        "AltTriggerKeys",
+        "EnumerateGroupForwardKeys",
+        "EnumerateGroupBackwardKeys",
+    ];
+    // Đọc các mục [Hotkey/<Tên>] → danh sách phím (mục có mặt mà rỗng = người dùng đã xoá phím).
+    let mut sections: Vec<(String, Vec<String>)> = Vec::new();
+    for line in config_text.unwrap_or("").lines() {
+        let l = line.trim();
+        if let Some(name) = l.strip_prefix("[Hotkey/").and_then(|r| r.strip_suffix(']')) {
+            sections.push((name.to_string(), Vec::new()));
+        } else if l.starts_with('[') {
+            sections.push((String::new(), Vec::new()));
+        } else if let (Some((_, keys)), Some((_, v))) = (sections.last_mut(), l.split_once('=')) {
+            keys.push(v.trim().to_string());
+        }
+    }
+    let explicit = |name: &str| sections.iter().find(|(n, _)| n == name).map(|(_, k)| k);
+    let old_defaults =
+        parse_fcitx5_version(version_output.unwrap_or("")).is_some_and(|(a, b, _)| (a, b) < (5, 1));
+    ENUM.iter().any(|n| match explicit(n) {
+        Some(keys) => keys.iter().any(|k| fcitx5_key_is_ctrl_shift(k)),
+        None => old_defaults,
+    }) || OTHER
+        .iter()
+        .any(|n| explicit(n).is_some_and(|keys| keys.iter().any(|k| fcitx5_key_is_ctrl_shift(k))))
+}
+
+/// R2-175 — đọc trạng thái Fcitx5 của máy (Linux): None khi không có Fcitx5.
+#[cfg(target_os = "linux")]
+fn linux_fcitx5_ctrl_shift_taken() -> Option<bool> {
+    if !command_on_path("fcitx5") {
+        return None;
+    }
+    let version = std::process::Command::new("fcitx5")
+        .arg("--version")
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned());
+    let cfg_dir = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+    let config = std::fs::read_to_string(cfg_dir.join("fcitx5/config")).ok();
+    Some(fcitx5_ctrl_shift_taken(
+        version.as_deref(),
+        config.as_deref(),
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn linux_fcitx5_ctrl_shift_taken() -> Option<bool> {
     None
 }
 
@@ -2736,6 +2839,58 @@ mod tests {
             detect_linux_im_env_mismatch(false, true, "fcitx", "fcitx", "@im=fcitx").is_none(),
             "Fcitx5 khớp biến môi trường không được báo nhầm"
         );
+    }
+
+    /// R2-175: Fcitx5 5.0.x mặc định giữ Ctrl+Shift (EnumerateForwardKeys); ≥ 5.1 mặc định trống; mục
+    /// đã sửa trong config thắng mặc định; Ctrl+Shift ở mục khác (TriggerKeys) cũng tính.
+    #[test]
+    fn r2_175_fcitx5_giu_ctrl_shift_theo_phien_ban_va_config() {
+        assert_eq!(
+            parse_fcitx5_version(
+                "fcitx5 5.0.14
+"
+            ),
+            Some((5, 0, 14))
+        );
+        assert_eq!(parse_fcitx5_version("5.1.7"), Some((5, 1, 7)));
+        assert_eq!(parse_fcitx5_version("không có"), None);
+        // Mặc định theo phiên bản (chưa có ~/.config/fcitx5/config).
+        assert!(fcitx5_ctrl_shift_taken(Some("fcitx5 5.0.14"), None));
+        assert!(!fcitx5_ctrl_shift_taken(Some("fcitx5 5.1.7"), None));
+        assert!(
+            !fcitx5_ctrl_shift_taken(None, None),
+            "không biết phiên bản ⇒ không báo bừa"
+        );
+        // Người dùng đã xoá phím (mục có mặt, rỗng) ⇒ không giữ, kể cả 5.0.x.
+        let cleared = "[Hotkey/EnumerateForwardKeys]
+
+[Hotkey/EnumerateBackwardKeys]
+";
+        assert!(!fcitx5_ctrl_shift_taken(Some("5.0.14"), Some(cleared)));
+        // Mục chỉ xoá một nửa: Backward vẫn theo mặc định 5.0.x.
+        assert!(fcitx5_ctrl_shift_taken(
+            Some("5.0.14"),
+            Some(
+                "[Hotkey/EnumerateForwardKeys]
+"
+            )
+        ));
+        // Ghi tường minh Ctrl+Shift ⇒ giữ, kể cả 5.1.
+        let explicit = "[Hotkey/EnumerateForwardKeys]
+0=Control+Shift_L
+";
+        assert!(fcitx5_ctrl_shift_taken(Some("5.1.7"), Some(explicit)));
+        let trigger = "[Hotkey/TriggerKeys]
+0=Shift+Control_R
+";
+        assert!(fcitx5_ctrl_shift_taken(Some("5.1.7"), Some(trigger)));
+        // Phím khác (Ctrl+Space, Super+Space) không phải công tắc của TextVN.
+        let other = "[Hotkey/TriggerKeys]
+0=Control+space
+[Hotkey/EnumerateForwardKeys]
+0=Super+space
+";
+        assert!(!fcitx5_ctrl_shift_taken(Some("5.1.7"), Some(other)));
     }
 
     #[test]
