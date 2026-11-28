@@ -37,6 +37,10 @@ for tool in pkgbuild productbuild installer shasum codesign; do
     command -v "$tool" >/dev/null 2>&1 || { echo "❌ thiếu công cụ: $tool" >&2; exit 1; }
 done
 
+# ARM-M1: hàm gate universal dùng chung từ build-macos.sh (G22 — một nguồn;
+# guard trong build-macos.sh chỉ chạy body build khi script được gọi trực tiếp).
+. "$ROOT/scripts/build-macos.sh"
+
 [ "$REBUILD" -eq 1 ] && "$ROOT/scripts/build-macos.sh"
 
 for bundle in "$STAGE_DIR/TextVN.app" "$STAGE_DIR/TextVN-IM.app"; do
@@ -64,10 +68,17 @@ for bundle in "$PKG_ROOT/Applications/TextVN.app" "$PKG_ROOT/Library/Input Metho
     codesign --verify --strict "$bundle"
 done
 
-# 3. Cảnh báo trung thực nếu bản build không universal (build-macos.sh đã in lý do).
-IM_BIN="$STAGE_DIR/TextVN-IM.app/Contents/MacOS/TextVN-IM"
-if [ -x "$IM_BIN" ] && ! lipo -archs "$IM_BIN" | grep -qE "arm64.*x86_64|x86_64.*arm64"; then
-    echo "⚠️  TextVN-IM KHÔNG universal ($(lipo -archs "$IM_BIN")) — .pkg chỉ chạy trên $(uname -m)" >&2
+# 3. ARM-M1 gate — quét MỌI Mach-O trong payload TRƯỚC khi đóng gói .pkg:
+#    thiếu slice arm64 hoặc x86_64 ⇒ đỏ (thay cảnh báo IM-only cũ — gate bao
+#    trùm mọi binary trong payload, không chỉ TextVN-IM).
+echo "=== ARM-M1 gate: universal arm64+x86_64 cho payload .pkg ==="
+_uni_ok=1
+textvn_uni_scan_dir "$PKG_ROOT/Applications/TextVN.app" || _uni_ok=0
+textvn_uni_scan_dir "$PKG_ROOT/Library/Input Methods/TextVN-IM.app" || _uni_ok=0
+if [ "$_uni_ok" -ne 1 ]; then
+    echo "❌ ARM-M1: payload .pkg chứa Mach-O không universal — KHÔNG đóng gói." >&2
+    echo "   Chạy lại scripts/build-macos.sh (đủ 2 target) rồi đóng gói lại." >&2
+    exit 1
 fi
 
 # 4. component pkg → distribution pkg (P2-4 §4: component-plist relocatable=false)

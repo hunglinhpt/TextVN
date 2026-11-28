@@ -2,6 +2,99 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # build-macos.sh — Automated build and packaging for macOS (Universal arm64 + x86_64)
 
+# ============================================================================
+# ARM-M1 — gate universal: MỌI Mach-O trong .app/.pkg phải có CẢ 2 slice
+# arm64 + x86_64 (lặp lỗi OpenKey #189 — binary 1 kiến trúc trôi vào bản phát
+# hành ⇒ đỏ). Hàm gate đặt MỘT nguồn ở đây (G22); `scripts/package-macos-pkg.sh`
+# và `scripts/test-macos-universal-gate.sh` `source` tệp này — guard dưới chỉ
+# cho chạy body build khi script được gọi trực tiếp.
+# Logic quyết định tách thuần để test được cả trên Windows (không có lipo):
+#   - textvn_uni_have_both_archs: parse chuỗi arch (đầu ra `lipo -archs`/`file`)
+#   - textvn_uni_is_macho:        nhận diện Mach-O qua magic 4 byte (`od` — có
+#                                 sẵn trên macOS lẫn Git Bash Windows)
+# Lấy arch: ưu tiên `lipo -archs` (đè được bằng TEXTVN_UNI_LIPO khi test),
+# không có lipo thì thử `file`. Không probe được ⇒ coi là KHÔNG đạt.
+# ============================================================================
+textvn_uni_have_both_archs() {
+    # $1 = chuỗi kiến trúc (vd "arm64 x86_64"). exit 0 = đủ cả hai slice.
+    local archs=" $1 "
+    case "$archs" in
+        *" arm64 "*) ;;
+        *) return 1 ;;
+    esac
+    case "$archs" in
+        *" x86_64 "*) ;;
+        *) return 1 ;;
+    esac
+    return 0
+}
+
+textvn_uni_is_macho() {
+    # exit 0 nếu 4 byte đầu là magic Mach-O / universal (fat) binary.
+    local f="$1" magic
+    magic="$(od -An -tx1 -N 4 "$f" 2>/dev/null | tr -d ' \n')"
+    case "$magic" in
+        cffaedfe|feedfacf|cefaedfe|feedface|cafebabe|bebafeca|cafebabf|bfbafeca) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+textvn_uni_archs_of() {
+    # In chuỗi arch của 1 Mach-O ra stdout; exit >0 nếu không probe được.
+    local f="$1" lipo_bin out
+    lipo_bin="${TEXTVN_UNI_LIPO:-lipo}"
+    if command -v "$lipo_bin" >/dev/null 2>&1; then
+        "$lipo_bin" -archs "$f" 2>/dev/null
+        return $?
+    fi
+    if command -v file >/dev/null 2>&1; then
+        out="$(file -b "$f" 2>/dev/null)" || return 2
+        case "$out" in
+            # vd "Mach-O universal binary with 2 architectures: [x86_64:…] [arm64:…]"
+            # → đổi ':[]()' thành khoảng trắng rồi đối chiếu từng từ.
+            *Mach-O*)
+                out="$(printf '%s' "$out" | sed 's/[][():]/ /g')"
+                printf '%s ' "$out"
+                return 0 ;;
+            *) return 2 ;;
+        esac
+    fi
+    return 2
+}
+
+textvn_uni_scan_dir() {
+    # Quét MỌI tệp Mach-O dưới $1; thiếu slice arm64 hoặc x86_64 ⇒ in danh sách
+    # tệp lỗi ra stderr và return 1 (caller quyết định exit 1).
+    local root="$1" f archs bad=0 count=0
+    if [ ! -d "$root" ]; then
+        echo "❌ ARM-M1 gate: không tìm thấy thư mục quét: $root" >&2
+        return 1
+    fi
+    while IFS= read -r -d '' f; do
+        textvn_uni_is_macho "$f" || continue
+        count=$((count + 1))
+        if ! archs="$(textvn_uni_archs_of "$f")"; then
+            echo "❌ ARM-M1 gate: không xác định được kiến trúc của Mach-O: $f" >&2
+            bad=1
+            continue
+        fi
+        if ! textvn_uni_have_both_archs "$archs"; then
+            echo "❌ ARM-M1 gate: Mach-O KHÔNG universal (cần arm64+x86_64, thực tế: $archs): $f" >&2
+            bad=1
+        fi
+    done < <(find "$root" -type f -print0)
+    if [ "$bad" -eq 1 ]; then
+        echo "❌ ARM-M1 gate: $root — $count Mach-O, có tệp không universal" >&2
+        return 1
+    fi
+    echo "✅ ARM-M1 gate: $root — $count Mach-O, đủ universal (arm64 + x86_64)"
+    return 0
+}
+
+# Khi được `source` (package-macos-pkg.sh / test fixture) — chỉ nạp hàm gate,
+# KHÔNG chạy body build dưới đây.
+[ "${BASH_SOURCE[0]}" = "$0" ] || return 0
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -148,6 +241,20 @@ fi
 
 # Info.plist phải hợp lệ trước khi ký/phát hành (plutil = gate rẻ, bắt lỗi XML)
 plutil -lint "$IM_BUNDLE/Contents/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
+
+# 5b. ARM-M1 gate — chặn trước khi ký: MỌI Mach-O trong 2 bundle phải universal.
+#     Build host-only (thiếu 1 rust target / swift 1 arch) ĐỎ ở đây — đúng ý:
+#     bản phát hành không được chứa binary 1 kiến trúc (OpenKey #189).
+echo "=== ARM-M1 gate: universal arm64+x86_64 cho mọi Mach-O trong .app ==="
+_uni_ok=1
+textvn_uni_scan_dir "$IM_BUNDLE" || _uni_ok=0
+textvn_uni_scan_dir "$APP_BUNDLE" || _uni_ok=0
+if [ "$_uni_ok" -ne 1 ]; then
+    echo "❌ ARM-M1: bundle chứa Mach-O thiếu slice arm64/x86_64 — KHÔNG ký, KHÔNG đóng gói." >&2
+    echo "   Cần build đủ 2 arch: rustup target add aarch64-apple-darwin x86_64-apple-darwin" >&2
+    echo "   + swift build --arch arm64 --arch x86_64 (build_swift tự thêm khi đủ 2 target)." >&2
+    exit 1
+fi
 
 # 6. Codesign (ad-hoc `-` khi không có cert · Developer ID khi có secret — R2-48)
 # KHÔNG dùng `--deep` (Apple deprecated): ký từng bundle với entitlements thật trong

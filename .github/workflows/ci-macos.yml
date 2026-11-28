@@ -42,6 +42,9 @@ on:
       - "scripts/install_macos.sh"
       - "scripts/uninstall_macos.sh"
       - "scripts/package-macos-pkg.sh"
+      # ARM-M1: self-test gate universal chay trong packaging-lint — sua script
+      # gate cung phai kich hoat ci-macos.
+      - "scripts/test-macos-universal-gate.sh"
       - "scripts/notarize-macos.sh"
       - "tools/mac/**"
       - "packaging/macos/**"
@@ -74,6 +77,9 @@ on:
       - "scripts/install_macos.sh"
       - "scripts/uninstall_macos.sh"
       - "scripts/package-macos-pkg.sh"
+      # ARM-M1: self-test gate universal chay trong packaging-lint — sua script
+      # gate cung phai kich hoat ci-macos.
+      - "scripts/test-macos-universal-gate.sh"
       - "scripts/notarize-macos.sh"
       - "tools/mac/**"
       - "packaging/macos/**"
@@ -119,6 +125,7 @@ jobs:
             scripts/uninstall_macos.sh \
             scripts/package-macos-pkg.sh \
             scripts/notarize-macos.sh \
+            scripts/test-macos-universal-gate.sh \
             packaging/macos/pkg-scripts/postinstall \
             packaging/macos/uninstall-check.sh \
             tools/mac/soak.sh \
@@ -138,12 +145,19 @@ jobs:
                  scripts/install_macos.sh scripts/uninstall_macos.sh
                  scripts/package-macos-pkg.sh packaging/macos/uninstall-check.sh
                  scripts/notarize-macos.sh packaging/macos/pkg-scripts/postinstall
+                 scripts/test-macos-universal-gate.sh
                  tools/mac/soak.sh tools/mac/smoke-imk.sh tools/mac/mem-check.sh'
           if printf '%s\n' $FILES | xargs grep -nE "$PATTERNS" ; then
             echo "::error::có cú pháp bash 4+ — macOS chỉ có bash 3.2"
             exit 1
           fi
           echo "ok  không có cú pháp bash 4+"
+
+      # ARM-M1: self-test + đột biến (D3) gate universal — fixture stub 1 arch
+      # phải ĐỎ (exit 1), fixture universal + file thường phải xanh. Chạy được
+      # trên bash 3.2 (không cần lipo — lipo giả qua TEXTVN_UNI_LIPO).
+      - name: Self-test + đột biến gate universal ARM-M1
+        run: scripts/test-macos-universal-gate.sh
 
       - name: plutil -lint + XML strict (plist + entitlements + component.plist)
         run: |
