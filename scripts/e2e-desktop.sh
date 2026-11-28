@@ -236,6 +236,24 @@ P
             # môi trường phiên vào môi trường kích hoạt D-Bus, và chờ tên bus mà KHÔNG kích hoạt.
             dbus-update-activation-environment WAYLAND_DISPLAY XDG_RUNTIME_DIR FCITX_ADDON_DIRS \
                 XDG_CONFIG_HOME XDG_DATA_HOME HOME GDK_BACKEND
+            # Kiểm đường môi trường TRƯỚC khi có IM (run 46125806626: cửa sổ Mousepad có + focus
+            # nhưng clipboard rỗng): gõ thô `abc` bằng wtype rồi đọc lại. Hỏng ở đây = lỗi
+            # wtype/clipboard của compositor headless, KHÔNG phải TextVN — báo đúng lớp.
+            : > "$T/doc.txt"
+            mousepad "$T/doc.txt" >"$T/editor-sanity.log" 2>&1 &
+            local mp_sanity=$!
+            sleep 3
+            local sanity
+            sanity="$(type_and_read - abc)"
+            echo "[e2e-desktop:$DE] kiểm môi trường (chưa IM): wtype 'abc' → '$sanity'"
+            if [[ "$sanity" != abc ]]; then
+                echo "--- sway app_ids: $(swaymsg -t get_tree 2>&1 | grep -o '"app_id": "[^"]*"' | tr '\n' ' ')"
+                echo "--- editor-sanity.log:"; tail -n 20 "$T/editor-sanity.log" || true
+                echo "FAIL môi trường: wtype/wl-paste không đi tới Mousepad trong Sway headless (chưa có IM)" >&2
+                return 1
+            fi
+            kill "$mp_sanity" 2>/dev/null || true
+            sleep 1
             fcitx5 --replace >"$T/fcitx5.log" 2>&1 &
             for _ in $(seq 1 50); do
                 dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus \
