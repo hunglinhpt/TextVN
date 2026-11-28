@@ -12,6 +12,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":6,"cmd":"set_preedit","text":"trắng","n":5}
 {"case":"shared/r2_simple_telex_horn_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":7,"cmd":"commit","text":"trắng ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":7,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":8,"cmd":"set_preedit","text":"m","n":1}
@@ -22,6 +23,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":11,"cmd":"set_preedit","text":"mờ","n":2}
 {"case":"shared/r2_simple_telex_horn_01","step":11,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":12,"cmd":"commit","text":"mờ ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":12,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":13,"cmd":"set_preedit","text":"t","n":1}
@@ -30,6 +32,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":15,"cmd":"set_preedit","text":"tư","n":2}
 {"case":"shared/r2_simple_telex_horn_01","step":15,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":16,"cmd":"commit","text":"tư ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":16,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":16,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":17,"cmd":"set_preedit","text":"m","n":1}
@@ -40,6 +43,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":19,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":20,"cmd":"set_preedit","text":"mưa","n":3}
 {"case":"shared/r2_simple_telex_horn_01","step":20,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":21,"cmd":"commit","text":"mưa ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":21,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":21,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":22,"cmd":"set_preedit","text":"n","n":1}
@@ -50,6 +54,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":24,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":25,"cmd":"set_preedit","text":"năm","n":3}
 {"case":"shared/r2_simple_telex_horn_01","step":25,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":26,"cmd":"commit","text":"năm ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":26,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":26,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":27,"cmd":"set_preedit","text":"c","n":1}
@@ -62,6 +67,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":30,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":31,"cmd":"set_preedit","text":"cửa","n":3}
 {"case":"shared/r2_simple_telex_horn_01","step":31,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":32,"cmd":"commit","text":"cửa ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":32,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":32,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":33,"cmd":"set_preedit","text":"d","n":1}
@@ -82,6 +88,7 @@
 {"case":"shared/r2_simple_telex_horn_01","step":40,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":41,"cmd":"set_preedit","text":"đường","n":5}
 {"case":"shared/r2_simple_telex_horn_01","step":41,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":42,"cmd":"commit","text":"đường ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":42,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":42,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":43,"cmd":"set_preedit","text":"n","n":1}
@@ -98,11 +105,13 @@
 {"case":"shared/r2_simple_telex_horn_01","step":48,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":49,"cmd":"set_preedit","text":"người","n":5}
 {"case":"shared/r2_simple_telex_horn_01","step":49,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":50,"cmd":"commit","text":"người ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":50,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":50,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":51,"cmd":"set_preedit","text":"w","n":1}
 {"case":"shared/r2_simple_telex_horn_01","step":51,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":52,"cmd":"set_preedit","text":"ww","n":2}
 {"case":"shared/r2_simple_telex_horn_01","step":52,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_simple_telex_horn_01","step":53,"cmd":"commit","text":"ww ","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":53,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_simple_telex_horn_01","step":53,"cmd":"eat_key","text":"","n":0}

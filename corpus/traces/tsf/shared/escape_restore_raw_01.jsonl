@@ -10,5 +10,6 @@
 {"case":"shared/escape_restore_raw_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/escape_restore_raw_01","step":5,"cmd":"set_preedit","text":"được","n":4}
 {"case":"shared/escape_restore_raw_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/escape_restore_raw_01","step":6,"cmd":"commit","text":"dduocj","n":0}
 {"case":"shared/escape_restore_raw_01","step":6,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/escape_restore_raw_01","step":6,"cmd":"eat_key","text":"","n":0}

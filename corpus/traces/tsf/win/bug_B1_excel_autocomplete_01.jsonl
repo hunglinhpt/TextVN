@@ -10,6 +10,7 @@
 {"case":"win/bug_B1_excel_autocomplete_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B1_excel_autocomplete_01","step":5,"cmd":"set_preedit","text":"tiền","n":4}
 {"case":"win/bug_B1_excel_autocomplete_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B1_excel_autocomplete_01","step":6,"cmd":"commit","text":"tiền ","n":0}
 {"case":"win/bug_B1_excel_autocomplete_01","step":6,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B1_excel_autocomplete_01","step":6,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B1_excel_autocomplete_01","step":7,"cmd":"set_preedit","text":"l","n":1}

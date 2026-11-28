@@ -8,6 +8,7 @@
 {"case":"win/bug_B2_teams_multiline_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_teams_multiline_01","step":4,"cmd":"set_preedit","text":"một","n":3}
 {"case":"win/bug_B2_teams_multiline_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B2_teams_multiline_01","step":5,"cmd":"commit","text":"một","n":0}
 {"case":"win/bug_B2_teams_multiline_01","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B2_teams_multiline_01","step":5,"cmd":"forward_key","text":"","n":0}
 {"case":"win/bug_B2_teams_multiline_01","step":6,"cmd":"set_preedit","text":"h","n":1}

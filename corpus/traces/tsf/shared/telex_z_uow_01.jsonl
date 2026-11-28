@@ -10,6 +10,7 @@
 {"case":"shared/telex_z_uow_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":5,"cmd":"set_preedit","text":"toan","n":4}
 {"case":"shared/telex_z_uow_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_z_uow_01","step":6,"cmd":"commit","text":"toan ","n":0}
 {"case":"shared/telex_z_uow_01","step":6,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":6,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":7,"cmd":"set_preedit","text":"n","n":1}
@@ -26,6 +27,7 @@
 {"case":"shared/telex_z_uow_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":13,"cmd":"set_preedit","text":"người","n":5}
 {"case":"shared/telex_z_uow_01","step":13,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_z_uow_01","step":14,"cmd":"commit","text":"người ","n":0}
 {"case":"shared/telex_z_uow_01","step":14,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":15,"cmd":"set_preedit","text":"t","n":1}
@@ -44,6 +46,7 @@
 {"case":"shared/telex_z_uow_01","step":21,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":22,"cmd":"set_preedit","text":"trường","n":6}
 {"case":"shared/telex_z_uow_01","step":22,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_z_uow_01","step":23,"cmd":"commit","text":"trường ","n":0}
 {"case":"shared/telex_z_uow_01","step":23,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":23,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":24,"cmd":"set_preedit","text":"g","n":1}
@@ -56,5 +59,6 @@
 {"case":"shared/telex_z_uow_01","step":27,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":28,"cmd":"set_preedit","text":"ghét","n":4}
 {"case":"shared/telex_z_uow_01","step":28,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_z_uow_01","step":29,"cmd":"commit","text":"ghét ","n":0}
 {"case":"shared/telex_z_uow_01","step":29,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_z_uow_01","step":29,"cmd":"eat_key","text":"","n":0}

@@ -10,5 +10,6 @@
 {"case":"shared/emoji_expand_smile_01","step":5,"cmd":"set_preedit","text":"smile","n":5}
 {"case":"shared/emoji_expand_smile_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/emoji_expand_smile_01","step":6,"cmd":"delete_before","text":"","n":1}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"commit","text":"😀","n":0}
 {"case":"shared/emoji_expand_smile_01","step":6,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/emoji_expand_smile_01","step":6,"cmd":"eat_key","text":"","n":0}

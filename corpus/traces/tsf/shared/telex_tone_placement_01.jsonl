@@ -6,6 +6,7 @@
 {"case":"shared/telex_tone_placement_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":3,"cmd":"set_preedit","text":"của","n":3}
 {"case":"shared/telex_tone_placement_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":4,"cmd":"commit","text":"của ","n":0}
 {"case":"shared/telex_tone_placement_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":5,"cmd":"set_preedit","text":"c","n":1}
@@ -18,6 +19,7 @@
 {"case":"shared/telex_tone_placement_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":9,"cmd":"set_preedit","text":"cửa","n":3}
 {"case":"shared/telex_tone_placement_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":10,"cmd":"commit","text":"cửa ","n":0}
 {"case":"shared/telex_tone_placement_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":11,"cmd":"set_preedit","text":"n","n":1}
@@ -32,6 +34,7 @@
 {"case":"shared/telex_tone_placement_01","step":15,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":16,"cmd":"set_preedit","text":"nghĩa","n":5}
 {"case":"shared/telex_tone_placement_01","step":16,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":17,"cmd":"commit","text":"nghĩa ","n":0}
 {"case":"shared/telex_tone_placement_01","step":17,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":17,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":18,"cmd":"set_preedit","text":"k","n":1}
@@ -42,6 +45,7 @@
 {"case":"shared/telex_tone_placement_01","step":20,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":21,"cmd":"set_preedit","text":"kìa","n":3}
 {"case":"shared/telex_tone_placement_01","step":21,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":22,"cmd":"commit","text":"kìa ","n":0}
 {"case":"shared/telex_tone_placement_01","step":22,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":22,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":23,"cmd":"set_preedit","text":"g","n":1}
@@ -54,6 +58,7 @@
 {"case":"shared/telex_tone_placement_01","step":26,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":27,"cmd":"set_preedit","text":"giáo","n":4}
 {"case":"shared/telex_tone_placement_01","step":27,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":28,"cmd":"commit","text":"giáo ","n":0}
 {"case":"shared/telex_tone_placement_01","step":28,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":28,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":29,"cmd":"set_preedit","text":"g","n":1}
@@ -68,6 +73,7 @@
 {"case":"shared/telex_tone_placement_01","step":33,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":34,"cmd":"set_preedit","text":"giữa","n":4}
 {"case":"shared/telex_tone_placement_01","step":34,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":35,"cmd":"commit","text":"giữa ","n":0}
 {"case":"shared/telex_tone_placement_01","step":35,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":35,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":36,"cmd":"set_preedit","text":"g","n":1}
@@ -80,6 +86,7 @@
 {"case":"shared/telex_tone_placement_01","step":39,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":40,"cmd":"set_preedit","text":"giờ","n":3}
 {"case":"shared/telex_tone_placement_01","step":40,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":41,"cmd":"commit","text":"giờ ","n":0}
 {"case":"shared/telex_tone_placement_01","step":41,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":41,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":42,"cmd":"set_preedit","text":"q","n":1}
@@ -90,6 +97,7 @@
 {"case":"shared/telex_tone_placement_01","step":44,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":45,"cmd":"set_preedit","text":"quý","n":3}
 {"case":"shared/telex_tone_placement_01","step":45,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":46,"cmd":"commit","text":"quý ","n":0}
 {"case":"shared/telex_tone_placement_01","step":46,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":46,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":47,"cmd":"set_preedit","text":"q","n":1}
@@ -102,6 +110,7 @@
 {"case":"shared/telex_tone_placement_01","step":50,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":51,"cmd":"set_preedit","text":"quở","n":3}
 {"case":"shared/telex_tone_placement_01","step":51,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":52,"cmd":"commit","text":"quở ","n":0}
 {"case":"shared/telex_tone_placement_01","step":52,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":52,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":53,"cmd":"set_preedit","text":"t","n":1}
@@ -116,6 +125,7 @@
 {"case":"shared/telex_tone_placement_01","step":57,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":58,"cmd":"set_preedit","text":"thuở","n":4}
 {"case":"shared/telex_tone_placement_01","step":58,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":59,"cmd":"commit","text":"thuở ","n":0}
 {"case":"shared/telex_tone_placement_01","step":59,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":59,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":60,"cmd":"set_preedit","text":"n","n":1}
@@ -130,6 +140,7 @@
 {"case":"shared/telex_tone_placement_01","step":64,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":65,"cmd":"set_preedit","text":"ngoài","n":5}
 {"case":"shared/telex_tone_placement_01","step":65,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":66,"cmd":"commit","text":"ngoài ","n":0}
 {"case":"shared/telex_tone_placement_01","step":66,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":66,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":67,"cmd":"set_preedit","text":"k","n":1}
@@ -142,6 +153,7 @@
 {"case":"shared/telex_tone_placement_01","step":70,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":71,"cmd":"set_preedit","text":"khuya","n":5}
 {"case":"shared/telex_tone_placement_01","step":71,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":72,"cmd":"commit","text":"khuya ","n":0}
 {"case":"shared/telex_tone_placement_01","step":72,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":72,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":73,"cmd":"set_preedit","text":"n","n":1}
@@ -156,5 +168,6 @@
 {"case":"shared/telex_tone_placement_01","step":77,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":78,"cmd":"set_preedit","text":"ngoèo","n":5}
 {"case":"shared/telex_tone_placement_01","step":78,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_tone_placement_01","step":79,"cmd":"commit","text":"ngoèo ","n":0}
 {"case":"shared/telex_tone_placement_01","step":79,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_tone_placement_01","step":79,"cmd":"eat_key","text":"","n":0}

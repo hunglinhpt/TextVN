@@ -6,5 +6,6 @@
 {"case":"win/bug_B2_telegram_enter_02","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_telegram_enter_02","step":3,"cmd":"set_preedit","text":"dzoi","n":4}
 {"case":"win/bug_B2_telegram_enter_02","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B2_telegram_enter_02","step":4,"cmd":"commit","text":"dzoi","n":0}
 {"case":"win/bug_B2_telegram_enter_02","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B2_telegram_enter_02","step":4,"cmd":"forward_key","text":"","n":0}

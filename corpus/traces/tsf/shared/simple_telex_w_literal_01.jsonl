@@ -4,6 +4,7 @@
 {"case":"shared/simple_telex_w_literal_01","step":1,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/simple_telex_w_literal_01","step":2,"cmd":"set_preedit","text":"tư","n":2}
 {"case":"shared/simple_telex_w_literal_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/simple_telex_w_literal_01","step":3,"cmd":"commit","text":"tư ","n":0}
 {"case":"shared/simple_telex_w_literal_01","step":3,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/simple_telex_w_literal_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/simple_telex_w_literal_01","step":4,"cmd":"set_preedit","text":"w","n":1}

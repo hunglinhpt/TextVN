@@ -4,6 +4,7 @@
 {"case":"win/restore_en_powershell_cmdlet_01","step":1,"cmd":"eat_key","text":"","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":2,"cmd":"set_preedit","text":"Get","n":3}
 {"case":"win/restore_en_powershell_cmdlet_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/restore_en_powershell_cmdlet_01","step":3,"cmd":"commit","text":"Get-","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":3,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":4,"cmd":"set_preedit","text":"P","n":1}
@@ -20,5 +21,6 @@
 {"case":"win/restore_en_powershell_cmdlet_01","step":9,"cmd":"eat_key","text":"","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":10,"cmd":"set_preedit","text":"Proces","n":6}
 {"case":"win/restore_en_powershell_cmdlet_01","step":10,"cmd":"eat_key","text":"","n":0}
+{"case":"win/restore_en_powershell_cmdlet_01","step":11,"cmd":"commit","text":"Process ","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":11,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/restore_en_powershell_cmdlet_01","step":11,"cmd":"eat_key","text":"","n":0}

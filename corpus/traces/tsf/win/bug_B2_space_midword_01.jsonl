@@ -12,6 +12,7 @@
 {"case":"win/bug_B2_space_midword_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_space_midword_01","step":6,"cmd":"set_preedit","text":"tiếng","n":5}
 {"case":"win/bug_B2_space_midword_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B2_space_midword_01","step":7,"cmd":"commit","text":"tiếng ","n":0}
 {"case":"win/bug_B2_space_midword_01","step":7,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B2_space_midword_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_space_midword_01","step":8,"cmd":"set_preedit","text":"v","n":1}

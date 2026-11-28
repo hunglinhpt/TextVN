@@ -8,5 +8,6 @@
 {"case":"win/restore_en_code_keyword_02","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/restore_en_code_keyword_02","step":4,"cmd":"set_preedit","text":"qwẻt","n":4}
 {"case":"win/restore_en_code_keyword_02","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/restore_en_code_keyword_02","step":5,"cmd":"commit","text":"qwert ","n":0}
 {"case":"win/restore_en_code_keyword_02","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/restore_en_code_keyword_02","step":5,"cmd":"eat_key","text":"","n":0}

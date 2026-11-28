@@ -6,6 +6,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":3,"cmd":"set_preedit","text":"sỏt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":4,"cmd":"commit","text":"sort ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":5,"cmd":"set_preedit","text":"p","n":1}
@@ -16,6 +17,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":8,"cmd":"set_preedit","text":"pỏt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":8,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":9,"cmd":"commit","text":"port ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":9,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":9,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":10,"cmd":"set_preedit","text":"p","n":1}
@@ -26,6 +28,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":13,"cmd":"set_preedit","text":"pảt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":13,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":14,"cmd":"commit","text":"part ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":14,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":15,"cmd":"set_preedit","text":"h","n":1}
@@ -36,6 +39,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":17,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":18,"cmd":"set_preedit","text":"hủt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":18,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":19,"cmd":"commit","text":"hurt ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":19,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":19,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":20,"cmd":"set_preedit","text":"c","n":1}
@@ -48,6 +52,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":23,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":24,"cmd":"set_preedit","text":"chảt","n":4}
 {"case":"shared/r2_stop_coda_tone_01","step":24,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":25,"cmd":"commit","text":"chart ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":25,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":25,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":26,"cmd":"set_preedit","text":"m","n":1}
@@ -58,6 +63,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":28,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":29,"cmd":"set_preedit","text":"mảt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":29,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":30,"cmd":"commit","text":"mart ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":30,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":30,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":31,"cmd":"set_preedit","text":"d","n":1}
@@ -68,6 +74,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":33,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":34,"cmd":"set_preedit","text":"dỉt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":34,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":35,"cmd":"commit","text":"dirt ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":35,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":35,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":36,"cmd":"set_preedit","text":"c","n":1}
@@ -78,6 +85,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":38,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":39,"cmd":"set_preedit","text":"cẻt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":39,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":40,"cmd":"commit","text":"cert ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":40,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":40,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":41,"cmd":"set_preedit","text":"t","n":1}
@@ -88,6 +96,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":43,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":44,"cmd":"set_preedit","text":"tẽt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":44,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":45,"cmd":"commit","text":"text ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":45,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":45,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":46,"cmd":"set_preedit","text":"n","n":1}
@@ -98,6 +107,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":48,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":49,"cmd":"set_preedit","text":"nẽt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":49,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":50,"cmd":"commit","text":"next ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":50,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":50,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":51,"cmd":"set_preedit","text":"a","n":1}
@@ -106,6 +116,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":52,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":53,"cmd":"set_preedit","text":"ảt","n":2}
 {"case":"shared/r2_stop_coda_tone_01","step":53,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":54,"cmd":"commit","text":"art ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":54,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":54,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":55,"cmd":"set_preedit","text":"c","n":1}
@@ -116,6 +127,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":57,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":58,"cmd":"set_preedit","text":"cảt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":58,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":59,"cmd":"commit","text":"cart ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":59,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":59,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":60,"cmd":"set_preedit","text":"k","n":1}
@@ -126,6 +138,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":62,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":63,"cmd":"set_preedit","text":"kêp","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":63,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":64,"cmd":"commit","text":"keep ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":64,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":64,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":65,"cmd":"set_preedit","text":"d","n":1}
@@ -136,6 +149,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":67,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":68,"cmd":"set_preedit","text":"dêp","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":68,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":69,"cmd":"commit","text":"deep ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":69,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":69,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":70,"cmd":"set_preedit","text":"b","n":1}
@@ -146,6 +160,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":72,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":73,"cmd":"set_preedit","text":"bôt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":73,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":74,"cmd":"commit","text":"boot ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":74,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":74,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":75,"cmd":"set_preedit","text":"m","n":1}
@@ -156,6 +171,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":77,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":78,"cmd":"set_preedit","text":"mêt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":78,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":79,"cmd":"commit","text":"meet ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":79,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":79,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":80,"cmd":"set_preedit","text":"t","n":1}
@@ -168,6 +184,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":83,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":84,"cmd":"set_preedit","text":"tốt","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":84,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":85,"cmd":"commit","text":"tốt ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":85,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":85,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":86,"cmd":"set_preedit","text":"h","n":1}
@@ -178,6 +195,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":88,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":89,"cmd":"set_preedit","text":"học","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":89,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":90,"cmd":"commit","text":"học ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":90,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":90,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":91,"cmd":"set_preedit","text":"i","n":1}
@@ -188,6 +206,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":93,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":94,"cmd":"set_preedit","text":"ích","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":94,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":95,"cmd":"commit","text":"ích ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":95,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":95,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":96,"cmd":"set_preedit","text":"d","n":1}
@@ -200,6 +219,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":99,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":100,"cmd":"set_preedit","text":"đẹp","n":3}
 {"case":"shared/r2_stop_coda_tone_01","step":100,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":101,"cmd":"commit","text":"đẹp ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":101,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":101,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":102,"cmd":"set_preedit","text":"v","n":1}
@@ -214,6 +234,7 @@
 {"case":"shared/r2_stop_coda_tone_01","step":106,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":107,"cmd":"set_preedit","text":"việt","n":4}
 {"case":"shared/r2_stop_coda_tone_01","step":107,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":108,"cmd":"commit","text":"việt ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":108,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":108,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":109,"cmd":"set_preedit","text":"s","n":1}
@@ -226,5 +247,6 @@
 {"case":"shared/r2_stop_coda_tone_01","step":112,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":113,"cmd":"set_preedit","text":"sách","n":4}
 {"case":"shared/r2_stop_coda_tone_01","step":113,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_stop_coda_tone_01","step":114,"cmd":"commit","text":"sách ","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":114,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_stop_coda_tone_01","step":114,"cmd":"eat_key","text":"","n":0}

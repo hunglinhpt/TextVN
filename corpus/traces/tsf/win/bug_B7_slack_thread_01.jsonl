@@ -12,6 +12,7 @@
 {"case":"win/bug_B7_slack_thread_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B7_slack_thread_01","step":6,"cmd":"set_preedit","text":"đồng","n":4}
 {"case":"win/bug_B7_slack_thread_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_slack_thread_01","step":7,"cmd":"commit","text":"đồng ","n":0}
 {"case":"win/bug_B7_slack_thread_01","step":7,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B7_slack_thread_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B7_slack_thread_01","step":8,"cmd":"set_preedit","text":"y","n":1}

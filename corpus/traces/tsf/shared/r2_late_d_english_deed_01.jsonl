@@ -6,6 +6,7 @@
 {"case":"shared/r2_late_d_english_deed_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":3,"cmd":"set_preedit","text":"đê","n":2}
 {"case":"shared/r2_late_d_english_deed_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":4,"cmd":"commit","text":"deed ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":5,"cmd":"set_preedit","text":"d","n":1}
@@ -18,6 +19,7 @@
 {"case":"shared/r2_late_d_english_deed_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":9,"cmd":"set_preedit","text":"đế","n":2}
 {"case":"shared/r2_late_d_english_deed_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":10,"cmd":"commit","text":"deeds ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":11,"cmd":"set_preedit","text":"d","n":1}
@@ -30,6 +32,7 @@
 {"case":"shared/r2_late_d_english_deed_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":15,"cmd":"set_preedit","text":"đoé","n":3}
 {"case":"shared/r2_late_d_english_deed_01","step":15,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":16,"cmd":"commit","text":"dosed ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":16,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":16,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":17,"cmd":"set_preedit","text":"d","n":1}
@@ -40,6 +43,7 @@
 {"case":"shared/r2_late_d_english_deed_01","step":19,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":20,"cmd":"set_preedit","text":"đê","n":2}
 {"case":"shared/r2_late_d_english_deed_01","step":20,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":21,"cmd":"commit","text":"đê ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":21,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":21,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":22,"cmd":"set_preedit","text":"d","n":1}
@@ -48,6 +52,7 @@
 {"case":"shared/r2_late_d_english_deed_01","step":23,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":24,"cmd":"set_preedit","text":"đe","n":2}
 {"case":"shared/r2_late_d_english_deed_01","step":24,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":25,"cmd":"commit","text":"đe ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":25,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":25,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":26,"cmd":"set_preedit","text":"d","n":1}
@@ -60,5 +65,6 @@
 {"case":"shared/r2_late_d_english_deed_01","step":29,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":30,"cmd":"set_preedit","text":"đề","n":2}
 {"case":"shared/r2_late_d_english_deed_01","step":30,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_late_d_english_deed_01","step":31,"cmd":"commit","text":"đề ","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":31,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_late_d_english_deed_01","step":31,"cmd":"eat_key","text":"","n":0}

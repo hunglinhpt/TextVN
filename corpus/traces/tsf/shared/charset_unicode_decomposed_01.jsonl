@@ -12,6 +12,7 @@
 {"case":"shared/charset_unicode_decomposed_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":6,"cmd":"set_preedit","text":"đượ","n":4}
 {"case":"shared/charset_unicode_decomposed_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/charset_unicode_decomposed_01","step":7,"cmd":"commit","text":"đượ ","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":7,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":8,"cmd":"set_preedit","text":"V","n":1}
@@ -26,6 +27,7 @@
 {"case":"shared/charset_unicode_decomposed_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":13,"cmd":"set_preedit","text":"Việt","n":5}
 {"case":"shared/charset_unicode_decomposed_01","step":13,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/charset_unicode_decomposed_01","step":14,"cmd":"commit","text":"Việt ","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":14,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":15,"cmd":"set_preedit","text":"N","n":1}
@@ -34,6 +36,7 @@
 {"case":"shared/charset_unicode_decomposed_01","step":16,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":17,"cmd":"set_preedit","text":"Nam","n":3}
 {"case":"shared/charset_unicode_decomposed_01","step":17,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/charset_unicode_decomposed_01","step":18,"cmd":"commit","text":"Nam ","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":18,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":18,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":19,"cmd":"set_preedit","text":"t","n":1}
@@ -50,5 +53,6 @@
 {"case":"shared/charset_unicode_decomposed_01","step":24,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":25,"cmd":"set_preedit","text":"tiếng","n":6}
 {"case":"shared/charset_unicode_decomposed_01","step":25,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/charset_unicode_decomposed_01","step":26,"cmd":"commit","text":"tieengs","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":26,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/charset_unicode_decomposed_01","step":26,"cmd":"eat_key","text":"","n":0}

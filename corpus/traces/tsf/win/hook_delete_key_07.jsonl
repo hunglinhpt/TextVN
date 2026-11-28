@@ -1,5 +1,6 @@
 {"case":"win/hook_delete_key_07","step":0,"cmd":"set_preedit","text":"a","n":1}
 {"case":"win/hook_delete_key_07","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/hook_delete_key_07","step":1,"cmd":"commit","text":"a","n":0}
 {"case":"win/hook_delete_key_07","step":1,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/hook_delete_key_07","step":1,"cmd":"forward_key","text":"","n":0}
 {"case":"win/hook_delete_key_07","step":2,"cmd":"forward_key","text":"","n":0}

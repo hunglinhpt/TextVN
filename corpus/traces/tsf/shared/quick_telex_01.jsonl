@@ -8,6 +8,7 @@
 {"case":"shared/quick_telex_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":4,"cmd":"set_preedit","text":"ngày","n":4}
 {"case":"shared/quick_telex_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/quick_telex_01","step":5,"cmd":"commit","text":"ngày ","n":0}
 {"case":"shared/quick_telex_01","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/quick_telex_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":6,"cmd":"set_preedit","text":"c","n":1}
@@ -20,6 +21,7 @@
 {"case":"shared/quick_telex_01","step":9,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":10,"cmd":"set_preedit","text":"cháo","n":4}
 {"case":"shared/quick_telex_01","step":10,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/quick_telex_01","step":11,"cmd":"commit","text":"cháo ","n":0}
 {"case":"shared/quick_telex_01","step":11,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/quick_telex_01","step":11,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":12,"cmd":"set_preedit","text":"t","n":1}
@@ -40,6 +42,7 @@
 {"case":"shared/quick_telex_01","step":19,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":20,"cmd":"set_preedit","text":"thường","n":6}
 {"case":"shared/quick_telex_01","step":20,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/quick_telex_01","step":21,"cmd":"commit","text":"thường ","n":0}
 {"case":"shared/quick_telex_01","step":21,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/quick_telex_01","step":21,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/quick_telex_01","step":22,"cmd":"set_preedit","text":"g","n":1}

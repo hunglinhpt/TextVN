@@ -8,6 +8,7 @@
 {"case":"shared/r2_switch_marks_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":4,"cmd":"set_preedit","text":"tờ","n":2}
 {"case":"shared/r2_switch_marks_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":5,"cmd":"commit","text":"tờ ","n":0}
 {"case":"shared/r2_switch_marks_01","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":6,"cmd":"set_preedit","text":"t","n":1}
@@ -26,6 +27,7 @@
 {"case":"shared/r2_switch_marks_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":13,"cmd":"set_preedit","text":"trắng","n":5}
 {"case":"shared/r2_switch_marks_01","step":13,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":14,"cmd":"commit","text":"trắng ","n":0}
 {"case":"shared/r2_switch_marks_01","step":14,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":14,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":15,"cmd":"set_preedit","text":"v","n":1}
@@ -38,6 +40,7 @@
 {"case":"shared/r2_switch_marks_01","step":18,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":19,"cmd":"set_preedit","text":"văn","n":3}
 {"case":"shared/r2_switch_marks_01","step":19,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":20,"cmd":"commit","text":"văn ","n":0}
 {"case":"shared/r2_switch_marks_01","step":20,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":20,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":21,"cmd":"set_preedit","text":"m","n":1}
@@ -54,6 +57,7 @@
 {"case":"shared/r2_switch_marks_01","step":26,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":27,"cmd":"set_preedit","text":"mượn","n":4}
 {"case":"shared/r2_switch_marks_01","step":27,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":28,"cmd":"commit","text":"mượn ","n":0}
 {"case":"shared/r2_switch_marks_01","step":28,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":28,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":29,"cmd":"set_preedit","text":"a","n":1}
@@ -64,6 +68,7 @@
 {"case":"shared/r2_switch_marks_01","step":31,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":32,"cmd":"set_preedit","text":"ây","n":2}
 {"case":"shared/r2_switch_marks_01","step":32,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":33,"cmd":"commit","text":"away ","n":0}
 {"case":"shared/r2_switch_marks_01","step":33,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":33,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":34,"cmd":"set_preedit","text":"t","n":1}
@@ -74,6 +79,7 @@
 {"case":"shared/r2_switch_marks_01","step":36,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":37,"cmd":"set_preedit","text":"tơ","n":2}
 {"case":"shared/r2_switch_marks_01","step":37,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":38,"cmd":"commit","text":"tơ ","n":0}
 {"case":"shared/r2_switch_marks_01","step":38,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":38,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":39,"cmd":"set_preedit","text":"a","n":1}
@@ -84,6 +90,7 @@
 {"case":"shared/r2_switch_marks_01","step":41,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":42,"cmd":"set_preedit","text":"ăn","n":2}
 {"case":"shared/r2_switch_marks_01","step":42,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":43,"cmd":"commit","text":"ăn ","n":0}
 {"case":"shared/r2_switch_marks_01","step":43,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":43,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":44,"cmd":"set_preedit","text":"m","n":1}
@@ -100,5 +107,6 @@
 {"case":"shared/r2_switch_marks_01","step":49,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":50,"cmd":"set_preedit","text":"mượn","n":4}
 {"case":"shared/r2_switch_marks_01","step":50,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_switch_marks_01","step":51,"cmd":"commit","text":"mượn ","n":0}
 {"case":"shared/r2_switch_marks_01","step":51,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_switch_marks_01","step":51,"cmd":"eat_key","text":"","n":0}

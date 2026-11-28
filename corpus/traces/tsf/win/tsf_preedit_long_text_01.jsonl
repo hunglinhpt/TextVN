@@ -8,6 +8,7 @@
 {"case":"win/tsf_preedit_long_text_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":4,"cmd":"set_preedit","text":"chúc","n":4}
 {"case":"win/tsf_preedit_long_text_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_long_text_01","step":5,"cmd":"commit","text":"chúc ","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":6,"cmd":"set_preedit","text":"m","n":1}
@@ -22,6 +23,7 @@
 {"case":"win/tsf_preedit_long_text_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":11,"cmd":"set_preedit","text":"mừng","n":4}
 {"case":"win/tsf_preedit_long_text_01","step":11,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_long_text_01","step":12,"cmd":"commit","text":"mừng ","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":12,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":12,"cmd":"eat_key","text":"","n":0}
 {"case":"win/tsf_preedit_long_text_01","step":13,"cmd":"set_preedit","text":"n","n":1}

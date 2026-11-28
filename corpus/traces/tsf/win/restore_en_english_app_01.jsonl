@@ -6,5 +6,6 @@
 {"case":"win/restore_en_english_app_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"win/restore_en_english_app_01","step":3,"cmd":"set_preedit","text":"àd","n":2}
 {"case":"win/restore_en_english_app_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/restore_en_english_app_01","step":4,"cmd":"commit","text":"asdf ","n":0}
 {"case":"win/restore_en_english_app_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/restore_en_english_app_01","step":4,"cmd":"eat_key","text":"","n":0}

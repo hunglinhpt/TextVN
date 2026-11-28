@@ -6,6 +6,7 @@
 {"case":"shared/caps_after_dot_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/caps_after_dot_01","step":3,"cmd":"set_preedit","text":"chao","n":4}
 {"case":"shared/caps_after_dot_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/caps_after_dot_01","step":4,"cmd":"commit","text":"chao.","n":0}
 {"case":"shared/caps_after_dot_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/caps_after_dot_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/caps_after_dot_01","step":5,"cmd":"forward_key","text":"","n":0}

@@ -4,6 +4,7 @@
 {"case":"win/bug_B8_powershell_01","step":1,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B8_powershell_01","step":2,"cmd":"set_preedit","text":"dỉ","n":2}
 {"case":"win/bug_B8_powershell_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_powershell_01","step":3,"cmd":"commit","text":"dir ","n":0}
 {"case":"win/bug_B8_powershell_01","step":3,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B8_powershell_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B8_powershell_01","step":4,"cmd":"set_preedit","text":"d","n":1}
@@ -14,5 +15,6 @@
 {"case":"win/bug_B8_powershell_01","step":6,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B8_powershell_01","step":7,"cmd":"set_preedit","text":"data","n":4}
 {"case":"win/bug_B8_powershell_01","step":7,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_powershell_01","step":8,"cmd":"commit","text":"data ","n":0}
 {"case":"win/bug_B8_powershell_01","step":8,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B8_powershell_01","step":8,"cmd":"eat_key","text":"","n":0}

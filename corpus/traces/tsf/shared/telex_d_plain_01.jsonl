@@ -6,6 +6,7 @@
 {"case":"shared/telex_d_plain_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":3,"cmd":"set_preedit","text":"dân","n":3}
 {"case":"shared/telex_d_plain_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_d_plain_01","step":4,"cmd":"commit","text":"dân ","n":0}
 {"case":"shared/telex_d_plain_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":5,"cmd":"set_preedit","text":"d","n":1}
@@ -16,6 +17,7 @@
 {"case":"shared/telex_d_plain_01","step":7,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":8,"cmd":"set_preedit","text":"dạy","n":3}
 {"case":"shared/telex_d_plain_01","step":8,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_d_plain_01","step":9,"cmd":"commit","text":"dạy ","n":0}
 {"case":"shared/telex_d_plain_01","step":9,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":9,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":10,"cmd":"set_preedit","text":"d","n":1}
@@ -32,6 +34,7 @@
 {"case":"shared/telex_d_plain_01","step":15,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":16,"cmd":"set_preedit","text":"được","n":4}
 {"case":"shared/telex_d_plain_01","step":16,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_d_plain_01","step":17,"cmd":"commit","text":"được ","n":0}
 {"case":"shared/telex_d_plain_01","step":17,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":17,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":18,"cmd":"set_preedit","text":"d","n":1}
@@ -44,6 +47,7 @@
 {"case":"shared/telex_d_plain_01","step":21,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":22,"cmd":"set_preedit","text":"dược","n":4}
 {"case":"shared/telex_d_plain_01","step":22,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_d_plain_01","step":23,"cmd":"commit","text":"dược ","n":0}
 {"case":"shared/telex_d_plain_01","step":23,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":23,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":24,"cmd":"set_preedit","text":"d","n":1}
@@ -60,5 +64,6 @@
 {"case":"shared/telex_d_plain_01","step":29,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":30,"cmd":"set_preedit","text":"dưới","n":4}
 {"case":"shared/telex_d_plain_01","step":30,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/telex_d_plain_01","step":31,"cmd":"commit","text":"dưới ","n":0}
 {"case":"shared/telex_d_plain_01","step":31,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/telex_d_plain_01","step":31,"cmd":"eat_key","text":"","n":0}

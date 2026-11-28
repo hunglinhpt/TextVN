@@ -10,6 +10,7 @@
 {"case":"shared/restore_en_vowel_w_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":5,"cmd":"set_preedit","text":"được","n":4}
 {"case":"shared/restore_en_vowel_w_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_vowel_w_01","step":6,"cmd":"commit","text":"được ","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":6,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":6,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":7,"cmd":"set_preedit","text":"s","n":1}
@@ -18,5 +19,6 @@
 {"case":"shared/restore_en_vowel_w_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":9,"cmd":"set_preedit","text":"să","n":2}
 {"case":"shared/restore_en_vowel_w_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_vowel_w_01","step":10,"cmd":"commit","text":"saw ","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/restore_en_vowel_w_01","step":10,"cmd":"eat_key","text":"","n":0}

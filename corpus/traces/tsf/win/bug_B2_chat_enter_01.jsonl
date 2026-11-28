@@ -8,6 +8,7 @@
 {"case":"win/bug_B2_chat_enter_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":4,"cmd":"set_preedit","text":"chào","n":4}
 {"case":"win/bug_B2_chat_enter_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B2_chat_enter_01","step":5,"cmd":"commit","text":"chào ","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":6,"cmd":"set_preedit","text":"b","n":1}
@@ -18,5 +19,6 @@
 {"case":"win/bug_B2_chat_enter_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":9,"cmd":"set_preedit","text":"bạn","n":3}
 {"case":"win/bug_B2_chat_enter_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B2_chat_enter_01","step":10,"cmd":"commit","text":"bạn","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B2_chat_enter_01","step":10,"cmd":"forward_key","text":"","n":0}

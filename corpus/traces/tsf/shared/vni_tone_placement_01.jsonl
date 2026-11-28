@@ -6,6 +6,7 @@
 {"case":"shared/vni_tone_placement_01","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":3,"cmd":"set_preedit","text":"của","n":3}
 {"case":"shared/vni_tone_placement_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":4,"cmd":"commit","text":"của ","n":0}
 {"case":"shared/vni_tone_placement_01","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":4,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":5,"cmd":"set_preedit","text":"n","n":1}
@@ -20,6 +21,7 @@
 {"case":"shared/vni_tone_placement_01","step":9,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":10,"cmd":"set_preedit","text":"nghĩa","n":5}
 {"case":"shared/vni_tone_placement_01","step":10,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":11,"cmd":"commit","text":"nghĩa ","n":0}
 {"case":"shared/vni_tone_placement_01","step":11,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":11,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":12,"cmd":"set_preedit","text":"g","n":1}
@@ -32,6 +34,7 @@
 {"case":"shared/vni_tone_placement_01","step":15,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":16,"cmd":"set_preedit","text":"giáo","n":4}
 {"case":"shared/vni_tone_placement_01","step":16,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":17,"cmd":"commit","text":"giáo ","n":0}
 {"case":"shared/vni_tone_placement_01","step":17,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":17,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":18,"cmd":"set_preedit","text":"g","n":1}
@@ -46,6 +49,7 @@
 {"case":"shared/vni_tone_placement_01","step":22,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":23,"cmd":"set_preedit","text":"giữa","n":4}
 {"case":"shared/vni_tone_placement_01","step":23,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":24,"cmd":"commit","text":"giữa ","n":0}
 {"case":"shared/vni_tone_placement_01","step":24,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":24,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":25,"cmd":"set_preedit","text":"q","n":1}
@@ -56,6 +60,7 @@
 {"case":"shared/vni_tone_placement_01","step":27,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":28,"cmd":"set_preedit","text":"quý","n":3}
 {"case":"shared/vni_tone_placement_01","step":28,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":29,"cmd":"commit","text":"quý ","n":0}
 {"case":"shared/vni_tone_placement_01","step":29,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":29,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":30,"cmd":"set_preedit","text":"q","n":1}
@@ -68,6 +73,7 @@
 {"case":"shared/vni_tone_placement_01","step":33,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":34,"cmd":"set_preedit","text":"quở","n":3}
 {"case":"shared/vni_tone_placement_01","step":34,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":35,"cmd":"commit","text":"quở ","n":0}
 {"case":"shared/vni_tone_placement_01","step":35,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":35,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":36,"cmd":"set_preedit","text":"t","n":1}
@@ -82,6 +88,7 @@
 {"case":"shared/vni_tone_placement_01","step":40,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":41,"cmd":"set_preedit","text":"thuở","n":4}
 {"case":"shared/vni_tone_placement_01","step":41,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":42,"cmd":"commit","text":"thuở ","n":0}
 {"case":"shared/vni_tone_placement_01","step":42,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":42,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":43,"cmd":"set_preedit","text":"d","n":1}
@@ -100,5 +107,6 @@
 {"case":"shared/vni_tone_placement_01","step":49,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":50,"cmd":"set_preedit","text":"được","n":4}
 {"case":"shared/vni_tone_placement_01","step":50,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/vni_tone_placement_01","step":51,"cmd":"commit","text":"được ","n":0}
 {"case":"shared/vni_tone_placement_01","step":51,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/vni_tone_placement_01","step":51,"cmd":"eat_key","text":"","n":0}

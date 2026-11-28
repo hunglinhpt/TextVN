@@ -6,5 +6,6 @@
 {"case":"win/tsf_preedit_punctuation_05","step":2,"cmd":"eat_key","text":"","n":0}
 {"case":"win/tsf_preedit_punctuation_05","step":3,"cmd":"set_preedit","text":"xong","n":4}
 {"case":"win/tsf_preedit_punctuation_05","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_punctuation_05","step":4,"cmd":"commit","text":"xong.","n":0}
 {"case":"win/tsf_preedit_punctuation_05","step":4,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/tsf_preedit_punctuation_05","step":4,"cmd":"eat_key","text":"","n":0}

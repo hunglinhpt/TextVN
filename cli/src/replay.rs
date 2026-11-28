@@ -985,9 +985,11 @@ impl Sim {
             );
         }
         if plan.end {
-            // P0-6 §3: commit TRƯỚC khi ẩn preedit.
-            if !next_str.is_empty() {
-                self.emit_trace("commit", next_str, 0);
+            // P0-6 §3: commit TRƯỚC khi ẩn preedit. `text_after` trả rỗng khi `plan.end`,
+            // nên chuỗi commit lấy từ `plan.text` (hoặc `current` nếu giữ nguyên).
+            let commit_str: String = plan.text.as_deref().unwrap_or(&current).iter().collect();
+            if !commit_str.is_empty() {
+                self.emit_trace("commit", commit_str, 0);
             }
             if !current.is_empty() {
                 self.emit_trace("set_preedit", String::new(), 0);
@@ -2060,6 +2062,14 @@ mod tests {
         assert!(
             saw_commit_then_hide,
             "test phải chạm nhánh commit -> ẩn preedit trên cùng step"
+        );
+        // Step 6 (Space kết thúc "được" trong `apply_tsf`) bắt buộc phát `commit` TRƯỚC `set_preedit("", 0)`.
+        assert!(
+            per_step[&6]
+                .iter()
+                .any(|(c, t, _)| c == "commit" && t == "được "),
+            "step 6 phải commit 'được ' khi kết thúc composition: {:?}",
+            per_step[&6]
         );
     }
 

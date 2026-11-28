@@ -4,6 +4,7 @@
 {"case":"shared/macro_vi_off_01","step":1,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":2,"cmd":"set_preedit","text":"xin","n":3}
 {"case":"shared/macro_vi_off_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/macro_vi_off_01","step":3,"cmd":"commit","text":"xin ","n":0}
 {"case":"shared/macro_vi_off_01","step":3,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":4,"cmd":"set_preedit","text":"v","n":1}
@@ -18,12 +19,14 @@
 {"case":"shared/macro_vi_off_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":9,"cmd":"set_preedit","text":"vieetj","n":6}
 {"case":"shared/macro_vi_off_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/macro_vi_off_01","step":10,"cmd":"commit","text":"vieetj ","n":0}
 {"case":"shared/macro_vi_off_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":11,"cmd":"set_preedit","text":"v","n":1}
 {"case":"shared/macro_vi_off_01","step":11,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":12,"cmd":"set_preedit","text":"vn","n":2}
 {"case":"shared/macro_vi_off_01","step":12,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/macro_vi_off_01","step":13,"cmd":"commit","text":"Việt Nam","n":0}
 {"case":"shared/macro_vi_off_01","step":13,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":13,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/macro_vi_off_01","step":14,"cmd":"forward_key","text":"","n":0}

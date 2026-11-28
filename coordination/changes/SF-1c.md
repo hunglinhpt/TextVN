@@ -53,7 +53,10 @@ Tiếp quản phần còn dở của `SF-1c` (`claude-opus-continue1` hết hạ
   - Hoán đổi tạm thứ tự `set_preedit("", 0)` lên trước `commit` trong `Sim::tsf_end` (`cli/src/replay.rs`) → chạy `cargo test -p textvn-cli sf_1c_trace_tsf_tat_dinh_va_bat_bien_lenh` → **FAIL** với mã thoát 1 (`step 8: commit phải đứng TRƯỚC ẩn preedit`); hoàn nguyên → **74/74 PASS**.
 - `cargo run -q -p xtask -- hygiene-docs` và `hygiene-secrets` → PASS.
 
-### 3. Giới hạn phạm vi
+### 3. Sửa bổ sung sau đối chiếu chéo (SF-1f)
+- Sửa `Sim::apply_tsf` (`cli/src/replay.rs`): khi `plan.end == true`, `text_after()` cố ý trả `Vec` rỗng nên vết trước đây bỏ sót lệnh `commit` lúc đóng composition; đã chuyển sang lấy chuỗi commit từ `plan.text.as_deref().unwrap_or(&current)`, bổ sung assertion cho step 6 trong `sf_1c_trace_tsf_tat_dinh_va_bat_bien_lenh`, và sinh lại đủ 136 tệp `.jsonl` trong `corpus/traces/tsf/`.
+
+### 4. Giới hạn phạm vi
 - Vết trong `corpus/traces/tsf/` phản ánh bộ mô phỏng Rust TSF (`plan_key` + `Sim::apply_tsf`). Đối chiếu 3 nền tảng (TSF / Linux C `SF-1d` / macOS Swift `SF-1e`) thuộc phạm vi `SF-1f` (`xtask trace-diff`).
 
 ---
@@ -104,5 +107,8 @@ Completed `SF-1c` (taking over stalled assignment after `claude-opus-continue1` 
   - Temporarily swapped `set_preedit("", 0)` before `commit` in `Sim::tsf_end` (`cli/src/replay.rs`) → `cargo test -p textvn-cli sf_1c_trace_tsf_tat_dinh_va_bat_bien_lenh` **FAILED** with exit code 1 (`step 8: commit phải đứng TRƯỚC ẩn preedit`); reverted → **74/74 PASS**.
 - `cargo run -q -p xtask -- hygiene-docs` and `hygiene-secrets` → PASS.
 
-### 3. Scope Limits
+### 3. Post-Comparison Bug Fix (during SF-1f)
+- Fixed `Sim::apply_tsf` (`cli/src/replay.rs`): when `plan.end == true`, `text_after()` intentionally returns an empty vector, which previously caused `commit` events on composition end to be omitted; updated to read committed text from `plan.text.as_deref().unwrap_or(&current)`, tightened `sf_1c_trace_tsf_tat_dinh_va_bat_bien_lenh` step 6 assertions, and regenerated all 136 golden `.jsonl` files under `corpus/traces/tsf/`.
+
+### 4. Scope Limits
 - Traces in `corpus/traces/tsf/` capture the Rust TSF replay simulator (`plan_key` + `Sim::apply_tsf`). Cross-adapter trace diffing against Linux C (`SF-1d`) and macOS Swift (`SF-1e`) is the scope of `SF-1f` (`xtask trace-diff`).

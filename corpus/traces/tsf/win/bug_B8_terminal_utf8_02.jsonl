@@ -8,6 +8,7 @@
 {"case":"win/bug_B8_terminal_utf8_02","step":3,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B8_terminal_utf8_02","step":4,"cmd":"set_preedit","text":"chào","n":4}
 {"case":"win/bug_B8_terminal_utf8_02","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_terminal_utf8_02","step":5,"cmd":"commit","text":"chào ","n":0}
 {"case":"win/bug_B8_terminal_utf8_02","step":5,"cmd":"set_preedit","text":"","n":0}
 {"case":"win/bug_B8_terminal_utf8_02","step":5,"cmd":"eat_key","text":"","n":0}
 {"case":"win/bug_B8_terminal_utf8_02","step":6,"cmd":"set_preedit","text":"b","n":1}

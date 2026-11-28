@@ -18,6 +18,7 @@
 {"case":"shared/r2_vni_zero_tone_only_01","step":8,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":9,"cmd":"set_preedit","text":"đương","n":5}
 {"case":"shared/r2_vni_zero_tone_only_01","step":9,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_vni_zero_tone_only_01","step":10,"cmd":"commit","text":"đương ","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":10,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":10,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":11,"cmd":"set_preedit","text":"t","n":1}
@@ -32,6 +33,7 @@
 {"case":"shared/r2_vni_zero_tone_only_01","step":15,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":16,"cmd":"set_preedit","text":"tôi","n":3}
 {"case":"shared/r2_vni_zero_tone_only_01","step":16,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_vni_zero_tone_only_01","step":17,"cmd":"commit","text":"tôi ","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":17,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":17,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":18,"cmd":"set_preedit","text":"0","n":1}
@@ -42,6 +44,7 @@
 {"case":"shared/r2_vni_zero_tone_only_01","step":20,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":21,"cmd":"set_preedit","text":"0912","n":4}
 {"case":"shared/r2_vni_zero_tone_only_01","step":21,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_vni_zero_tone_only_01","step":22,"cmd":"commit","text":"0912 ","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":22,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":22,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":23,"cmd":"set_preedit","text":"2","n":1}
@@ -50,5 +53,6 @@
 {"case":"shared/r2_vni_zero_tone_only_01","step":24,"cmd":"eat_key","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":25,"cmd":"set_preedit","text":"200","n":3}
 {"case":"shared/r2_vni_zero_tone_only_01","step":25,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/r2_vni_zero_tone_only_01","step":26,"cmd":"commit","text":"200 ","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":26,"cmd":"set_preedit","text":"","n":0}
 {"case":"shared/r2_vni_zero_tone_only_01","step":26,"cmd":"eat_key","text":"","n":0}
