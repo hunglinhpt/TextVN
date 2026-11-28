@@ -15,6 +15,7 @@ textvn-assist = { path = "../../assist" }
 textvn-config = { path = "../../config" }
 textvn-field-detect = { path = "../../field-detect" }
 textvn-ffi = { path = "../../ffi" }
+textvn-session = { path = "../../session" }
 textvn-strategy = { path = "../../strategy" }
 serde_json = { workspace = true }
 

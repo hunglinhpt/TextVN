@@ -8,14 +8,12 @@
 //! ghost, trợ lý, field, ipc) sẽ nằm ở crate này — adapter KHÔNG ra quyết định nghiệp vụ
 //! (P0-6 §2, G22).
 //!
-//! # Trạng thái hiện tại (SF-1a — khung đầu)
+//! # Trạng thái hiện tại (SF-2 — toggle + batch)
 //!
-//! Chưa có logic nghiệp vụ thật (SF-2 trở đi mới chuyển toggle/batch/compose/… vào).
-//! Hợp đồng của khung rỗng:
-//!
-//! - [`SessionEvent::KeyDown`] ⇒ đúng một [`SessionCommand::ForwardKey`] (phím đi thẳng
-//!   app, session không ăn).
-//! - Mọi [`SessionEvent`] khác ⇒ danh sách lệnh rỗng.
+//! Đã hợp nhất khối `toggle` ([`toggle::ToggleState`]) và `batch` ([`batch::EditBatch`])
+//! theo P0-6 §5; luật compose/ghost/assist/field còn lại chuyển tiếp ở SF-3..SF-7.
+//! Hợp đồng phím thường vẫn trả [`SessionCommand::ForwardKey`], riêng tổ hợp chuyển
+//! Việt/Anh (`Ctrl+Shift` nhấn-thả hoặc `Ctrl+Shift+Space`) phát [`SessionCommand::ModeIndicator`].
 //!
 //! # Bất biến kiến trúc (P0-6 §2 — giữ nguyên trong mọi SF-*)
 //!
@@ -37,6 +35,12 @@
 //!   [`SessionCommand::EatKey`].
 //! - Ô `secure` ⇒ không `Ghost`, không `AssistShow`, không IPC chứa chữ (S3).
 #![forbid(unsafe_code)]
+
+pub mod batch;
+pub mod toggle;
+
+pub use batch::{EditBatch, EDIT_BATCH_MAX_BYTES};
+pub use toggle::{ToggleOutcome, ToggleState, CTRL_TAP_MAX_MS, TOGGLE_DEBOUNCE_MS};
 
 /// Năng lực adapter khai báo cho session — session chỉ ra lệnh adapter làm được
 /// (P0-6 §3). Mỗi adapter lập một `Caps` khi tạo session theo nền tảng của nó.
@@ -351,19 +355,28 @@ impl IntoIterator for Commands {
 /// Session nghiệp vụ của MỘT ô nhập (P0-6 §0/§2). Không I/O, không thread,
 /// không đồng hồ; một session sống đúng một luồng của context.
 ///
-/// SF-1a: khung rỗng — [`Session::event`] trả [`SessionCommand::ForwardKey`]
-/// cho mỗi [`SessionEvent::KeyDown`] và rỗng cho mọi event khác. SF-2+ chuyển
-/// toggle/batch/compose/ghost/assist vào đây theo P0-6 §5.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Từ SF-2: quản lý trạng thái chuyển Việt/Anh (`Ctrl+Shift` / `Ctrl+Shift+Space` /
+/// standalone `Ctrl` tap) và [`EditBatch`] tuân thủ R2-165/R2-167.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Session {
     caps: Caps,
+    toggle: ToggleState,
+    vi_on: bool,
+    last_toggle_outcome: ToggleOutcome,
+    batch: EditBatch,
 }
 
 impl Session {
-    /// Tạo session cho một ô nhập với năng lực adapter khai báo.
+    /// Tạo session cho một ô nhập với năng lực adapter khai báo (mặc định bật tiếng Việt).
     #[must_use]
     pub fn new(caps: Caps) -> Self {
-        Self { caps }
+        Self {
+            caps,
+            toggle: ToggleState::new(),
+            vi_on: true,
+            last_toggle_outcome: ToggleOutcome::None,
+            batch: EditBatch::new(),
+        }
     }
 
     /// Năng lực adapter đang khai báo cho session này.
@@ -372,15 +385,69 @@ impl Session {
         self.caps
     }
 
+    /// Chế độ tiếng Việt hiện tại của session.
+    #[must_use]
+    pub fn vi_on(&self) -> bool {
+        self.vi_on
+    }
+
+    /// Kết quả toggle/Ctrl-tap của sự kiện gần nhất.
+    #[must_use]
+    pub fn last_toggle_outcome(&self) -> ToggleOutcome {
+        self.last_toggle_outcome
+    }
+
+    /// Xem trạng thái toggle (phục vụ shadow-check không sửa state).
+    #[must_use]
+    pub fn toggle_state(&self) -> &ToggleState {
+        &self.toggle
+    }
+
+    /// Truy cập [`EditBatch`] để gom/xả chỉnh sửa của một sự kiện (SF-2/SF-3).
+    pub fn batch_mut(&mut self) -> &mut EditBatch {
+        &mut self.batch
+    }
+
     /// Đưa một sự kiện vào session, nhận chuỗi lệnh để adapter áp.
     ///
-    /// Hợp đồng khung rỗng (SF-1a): `KeyDown` ⇒ đúng một `ForwardKey`; event
-    /// khác ⇒ chuỗi rỗng. Tất định: cùng event stream ⇒ cùng chuỗi lệnh.
+    /// Tất định: cùng event stream ⇒ cùng chuỗi lệnh.
     pub fn event(&mut self, event: SessionEvent<'_>) -> Commands {
         let mut out = Commands::new();
-        if let SessionEvent::KeyDown { .. } = event {
-            // Khung rỗng chưa có logic ăn phím nào — trả phím cho app.
-            out.push(SessionCommand::ForwardKey);
+        match event {
+            SessionEvent::KeyDown {
+                vk, mods, now_ms, ..
+            } => {
+                let outcome = self.toggle.on_key_down(vk, mods, now_ms);
+                self.last_toggle_outcome = outcome;
+                if toggle::is_toggle_chord(vk, mods) {
+                    if outcome == ToggleOutcome::ToggleViEn {
+                        self.vi_on = !self.vi_on;
+                        out.push(SessionCommand::ModeIndicator { vi_on: self.vi_on });
+                    }
+                    out.push(SessionCommand::EatKey);
+                } else {
+                    out.push(SessionCommand::ForwardKey);
+                }
+            }
+            SessionEvent::KeyUp { vk, now_ms, .. } => {
+                let outcome = self.toggle.on_key_up(vk, now_ms);
+                self.last_toggle_outcome = outcome;
+                if outcome == ToggleOutcome::ToggleViEn {
+                    self.vi_on = !self.vi_on;
+                    out.push(SessionCommand::ModeIndicator { vi_on: self.vi_on });
+                }
+            }
+            SessionEvent::FocusOut | SessionEvent::Reset { .. } => {
+                self.toggle.reset();
+                self.last_toggle_outcome = ToggleOutcome::None;
+            }
+            SessionEvent::Ipc(textvn_ipc::Message::ToggleViEn { app_id, enabled })
+            | SessionEvent::Ipc(textvn_ipc::Message::StateUpdate {
+                app_id, enabled, ..
+            }) if app_id == "*" => {
+                self.vi_on = enabled;
+            }
+            _ => {}
         }
         out
     }

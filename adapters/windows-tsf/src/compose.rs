@@ -962,6 +962,101 @@ mod tests {
     }
 
     #[test]
+    fn sf2_shadow_parity_tsf_modifier_toggle_vs_session() {
+        use textvn_session::{
+            toggle::VK_LCONTROL, Caps, Session, SessionCommand, SessionEvent, ToggleOutcome,
+            CTRL_TAP_MAX_MS,
+        };
+
+        /// Mã cũ (`ModifierToggle`) và session chạy song song trên cùng chuỗi phím.
+        struct Pair {
+            t: ModifierToggle,
+            s: Session,
+            t0: std::time::Instant,
+            mismatches: u32,
+        }
+
+        impl Pair {
+            fn down(&mut self, vk: u32, ctrl: bool, shift: bool, alt_win: bool, ms: u64) {
+                self.t.on_key_down(vk, ctrl, shift, alt_win);
+                self.t
+                    .mark_ctrl_down(self.t0 + std::time::Duration::from_millis(ms));
+                let mods = if ctrl { 0x2 } else { 0 }
+                    | if shift { 0x1 } else { 0 }
+                    | if alt_win { 0x4 } else { 0 };
+                self.s.event(SessionEvent::KeyDown {
+                    vk,
+                    ch: 0,
+                    mods,
+                    now_ms: ms,
+                });
+            }
+
+            fn up(&mut self, vk: u32, ms: u64) {
+                let fire = self.t.on_key_up(vk);
+                let too_long = self
+                    .t
+                    .ctrl_held_too_long(self.t0 + std::time::Duration::from_millis(ms));
+                let ctrl_tap = !fire && self.t.on_ctrl_tap_up(vk) && !too_long;
+                let cmds = self.s.event(SessionEvent::KeyUp {
+                    vk,
+                    mods: 0,
+                    now_ms: ms,
+                });
+                let s_fire = cmds
+                    .as_slice()
+                    .iter()
+                    .any(|c| matches!(c, SessionCommand::ModeIndicator { .. }));
+                let s_ctrl_tap = self.s.last_toggle_outcome() == ToggleOutcome::CtrlTap;
+                if s_fire != fire || s_ctrl_tap != ctrl_tap {
+                    self.mismatches += 1;
+                }
+            }
+        }
+
+        let mut p = Pair {
+            t: ModifierToggle::default(),
+            s: Session::new(Caps::none()),
+            t0: std::time::Instant::now(),
+            mismatches: 0,
+        };
+
+        // Ctrl -> Shift -> Shift up -> Ctrl up
+        p.down(VK_LCONTROL, false, false, false, 100);
+        p.down(vk::LSHIFT, true, false, false, 110);
+        p.up(vk::LSHIFT, 120);
+        p.up(VK_LCONTROL, 130);
+
+        // Shift -> Ctrl -> Ctrl repeat -> Ctrl up (cách >= 250ms)
+        p.down(vk::SHIFT, false, false, false, 500);
+        p.down(vk::CONTROL, false, true, false, 510);
+        p.down(vk::CONTROL, false, true, false, 520);
+        p.up(vk::CONTROL, 530);
+
+        // Phím thứ ba + Alt/Win huỷ
+        p.down(vk::CONTROL, false, false, false, 900);
+        p.down(vk::SHIFT, true, false, false, 910);
+        p.down(0x5A, true, true, false, 920);
+        p.up(vk::SHIFT, 930);
+        p.down(vk::SHIFT, true, false, true, 1300);
+        p.up(vk::SHIFT, 1310);
+
+        // Standalone Ctrl tap nhanh (<= 400ms) vs giữ lâu (> 400ms)
+        p.down(VK_LCONTROL, false, false, false, 1700);
+        p.up(VK_LCONTROL, 1700 + CTRL_TAP_MAX_MS - 50);
+        p.down(VK_LCONTROL, false, false, false, 2300);
+        p.up(VK_LCONTROL, 2300 + CTRL_TAP_MAX_MS + 50);
+
+        // Reset khi focus đổi
+        p.down(vk::CONTROL, false, false, false, 3000);
+        p.t.reset();
+        p.s.event(SessionEvent::FocusOut);
+        p.up(vk::CONTROL, 3020);
+
+        assert_eq!(p.mismatches, 0);
+    }
+
+    #[test]
     fn plan_invariant_unknown_action_is_fail_open() {
         let step = EngineStep {
             action: 99,

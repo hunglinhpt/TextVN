@@ -29,6 +29,13 @@ pub mod vk {
     pub const END: u32 = 0x23;
     pub const LWIN: u32 = 0x5B;
     pub const RWIN: u32 = 0x5C;
+    /// Shift/Ctrl/Alt trái-phải (Win VK) — nguồn DUY NHẤT cho `textvn-session::toggle` (SF-2, G22).
+    pub const LSHIFT: u32 = 0xA0;
+    pub const RSHIFT: u32 = 0xA1;
+    pub const LCONTROL: u32 = 0xA2;
+    pub const RCONTROL: u32 = 0xA3;
+    pub const LMENU: u32 = 0xA4;
+    pub const RMENU: u32 = 0xA5;
     pub const F1: u32 = 0x70; // F1..F12 = 0x70..0x7B
 }
 

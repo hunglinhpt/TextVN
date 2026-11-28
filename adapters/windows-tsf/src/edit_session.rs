@@ -161,11 +161,22 @@ pub struct TsfShared {
     pub assist: RefCell<Option<ActiveAssist>>,
     /// Trạng thái hoàn tác tự sửa cả câu (AS-050 · Mode 2 / A3). `None` = không có undo hoặc đã hết hạn.
     pub assist_undo: RefCell<Option<crate::assist::AssistUndoState>>,
+    /// SF-2 shadow mode (`TEXTVN_SESSION_SHADOW=1`): chạy `textvn-session` song song
+    /// với `ModifierToggle`, chỉ áp mã cũ và đếm/log mã lệch (không log chữ — G8).
+    pub shadow_session: RefCell<Option<textvn_session::Session>>,
+    pub shadow_origin: std::time::Instant,
+    pub shadow_mismatches: Cell<u32>,
 }
 
 #[cfg(windows)]
 impl TsfShared {
     pub fn new(tid: u32, ipc: &'static IpcClient, thread: ThreadState) -> Self {
+        let shadow_session = if std::env::var_os("TEXTVN_SESSION_SHADOW").is_some_and(|v| v == "1")
+        {
+            Some(textvn_session::Session::new(textvn_session::Caps::none()))
+        } else {
+            None
+        };
         Self {
             tid,
             ipc,
@@ -187,6 +198,9 @@ impl TsfShared {
             emoji_ctx: RefCell::new(None),
             assist: RefCell::new(None),
             assist_undo: RefCell::new(None),
+            shadow_session: RefCell::new(shadow_session),
+            shadow_origin: std::time::Instant::now(),
+            shadow_mismatches: Cell::new(0),
         }
     }
 

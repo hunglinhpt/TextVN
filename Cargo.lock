@@ -210,6 +210,7 @@ dependencies = [
 name = "textvn-session"
 version = "0.2.96"
 dependencies = [
+ "textvn-core",
  "textvn-ipc",
 ]
 
@@ -255,6 +256,7 @@ dependencies = [
  "textvn-ffi",
  "textvn-field-detect",
  "textvn-ipc",
+ "textvn-session",
  "textvn-strategy",
  "windows",
  "windows-core",

@@ -19,3 +19,5 @@ description = "Khung session nghiep vu dung chung 3 OS (P0-6 §3) — thuan logi
 # không thread, không đồng hồ (P0-6 §2 bất biến 1).
 [dependencies]
 textvn-ipc = { path = "../ipc" }
+# SF-2: hằng VK/MOD canonical (G22 — một nguồn); SF-3 compose cũng cần engine core.
+textvn-core = { path = "../core" }

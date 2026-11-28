@@ -310,6 +310,11 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
                 shared.pending_eaten_vk.set(None);
                 shared.deferred_replay.set(None);
                 shared.modifier_toggle.set(Default::default());
+                if let Ok(mut guard) = shared.shadow_session.try_borrow_mut() {
+                    if let Some(sess) = guard.as_mut() {
+                        let _ = sess.event(textvn_session::SessionEvent::FocusOut);
+                    }
+                }
             }
             Ok(())
         })

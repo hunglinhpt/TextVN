@@ -229,6 +229,7 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         let mut pending = self.shared.modifier_toggle.get();
         pending.reset();
         self.shared.modifier_toggle.set(pending);
+        shadow_toggle_chord(&self.shared);
         trace::event(self.shared.tid, format_args!("preserved toggle"));
         guarded(|| {
             toggle_vietnamese(&self.shared, pic.ok().ok());
@@ -359,6 +360,25 @@ fn defer_to_key_down(
         .flatten()
 }
 
+#[cfg(windows)]
+fn shadow_now_ms(shared: &TsfShared) -> u64 {
+    shared.shadow_origin.elapsed().as_millis() as u64
+}
+
+#[cfg(windows)]
+fn shadow_toggle_chord(shared: &TsfShared) {
+    if let Ok(mut guard) = shared.shadow_session.try_borrow_mut() {
+        if let Some(sess) = guard.as_mut() {
+            let _ = sess.event(textvn_session::SessionEvent::KeyDown {
+                vk: textvn_session::toggle::VK_SPACE,
+                ch: textvn_session::toggle::VK_SPACE,
+                mods: textvn_session::toggle::MOD_CTRL | textvn_session::toggle::MOD_SHIFT,
+                now_ms: shadow_now_ms(shared),
+            });
+        }
+    }
+}
+
 /// Nhả phím: dùng cho phím chuyển Ctrl+Shift và standalone Ctrl tap; không bao giờ ăn phím.
 #[cfg(windows)]
 fn handle_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) -> bool {
@@ -368,6 +388,39 @@ fn handle_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) -> b
     let held_too_long = toggle.ctrl_held_too_long(std::time::Instant::now());
     let ctrl_tap = !fire && toggle.on_ctrl_tap_up(vk) && !held_too_long;
     shared.modifier_toggle.set(toggle);
+    if let Ok(mut guard) = shared.shadow_session.try_borrow_mut() {
+        if let Some(sess) = guard.as_mut() {
+            let cmds = sess.event(textvn_session::SessionEvent::KeyUp {
+                vk,
+                mods: active_modifiers(),
+                now_ms: shadow_now_ms(shared),
+            });
+            let shadow_fire = cmds
+                .as_slice()
+                .iter()
+                .any(|c| matches!(c, textvn_session::SessionCommand::ModeIndicator { .. }));
+            let shadow_ctrl_tap =
+                sess.last_toggle_outcome() == textvn_session::ToggleOutcome::CtrlTap;
+            if shadow_ctrl_tap != ctrl_tap || (shadow_fire && !fire) {
+                shared
+                    .shadow_mismatches
+                    .set(shared.shadow_mismatches.get().saturating_add(1));
+                // G8: chỉ in mã VK khi là phím MODIFIER (Ctrl/Shift/Alt/Win/Caps) — mã phím
+                // chữ/số mà lọt vào log là keylog; lệch ở phím khác chỉ ghi "non-modifier".
+                let key = if textvn_session::toggle::is_modifier_vk(vk) {
+                    format!("{vk:#x}")
+                } else {
+                    "non-modifier".to_string()
+                };
+                trace::event(
+                    shared.tid,
+                    format_args!(
+                        "SF2 shadow mismatch keyup key={key} legacy=({fire},{ctrl_tap}) session=({shadow_fire},{shadow_ctrl_tap})"
+                    ),
+                );
+            }
+        }
+    }
     if fire {
         toggle_vietnamese(shared, ctx);
     } else if ctrl_tap {
@@ -496,6 +549,16 @@ fn observe_key_down(shared: &TsfShared, vk: u32, mods: u32) {
     );
     toggle.mark_ctrl_down(std::time::Instant::now());
     shared.modifier_toggle.set(toggle);
+    if let Ok(mut guard) = shared.shadow_session.try_borrow_mut() {
+        if let Some(sess) = guard.as_mut() {
+            let _ = sess.event(textvn_session::SessionEvent::KeyDown {
+                vk,
+                ch: 0,
+                mods,
+                now_ms: shadow_now_ms(shared),
+            });
+        }
+    }
 }
 
 /// Thấy MỌI phím trước khi TSF xử lý. Ở app TSF-aware (WordPad, Word…) phím chuyển bố cục
