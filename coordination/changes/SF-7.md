@@ -15,6 +15,13 @@
   `GRID_COLS`/`GRID_VISIBLE_ROWS` lấy từ `PickerLayout::GRID` (một nguồn). Hành vi tray giữ nguyên (120 kết
   quả, MRU trong RAM, cuộn kẹp biên).
 - **G8**: không log; đóng bộ chọn là xoá ô tìm; MRU chỉ giữ chỉ số `CATALOG` trong RAM.
+- **Phần 1b — MRU tách khỏi bộ chọn (`EmojiSource`)**: `Engine::emoji_record_use` vừa ghi MRU dùng chung
+  với gõ tắt `:shortcode:` vừa đếm **Dream RSI** (`accepts` + `chars_saved`, G19). Bộ chọn tự giữ MRU riêng
+  sẽ làm Linux/macOS (phần 2) mất cả hai ⇒ MRU nay là nguồn truyền vào mỗi lời gọi: `impl EmojiSource for
+  textvn_core::Engine` (tiến trình có engine) và `for EmojiMru` (tray Windows, không có engine — giữ nguyên
+  hành vi cũ). Test `sf7_nguon_engine_dem_dream_rsi_va_mru_chung`; đột biến bỏ `emoji_record_use` ⇒ ĐỎ.
+- **Ghi nhận (có từ trước, không do SF-7)**: chọn emoji ở tray Windows KHÔNG được đếm Dream RSI vì tray không
+  có engine (MRU chỉ trong RAM của tray). Phần 2 nên gửi bộ đếm qua IPC `StyleUpdate` (đường `RsiOnly` đã có).
 - **Phần 2 (sau khi SF-3 nhả `ffi/`)**: C ABI `ime_emoji_picker_*` + Linux (`emoji_picker.c`) và macOS
   (`EmojiPickerModel`) gọi bản dùng chung; khi đó xoá 2 bản sao, và nhãn/biểu tượng nhóm (đang lặp ở
   `CATEGORY_TABS` tray, `CATEGORY_NAMES` Linux, `tabs` macOS) chuyển vào `data/ui/strings.toml` (SF-9).
@@ -36,12 +43,20 @@
   drawing concern); `GRID_COLS`/`GRID_VISIBLE_ROWS` come from `PickerLayout::GRID` (one source). Tray behaviour is
   unchanged (120 results, in-RAM MRU, clamped scrolling).
 - **G8**: no logging; closing the picker clears the search box; the MRU only keeps `CATALOG` indices in RAM.
+- **Part 1b — MRU decoupled from the picker (`EmojiSource`)**: `Engine::emoji_record_use` both records the MRU
+  shared with `:shortcode:` expansion and counts **Dream RSI** (`accepts` + `chars_saved`, G19). A picker-owned MRU
+  would make Linux/macOS (part 2) lose both ⇒ the MRU is now a source passed into every call: `impl EmojiSource for
+  textvn_core::Engine` (processes with an engine) and `for EmojiMru` (the Windows tray, no engine — behaviour
+  unchanged). Test `sf7_nguon_engine_dem_dream_rsi_va_mru_chung`; mutation dropping `emoji_record_use` ⇒ RED.
+- **Noted (pre-existing, not caused by SF-7)**: emoji picked in the Windows tray are NOT counted in Dream RSI because
+  the tray has no engine (its MRU lives only in tray RAM). Part 2 should send the counters over IPC `StyleUpdate`
+  (the `RsiOnly` path already exists).
 - **Part 2 (after SF-3 releases `ffi/`)**: C ABI `ime_emoji_picker_*` + Linux (`emoji_picker.c`) and macOS
   (`EmojiPickerModel`) call the shared one; then delete the 2 copies, and move the category labels/icons (repeated in
   the tray's `CATEGORY_TABS`, Linux `CATEGORY_NAMES`, macOS `tabs`) into `data/ui/strings.toml` (SF-9).
 
 ## Kiểm thử / Testing
-- `cargo test -p textvn-session` = 52 passed, gồm 12 test `sf7_*` (đóng không xử lý phím; mở nhóm Gần đây; Esc
+- `cargo test -p textvn-session` = 71 passed, gồm 13 test `sf7_*` (đóng không xử lý phím; mở nhóm Gần đây; Esc
   xoá ô tìm; Tab/Shift+Tab xoay vòng 8 nhóm + xoá ô tìm; tìm `rocket` ⇒ Enter chèn 🚀 + MRU lên đầu; Enter không
   kết quả ⇒ đóng; chọn nhanh chỉ khi ô rỗng; `0` là chữ tìm; mũi tên lưới và danh sách; Xuống kẹp ở mục cuối +
   cuộn theo chọn + chọn nhanh theo phần đang hiện; cuộn chuột kẹp biên; ô tìm 32 ký tự + bỏ ký tự điều khiển;

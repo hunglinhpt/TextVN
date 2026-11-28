@@ -12,10 +12,42 @@
 //! (`cols = 1`, 9 dòng/trang, 36 mục), Windows/macOS dùng lưới 8×5. Mũi tên Trái/Phải = ±1,
 //! Lên/Xuống = ±`cols` — với `cols = 1` trùng đúng hành vi danh sách Linux cũ.
 //!
-//! Thuần logic: không I/O, không đồng hồ, không log (G8 — không ghi ô tìm hay emoji được chọn;
-//! MRU chỉ giữ chỉ số mục `CATALOG` trong RAM).
+//! Thuần logic: không I/O, không đồng hồ, không log (G8 — không ghi ô tìm hay emoji được chọn).
+//!
+//! **MRU không nằm trong bộ chọn** mà ở [`EmojiSource`] do adapter truyền vào mỗi lời gọi: trong
+//! tiến trình có engine (TSF/IBus/Fcitx5/IMK) nguồn là `textvn_core::Engine` — `emoji_record_use`
+//! vừa ghi MRU dùng chung với gõ tắt `:shortcode:` vừa đếm Dream RSI (`accepts` + `chars_saved`,
+//! G19); tray Windows (không có engine) dùng [`EmojiMru`] trong RAM.
 
 use textvn_core::post::emoji_catalog::{search_emojis, EmojiEntry, EmojiMru};
+
+/// Nguồn tìm kiếm + MRU cho bộ chọn (một nguồn xếp hạng `search_emojis`).
+pub trait EmojiSource {
+    /// Kết quả cho ô tìm `query` (rỗng = theo nhóm) ở nhóm `category`, tối đa `limit`.
+    fn search(&self, query: &str, category: u8, limit: usize) -> Vec<&'static EmojiEntry>;
+    /// Ghi nhận emoji vừa chèn (MRU; với engine: kèm hook Dream RSI G19).
+    fn record_use(&mut self, glyph: &str);
+}
+
+/// MRU trong RAM (tray Windows — tiến trình không có engine).
+impl EmojiSource for EmojiMru {
+    fn search(&self, query: &str, category: u8, limit: usize) -> Vec<&'static EmojiEntry> {
+        search_emojis(query, category, self, limit)
+    }
+    fn record_use(&mut self, glyph: &str) {
+        self.record(glyph);
+    }
+}
+
+/// Engine (TSF/IBus/Fcitx5/IMK): MRU chung với `:shortcode:` + đếm Dream RSI khi chèn (G19).
+impl EmojiSource for textvn_core::Engine {
+    fn search(&self, query: &str, category: u8, limit: usize) -> Vec<&'static EmojiEntry> {
+        self.emoji_search(query, category, limit)
+    }
+    fn record_use(&mut self, glyph: &str) {
+        let _ = self.emoji_record_use(glyph);
+    }
+}
 
 /// Số nhóm (0 = Gần đây/MRU, 1..=7 nhóm cố định của `emoji_catalog`).
 pub const CATEGORY_COUNT: u8 = 8;
@@ -106,7 +138,6 @@ pub struct EmojiPicker {
     items: Vec<&'static EmojiEntry>,
     selected: usize,
     scroll_row: usize,
-    mru: EmojiMru,
 }
 
 impl Default for EmojiPicker {
@@ -127,7 +158,6 @@ impl EmojiPicker {
             items: Vec::new(),
             selected: 0,
             scroll_row: 0,
-            mru: EmojiMru::default(),
         }
     }
 
@@ -178,18 +208,12 @@ impl EmojiPicker {
         let end = (start + self.layout.cols * self.layout.visible_rows).min(self.items.len());
         &self.items[start..end]
     }
-    /// MRU (chỉ số `CATALOG`) — để adapter lưu/khôi phục nếu muốn.
-    #[must_use]
-    pub fn mru(&self) -> &EmojiMru {
-        &self.mru
-    }
-
     /// Mở ở nhóm 0 (Gần đây), ô tìm rỗng.
-    pub fn open(&mut self) {
+    pub fn open(&mut self, src: &dyn EmojiSource) {
         self.open = true;
         self.category = 0;
         self.query.clear();
-        self.reload();
+        self.reload(src);
     }
 
     /// Đóng và xoá ô tìm (G8: không giữ chữ tìm sau khi đóng).
@@ -202,10 +226,10 @@ impl EmojiPicker {
     }
 
     /// Chuyển nhóm (click tab / Tab): xoá ô tìm, nạp lại, về đầu.
-    pub fn switch_category(&mut self, cat: u8) {
+    pub fn switch_category(&mut self, src: &dyn EmojiSource, cat: u8) {
         self.category = cat % CATEGORY_COUNT;
         self.query.clear();
-        self.reload();
+        self.reload(src);
     }
 
     /// Cuộn `delta` hàng (bánh xe chuột), kẹp trong phạm vi.
@@ -215,18 +239,18 @@ impl EmojiPicker {
     }
 
     /// Chọn mục `idx` (click chuột / chọn nhanh): ghi MRU, đóng, trả glyph. Sai chỉ số ⇒ `None`.
-    pub fn pick(&mut self, idx: usize) -> Option<&'static str> {
+    pub fn pick(&mut self, src: &mut dyn EmojiSource, idx: usize) -> Option<&'static str> {
         if !self.open {
             return None;
         }
         let glyph = self.items.get(idx)?.glyph;
-        self.mru.record(glyph);
+        src.record_use(glyph);
         self.close();
         Some(glyph)
     }
 
     /// Xử lý một phím khi panel mở.
-    pub fn handle_key(&mut self, key: PickerKey) -> PickerOutcome {
+    pub fn handle_key(&mut self, src: &mut dyn EmojiSource, key: PickerKey) -> PickerOutcome {
         if !self.open {
             return PickerOutcome::NotOpen;
         }
@@ -235,18 +259,18 @@ impl EmojiPicker {
                 self.close();
                 PickerOutcome::Closed
             }
-            PickerKey::Enter => self.commit_or_close(self.selected),
+            PickerKey::Enter => self.commit_or_close(src, self.selected),
             PickerKey::Tab => {
-                self.switch_category((self.category + 1) % CATEGORY_COUNT);
+                self.switch_category(src, (self.category + 1) % CATEGORY_COUNT);
                 PickerOutcome::Redraw
             }
             PickerKey::ShiftTab => {
-                self.switch_category((self.category + CATEGORY_COUNT - 1) % CATEGORY_COUNT);
+                self.switch_category(src, (self.category + CATEGORY_COUNT - 1) % CATEGORY_COUNT);
                 PickerOutcome::Redraw
             }
             PickerKey::Backspace => {
                 if self.query.pop().is_some() {
-                    self.reload();
+                    self.reload(src);
                 }
                 PickerOutcome::Redraw
             }
@@ -269,11 +293,11 @@ impl EmojiPicker {
                 }
                 PickerOutcome::Redraw
             }
-            PickerKey::Char(c) => self.on_char(c),
+            PickerKey::Char(c) => self.on_char(src, c),
         }
     }
 
-    fn on_char(&mut self, c: char) -> PickerOutcome {
+    fn on_char(&mut self, src: &mut dyn EmojiSource, c: char) -> PickerOutcome {
         if self.query.is_empty() {
             if let Some(d) = c
                 .to_digit(10)
@@ -281,7 +305,7 @@ impl EmojiPicker {
             {
                 let idx = self.first_visible() + d as usize - 1;
                 return if idx < self.items.len() {
-                    self.commit_or_close(idx)
+                    self.commit_or_close(src, idx)
                 } else {
                     PickerOutcome::Redraw
                 };
@@ -291,12 +315,12 @@ impl EmojiPicker {
             return PickerOutcome::Redraw;
         }
         self.query.push(c);
-        self.reload();
+        self.reload(src);
         PickerOutcome::Redraw
     }
 
-    fn commit_or_close(&mut self, idx: usize) -> PickerOutcome {
-        match self.pick(idx) {
+    fn commit_or_close(&mut self, src: &mut dyn EmojiSource, idx: usize) -> PickerOutcome {
+        match self.pick(src, idx) {
             Some(g) => PickerOutcome::Commit(g),
             None => {
                 self.close();
@@ -326,8 +350,8 @@ impl EmojiPicker {
         }
     }
 
-    fn reload(&mut self) {
-        self.items = search_emojis(&self.query, self.category, &self.mru, self.layout.max_items);
+    fn reload(&mut self, src: &dyn EmojiSource) {
+        self.items = src.search(&self.query, self.category, self.layout.max_items);
         self.selected = 0;
         self.scroll_row = 0;
     }
@@ -337,27 +361,39 @@ impl EmojiPicker {
 mod tests {
     use super::*;
 
-    fn opened(layout: PickerLayout) -> EmojiPicker {
+    fn opened_custom(layout: PickerLayout, m: &EmojiMru) -> EmojiPicker {
+        opened(layout, m)
+    }
+
+    fn opened(layout: PickerLayout, m: &EmojiMru) -> EmojiPicker {
         let mut p = EmojiPicker::new(layout);
-        p.open();
+        p.open(m);
         p
     }
 
     #[test]
     fn sf7_dong_thi_khong_xu_ly_phim() {
+        let mut m = EmojiMru::default();
         let mut p = EmojiPicker::new(PickerLayout::GRID);
-        assert_eq!(p.handle_key(PickerKey::Enter), PickerOutcome::NotOpen);
-        assert_eq!(p.pick(0), None);
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Enter),
+            PickerOutcome::NotOpen
+        );
+        assert_eq!(p.pick(&mut m, 0), None);
     }
 
     #[test]
     fn sf7_mo_nhom_gan_day_co_ket_qua_va_esc_xoa_o_tim() {
-        let mut p = opened(PickerLayout::GRID);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::GRID, &m);
         assert!(p.is_open() && p.category() == 0 && !p.items().is_empty());
-        p.handle_key(PickerKey::Tab);
-        p.handle_key(PickerKey::Char('t'));
+        p.handle_key(&mut m, PickerKey::Tab);
+        p.handle_key(&mut m, PickerKey::Char('t'));
         assert_eq!(p.query(), "t");
-        assert_eq!(p.handle_key(PickerKey::Escape), PickerOutcome::Closed);
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Escape),
+            PickerOutcome::Closed
+        );
         assert!(
             !p.is_open() && p.query().is_empty() && p.items().is_empty(),
             "G8: đóng là xoá ô tìm"
@@ -366,95 +402,114 @@ mod tests {
 
     #[test]
     fn sf7_tab_xoay_vong_8_nhom_va_xoa_o_tim() {
-        let mut p = opened(PickerLayout::LIST);
-        p.handle_key(PickerKey::Char('x'));
-        p.handle_key(PickerKey::ShiftTab);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::LIST, &m);
+        p.handle_key(&mut m, PickerKey::Char('x'));
+        p.handle_key(&mut m, PickerKey::ShiftTab);
         assert_eq!(p.category(), 7);
         assert!(p.query().is_empty());
         for want in [0, 1, 2, 3, 4, 5, 6, 7, 0] {
-            p.handle_key(PickerKey::Tab);
+            p.handle_key(&mut m, PickerKey::Tab);
             assert_eq!(p.category(), want);
         }
     }
 
     #[test]
     fn sf7_tim_rocket_enter_chen_va_mru_len_dau() {
-        let mut p = opened(PickerLayout::GRID);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::GRID, &m);
         for c in "rocket".chars() {
-            p.handle_key(PickerKey::Char(c));
+            p.handle_key(&mut m, PickerKey::Char(c));
         }
         assert_eq!(p.items().first().map(|e| e.glyph), Some("🚀"));
-        assert_eq!(p.handle_key(PickerKey::Enter), PickerOutcome::Commit("🚀"));
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Enter),
+            PickerOutcome::Commit("🚀")
+        );
         assert!(!p.is_open());
-        p.open();
+        p.open(&m);
         assert_eq!(p.items()[0].glyph, "🚀", "MRU đứng đầu nhóm Gần đây");
     }
 
     #[test]
     fn sf7_enter_khi_khong_co_ket_qua_thi_dong() {
-        let mut p = opened(PickerLayout::GRID);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::GRID, &m);
         for c in "zzzzqqqqxxxx".chars() {
-            p.handle_key(PickerKey::Char(c));
+            p.handle_key(&mut m, PickerKey::Char(c));
         }
         assert!(p.items().is_empty());
-        assert_eq!(p.handle_key(PickerKey::Enter), PickerOutcome::Closed);
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Enter),
+            PickerOutcome::Closed
+        );
     }
 
     #[test]
     fn sf7_so_1_9_chon_nhanh_chi_khi_o_tim_rong() {
-        let mut p = opened(PickerLayout::LIST);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::LIST, &m);
         let third = p.items()[2].glyph;
         assert_eq!(
-            p.handle_key(PickerKey::Char('3')),
+            p.handle_key(&mut m, PickerKey::Char('3')),
             PickerOutcome::Commit(third)
         );
         // Ô tìm đã có chữ ⇒ số là chữ tìm, không chọn nhanh.
-        let mut p = opened(PickerLayout::GRID);
-        p.handle_key(PickerKey::Char('a'));
-        assert_eq!(p.handle_key(PickerKey::Char('1')), PickerOutcome::Redraw);
+        let mut p = opened(PickerLayout::GRID, &m);
+        p.handle_key(&mut m, PickerKey::Char('a'));
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Char('1')),
+            PickerOutcome::Redraw
+        );
         assert!(p.is_open());
         assert_eq!(p.query(), "a1");
     }
 
     #[test]
     fn sf7_so_0_va_so_ngoai_trang_khong_chon() {
-        let mut p = opened(PickerLayout::LIST);
-        assert_eq!(p.handle_key(PickerKey::Char('0')), PickerOutcome::Redraw);
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::LIST, &m);
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Char('0')),
+            PickerOutcome::Redraw
+        );
         assert_eq!(p.query(), "0", "0 không phải phím chọn nhanh ⇒ là chữ tìm");
     }
 
     #[test]
     fn sf7_mui_ten_luoi_va_danh_sach() {
-        let mut g = opened(PickerLayout::GRID);
-        g.switch_category(1);
+        let mut m = EmojiMru::default();
+        let mut g = opened(PickerLayout::GRID, &m);
+        g.switch_category(&m, 1);
         assert!(g.items().len() > 20);
-        g.handle_key(PickerKey::Down);
+        g.handle_key(&mut m, PickerKey::Down);
         assert_eq!(g.selected(), 8);
-        g.handle_key(PickerKey::Right);
+        g.handle_key(&mut m, PickerKey::Right);
         assert_eq!(g.selected(), 9);
-        g.handle_key(PickerKey::Up);
+        g.handle_key(&mut m, PickerKey::Up);
         assert_eq!(g.selected(), 1);
-        g.handle_key(PickerKey::Up);
+        g.handle_key(&mut m, PickerKey::Up);
         assert_eq!(g.selected(), 1, "Lên ở hàng đầu = giữ nguyên");
-        g.handle_key(PickerKey::Left);
-        g.handle_key(PickerKey::Left);
+        g.handle_key(&mut m, PickerKey::Left);
+        g.handle_key(&mut m, PickerKey::Left);
         assert_eq!(g.selected(), 0, "Trái ở đầu = giữ nguyên");
         // Danh sách (cols = 1): Lên/Xuống = ±1 như Linux cũ.
-        let mut l = opened(PickerLayout::LIST);
-        l.handle_key(PickerKey::Down);
-        l.handle_key(PickerKey::Down);
+        let mut l = opened(PickerLayout::LIST, &m);
+        l.handle_key(&mut m, PickerKey::Down);
+        l.handle_key(&mut m, PickerKey::Down);
         assert_eq!(l.selected(), 2);
-        l.handle_key(PickerKey::Up);
+        l.handle_key(&mut m, PickerKey::Up);
         assert_eq!(l.selected(), 1);
     }
 
     #[test]
     fn sf7_xuong_ke_o_muc_cuoi_va_cuon_theo_chon() {
-        let mut g = opened(PickerLayout::GRID);
-        g.switch_category(1);
+        let mut m = EmojiMru::default();
+        let mut g = opened(PickerLayout::GRID, &m);
+        g.switch_category(&m, 1);
         let n = g.items().len();
         for _ in 0..1000 {
-            g.handle_key(PickerKey::Down);
+            g.handle_key(&mut m, PickerKey::Down);
         }
         assert_eq!(g.selected(), n - 1, "Xuống kẹp ở mục cuối");
         let row = g.selected() / 8;
@@ -470,15 +525,16 @@ mod tests {
         // Chọn nhanh tính theo phần ĐANG HIỆN.
         let first = g.visible_items()[0].glyph;
         assert_eq!(
-            g.handle_key(PickerKey::Char('1')),
+            g.handle_key(&mut m, PickerKey::Char('1')),
             PickerOutcome::Commit(first)
         );
     }
 
     #[test]
     fn sf7_cuon_chuot_kep_bien() {
-        let mut g = opened(PickerLayout::GRID);
-        g.switch_category(1);
+        let m = EmojiMru::default();
+        let mut g = opened(PickerLayout::GRID, &m);
+        g.switch_category(&m, 1);
         g.scroll_by(-5);
         assert_eq!(g.scroll_row(), 0);
         g.scroll_by(10_000);
@@ -488,32 +544,70 @@ mod tests {
 
     #[test]
     fn sf7_o_tim_toi_da_32_ky_tu_va_bo_ky_tu_dieu_khien() {
-        let mut p = opened(PickerLayout::GRID);
-        p.handle_key(PickerKey::Char('a'));
+        let mut m = EmojiMru::default();
+        let mut p = opened(PickerLayout::GRID, &m);
+        p.handle_key(&mut m, PickerKey::Char('a'));
         for _ in 0..100 {
-            p.handle_key(PickerKey::Char('ơ'));
+            p.handle_key(&mut m, PickerKey::Char('ơ'));
         }
         assert_eq!(p.query().chars().count(), QUERY_MAX_CHARS);
-        p.handle_key(PickerKey::Char('\u{7f}'));
-        p.handle_key(PickerKey::Char('\n'));
+        p.handle_key(&mut m, PickerKey::Char('\u{7f}'));
+        p.handle_key(&mut m, PickerKey::Char('\n'));
         assert_eq!(p.query().chars().count(), QUERY_MAX_CHARS);
         for _ in 0..40 {
-            p.handle_key(PickerKey::Backspace);
+            p.handle_key(&mut m, PickerKey::Backspace);
         }
         assert!(p.query().is_empty());
-        assert_eq!(p.handle_key(PickerKey::Backspace), PickerOutcome::Redraw);
+        assert_eq!(
+            p.handle_key(&mut m, PickerKey::Backspace),
+            PickerOutcome::Redraw
+        );
     }
 
     #[test]
     fn sf7_bo_cuc_suy_bien_khong_chia_cho_0() {
-        let mut p = opened(PickerLayout {
-            cols: 0,
-            visible_rows: 0,
-            max_items: 0,
-        });
-        p.handle_key(PickerKey::Down);
+        let mut m = EmojiMru::default();
+        let mut p = opened_custom(
+            PickerLayout {
+                cols: 0,
+                visible_rows: 0,
+                max_items: 0,
+            },
+            &m,
+        );
+        p.handle_key(&mut m, PickerKey::Down);
         p.scroll_by(3);
         assert_eq!(p.layout().cols, 1);
         assert!(p.visible_items().len() <= 1);
+    }
+
+    /// G19: chèn emoji qua bộ chọn trong tiến trình có engine phải đếm Dream RSI (accepts +
+    /// chars_saved) và đưa emoji lên MRU dùng chung với `:shortcode:`.
+    #[test]
+    fn sf7_nguon_engine_dem_dream_rsi_va_mru_chung() {
+        let mut eng = textvn_core::Engine::new(textvn_core::EngineOptions::default());
+        let before = eng.dream_rsi_snapshot();
+        let mut p = EmojiPicker::new(PickerLayout::LIST);
+        p.open(&eng);
+        for c in "rocket".chars() {
+            p.handle_key(&mut eng, PickerKey::Char(c));
+        }
+        assert_eq!(
+            p.handle_key(&mut eng, PickerKey::Enter),
+            PickerOutcome::Commit("🚀")
+        );
+        let after = eng.dream_rsi_snapshot();
+        assert_eq!(
+            after.accepts,
+            before.accepts + 1,
+            "G19: accept emoji phải được đếm"
+        );
+        assert_eq!(after.chars_saved, before.chars_saved + 1);
+        p.open(&eng);
+        assert_eq!(
+            p.items()[0].glyph,
+            "🚀",
+            "MRU của engine (chung với :shortcode:)"
+        );
     }
 }

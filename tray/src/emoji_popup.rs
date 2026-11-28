@@ -13,6 +13,7 @@
 
 // SF-7 (G22): máy trạng thái bộ chọn (nhóm, cuộn, chọn, MRU) là bản dùng chung của
 // `textvn-session`; tray chỉ vẽ + hit-test chuột + bơm glyph.
+use textvn_core::post::emoji_catalog::EmojiMru;
 use textvn_session::emoji::{EmojiPicker, PickerLayout};
 
 pub const CATEGORY_TABS: &[(u8, &str)] = &[
@@ -46,6 +47,8 @@ pub const INJECT_TAG: usize = 0x5456_4E48;
 #[derive(Debug, Default)]
 pub struct TrayEmojiState {
     pub picker: EmojiPicker,
+    /// Tray không có engine ⇒ MRU trong RAM (nguồn `EmojiSource` của bộ chọn).
+    pub mru: EmojiMru,
     pub hovered: Option<usize>,
 }
 
@@ -55,7 +58,7 @@ impl TrayEmojiState {
     }
 
     pub fn open(&mut self) {
-        self.picker.open();
+        self.picker.open(&self.mru);
         self.hovered = None;
     }
 
@@ -65,13 +68,13 @@ impl TrayEmojiState {
     }
 
     pub fn switch_category(&mut self, cat: u8) {
-        self.picker.switch_category(cat);
+        self.picker.switch_category(&self.mru, cat);
         self.hovered = None;
     }
 
     pub fn record_pick(&mut self, idx: usize) -> Option<&'static str> {
         self.hovered = None;
-        self.picker.pick(idx)
+        self.picker.pick(&mut self.mru, idx)
     }
 
     pub fn scroll_by(&mut self, delta: i32) {
