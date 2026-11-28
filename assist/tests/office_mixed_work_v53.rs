@@ -216,7 +216,10 @@ fn v53_duong_dan_url_email_sach() {
 
 // ================= 11. ABNORMAL MỞ RỘNG (vòng 53) =================
 
+// R2-177: rustfmt::skip — hai version rustfmt (local vs CI) bất đồng cách tách dòng
+// println! chứa ký tự Unicode rộng; bỏ định dạng hàm này để fmt --check ổn định 2 bên.
 #[test]
+#[rustfmt::skip]
 fn v53_abnormal_mo_rong_khong_panic_khong_treo() {
     let long_line = "tôi đã gửi báo cáo cho anh ".repeat(2_500); // ~65k ký tự
     let inputs: Vec<String> = vec![
@@ -251,7 +254,10 @@ fn v53_abnormal_mo_rong_khong_panic_khong_treo() {
             panic!("quá chậm (hồi quy thật): {worst:?} cho input {:-40}", s);
         }
         if budget > 2_500 {
-            println!("WARN nhiễu runner: {budget} ms > 2500 ms, ≤ trần 3400 ms — {:-40}", s);
+            println!(
+                "WARN nhiễu runner: {budget} ms > 2500 ms, ≤ trần 3400 ms — {:-40}",
+                s
+            );
         }
     }
 }
@@ -270,6 +276,7 @@ fn v53_abnormal_lỗi_thật_sat_decor_vẫn_bắt() {
 // ================= 12. NFR — ngân sách perf giữ với pool mới =================
 
 #[test]
+#[rustfmt::skip]
 fn v53_nfr_check_câu_văn_phòng_dưới_1ms() {
     let samples = [
         "Căn hộ hai phòng ngủ giá 2,5 tỷ, đã bao gồm nội thất.",
