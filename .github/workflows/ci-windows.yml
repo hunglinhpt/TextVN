@@ -158,8 +158,9 @@ jobs:
           (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" arm64 && cl /nologo /W4 /WX /Fe:tip-load-probe-arm64.exe tools\win\tip-load-probe.c ole32.lib) || exit /b 1
           (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x64 && cl /nologo /W4 /WX /Fe:tip-load-probe-x64.exe tools\win\tip-load-probe.c ole32.lib) || exit /b 1
           (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x86 && cl /nologo /W4 /WX /Fe:tip-load-probe-x86.exe tools\win\tip-load-probe.c ole32.lib) || echo ::warning::ARM-W5b x86 toolset khong co tren runner - bo qua probe x86
-          set "P=%CD%\tip-load-probe-arm64.exe|textvn-tsf-arm64.dll;%CD%\tip-load-probe-x64.exe|textvn-tsf-x64.dll"
-          if exist tip-load-probe-x86.exe set "P=%P%;%CD%\tip-load-probe-x86.exe|textvn-tsf-x86.dll"
+          rem Dau phan cach trong cap = ',' (KHONG dung '|' - cmd hieu '|' trong %P% la pipe khi echo).
+          set "P=%CD%\tip-load-probe-arm64.exe,textvn-tsf-arm64.dll;%CD%\tip-load-probe-x64.exe,textvn-tsf-x64.dll"
+          if exist tip-load-probe-x86.exe set "P=%P%;%CD%\tip-load-probe-x86.exe,textvn-tsf-x86.dll"
           echo TEXTVN_TIP_PROBES=%P%>>"%GITHUB_ENV%"
           echo TEXTVN_TIP_PROBE_MUTATION=1>>"%GITHUB_ENV%"
       - name: ARM-W4 portable E2E (test-portable.ps1)

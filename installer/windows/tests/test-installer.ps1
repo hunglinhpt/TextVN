@@ -153,20 +153,20 @@ Write-Host 'PASS WOW6432Node COM registered to textvn-tsf-x86.dll (Zalo/Office 3
 Write-Host 'PASS silent machine install + user TSF activation (files, TSF, autostart, Ctrl+Shift for TextVN)'
 
 # ARM-W5b: TIP DA CAI nap DUNG kien truc trong tien trinh that (CoCreateInstance qua InprocServer32
-# cua bo cai) - khong can route input (E89). Chi job ARM64 dat TEXTVN_TIP_PROBES = "exe|dll;exe|dll".
+# cua bo cai) - khong can route input (E89). Chi job ARM64 dat TEXTVN_TIP_PROBES = "exe,dll;exe,dll".
 if ($env:TEXTVN_TIP_PROBES) {
     $probes = @($env:TEXTVN_TIP_PROBES -split ';' | Where-Object { $_ })
     foreach ($pair in $probes) {
-        $exe, $dll = $pair -split '\|', 2
+        $exe, $dll = $pair -split ',', 2
         & $exe $dll
         if ($LASTEXITCODE -ne 0) { throw "ARM-W5b: $exe khong nap dung $dll (exit $LASTEXITCODE)" }
     }
     Write-Host "PASS ARM-W5b TIP nap dung kien truc trong $($probes.Count) tien trinh (CoCreateInstance qua registry that)"
     if ($env:TEXTVN_TIP_PROBE_MUTATION -eq '1') {
         # Dot bien: forwarder ARM64X bi thay bang DLL ARM64 thuong => tien trinh x64 KHONG duoc nap TIP.
-        $x64 = $probes | Where-Object { $_ -like '*|textvn-tsf-x64.dll' } | Select-Object -First 1
+        $x64 = $probes | Where-Object { $_ -like '*,textvn-tsf-x64.dll' } | Select-Object -First 1
         if (-not $x64) { throw 'ARM-W5b mutation: thieu probe x64' }
-        $exe, $dll = $x64 -split '\|', 2
+        $exe, $dll = $x64 -split ',', 2
         $fwd = Join-Path $app 'textvn-tsf.dll'
         $bakName = 'textvn-tsf.dll.w5b-bak'
         Rename-Item -LiteralPath $fwd -NewName $bakName
