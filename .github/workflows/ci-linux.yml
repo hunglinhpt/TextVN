@@ -12,6 +12,9 @@ on:
       - '**.md'
       - 'docs/**'
       - 'graphify-out/**'
+      # E86: tệp điều phối nhiều agent (board.jsonl, changes/*.md) đổi liên tục — không đốt runner,
+      # không đẩy run code đang chờ ra khỏi concurrency group.
+      - 'coordination/**'
   pull_request:
   workflow_dispatch:
 
