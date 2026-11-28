@@ -61,7 +61,11 @@ fn vn_syllables_sorted() -> &'static [&'static str] {
             .lines()
             .map(str::trim)
             .filter(|l| {
-                !l.is_empty() && !l.starts_with('#') && (!is_known_en_word(l) || dic_has(l))
+                // LOOP-2b: âm tiết có dấu (không ASCII) không thể là từ EN — tập EN toàn ASCII
+                // (test `loop2b_tap_en_toan_ascii`) — bỏ `to_lowercase` + 2 lần tra cho ~6k mục.
+                !l.is_empty()
+                    && !l.starts_with('#')
+                    && (!l.is_ascii() || !is_known_en_word(l) || dic_has(l))
             })
             .collect();
         v.sort_unstable();
@@ -2098,6 +2102,44 @@ mod tests {
             }
         }
         assert_eq!(modes_seen, [true; 3], "phải phủ đủ EnOnly/VnOnly/VnPlusEn");
+    }
+
+    /// LOOP-2b — tiền đề của lối tắt ASCII trong bộ lọc E84 (`vn_syllables_sorted`): tập
+    /// `is_known_en_word` (en_common + en_freq) chỉ gồm từ ASCII. Ai thêm từ EN có dấu
+    /// (`café`…) vào dữ liệu ⇒ đỏ ở đây, phải bỏ lối tắt chứ không lặng lẽ để lọt âm tiết.
+    #[test]
+    fn loop2b_tap_en_toan_ascii() {
+        for (name, data) in [("en_common", EN_COMMON_DATA), ("en_freq3000", EN_FREQ_DATA)] {
+            for line in data.lines().map(str::trim) {
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                assert!(
+                    line.is_ascii(),
+                    "{name}: mục EN không ASCII {line:?} — bỏ lối tắt is_ascii() trong vn_syllables_sorted"
+                );
+            }
+        }
+        // Lối tắt không đổi kết quả: đối chiếu với bộ lọc đầy đủ.
+        let dic_set: std::collections::HashSet<&str> =
+            VN_DIC_DAUMOI_DATA.lines().map(str::trim).collect();
+        let full: Vec<&str> = {
+            let mut v: Vec<&str> = VN_SYLLABLES_DATA
+                .lines()
+                .map(str::trim)
+                .filter(|l| {
+                    let old = restyle(l, DiacriticStyle::Old);
+                    !l.is_empty()
+                        && !l.starts_with('#')
+                        && (!is_known_en_word(l)
+                            || dic_set.contains(l)
+                            || dic_set.contains(old.as_str()))
+                })
+                .collect();
+            v.sort_unstable();
+            v
+        };
+        assert_eq!(vn_syllables_sorted(), &full[..]);
     }
 
     /// LOOP-2b / E90 — gate bộ nhớ TẤT ĐỊNH của chỉ mục tiền tố (lexicon + top-K cả 3 chế độ).

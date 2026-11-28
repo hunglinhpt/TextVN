@@ -17,6 +17,9 @@
   - Băm FNV-1a cho bảng tĩnh (không có bề mặt HashDoS), sort ổn định với khoá `u64` 8 byte đầu.
   - `take_table` gộp nhánh 1 biến thể và nhiều biến thể thành một hàm `collect_variant`,
     bỏ ~40 dòng lặp.
+  - Bộ lọc E84 (`vn_syllables_sorted`): âm tiết có dấu bỏ qua `is_known_en_word` (tập EN toàn
+    ASCII — test `loop2b_tap_en_toan_ascii` chặn tiền đề và đối chiếu kết quả với bộ lọc đầy đủ),
+    bớt ~1 ms khởi động lạnh có từ trước LOOP-2.
 - **Số đo** (release, Windows x86_64, trung vị 15 lần chạy xen kẽ, probe tiến trình mới gọi
   `predict_prefix_candidates`; bộ nhớ = private bytes tăng thêm):
 
@@ -24,9 +27,9 @@
 |---|---:|---:|---:|
 | trước LOOP-2 (`662f4450^`) | 8,8 ms | 0,02 ms | +1,25 MB |
 | LOOP-2 (`662f4450`, main) | 15,3 ms | 3,4 ms | +4,64 MB |
-| **LOOP-2b** | **11,3 ms** | **0,6 ms** | **+2,04 MB** |
+| **LOOP-2b** | **10,2 ms** | **0,6 ms** | **+2,04 MB** |
 
-  Thu hồi ~62% độ trễ VI, ~83% độ trễ EN và ~76% bộ nhớ thêm mà LOOP-2 gây ra. Phần cold còn
+  Thu hồi ~68% độ trễ VI, ~83% độ trễ EN và ~76% bộ nhớ thêm mà LOOP-2 gây ra. Phần cold còn
   lại chủ yếu là các nguồn dữ liệu có từ trước LOOP-2 (lọc E84 âm tiết, parse từ ghép: ~8 ms).
   Đường nóng (`prediction_perf`): `con` 280 ns, `phát` 0,9 µs, `the` 0,25 µs,
   `peek_completion` hồ sơ đầy 45 µs (LOOP-2: 51–61 µs).
@@ -66,6 +69,9 @@
     `u64` key prefix.
   - `take_table` merges the single-variant and multi-variant branches into one `collect_variant`,
     removing ~40 duplicated lines.
+  - E84 filter (`vn_syllables_sorted`): accented syllables skip `is_known_en_word` (the EN sets are
+    ASCII-only — test `loop2b_tap_en_toan_ascii` guards that premise and checks the result against
+    the full filter), saving ~1 ms of cold start that predates LOOP-2.
 - **Measurements** (release, Windows x86_64, median of 15 interleaved runs, fresh process calling
   `predict_prefix_candidates`; memory = added private bytes):
 
@@ -73,9 +79,9 @@
 |---|---:|---:|---:|
 | before LOOP-2 (`662f4450^`) | 8.8 ms | 0.02 ms | +1.25 MB |
 | LOOP-2 (`662f4450`, main) | 15.3 ms | 3.4 ms | +4.64 MB |
-| **LOOP-2b** | **11.3 ms** | **0.6 ms** | **+2.04 MB** |
+| **LOOP-2b** | **10.2 ms** | **0.6 ms** | **+2.04 MB** |
 
-  This recovers ~62% of the VI latency, ~83% of the EN latency and ~76% of the extra memory that
+  This recovers ~68% of the VI latency, ~83% of the EN latency and ~76% of the extra memory that
   LOOP-2 added. Most of the remaining cold cost is data sources that predate LOOP-2 (E84 syllable
   filter, compound parsing: ~8 ms). Hot path (`prediction_perf`): `con` 280 ns, `phát` 0.9 µs,
   `the` 0.25 µs, full-profile `peek_completion` 45 µs (LOOP-2: 51–61 µs).
