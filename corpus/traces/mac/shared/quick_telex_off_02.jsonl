@@ -5,6 +5,6 @@
 {"case":"shared/quick_telex_off_02","step":4,"cmd":"delete_before","text":"","n":1}
 {"case":"shared/quick_telex_off_02","step":4,"cmd":"set_preedit","text":"ch","n":2}
 {"case":"shared/quick_telex_off_02","step":4,"cmd":"eat_key","text":"","n":0}
-{"case":"shared/quick_telex_off_02","step":4,"cmd":"commit","text":"ch","n":0}
-{"case":"shared/quick_telex_off_02","step":4,"cmd":"set_preedit","text":"","n":0}
-{"case":"shared/quick_telex_off_02","step":5,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/quick_telex_off_02","step":5,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/quick_telex_off_02","step":5,"cmd":"set_preedit","text":"cc","n":2}
+{"case":"shared/quick_telex_off_02","step":5,"cmd":"eat_key","text":"","n":0}

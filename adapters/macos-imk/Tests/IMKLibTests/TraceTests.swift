@@ -146,20 +146,49 @@ enum MacTrace {
                     nonPreedit = TextVNInputController.configNonPreedit(in: Data(json.utf8))
                 }
             case "reset":
+                if !marked.text.isEmpty {
+                    target.insert(marked.text, replacementRange: .notFound)
+                    marked.clear()
+                }
                 engine.reset()
-                marked.clear()
+                flush(step: step)
             case "key":
                 let down = (ev.down ?? 1) == 1
+                let vk = ev.vk ?? 0
+                let ch = ev.ch ?? 0
+                let mods = ev.mods ?? 0
+                if vk == 0x11 && ch == 0 && mods == 0 {
+                    if down {
+                        target.emit("forward_key")
+                        flush(step: step)
+                        continue
+                    }
+                    let outcome = engine.ctrlTap()
+                    switch outcome.action {
+                    case .pass:
+                        if outcome.isWordEnd && !marked.text.isEmpty {
+                            target.insert(marked.text, replacementRange: .notFound)
+                            marked.clear()
+                        }
+                    case .replace, .commit, .restore:
+                        let strategy = TextVNInputController.outputStrategy(
+                            hint: hint, nonPreedit: nonPreedit)
+                        try ApplyReplace.apply(
+                            outcome, strategy: strategy, target: target, marked: marked,
+                            onReset: { engine.reset() })
+                    }
+                    flush(step: step)
+                    continue
+                }
+                guard down else { continue }
                 let key = KeyEvent(
-                    vk: ev.vk ?? 0, ch: ev.ch ?? 0, mods: ev.mods ?? 0,
-                    keyDown: down, isInjected: ev.injected ?? false)
+                    vk: vk, ch: ch, mods: mods,
+                    keyDown: true, isInjected: ev.injected ?? false)
                 let outcome = engine.key(key)
                 let eaten = try applyOutcome(
                     outcome, key: key, hint: hint, nonPreedit: nonPreedit,
                     engine: engine, target: target, marked: marked)
-                if down {
-                    target.emit(eaten ? "eat_key" : "forward_key")
-                }
+                target.emit(eaten ? "eat_key" : "forward_key")
                 flush(step: step)
             default:
                 continue // expect / expect_preedit / mods / context: không đổi thao tác áp
@@ -284,5 +313,43 @@ final class TraceTests: XCTestCase {
         let cmds = t.take().map { "\($0.cmd):\($0.text):\($0.n)" }
         XCTAssertEqual(cmds, ["set_preedit:việ:3", "commit:việt:0", "set_preedit::0"])
         XCTAssertEqual(MacTrace.jsonString("a\"b\\c\n"), "\"a\\\"b\\\\c\\n\"")
+    }
+
+    /// SF-1e/SF-1f: key-up (`down=0`) của phím chữ KHÔNG được chạy `applyOutcome(.pass)` làm flush
+    /// `marked` + `engine.reset()` sớm — nếu không `"ww"` ra `"ưư"` thay vì `"w"`, `"toowf "` ra `"tôưf"`.
+    func testMultiKeyUndoAndSwitchMarksNotBrokenByKeyUp() throws {
+        func makeCase(_ name: String, _ text: String) -> EmittedCase {
+            var events: [EmittedCase.Event] = []
+            for (idx, scalar) in text.unicodeScalars.enumerated() {
+                let vk: UInt32 = scalar.value == 0x20 ? 0x20 : 0
+                for d in [1, 0] {
+                    events.append(EmittedCase.Event(
+                        kind: "key", step: idx, vk: vk, ch: scalar.value,
+                        mods: 0, down: d, injected: false, config_json: nil))
+                }
+            }
+            return EmittedCase(
+                case: name,
+                config_json: "{\"config_version\":1,\"method\":\"telex\",\"diacritic_style\":\"new\"}",
+                app: EmittedCase.App(
+                    bundle: "", field_role: 0, caps: 0, secure: false, enabled: true),
+                events: events)
+        }
+
+        let wwLines = try MacTrace.run(makeCase("shared/undo_ww_reg", "ww"))
+        XCTAssertFalse(
+            wwLines.contains(where: { $0.contains("\"cmd\":\"commit\"") }),
+            "key-up không được commit sớm trước ranh giới từ: \(wwLines)")
+        XCTAssertTrue(
+            wwLines.contains(where: { $0.contains("\"step\":1,\"cmd\":\"set_preedit\",\"text\":\"w\"") }),
+            "ww phải hoàn tác về 'w', không ra 'ưư': \(wwLines)")
+
+        let toowfLines = try MacTrace.run(makeCase("shared/switch_reg", "toowf "))
+        XCTAssertTrue(
+            toowfLines.contains(where: { $0.contains("\"step\":4,\"cmd\":\"set_preedit\",\"text\":\"tờ\"") }),
+            "toowf phải đổi dấu thành 'tờ' trước dấu cách: \(toowfLines)")
+        XCTAssertTrue(
+            toowfLines.contains(where: { $0.contains("\"step\":5,\"cmd\":\"commit\",\"text\":\"tờ \"") }),
+            "toowf + Space phải commit 'tờ ': \(toowfLines)")
     }
 }

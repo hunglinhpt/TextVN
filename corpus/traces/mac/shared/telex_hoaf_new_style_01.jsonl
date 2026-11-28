@@ -4,5 +4,3 @@
 {"case":"shared/telex_hoaf_new_style_01","step":3,"cmd":"delete_before","text":"","n":3}
 {"case":"shared/telex_hoaf_new_style_01","step":3,"cmd":"set_preedit","text":"hoà","n":3}
 {"case":"shared/telex_hoaf_new_style_01","step":3,"cmd":"eat_key","text":"","n":0}
-{"case":"shared/telex_hoaf_new_style_01","step":3,"cmd":"commit","text":"hoà","n":0}
-{"case":"shared/telex_hoaf_new_style_01","step":3,"cmd":"set_preedit","text":"","n":0}

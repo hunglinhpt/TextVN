@@ -35,6 +35,13 @@
 - **Khác biệt thật đầu tiên cho SF-1f**: TSF đưa MỌI chữ vào composition (`set_preedit "c"`…), còn
   macOS để app tự gõ chữ không biến đổi (`forward_key`) và chỉ dùng marked khi engine biến đổi
   (vd. `caps_after_dot_01`: `commit "B"` ở bước 6) — cần ghi/duyệt trong `ALLOWED_DIFF.md`.
+- **Cập nhật sửa lỗi key-up (do `SF-1f trace-diff` phát hiện)**: bản đầu `TraceTests.swift` cho
+  `down == 0` của mọi phím thường đi qua `applyOutcome(.pass)`, vô tình flush marked + `engine.reset()`
+  sau từng phím (làm hỏng `ww` → `ưư`, `toowf ` → `tôưf`, `th][ng` → `thư[ng`). Đã sửa `TraceTests.swift`
+  để bỏ qua key-up phím thường (khớp `TextVNInputController.handle`), xử lý `Ctrl` tap qua
+  `engine.ctrlTap()`, flush marked tại `case "reset"`, và thêm test hồi quy
+  `testMultiKeyUndoAndSwitchMarksNotBrokenByKeyUp`. Đã sinh lại đủ **58/58 vết** trên macOS arm64
+  (artifact run `46142495555`).
 
 ## EN
 
@@ -74,3 +81,10 @@
   while macOS lets the app type letters that need no transformation (`forward_key`) and uses marked
   text only when the engine transforms (e.g. `caps_after_dot_01`: `commit "B"` at step 6). This must be
   recorded and approved in `ALLOWED_DIFF.md`.
+- **Key-up fix caught by `SF-1f` (`trace-diff`)**: the initial `TraceTests.swift` passed normal key-up
+  (`down == 0`) through `applyOutcome(.pass)`, prematurely flushing marked text and resetting the
+  engine after every keystroke (breaking multi-key sequences such as `ww` → `ưư`, `toowf ` → `tôưf`,
+  and `th][ng` → `thư[ng`). Updated `TraceTests.swift` to skip normal key-up (matching
+  `TextVNInputController.handle`), handle standalone `Ctrl` tap via `engine.ctrlTap()`, commit marked
+  text on `case "reset"`, and add regression test `testMultiKeyUndoAndSwitchMarksNotBrokenByKeyUp`.
+  Regenerated all **58/58 traces** on macOS arm64 (artifact run `46142495555`).
