@@ -242,6 +242,7 @@ jobs:
       # chạy để regression EN/VI-detect (0.2.13) phủ luôn nền tảng Linux.
       - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter linux
       - run: cargo run -q -p xtask -- check-mac-corpus
+      - run: cargo run -q -p xtask -- trace-diff
 
   fuzz:
     timeout-minutes: 45

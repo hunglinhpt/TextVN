@@ -36,6 +36,7 @@ mod quality_score;
 mod quality_trend;
 mod regression_index;
 mod toml;
+mod trace_diff;
 mod win_corpus_cases;
 mod win_tools;
 
@@ -132,6 +133,8 @@ fn main() -> ExitCode {
         "quality-score" => quality_score::cli(&args[1..]),
         // BIZ-3: bảng xu hướng KPI theo bản (VI+EN 1:1) — chỉ đọc perf/quality, in stdout.
         "quality-trend" => quality_trend::cli(&args[1..]),
+        // SF-1f: đối chiếu vết 3 adapter (tsf/linux/mac) theo ALLOWED_DIFF.md + gate drift TSF.
+        "trace-diff" => trace_diff::run(&args[1..]),
         "eval-leak" => eval_leak::cli(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
@@ -165,6 +168,7 @@ fn usage() -> &'static str {
      cargo xtask gen-mac-corpus     # sinh corpus/mac/*.keys (MAC-006)\n  \
      cargo xtask check-mac-corpus   # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask check-mac-targets  # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
+     cargo xtask trace-diff         # SF-1f: so 3 vết (tsf/linux/mac) + gate drift TSF\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
      cargo xtask board <lệnh>       # G21: nhận/giao task, giữ chỗ tệp, thông báo (board help)\n  \
      cargo xtask regression-index   # REG-1: mã lỗi đã sửa ↔ test/gate (--bootstrap [--merge])\n  \

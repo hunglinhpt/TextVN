@@ -147,6 +147,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "trace-diff",
+        guards: "SF-1f: vết 3 adapter (tsf/linux/mac) khớp ALLOWED_DIFF.md và 136 vết TSF không trôi",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "trace-diff"],
+        optional: false,
+    },
+    Step {
         name: "check-tables",
         guards: "bảng keymap sinh ra khớp generator",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-tables"],
