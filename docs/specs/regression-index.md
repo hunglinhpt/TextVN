@@ -99,6 +99,7 @@
 | E87 | project-common-errors | `process:script .sh commit từ Windows phải git update-index --chmod=+x; ci-macos chạy trực tiếp script nên đỏ khi thiếu bit x` |
 | E88 | project-common-errors | `test:xtask/src/regression_index.rs::e88_bootstrap_chi_dem_file_git_tracked` |
 | E9 | project-common-errors | `gate:xtask/src/preflight.rs` |
+| E90 | project-common-errors | `test:core/src/post/predict.rs::loop2b_prefix_index_footprint_budget` · `test:core/src/post/predict.rs::loop2b_lexicon_mode_parity_sweep` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |

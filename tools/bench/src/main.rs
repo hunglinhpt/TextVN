@@ -294,10 +294,9 @@ fn num_str(text: &str, key: &str) -> String {
         return String::new();
     };
     let rest = text[p + pat.len()..].trim_start();
-    if rest.starts_with('"') {
-        rest[1..].chars().take_while(|c| *c != '"').collect()
-    } else {
-        rest.chars().take_while(char::is_ascii_digit).collect()
+    match rest.strip_prefix('"') {
+        Some(q) => q.chars().take_while(|c| *c != '"').collect(),
+        None => rest.chars().take_while(char::is_ascii_digit).collect(),
     }
 }
 

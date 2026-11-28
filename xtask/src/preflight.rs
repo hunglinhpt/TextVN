@@ -457,8 +457,7 @@ mod tests {
             ("x86_64", "linux", "x86_64-unknown-linux-gnu"),
             ("aarch64", "macos", "aarch64-apple-darwin"),
         ] {
-            std::fs::remove_file(dir.join("perf").join(format!("baseline-{triple}.json")))
-                .unwrap();
+            std::fs::remove_file(dir.join("perf").join(format!("baseline-{triple}.json"))).unwrap();
             assert_eq!(baseline_path_for(&dir, arch, os), None);
         }
         let _ = std::fs::remove_dir_all(&dir);
