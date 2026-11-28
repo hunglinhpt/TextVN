@@ -2,6 +2,7 @@
 # WIN-005 - hook spike (local + GHA windows-latest): WH_KEYBOARD_LL + SendInput + UIA, kiem tra session (RW5).
 # Log chi ghi vk + so lan (S2: khong ghi text/nguoi dung).
 $ErrorActionPreference = 'Stop'
+$script:probeFail = $false
 $out = Join-Path $env:TEMP 'hook_probe_out.txt'
 if (Test-Path $out) { Remove-Item $out -Force }
 function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
@@ -186,7 +187,12 @@ if ($hn -eq [IntPtr]::Zero) {
     Log ("value truoc inject: len=$len0 (-2 = khong co pattern doc duoc)")
     [void](Focus-UiAWindow $hn)
     PumpSleep 300
-    Log ("focus notepad: fg=" + [VtFocus]::GetForegroundWindow().ToInt64() + " (mong doi $hn)")
+    $fgNow = [VtFocus]::GetForegroundWindow().ToInt64()
+    Log ("focus notepad: fg=" + $fgNow + " (mong doi $hn)")
+    # E89 (cross-audit 2026-11-28): truoc day probe van "xanh" khi focus that bai (windows-11-arm:
+    # fg != notepad, injectNhan=False) -> ket luan sai "SendInput toi cua so that chay duoc".
+    # Fail-closed: focus khong toi cua so dich = probe DO.
+    if ($fgNow -ne [int64]$hn) { Log 'FAIL: focus khong toi notepad (input se khong toi cua so dich - E89)'; $script:probeFail = $true }
     $t1 = [HK]::HookCount
     $r2 = [HK]::SendInput(2, @($d, $u), $sz)
     PumpSleep 600
@@ -194,6 +200,7 @@ if ($hn -eq [IntPtr]::Zero) {
     $len1 = ReadLen $ed
     $nhan = ($len0 -ge 0 -and $len1 -eq ($len0 + 1))
     Log ("doc lai tu notepad qua UIA: len0=$len0 len1=$len1 injectNhan=$nhan")
+    if ($len0 -lt 0 -or $len1 -lt 0) { Log 'WARN: khong doc lai duoc text qua UIA (Notepad khong co pattern) - injectNhan khong xac nhan duoc' }
     # cleanup: chi kill notepad MOI (khong dot cua nguoi dung)
     Get-Process -Name notepad -ErrorAction SilentlyContinue | ForEach-Object {
         if ($before -notcontains $_.Id) { try { Stop-Process -Id $_.Id -Force } catch { } }
@@ -217,3 +224,4 @@ if ($env:RUNNER_TEMP -and ($env:RUNNER_TEMP -ne $env:TEMP)) {
     try { Copy-Item $out (Join-Path $env:RUNNER_TEMP 'hook_probe_out.txt') -Force } catch { }
 }
 Log 'DONE'
+if ($script:probeFail) { Log 'KET LUAN: FAIL (xem dong FAIL o tren)'; exit 1 }

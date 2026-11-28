@@ -65,5 +65,5 @@ dumpbin /exports: DllCanUnloadNow (forwarded to tsf_min_arm64.DllCanUnloadNow), 
 thư mục cài per-user (đường dẫn có dấu cách, thư mục làm việc khác) được nạp đúng kiến trúc từ cả tiến trình x64 giả
 lập lẫn ARM64 native — **không cần System32** như Weasel, không cần phương án B. Build được hoàn toàn trên runner x64
 (`windows-2022`: Rust `aarch64-pc-windows-msvc` + MSVC ARM64/ARM64EC). Còn lại cho task thật: đăng ký TIP + gõ thật
-trong Notepad/Edge trên `windows-11-arm` (ARM-W3/W5 — SPK-RUNNER đã chứng minh runner có phiên desktop + SendInput + UIA).
+trong Notepad/Edge trên `windows-11-arm` (ARM-W3/W5 — **đính chính 2026-11-28**: SPK-RUNNER KHÔNG chứng minh được SendInput tới cửa sổ trên `windows-11-arm`; focus không tới cửa sổ đích — E89, `hook-spike.md`).
 

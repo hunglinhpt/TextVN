@@ -92,5 +92,10 @@ Kế hoạch ARM/tương thích (P0-5 §9b, P0-7 COMPAT-1/ARM-W5) cần e2e Wind
 **`windows-11-arm`** — câu hỏi của WIN-005 (phiên desktop? SendInput? UIA xuyên tiến trình?) phải được trả
 lời lại cho hai image này. Cùng script `spikes/hook-probe/hook_probe.ps1`, workflow `spikes.yml` job
 `runner-probe` (ma trận `windows-2022` / `windows-2025` / `windows-11-arm`, artifact `spk-runner-<os>`).
-Kết quả (2026-11-27, run [#46028585161](https://github.com/hunglinhpt/TextVN/actions/runs/46028585161) và [#46029470340](https://github.com/hunglinhpt/TextVN/actions/runs/46029470340)): **xanh trên cả 3 runner** — `windows-11-arm`
-có phiên desktop, SendInput tới cửa sổ thật và UIA xuyên tiến trình như runner x64 ⇒ e2e Windows ARM64 (ARM-W5) chạy được trên CI.
+Kết quả (2026-11-27, run [#46028585161](https://github.com/hunglinhpt/TextVN/actions/runs/46028585161) và [#46029470340](https://github.com/hunglinhpt/TextVN/actions/runs/46029470340)): job xanh trên cả 3 runner, **NHƯNG kết luận ban đầu "SendInput tới cửa sổ thật chạy được trên `windows-11-arm`" là SAI**
+(sửa 2026-11-28 sau cross-audit E89): log `windows-11-arm` ghi `focus notepad: fg=66050 (mong doi 262632)` — cửa sổ đích
+KHÔNG nhận focus, SendInput chỉ tới hook LL; trên `windows-2022`/`windows-2025` focus đúng. Cả 3 runner đọc lại qua UIA
+đều `-2` (Notepad Win11 không có pattern) nên probe không xác nhận được chữ. Probe trước đó không làm đỏ khi focus
+hỏng ⇒ job "xanh" bị đọc nhầm thành ĐẠT. Nay `hook_probe.ps1` fail-closed khi focus không tới cửa sổ đích. Kết luận
+đúng = E89: ảnh `windows-11-arm` hiện không route input tới cửa sổ ⇒ gõ e2e thật trên ARM64 chưa chạy được trên CI
+(ARM-W5 giữ skip theo ARCH; cần máy ARM64 thật hoặc ảnh runner khác).
