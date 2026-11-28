@@ -383,6 +383,27 @@ fn join_unix(base: &str, suffix: &str) -> String {
     }
 }
 
+/// Phân tích `state.json` của tray (`global_enabled`, `assist_enabled`, `apps`)
+/// thành map trạng thái chuẩn (`"*"`, `"assist"`, `<app lowercase>`).
+pub fn parse_state_json(bytes: &[u8]) -> Option<BTreeMap<String, bool>> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let mut states = BTreeMap::new();
+    if let Some(global) = value.get("global_enabled").and_then(|v| v.as_bool()) {
+        states.insert(GLOBAL_APP_ID.to_string(), global);
+    }
+    if let Some(assist) = value.get("assist_enabled").and_then(|v| v.as_bool()) {
+        states.insert(ASSIST_APP_ID.to_string(), assist);
+    }
+    if let Some(apps) = value.get("apps").and_then(|v| v.as_object()) {
+        for (app, enabled) in apps {
+            if let Some(enabled) = enabled.as_bool() {
+                states.insert(app.to_ascii_lowercase(), enabled);
+            }
+        }
+    }
+    Some(states)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,5 +592,18 @@ mod tests {
             Some("/tmp/dev.sock".into())
         );
         assert_eq!(resolve_macos_socket_path(None, Some("")), None);
+    }
+
+    #[test]
+    fn parse_state_json_matches_tray_schema() {
+        let parsed = parse_state_json(
+            br#"{"global_enabled":false,"assist_enabled":true,"apps":{"Zalo.exe":true,"bad":"x"}}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.get("*"), Some(&false));
+        assert_eq!(parsed.get("assist"), Some(&true));
+        assert_eq!(parsed.get("zalo.exe"), Some(&true));
+        assert!(!parsed.contains_key("bad"));
+        assert!(parse_state_json(b"not json").is_none());
     }
 }

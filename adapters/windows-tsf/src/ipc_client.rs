@@ -24,6 +24,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
+use textvn_ipc::client::{
+    allowed_in_sandbox, parse_state_json, ReconnectBackoff, ASSIST_APP_ID, GLOBAL_APP_ID,
+};
 use textvn_ipc::sandbox::{open_tray_pipe, PipeOpen};
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
 use windows::Win32::System::Pipes::WaitNamedPipeW;
@@ -43,7 +46,7 @@ fn connect_tray() -> Option<(std::fs::File, bool)> {
 }
 
 /// Khóa trong map trạng thái đại diện cho công tắc toàn cục (khớp tray).
-pub const GLOBAL_KEY: &str = "*";
+pub const GLOBAL_KEY: &str = GLOBAL_APP_ID;
 
 static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
 static CLIENT: OnceLock<IpcClient> = OnceLock::new();
@@ -88,7 +91,7 @@ impl IpcState {
         if let Some(&global) = states.get(GLOBAL_KEY) {
             self.global_enabled.store(global, Ordering::Release);
         }
-        if let Some(&assist) = states.get("assist") {
+        if let Some(&assist) = states.get(ASSIST_APP_ID) {
             self.assist_enabled.store(assist, Ordering::Release);
         }
         match states.get(app_id) {
@@ -103,7 +106,7 @@ impl IpcState {
     fn apply_update(&self, app_id: &str, update_app: &str, enabled: bool) {
         if update_app == GLOBAL_KEY {
             self.global_enabled.store(enabled, Ordering::Release);
-        } else if update_app == "assist" {
+        } else if update_app == ASSIST_APP_ID {
             self.assist_enabled.store(enabled, Ordering::Release);
         } else if update_app.eq_ignore_ascii_case(app_id) {
             self.app_enabled.store(enabled, Ordering::Release);
@@ -267,12 +270,16 @@ pub fn notify_assist_async(title: String, message: String) {
         .spawn(move || {
             // Tray không chạy → bỏ im lặng (fail-open). Sandbox (R2-26): tray không nhận
             // toast từ tiến trình sandbox — không gửi.
-            let Some((mut stream, false)) = connect_tray() else {
+            let Some((mut stream, sandboxed)) = connect_tray() else {
                 return;
             };
+            let msg = Message::AssistNotification { title, message };
+            if sandboxed && !allowed_in_sandbox(&msg) {
+                return;
+            }
             // Gửi xong lắng 1 Ack (tray trả `Message::Ack`) rồi đóng — đứt
             // nghĩa tray vừa thoát, bỏ im lặng.
-            let _ = send_message(&mut stream, &Message::AssistNotification { title, message });
+            let _ = send_message(&mut stream, &msg);
             let _ = read_next_message(&mut stream);
         });
     // Spawn hỏng (hiếm, system thread pool sống): im lặng — toast là tối ưu, không bắt buộc.
@@ -316,9 +323,12 @@ pub fn send_command_async(msg: Message) {
         .name("textvn-tsf-cmd".into())
         .spawn(move || {
             // Sandbox (R2-26): tray không nhận lệnh Math/Emoji từ tiến trình sandbox.
-            let Some((mut stream, false)) = connect_tray() else {
+            let Some((mut stream, sandboxed)) = connect_tray() else {
                 return;
             };
+            if sandboxed && !allowed_in_sandbox(&msg) {
+                return;
+            }
             let _ = send_message(&mut stream, &msg);
             let _ = read_next_message(&mut stream);
         });
@@ -355,39 +365,20 @@ fn read_state_file() -> Option<BTreeMap<String, bool>> {
     parse_state_json(&bytes)
 }
 
-fn parse_state_json(bytes: &[u8]) -> Option<BTreeMap<String, bool>> {
-    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
-    let mut states = BTreeMap::new();
-    if let Some(global) = value.get("global_enabled").and_then(|v| v.as_bool()) {
-        states.insert(GLOBAL_KEY.to_string(), global);
-    }
-    if let Some(assist) = value.get("assist_enabled").and_then(|v| v.as_bool()) {
-        states.insert("assist".to_string(), assist);
-    }
-    if let Some(apps) = value.get("apps").and_then(|v| v.as_object()) {
-        for (app, enabled) in apps {
-            if let Some(enabled) = enabled.as_bool() {
-                states.insert(app.to_ascii_lowercase(), enabled);
-            }
-        }
-    }
-    Some(states)
-}
-
 fn run_client_loop(app_id: String, state: Arc<IpcState>) {
     let pid = std::process::id();
-    let mut idle_ms: u64 = 2_000;
+    let mut backoff =
+        ReconnectBackoff::new(Duration::from_millis(2_000), Duration::from_millis(10_000));
 
     loop {
         // Vòng 16 (audit A7): candidates + verify server; R2-26: + pipe sandbox.
         let Some((mut stream, _sandboxed)) = connect_tray() else {
             state.connected.store(false, Ordering::Release);
-            std::thread::sleep(Duration::from_millis(idle_ms));
             // Tray tắt lâu: giãn nhịp thử lại để không đánh thức CPU vô ích.
-            idle_ms = (idle_ms * 2).min(10_000);
+            std::thread::sleep(backoff.next_delay());
             continue;
         };
-        idle_ms = 2_000;
+        backoff.reset();
 
         let hello = Message::Hello {
             pid,
