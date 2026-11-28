@@ -16,7 +16,9 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
+pub mod session_abi;
 pub mod settings;
+pub use session_abi::*;
 
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -1898,6 +1900,40 @@ pub extern "C" fn ime_emoji_record_use(
         Some(()) => IME_OK,
         None => IME_ERR_INTERNAL,
     }
+}
+
+// ---- SF-1b (P0-6 §4): C ABI `ime_session_*` — thân hàm ở `session_abi.rs`; khai báo
+// `#[no_mangle]` đặt ở đây để `textvn-cli verify` đối chiếu thứ tự export với header. ----
+
+#[no_mangle]
+pub extern "C" fn ime_session_new(
+    cfg: *const ime_session_config_v1,
+    out: *mut *mut ime_session,
+) -> i32 {
+    session_abi::ime_session_new_impl(cfg, out)
+}
+
+#[no_mangle]
+pub extern "C" fn ime_session_free(s: *mut ime_session) {
+    session_abi::ime_session_free_impl(s)
+}
+
+#[no_mangle]
+pub extern "C" fn ime_session_event(
+    s: *mut ime_session,
+    ev: *const ime_session_event_v1,
+    out: *mut ime_session_out_v1,
+) -> i32 {
+    session_abi::ime_session_event_impl(s, ev, out)
+}
+
+#[no_mangle]
+pub extern "C" fn ime_session_reload_config(
+    s: *mut ime_session,
+    json: *const u8,
+    len: usize,
+) -> i32 {
+    session_abi::ime_session_reload_config_impl(s, json, len)
 }
 
 #[cfg(test)]

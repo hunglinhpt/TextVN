@@ -18,3 +18,6 @@ textvn-config = { path = "../config" }
 textvn-strategy = { path = "../strategy" }
 textvn-appdb = { path = "../appdb" }
 textvn-assist = { path = "../assist" }
+# SF-1b: C ABI ime_session_* cho crate session dùng chung (P0-6 §4).
+textvn-session = { path = "../session" }
+textvn-ipc = { path = "../ipc" }

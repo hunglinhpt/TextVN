@@ -176,6 +176,8 @@ dependencies = [
  "textvn-assist",
  "textvn-config",
  "textvn-core",
+ "textvn-ipc",
+ "textvn-session",
  "textvn-strategy",
 ]
 

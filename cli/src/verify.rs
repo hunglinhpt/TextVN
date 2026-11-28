@@ -161,6 +161,57 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             IME_ASSIST_TRIGGER_SENTENCE as i64,
         ),
         ("IME_ASSIST_PLAN_EXPLICIT", IME_ASSIST_PLAN_EXPLICIT as i64),
+        // SF-1b (P0-6 §4): session nghiệp vụ dùng chung.
+        ("IME_SESSION_ABI_VERSION", IME_SESSION_ABI_VERSION as i64),
+        ("IME_SESSION_MAX_CMDS", IME_SESSION_MAX_CMDS as i64),
+        ("IME_SESSION_ARENA", IME_SESSION_ARENA as i64),
+        ("IME_ERR_BUFFER", IME_ERR_BUFFER as i64),
+        ("IME_SCAP_PREEDIT", IME_SCAP_PREEDIT as i64),
+        (
+            "IME_SCAP_SURROUNDING_TEXT",
+            IME_SCAP_SURROUNDING_TEXT as i64,
+        ),
+        (
+            "IME_SCAP_DELETE_SURROUNDING",
+            IME_SCAP_DELETE_SURROUNDING as i64,
+        ),
+        ("IME_SCAP_INLINE_GHOST", IME_SCAP_INLINE_GHOST as i64),
+        ("IME_SCAP_KEY_UP_EVENTS", IME_SCAP_KEY_UP_EVENTS as i64),
+        ("IME_SCAP_FORWARD_KEY", IME_SCAP_FORWARD_KEY as i64),
+        ("IME_SEV_KEYDOWN", IME_SEV_KEYDOWN as i64),
+        ("IME_SEV_KEYUP", IME_SEV_KEYUP as i64),
+        ("IME_SEV_FOCUS_IN", IME_SEV_FOCUS_IN as i64),
+        ("IME_SEV_FOCUS_OUT", IME_SEV_FOCUS_OUT as i64),
+        ("IME_SEV_CARET_MOVED", IME_SEV_CARET_MOVED as i64),
+        ("IME_SEV_SURROUNDING", IME_SEV_SURROUNDING as i64),
+        ("IME_SEV_RESET", IME_SEV_RESET as i64),
+        ("IME_SEV_TIMER", IME_SEV_TIMER as i64),
+        ("IME_SEV_IPC", IME_SEV_IPC as i64),
+        ("IME_SEV_ASSIST_ACTION", IME_SEV_ASSIST_ACTION as i64),
+        ("IME_SFOCUS_SECURE", IME_SFOCUS_SECURE as i64),
+        ("IME_SFOCUS_TERMINAL", IME_SFOCUS_TERMINAL as i64),
+        ("IME_SRESET_TOOLKIT", IME_SRESET_TOOLKIT as i64),
+        ("IME_SRESET_FOCUS", IME_SRESET_FOCUS as i64),
+        ("IME_SRESET_APP", IME_SRESET_APP as i64),
+        ("IME_SASSIST_SELECT", IME_SASSIST_SELECT as i64),
+        ("IME_SASSIST_DISMISS", IME_SASSIST_DISMISS as i64),
+        ("IME_SASSIST_UNDO", IME_SASSIST_UNDO as i64),
+        ("IME_SCMD_SET_PREEDIT", IME_SCMD_SET_PREEDIT as i64),
+        ("IME_SCMD_COMMIT", IME_SCMD_COMMIT as i64),
+        ("IME_SCMD_DELETE_BEFORE", IME_SCMD_DELETE_BEFORE as i64),
+        ("IME_SCMD_FORWARD_KEY", IME_SCMD_FORWARD_KEY as i64),
+        ("IME_SCMD_EAT_KEY", IME_SCMD_EAT_KEY as i64),
+        ("IME_SCMD_GHOST", IME_SCMD_GHOST as i64),
+        (
+            "IME_SCMD_GHOST_AFTER_KEYUP",
+            IME_SCMD_GHOST_AFTER_KEYUP as i64,
+        ),
+        ("IME_SCMD_ASSIST_SHOW", IME_SCMD_ASSIST_SHOW as i64),
+        ("IME_SCMD_ASSIST_HIDE", IME_SCMD_ASSIST_HIDE as i64),
+        ("IME_SCMD_TIMER_START", IME_SCMD_TIMER_START as i64),
+        ("IME_SCMD_TIMER_CANCEL", IME_SCMD_TIMER_CANCEL as i64),
+        ("IME_SCMD_IPC", IME_SCMD_IPC as i64),
+        ("IME_SCMD_MODE_INDICATOR", IME_SCMD_MODE_INDICATOR as i64),
     ]
 }
 
@@ -209,6 +260,11 @@ fn abi_exports() -> Vec<&'static str> {
         // P12: Emoji Picker nhẹ — tìm kiếm VI/EN không dấu + ghi nhận MRU/Dream RSI.
         "ime_emoji_search",
         "ime_emoji_record_use",
+        // SF-1b (P0-6 §4): C ABI session dùng chung 3 OS.
+        "ime_session_new",
+        "ime_session_free",
+        "ime_session_event",
+        "ime_session_reload_config",
     ]
 }
 
@@ -304,6 +360,48 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 delete_glyphs,
                 replacement,
                 original_tail,
+            }),
+        ),
+        (
+            "ime_session_config_v1",
+            field_names!(ime_session_config_v1 {
+                abi_version,
+                caps,
+                config_json,
+                config_len,
+            }),
+        ),
+        (
+            "ime_session_event_v1",
+            field_names!(ime_session_event_v1 {
+                abi_version,
+                kind,
+                vk,
+                ch,
+                mods,
+                now_ms,
+                text,
+                text_len,
+                arg,
+            }),
+        ),
+        (
+            "ime_session_cmd_v1",
+            field_names!(ime_session_cmd_v1 {
+                kind,
+                arg0,
+                arg1,
+                text_off,
+                text_len,
+            }),
+        ),
+        (
+            "ime_session_out_v1",
+            field_names!(ime_session_out_v1 {
+                abi_version,
+                count,
+                cmds,
+                arena,
             }),
         ),
     ]
@@ -474,6 +572,10 @@ fn is_type_name(name: &str) -> bool {
             | "ime_assist_issue_v1"
             | "ime_assist_result_v1"
             | "ime_os_spell_v1"
+            | "ime_session"
+            | "ime_session_config_v1"
+            | "ime_session_event_v1"
+            | "ime_session_out_v1"
     )
 }
 
@@ -507,6 +609,66 @@ pub fn run(header_path: &str, as_json: bool) -> Result<String, Vec<String>> {
             header: "532".into(),
             rust: result_size.to_string(),
         });
+    }
+
+    // 1b) SF-1b: kích thước/offset 4 struct session trên MỌI target (P0-6 §4): 64-bit
+    // (x86_64/aarch64 — Windows/Linux/macOS); i686 MSVC (TIP x86: u64 canh 8); i386 SysV (u64
+    // canh 4 trong struct). Bộ (config, event, now_ms, text, arg) — header C dùng cùng quy tắc.
+    #[cfg(target_pointer_width = "64")]
+    let sl: (usize, usize, usize, usize, usize) = (24, 56, 24, 32, 48);
+    #[cfg(all(target_pointer_width = "32", target_env = "msvc"))]
+    let sl: (usize, usize, usize, usize, usize) = (16, 48, 24, 32, 40);
+    #[cfg(all(target_pointer_width = "32", not(target_env = "msvc")))]
+    let sl: (usize, usize, usize, usize, usize) = (16, 40, 20, 28, 36);
+    for (what, got, want) in [
+        (
+            "sizeof(ime_session_config_v1)",
+            size_of::<ime_session_config_v1>(),
+            sl.0,
+        ),
+        (
+            "sizeof(ime_session_event_v1)",
+            size_of::<ime_session_event_v1>(),
+            sl.1,
+        ),
+        (
+            "sizeof(ime_session_cmd_v1)",
+            size_of::<ime_session_cmd_v1>(),
+            20,
+        ),
+        (
+            "sizeof(ime_session_out_v1)",
+            size_of::<ime_session_out_v1>(),
+            8 + 16 * 20 + 2048,
+        ),
+        (
+            "offsetof(ime_session_event_v1, now_ms)",
+            offset_of!(ime_session_event_v1, now_ms),
+            sl.2,
+        ),
+        (
+            "offsetof(ime_session_event_v1, text)",
+            offset_of!(ime_session_event_v1, text),
+            sl.3,
+        ),
+        (
+            "offsetof(ime_session_event_v1, arg)",
+            offset_of!(ime_session_event_v1, arg),
+            sl.4,
+        ),
+        (
+            "offsetof(ime_session_out_v1, arena)",
+            offset_of!(ime_session_out_v1, arena),
+            8 + 16 * 20,
+        ),
+    ] {
+        if got != want {
+            bad.push(Mismatch {
+                what: what.into(),
+                header: want.to_string(),
+                rust: got.to_string(),
+            });
+        }
     }
 
     // 2) hằng: header ↔ Rust (mọi hằng ABI phải khớp giá trị)

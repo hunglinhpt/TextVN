@@ -297,6 +297,100 @@ int32_t      ime_emoji_search(const ime_instance *inst,
                               size_t *out_len);
 int32_t      ime_emoji_record_use(ime_instance *inst,
                                   const uint8_t *glyph_utf8, size_t glyph_len);
+/* ---- SF-1b (P0-6 §4) — session nghiệp vụ dùng chung 3 OS (`textvn-session`) ----
+ * Không callback, không cấp phát chéo: adapter cấp ime_session_out_v1 (stack), session ghi vào.
+ * Tràn IME_SESSION_MAX_CMDS/ARENA ⇒ IME_ERR_BUFFER, out->count = 0, session KHÔNG đổi trạng thái
+ * (adapter coi như ForwardKey). Chữ (preedit/commit/ghost/JSON IPC/mục trợ lý "text\treplace"
+ * cách nhau '\n') nằm ở arena[text_off .. text_off+text_len], UTF-8, không NUL. */
+#define IME_SESSION_ABI_VERSION 1u
+#define IME_SESSION_MAX_CMDS 16
+#define IME_SESSION_ARENA 2048
+#define IME_ERR_BUFFER       -5      /* SF-1b: ime_session_out_v1 không đủ chỗ; session không đổi */
+
+/* Caps (bit) */
+#define IME_SCAP_PREEDIT            0x01u
+#define IME_SCAP_SURROUNDING_TEXT   0x02u
+#define IME_SCAP_DELETE_SURROUNDING 0x04u
+#define IME_SCAP_INLINE_GHOST       0x08u
+#define IME_SCAP_KEY_UP_EVENTS      0x10u
+#define IME_SCAP_FORWARD_KEY        0x20u
+
+/* Sự kiện (ime_session_event_v1.kind) */
+#define IME_SEV_KEYDOWN        1u  /* vk, ch, mods, now_ms */
+#define IME_SEV_KEYUP          2u  /* vk, mods, now_ms */
+#define IME_SEV_FOCUS_IN       3u  /* text = app_id, arg = field_role, mods = IME_SFOCUS_* */
+#define IME_SEV_FOCUS_OUT      4u
+#define IME_SEV_CARET_MOVED    5u
+#define IME_SEV_SURROUNDING    6u  /* text = chữ trước caret */
+#define IME_SEV_RESET          7u  /* arg = IME_SRESET_*, now_ms */
+#define IME_SEV_TIMER          8u  /* arg = timer id, now_ms */
+#define IME_SEV_IPC            9u  /* text = JSON một message IPC v1 (thân frame, không prefix) */
+#define IME_SEV_ASSIST_ACTION 10u  /* arg = IME_SASSIST_*, ch = chỉ số gợi ý (Select) */
+#define IME_SFOCUS_SECURE   0x1u
+#define IME_SFOCUS_TERMINAL 0x2u
+#define IME_SRESET_TOOLKIT 0u
+#define IME_SRESET_FOCUS   1u
+#define IME_SRESET_APP     2u
+#define IME_SASSIST_SELECT  0u
+#define IME_SASSIST_DISMISS 1u
+#define IME_SASSIST_UNDO    2u
+
+/* Lệnh (ime_session_cmd_v1.kind) */
+#define IME_SCMD_SET_PREEDIT        1u  /* arg0 = cursor; text rỗng = ẩn preedit */
+#define IME_SCMD_COMMIT             2u
+#define IME_SCMD_DELETE_BEFORE      3u  /* arg0 = số ký tự */
+#define IME_SCMD_FORWARD_KEY        4u
+#define IME_SCMD_EAT_KEY            5u
+#define IME_SCMD_GHOST              6u  /* text rỗng = ẩn */
+#define IME_SCMD_GHOST_AFTER_KEYUP  7u
+#define IME_SCMD_ASSIST_SHOW        8u  /* arg0 = số mục */
+#define IME_SCMD_ASSIST_HIDE        9u
+#define IME_SCMD_TIMER_START       10u  /* arg0 = id, arg1 = ms */
+#define IME_SCMD_TIMER_CANCEL      11u  /* arg0 = id */
+#define IME_SCMD_IPC               12u  /* text = JSON message IPC v1 */
+#define IME_SCMD_MODE_INDICATOR    13u  /* arg0 = 1 tiếng Việt / 0 tiếng Anh */
+
+typedef struct ime_session ime_session;
+
+typedef struct ime_session_config {
+    uint32_t abi_version;     /* IME_SESSION_ABI_VERSION */
+    uint32_t caps;            /* bit IME_SCAP_* */
+    const uint8_t *config_json; /* UTF-8, có thể NULL (config_len = 0) */
+    size_t config_len;
+} ime_session_config_v1;
+
+typedef struct ime_session_event {
+    uint32_t abi_version;
+    uint32_t kind;            /* IME_SEV_* */
+    uint32_t vk;
+    uint32_t ch;
+    uint32_t mods;
+    uint64_t now_ms;
+    const uint8_t *text;      /* UTF-8, có thể NULL (text_len = 0) */
+    size_t text_len;
+    uint32_t arg;
+} ime_session_event_v1;
+
+typedef struct ime_session_cmd {
+    uint32_t kind;            /* IME_SCMD_* */
+    uint32_t arg0;
+    uint32_t arg1;
+    uint32_t text_off;        /* vào arena */
+    uint32_t text_len;
+} ime_session_cmd_v1;
+
+typedef struct ime_session_out {
+    uint32_t abi_version;     /* adapter đặt = IME_SESSION_ABI_VERSION trước khi gọi */
+    uint32_t count;
+    ime_session_cmd_v1 cmds[IME_SESSION_MAX_CMDS];
+    uint8_t arena[IME_SESSION_ARENA];
+} ime_session_out_v1;
+
+int32_t      ime_session_new(const ime_session_config_v1 *cfg, ime_session **out);
+void         ime_session_free(ime_session *s);
+int32_t      ime_session_event(ime_session *s, const ime_session_event_v1 *ev,
+                               ime_session_out_v1 *out);
+int32_t      ime_session_reload_config(ime_session *s, const uint8_t *json, size_t len);
 #ifdef __cplusplus
 }
 #endif
