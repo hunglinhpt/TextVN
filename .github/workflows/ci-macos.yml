@@ -24,6 +24,7 @@ on:
       - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "corpus/shared/**"
+      - "corpus/traces/mac/**"
       - "core/**"
       # R2-163: `textvn-math` là dep của core -> được compile vào staticlib macOS
       # (ffi -> core -> math) nhưng thiếu trong path filter nên sửa math-only không
@@ -60,6 +61,7 @@ on:
       - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "corpus/shared/**"
+      - "corpus/traces/mac/**"
       - "core/**"
       # R2-163: `textvn-math` là dep của core -> được compile vào staticlib macOS
       # (ffi -> core -> math) nhưng thiếu trong path filter nên sửa math-only không
