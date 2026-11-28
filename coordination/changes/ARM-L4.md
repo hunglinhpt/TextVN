@@ -57,3 +57,11 @@
   (runner + container asserts preserved through the script).
 - Evidence: yaml.safe_load OK; bash -n OK; a fresh release.yml dry-run on the next commit
   (run id to be recorded here once green).
+
+## Bằng chứng cuối (G23 dry-run)
+
+- **Release run `46111841387` (commit 2beb299d, dispatch 2026-11-28): SUCCESS 17/17**
+  — gồm `Linux ARM64 E2E` 6/6 (RHEL 8.10/9, SLES 15.6, Ubuntu 22.04, Debian 12,
+  Fedora 41) qua `scripts/run-distro-container.sh` (G22 một nguồn) và `Windows E2E
+  (windows-2025)` (COMPAT-1). Reviewer đã ghi "Sau khi gộp chạy lại release dry-run
+  (G23) rồi release done" ⇒ điều kiện đạt.
