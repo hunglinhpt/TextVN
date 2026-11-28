@@ -72,6 +72,16 @@
 - CI 3a (`932539db`) 7/7 xanh: `test_compose` (phép so 80 nghìn tổ hợp, `assert(bad == 0)`) pass dưới
   ASan+UBSan.
 
+### Pha 3c-2 — replay Linux chạy session; 58 vết `trace_compose.c` khớp từng byte — XONG
+- `replay --adapter linux` chạy CHÍNH `Composer(LINUX)` (KPI P0-6 §1: replay chạy session). Chỉ phần
+  adapter còn ở cli: cổng chord kiểu IBus/Fcitx5 (chừa Ctrl+Space, tính Meta), biến đổi phím gửi
+  engine (`lc_key_to_ime`), `finish_word` reset engine, `engine_new` chốt từ.
+- `--trace` nhận `tsf|linux`. Vết Linux sinh bằng session **khớp 58/58 tệp từng byte** với vết vàng do
+  mã C cũ (`trace_compose.c`) ghi: SF-G1 cho Linux chạy qua session. 58 ca replay Linux pass.
+- **Gate**: `cargo xtask trace-diff` (preflight, ci-shared) thêm bước
+  `check_linux_session_freshness`; lệch là session sai, không được sinh lại vết. Đột biến (chính sách
+  LINUX commit ranh giới cùng từ) ⇒ 40 vết đỏ.
+
 ### Còn lại
 - **3c — session tự chạy engine + compose** trong `Session::event` (adapter chỉ áp lệnh), có shadow 3 OS,
   luật *reset* R2-171/E78 chuyển vào session, `replay` chạy chính session cho mọi adapter.
@@ -148,6 +158,18 @@
   - a mutation (hiding preedit even when not composing) turns the gate red at `telex_horn_w_01`.
 - Phase 3a CI (`932539db`) 7/7 green: `test_compose` (the 80k-combination comparison,
   `assert(bad == 0)`) passes under ASan+UBSan.
+
+### Phase 3c-2 — Linux replay runs the session; the 58 `trace_compose.c` traces match byte-for-byte — DONE
+- `replay --adapter linux` runs `Composer(LINUX)` ITSELF (P0-6 §1 KPI: replay runs the session).
+  Only the adapter part stays in cli: the IBus/Fcitx5 chord gate (Ctrl+Space exempt, Meta counted),
+  the key transform sent to the engine (`lc_key_to_ime`), `finish_word` resetting the engine,
+  `engine_new` closing the word.
+- `--trace` accepts `tsf|linux`. Linux traces built by the session **match all 58 files
+  byte-for-byte** with the golden traces written by the old C code (`trace_compose.c`): SF-G1 for
+  Linux runs through the session. All 58 Linux replay cases pass.
+- **Gate**: `cargo xtask trace-diff` (preflight, ci-shared) adds `check_linux_session_freshness`; a
+  mismatch means the session is wrong, and the traces must not be regenerated. Mutation (LINUX policy
+  commits the boundary with the word) ⇒ 40 traces red.
 
 ### Remaining
 - **3c — the session runs engine + compose itself** in `Session::event` (adapters only apply

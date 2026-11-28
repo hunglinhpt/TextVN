@@ -143,8 +143,9 @@ fn cmd_replay(rest: &[String]) -> i32 {
         eprintln!("error: --adapter phải là headless|win|tsf|mac|linux (nhận `{adapter}`)");
         return 2;
     }
-    if trace.is_some() && adapter != "tsf" {
-        eprintln!("error: --trace chỉ hỗ trợ --adapter tsf (nhận `{adapter}`)");
+    // SF-3: vết sinh bằng `textvn_session::compose::Composer` (TSF + Linux IBus/Fcitx5).
+    if trace.is_some() && !matches!(adapter.as_str(), "tsf" | "linux") {
+        eprintln!("error: --trace chỉ hỗ trợ --adapter tsf|linux (nhận `{adapter}`)");
         return 2;
     }
     replay::run(

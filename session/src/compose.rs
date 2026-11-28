@@ -446,6 +446,12 @@ impl Composer {
         }
     }
 
+    /// Chính sách OS của composer.
+    #[must_use]
+    pub const fn policy(&self) -> ComposePolicy {
+        self.policy
+    }
+
     /// Chữ đang soạn (rỗng = không composing).
     #[must_use]
     pub fn current(&self) -> &[char] {

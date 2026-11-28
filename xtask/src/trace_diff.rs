@@ -12,6 +12,8 @@ use crate::check_mac_targets::{self, Json};
 
 const TSF_DIR: &str = "corpus/traces/tsf/shared";
 const LINUX_DIR: &str = "corpus/traces/linux/shared";
+/// Gốc vết Linux (`trace_compose.c`) — SF-3 so với vết `replay --adapter linux` qua session.
+const LINUX_ALL_DIR: &str = "corpus/traces/linux";
 const MAC_DIR: &str = "corpus/traces/mac/shared";
 const TSF_ALL_DIR: &str = "corpus/traces/tsf";
 const ALLOWED_MD: &str = "corpus/traces/ALLOWED_DIFF.md";
@@ -578,25 +580,31 @@ fn collect_relative_jsonl(dir: &Path) -> Result<BTreeMap<String, String>, String
 }
 
 pub fn check_tsf_freshness(root: &Path) -> Result<usize, String> {
-    let tmp = std::env::temp_dir().join(format!("textvn-sf1f-tsf-{}", std::process::id()));
+    check_replay_freshness(root, "tsf", &["corpus/shared", "corpus/win"], TSF_ALL_DIR)
+}
+
+/// SF-3 (SF-G1 qua session): `replay --adapter linux` chạy CHÍNH `textvn_session::compose::Composer`
+/// (chính sách LINUX) phải tái tạo từng byte 58 vết Linux do `trace_compose.c` (mã C cũ) ghi.
+pub fn check_linux_session_freshness(root: &Path) -> Result<usize, String> {
+    check_replay_freshness(root, "linux", &["corpus/shared"], LINUX_ALL_DIR)
+}
+
+/// Sinh lại vết bằng `textvn-cli replay --adapter <adapter> --trace` rồi so byte với `committed_dir`.
+fn check_replay_freshness(
+    root: &Path,
+    adapter: &str,
+    corpus: &[&str],
+    committed_dir: &str,
+) -> Result<usize, String> {
+    let tmp = std::env::temp_dir().join(format!("textvn-trace-{adapter}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).map_err(|e| format!("tạo tmp trace dir: {e}"))?;
 
     let status = Command::new("cargo")
         .current_dir(root)
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "textvn-cli",
-            "--",
-            "replay",
-            "corpus/shared",
-            "corpus/win",
-            "--adapter",
-            "tsf",
-            "--trace",
-        ])
+        .args(["run", "-q", "-p", "textvn-cli", "--", "replay"])
+        .args(corpus)
+        .args(["--adapter", adapter, "--trace"])
         .arg(&tmp)
         .status()
         .map_err(|e| format!("chạy textvn-cli replay --trace: {e}"))?;
@@ -605,7 +613,7 @@ pub fn check_tsf_freshness(root: &Path) -> Result<usize, String> {
         return Err(format!("textvn-cli replay --trace thất bại: {status}"));
     }
 
-    let committed = collect_relative_jsonl(&root.join(TSF_ALL_DIR));
+    let committed = collect_relative_jsonl(&root.join(committed_dir));
     let fresh = collect_relative_jsonl(&tmp);
     let _ = fs::remove_dir_all(&tmp);
 
@@ -624,8 +632,9 @@ pub fn check_tsf_freshness(root: &Path) -> Result<usize, String> {
             }
         }
         return Err(format!(
-            "SF-1c/1f: {} tệp trong `{TSF_ALL_DIR}` lệch bản replay hiện tại — chạy `cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf --trace {TSF_ALL_DIR}`:\n  {}",
+            "SF-1c/1f/SF-3: {} tệp trong `{committed_dir}` lệch bản replay `--adapter {adapter}` hiện tại — TSF: chạy `cargo run -q -p textvn-cli -- replay {} --adapter {adapter} --trace {committed_dir}`; Linux: vết vàng do trace_compose.c ghi, lệch là session sai (không sinh lại):\n  {}",
             diffs.len(),
+            corpus.join(" "),
             diffs.into_iter().take(15).collect::<Vec<_>>().join("\n  ")
         ));
     }
@@ -676,6 +685,10 @@ pub fn run(args: &[String]) -> Result<(), String> {
     if !skip_fresh {
         let count = check_tsf_freshness(&root)?;
         println!("trace-diff: gate TSF freshness PASS ({count} tệp khớp byte-to-byte)");
+        let count = check_linux_session_freshness(&root)?;
+        println!(
+            "trace-diff: gate Linux qua session (SF-3) PASS ({count} tệp khớp byte-to-byte với trace_compose.c)"
+        );
     }
     Ok(())
 }

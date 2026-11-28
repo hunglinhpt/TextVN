@@ -46,8 +46,9 @@ enum Cmd {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct AdapterProfile {
     default_caps: u32,
-    /// Mô phỏng mô hình composition của TSF adapter thay vì áp action trực tiếp.
-    tsf_composition: bool,
+    /// SF-3: mô phỏng adapter bằng CHÍNH `textvn_session::compose::Composer` với chính sách OS
+    /// (`TSF`: composition do TIP sở hữu; `LINUX`: preedit IBus/Fcitx5) thay vì áp action trực tiếp.
+    compose: Option<ComposePolicy>,
 }
 
 fn adapter_profile(adapter: &str) -> AdapterProfile {
@@ -59,25 +60,30 @@ fn adapter_profile(adapter: &str) -> AdapterProfile {
     match adapter {
         "headless" => AdapterProfile {
             default_caps: 0,
-            tsf_composition: false,
+            compose: None,
         },
         // TSF supports composition and native ranges. `INJECT_VK` is included
         // for the hook fallback, which shares the Windows corpus profile.
         "win" => AdapterProfile {
             default_caps: PREEDIT | SELECTION | FIELD_DETECT | INJECT_VK,
-            tsf_composition: false,
+            compose: None,
         },
         // TSF thật: cả từ nằm trong composition, commit ở ranh giới
         // (`textvn_win_tsf::compose`) — cùng kế hoạch mà DLL áp trong edit session.
         "tsf" => AdapterProfile {
             default_caps: PREEDIT | SELECTION | FIELD_DETECT,
-            tsf_composition: true,
+            compose: Some(ComposePolicy::TSF),
         },
-        // IMK/IBus/Fcitx5 expose preedit and selection when their platform
-        // field-detection integration is available.
-        "mac" | "linux" => AdapterProfile {
+        // IBus/Fcitx5: preedit + forward key — cùng `Composer` với chính sách LINUX (SF-3),
+        // cổng chord/biến đổi phím như `trace_compose.c` (`runner_step_key`).
+        "linux" => AdapterProfile {
             default_caps: PREEDIT | SELECTION | FIELD_DETECT,
-            tsf_composition: false,
+            compose: Some(ComposePolicy::LINUX),
+        },
+        // IMK expose preedit and selection when field-detection integration is available.
+        "mac" => AdapterProfile {
+            default_caps: PREEDIT | SELECTION | FIELD_DETECT,
+            compose: None,
         },
         _ => unreachable!("CLI validates --adapter before replay::run"),
     }
@@ -730,11 +736,11 @@ struct TsfComposition {
     composer: Composer,
 }
 
-impl Default for TsfComposition {
-    fn default() -> Self {
+impl TsfComposition {
+    fn new(policy: ComposePolicy) -> Self {
         Self {
             start: 0,
-            composer: Composer::new(ComposePolicy::TSF),
+            composer: Composer::new(policy),
         }
     }
 }
@@ -766,7 +772,7 @@ impl Sim {
             pending_action: None,
             last_action: "PASS".into(),
             failures: Vec::new(),
-            tsf: profile.tsf_composition.then(TsfComposition::default),
+            tsf: profile.compose.map(TsfComposition::new),
             comp_len: 0,
             trace: record_trace.then(Vec::new),
             key_step: 0,
@@ -848,11 +854,20 @@ impl Sim {
 
     /// Gửi 1 sự kiện key (down rồi up — P0-4 §2.2), cập nhật buffer/preedit theo §3.
     fn send_event(&mut self, vk: u32, ch: u32, mods: u32, injected: bool, line: usize) {
+        // IBus/Fcitx5 gửi engine phím đã chuẩn hoá (`lc_key_to_ime`) ở key-down đường thường;
+        // phím modifier, phím bị cổng chặn và mọi key-up đi nguyên văn.
+        let linux_down =
+            (self.linux_mode() && !is_modifier_vk(vk) && !self.gated(vk, ch, mods, injected))
+                .then(|| linux_key_to_engine(vk, ch, mods));
         for down in [1u8, 0u8] {
+            let (kvk, kch) = match linux_down {
+                Some((_, evk, ech)) if down == 1 => (evk, ech),
+                _ => (vk, ch),
+            };
             let k = ime_key_v1 {
                 abi_version: IME_ABI_VERSION,
-                vk,
-                ch,
+                vk: kvk,
+                ch: kch,
                 mods,
                 key_down: down,
                 is_repeat: 0,
@@ -902,6 +917,26 @@ impl Sim {
             }
         }
         self.key_step += 1;
+    }
+
+    /// Đang mô phỏng IBus/Fcitx5 (`Composer` chính sách LINUX)?
+    fn linux_mode(&self) -> bool {
+        self.tsf
+            .as_ref()
+            .is_some_and(|c| c.composer.policy() == ComposePolicy::LINUX)
+    }
+
+    /// Phím bị cổng adapter chặn (commit nguyên văn rồi app nhận phím): phím bơm, chord, ô secure,
+    /// tắt tiếng Việt (trừ khi còn gõ tắt `allow_macro_when_vi_off`). TSF coi mọi Ctrl/Alt/Win là
+    /// chord; Linux chừa Ctrl+Space (trigger dự đoán) và tính cả Meta (`trace_compose.c`).
+    fn gated(&self, vk: u32, ch: u32, mods: u32, injected: bool) -> bool {
+        let macro_only = !self.enabled && self.setting_is_true("allow_macro_when_vi_off");
+        let chord = if self.linux_mode() {
+            mods & 0x1E != 0 && !linux_ctrl_space(vk, ch, mods)
+        } else {
+            mods & 0xE != 0
+        };
+        injected || chord || self.secure || !(self.enabled || macro_only)
     }
 
     fn setting_is_true(&self, key: &str) -> bool {
@@ -984,10 +1019,13 @@ impl Sim {
             return;
         }
         // Chord / phím bơm (VK_PACKET) / field bị gate / tắt VN (trừ khi còn gõ tắt —
-        // `allow_macro_when_vi_off`): commit rồi app nhận phím.
-        let macro_only = !self.enabled && self.setting_is_true("allow_macro_when_vi_off");
-        if injected || mods & 0xE != 0 || self.secure || !(self.enabled || macro_only) {
+        // `allow_macro_when_vi_off`): commit rồi app nhận phím. Linux (`runner_finish_word`)
+        // còn reset engine ở key-down.
+        if self.gated(vk, ch, mods, injected) {
             self.tsf_end();
+            if down == 1 && self.linux_mode() {
+                ime_reset(self.inst);
+            }
             if down == 1 {
                 self.emit_trace("forward_key", String::new(), 0);
             }
@@ -999,7 +1037,14 @@ impl Sim {
         let Some(comp) = self.tsf.as_mut() else {
             return;
         };
-        let key = KeyKind::classify(vk, ch);
+        let linux = comp.composer.policy() == ComposePolicy::LINUX;
+        let key = if linux && down == 0 {
+            KeyKind::Other // key-up non-PASS (Ctrl tap RESTORE): `LC_KEY_OTHER`
+        } else if linux {
+            linux_key_to_engine(vk, ch, mods).0
+        } else {
+            KeyKind::classify(vk, ch)
+        };
         if !comp.composer.is_composing() {
             comp.start = self.cursor;
             self.comp_len = 0;
@@ -1009,7 +1054,10 @@ impl Sim {
             .composer
             .key(key, &EngineStep::from_result(out), down == 1, &mut cmds);
         self.apply_session_cmds(cmds, line);
-        if !plan.eaten {
+        if plan.reset_engine {
+            ime_reset(self.inst);
+        }
+        if !plan.eaten && down == 1 {
             self.apply_pass(vk, ch);
         }
     }
@@ -1183,6 +1231,30 @@ fn caps_bits(flags: &[String]) -> u32 {
         };
     }
     bits
+}
+
+/// Ctrl+Space của adapter Linux (`is_ctrl_space`/`lc_key_classify_with_mods`: Space theo vk HOẶC ch).
+fn linux_ctrl_space(vk: u32, ch: u32, mods: u32) -> bool {
+    (vk == 0x20 || ch == ' ' as u32) && (mods & !0x20) == 0x2
+}
+
+/// `lc_key_classify_with_mods` + `lc_key_to_ime`: loại phím và (vk, ch) gửi engine của IBus/Fcitx5.
+fn linux_key_to_engine(vk: u32, ch: u32, mods: u32) -> (KeyKind, u32, u32) {
+    let key = if linux_ctrl_space(vk, ch, mods) {
+        KeyKind::CtrlSpace
+    } else {
+        KeyKind::classify(vk, ch)
+    };
+    let evk = match key {
+        KeyKind::Backspace => 0x08,
+        KeyKind::Tab => 0x09,
+        KeyKind::Enter => 0x0D,
+        KeyKind::Escape => 0x1B,
+        KeyKind::CtrlSpace => 0x20,
+        KeyKind::Char(' ') => 0x20,
+        _ => vk,
+    };
+    (key, evk, key.engine_ch())
 }
 
 fn mod_bit(name: &str) -> u32 {
@@ -1559,6 +1631,10 @@ fn run_case(
                 sim.tsf_end();
             }
             Cmd::EngineNew => {
+                // IBus/Fcitx5 (`EV_ENGINE_NEW`): chốt từ đang soạn trước khi thay engine.
+                if sim.linux_mode() {
+                    sim.tsf_end();
+                }
                 ime_instance_free(sim.inst);
                 let mut inst: *mut ime_instance = std::ptr::null_mut();
                 let rc = ime_instance_new(std::ptr::null(), 0, &mut inst);
