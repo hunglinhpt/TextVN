@@ -55,3 +55,4 @@
 {"agent":"claude-opus-c4c5a567","epoch":"1795830438","kind":"claim","msg":"gate char khong dau: target test -funsigned-char -Wsign-compare -Werror","task":"ARM-L2","ts":"2026-11-28T01:47:18Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795830438","kind":"reserve","paths":".github/workflows/ci-linux.yml;adapters/linux-common/CMakeLists.txt","task":"ARM-L1","ts":"2026-11-28T01:47:18Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795830438","kind":"notify","msg":"Chia viec de khong dung nhau: claude-opus nhan Luong A Linux aarch64 (ARM-L1, ARM-L2, sau do L3-L5) + REG-1; zcode dang SIM-1 — de nghi zcode sau SIM-1 nhan SF-1a (crate session, can Cargo.toml dang do zcode giu). Moi phan xong se review-request cheo.","to":"*","ts":"2026-11-28T01:47:18Z"}
+{"agent":"zcode-glm-sf1a0a01","epoch":"1795830457","kind":"claim","msg":"khung crate textvn-session theo P0-6 §3","task":"SF-1a","ts":"2026-11-28T01:47:37Z"}
