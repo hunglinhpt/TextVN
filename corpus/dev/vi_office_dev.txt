@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# BIZ-2 — tập DEV tiếng Việt cho miss report Dream RSI (`textvn-bench miss-report`).
+# Câu viết MỚI cho dự án (TextVN, GPL-3.0-or-later). KHÁC tập held-out `corpus/eval/`: tập dev ĐƯỢC
+# phép soi chi tiết (top-50 từ bỏ lỡ) và làm đầu vào dữ liệu bản sau; test trong `tools/bench` chặn
+# mọi chuỗi ≥ 6 token trùng `corpus/eval/` (không để dữ liệu sinh từ dev rò sang tập đánh giá).
+# Chữ thường, không dấu câu; một câu một dòng; mọi từ gõ Telex tái lập đúng chữ.
+nhờ chị gửi lại danh sách nhân viên tham gia khóa đào tạo
+phòng hành chính đã đặt vé máy bay cho đoàn công tác
+em chưa nhận được thư mời dự hội thảo của đối tác
+anh giám đốc muốn xem số liệu bán hàng tháng trước
+mình cần thống nhất thời gian giao hàng với nhà cung cấp
+bản thảo hợp tác sẽ được ký vào đầu tháng sau
+các bạn nhớ nộp phiếu đánh giá năng lực trước thứ sáu
+chúng tôi rất mong được hợp tác lâu dài với quý công ty
+phòng nhân sự thông báo lịch nghỉ tết cho toàn thể nhân viên
+em muốn đổi lịch trực sang thứ tư vì có việc gia đình
+chị tổng hợp giúp em ý kiến của khách hàng về sản phẩm mới
+máy in tầng ba đang bị kẹt giấy từ sáng nay
+đội kỹ thuật sẽ bảo trì hệ thống vào tối thứ bảy
+ban giám đốc đã đồng ý mua thêm thiết bị cho văn phòng mới
+buổi đào tạo kỹ năng giao tiếp bắt đầu lúc chín giờ
+mọi người kiểm tra lại hộp thư trước khi về nhé
+kế hoạch truyền thông năm nay cần thêm ngân sách
+em gửi kèm bảng báo giá đã cập nhật theo yêu cầu
+khách hàng phản hồi rất tốt về chất lượng dịch vụ
+chúng ta nên tổ chức buổi họp tổng kết cuối năm
+phòng kinh doanh đạt chỉ tiêu doanh số quý ba
+chị nhắc giúp em hạn nộp báo cáo thuế tháng này
+xin cảm ơn sự hỗ trợ nhiệt tình của các anh chị
+các bạn lập trình viên đã sửa xong lỗi đăng nhập trên ứng dụng
+anh ấy được bổ nhiệm làm trưởng phòng từ tuần sau
+em sẽ liên hệ lại với khách sau khi trao đổi nội bộ
+công ty tổ chức du lịch hè cho nhân viên vào tháng bảy
+vui lòng đóng góp ý kiến cho quy trình làm việc mới
+bộ phận chăm sóc khách hàng làm việc cả cuối tuần
+chúng tôi gửi lời chúc mừng năm mới tới quý đối tác

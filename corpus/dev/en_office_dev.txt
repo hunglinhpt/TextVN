@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# BIZ-2 — English DEV set for the Dream RSI miss report (`textvn-bench miss-report`).
+# Sentences written NEW for the project (TextVN, GPL-3.0-or-later). Unlike the held-out set in
+# `corpus/eval/`, the dev set MAY be inspected in detail (top-50 missed words) and used as input for
+# the next release's data; a test in `tools/bench` rejects any run of 6+ tokens shared with `corpus/eval/`.
+# Lowercase, no punctuation; one sentence per line.
+please send me the latest budget draft
+we should schedule a call with the vendor tomorrow
+the marketing team prepared a new campaign proposal
+could you share the slides from the workshop
+the reception desk stays closed during the public holiday
+i will follow up with the customer after lunch
+the finance manager approved the invoice yesterday
+we can discuss the training plan during the next review
+please update your task status before lunch
+the server maintenance window starts at midnight
+we received positive feedback from the pilot users
+kindly sign the purchase request for new laptops
+the hiring committee will meet on thursday morning
+make sure the contract template uses the new logo
+our quarterly results exceeded the sales target
+i have attached the minutes from yesterday
+the design team is finishing the mobile app layout
+remember to submit your expense claims by friday
+we appreciate your continued support and partnership
+the deadline for the annual report is next month

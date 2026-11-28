@@ -707,24 +707,44 @@ fn sim_baseline_keys(s: &Sentence) -> u64 {
 /// `wrong_ghost` = ĐỘT BIẾN harness (test gate RSI-1): giả lập engine
 /// "luôn hiện chữ mờ sai" — mọi vị trí xét được đều +1 nhiễu, không Tab nào được nhận
 /// ⇒ KSR rơi về 0 và noise tăng vọt, gate G19c phải ĐỎ.
-fn sim_run_oracle(e: &mut Engine, s: &Sentence, wrong_ghost: bool) -> OracleStat {
+fn sim_run_oracle(
+    e: &mut Engine,
+    s: &Sentence,
+    wrong_ghost: bool,
+    mut log: Option<&mut WordLog>,
+) -> OracleStat {
     let mut st = OracleStat {
         baseline_keys: sim_baseline_keys(s),
         ..Default::default()
     };
     let mut d: Vec<char> = Vec::new();
     let n = s.words.len();
+    if let Some(l) = log.as_deref_mut() {
+        l.words = vec![WordObs::default(); n];
+        l.wrong_ghosts.clear();
+    }
     let (mut i, mut j) = (0usize, 0usize);
     let mut chain = 0u64;
     while i < n {
         if let Some(g) = e.peek_completion() {
             st.ghosts_shown += 1;
-            if s.target.starts_with(&d) {
+            let judgeable = s.target.starts_with(&d);
+            if judgeable {
                 st.ghosts_judgeable += 1;
             }
             let mut cand = d.clone();
             cand.extend(g.chars());
-            if !wrong_ghost && cand.len() > d.len() && s.target.starts_with(&cand) {
+            let good = !wrong_ghost && cand.len() > d.len() && s.target.starts_with(&cand);
+            if let Some(l) = log.as_deref_mut() {
+                l.words[i].ghosts += 1;
+                if judgeable && !good {
+                    l.words[i].wrong += 1;
+                    let start = word_start(s, i).min(d.len());
+                    l.wrong_ghosts
+                        .push((d[start..].iter().collect(), g.to_string()));
+                }
+            }
+            if good {
                 st.ghosts_good += 1;
                 let l = cand.len();
                 // Hết đúng ở cuối từ k (trước dấu phân cách) hoặc ngay sau dấu phân cách.
@@ -738,6 +758,13 @@ fn sim_run_oracle(e: &mut Engine, s: &Sentence, wrong_ghost: bool) -> OracleStat
                     }
                 });
                 if let Some((ni, nj)) = resume {
+                    if let Some(l) = log.as_deref_mut() {
+                        // Tab phủ phần còn lại của từ i và mọi từ tới ni (ni chỉ khi dừng cuối từ ni).
+                        let last = if nj == 0 { ni.saturating_sub(1) } else { ni };
+                        for w in &mut l.words[i..=last.min(n - 1)] {
+                            w.covered = true;
+                        }
+                    }
                     sim_press(e, &mut d, &tab_key());
                     st.actual_keys += 1;
                     st.accepts += 1;
@@ -756,6 +783,9 @@ fn sim_run_oracle(e: &mut Engine, s: &Sentence, wrong_ghost: bool) -> OracleStat
                     continue;
                 }
                 st.good_midword += 1;
+                if let Some(l) = log.as_deref_mut() {
+                    l.words[i].midword += 1;
+                }
             }
         }
         chain = 0;
@@ -784,6 +814,406 @@ fn sim_run_oracle(e: &mut Engine, s: &Sentence, wrong_ghost: bool) -> OracleStat
         }
     }
     st
+}
+
+// ---------------------------------------------------------------------------------------
+// BIZ-2 — miss report (P0-8 §5 "vòng nghiệp vụ"): từ nào người dùng oracle phải gõ tay hết
+// và VÌ SAO (không có chữ mờ / chỉ có chữ mờ sai / chữ mờ đúng nhưng dừng giữa từ), cùng
+// các chữ mờ sai hay gặp. Tách tập (RSI-2): tập held-out `corpus/eval/` CHỈ ra số tổng hợp
+// theo nhóm — không liệt kê từ, để không ai đem từ của tập đánh giá làm dữ liệu (cụm < 6
+// token lọt gate eval-leak ⇒ KSR thổi phồng). Bảng chi tiết chỉ lấy từ tập DEV (bench +
+// `corpus/dev/`), tập được phép làm đầu vào dữ liệu bản sau.
+// ---------------------------------------------------------------------------------------
+
+/// Tập dev tiếng Việt/Anh (BIZ-2) — được soi chi tiết; cấm trùng ≥ 6 token với `corpus/eval/`.
+const DEV_VI: &str = include_str!("../../../corpus/dev/vi_office_dev.txt");
+const DEV_EN: &str = include_str!("../../../corpus/dev/en_office_dev.txt");
+
+/// Số dòng tối đa mỗi bảng chi tiết của miss report.
+const MISS_TOP_N: usize = 50;
+
+/// Quan sát của một từ trong câu, do `sim_run_oracle` ghi khi được truyền `WordLog`.
+#[derive(Default, Clone, Copy)]
+struct WordObs {
+    /// Có lần nhận Tab nào phủ (một phần) từ này.
+    covered: bool,
+    /// Số vị trí phím trong từ có chữ mờ hiện.
+    ghosts: u32,
+    /// Chữ mờ hiện khi văn bản còn đúng nhưng chữ mờ dẫn sai.
+    wrong: u32,
+    /// Chữ mờ đúng nhưng dừng giữa từ (oracle không nhận).
+    midword: u32,
+}
+
+/// Nhật ký một câu cho miss report.
+#[derive(Default)]
+struct WordLog {
+    words: Vec<WordObs>,
+    /// (phần từ đã gõ, chữ mờ sai) theo thứ tự xuất hiện.
+    wrong_ghosts: Vec<(String, String)>,
+}
+
+/// Vị trí bắt đầu từ `i` trong văn bản đích.
+fn word_start(s: &Sentence, i: usize) -> usize {
+    if i == 0 {
+        0
+    } else {
+        s.sep_end[i - 1]
+    }
+}
+
+/// Chữ của từ `i` trong văn bản đích (không gồm dấu phân cách).
+fn word_text(s: &Sentence, i: usize) -> String {
+    s.target[word_start(s, i)..s.sep_end[i] - 1]
+        .iter()
+        .collect()
+}
+
+/// Lý do bỏ lỡ của một từ gõ tay hết.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum MissReason {
+    /// Không có chữ mờ đúng nào và không có chữ mờ sai: chưa có dữ liệu.
+    NoGhost,
+    /// Chỉ có chữ mờ sai (xếp hạng/cổng ngôn ngữ chọn nhầm).
+    WrongGhost,
+    /// Có chữ mờ đúng nhưng dừng giữa từ (oracle không nhận) — ngưỡng/độ dài gợi ý.
+    MidWord,
+}
+
+impl MissReason {
+    fn of(o: &WordObs) -> Self {
+        if o.midword > 0 {
+            MissReason::MidWord
+        } else if o.wrong > 0 {
+            MissReason::WrongGhost
+        } else {
+            MissReason::NoGhost
+        }
+    }
+    fn key(self) -> &'static str {
+        match self {
+            MissReason::NoGhost => "no_ghost",
+            MissReason::WrongGhost => "wrong_ghost",
+            MissReason::MidWord => "midword",
+        }
+    }
+}
+
+/// Nhóm độ dài từ (ký tự) — 4 nhóm cố định.
+const MISS_LEN_BUCKETS: [&str; 4] = ["1-2", "3-4", "5-7", "8+"];
+
+fn len_bucket(chars: usize) -> usize {
+    match chars {
+        0..=2 => 0,
+        3..=4 => 1,
+        5..=7 => 2,
+        _ => 3,
+    }
+}
+
+/// Số tổng hợp của một corpus (an toàn cho tập held-out: KHÔNG chứa chữ nào của corpus).
+#[derive(Default, Clone, PartialEq, Eq, Debug)]
+struct MissAgg {
+    words: u64,
+    covered: u64,
+    missed: u64,
+    no_ghost: u64,
+    wrong_ghost: u64,
+    midword: u64,
+    wrong_ghost_events: u64,
+    len_words: [u64; 4],
+    len_missed: [u64; 4],
+}
+
+impl MissAgg {
+    fn add_sentence(&mut self, s: &Sentence, log: &WordLog) {
+        for (i, o) in log.words.iter().enumerate() {
+            let b = len_bucket(word_text(s, i).chars().count());
+            self.words += 1;
+            self.len_words[b] += 1;
+            if o.covered {
+                self.covered += 1;
+                continue;
+            }
+            self.missed += 1;
+            self.len_missed[b] += 1;
+            match MissReason::of(o) {
+                MissReason::NoGhost => self.no_ghost += 1,
+                MissReason::WrongGhost => self.wrong_ghost += 1,
+                MissReason::MidWord => self.midword += 1,
+            }
+        }
+        self.wrong_ghost_events += log.wrong_ghosts.len() as u64;
+    }
+
+    fn to_json(&self) -> String {
+        let buckets = |v: &[u64; 4]| {
+            MISS_LEN_BUCKETS
+                .iter()
+                .zip(v)
+                .map(|(k, n)| format!("\"{k}\":{n}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        format!(
+            "{{\"words\":{},\"covered\":{},\"missed\":{},\"by_reason\":{{\"no_ghost\":{},\"wrong_ghost\":{},\"midword\":{}}},\"wrong_ghost_events\":{},\"len_words\":{{{}}},\"len_missed\":{{{}}}}}",
+            self.words,
+            self.covered,
+            self.missed,
+            self.no_ghost,
+            self.wrong_ghost,
+            self.midword,
+            self.wrong_ghost_events,
+            buckets(&self.len_words),
+            buckets(&self.len_missed)
+        )
+    }
+}
+
+/// Chi tiết tập dev: đếm theo từ bỏ lỡ (kèm lý do trội) và theo cặp chữ mờ sai.
+#[derive(Default)]
+struct MissDetail {
+    missed: std::collections::BTreeMap<String, [u64; 3]>,
+    wrong: std::collections::BTreeMap<(String, String), u64>,
+}
+
+impl MissDetail {
+    fn add_sentence(&mut self, s: &Sentence, log: &WordLog) {
+        for (i, o) in log.words.iter().enumerate() {
+            if !o.covered {
+                let r = MissReason::of(o) as usize;
+                self.missed.entry(word_text(s, i)).or_default()[r] += 1;
+            }
+        }
+        for (prefix, ghost) in &log.wrong_ghosts {
+            *self
+                .wrong
+                .entry((prefix.clone(), ghost.clone()))
+                .or_default() += 1;
+        }
+    }
+
+    /// Top từ bỏ lỡ: (từ, số lần, lý do trội) — sắp số lần giảm dần, rồi từ tăng dần (tất định).
+    fn top_missed(&self) -> Vec<(String, u64, MissReason)> {
+        let reasons = [
+            MissReason::NoGhost,
+            MissReason::WrongGhost,
+            MissReason::MidWord,
+        ];
+        let mut v: Vec<(String, u64, MissReason)> = self
+            .missed
+            .iter()
+            .map(|(w, c)| {
+                let (ri, _) = c
+                    .iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(&a.0)))
+                    .expect("3 lý do");
+                (w.clone(), c.iter().sum(), reasons[ri])
+            })
+            .collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        v.truncate(MISS_TOP_N);
+        v
+    }
+
+    fn top_wrong(&self) -> Vec<(String, String, u64)> {
+        let mut v: Vec<(String, String, u64)> = self
+            .wrong
+            .iter()
+            .map(|((p, g), c)| (p.clone(), g.clone(), *c))
+            .collect();
+        v.sort_by(|a, b| {
+            b.2.cmp(&a.2)
+                .then_with(|| a.0.cmp(&b.0))
+                .then_with(|| a.1.cmp(&b.1))
+        });
+        v.truncate(MISS_TOP_N);
+        v
+    }
+}
+
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Kết quả miss report: số tổng hợp mọi corpus + chi tiết riêng tập dev.
+struct MissReport {
+    eval_vi: MissAgg,
+    eval_en: MissAgg,
+    bench: MissAgg,
+    dev_vi: MissAgg,
+    dev_en: MissAgg,
+    dev_rejected: usize,
+    detail: MissDetail,
+}
+
+/// Chạy miss report. Held-out đi ĐÚNG thứ tự của `dream_rsi_oracle_run` (bench → VI → EN
+/// trên một engine) ⇒ số tổng hợp khớp phép đo gate. Tập dev chạy trên engine RIÊNG (bench
+/// trước để ấm như người dùng) — không làm lệch số held-out.
+fn miss_report_run(wrong_ghost: bool) -> MissReport {
+    let bench_corpus = build_bench_corpus();
+    let (vi, _, _) = build_heldout(HELDOUT_VI, true);
+    let (en, _, _) = build_heldout(HELDOUT_EN, false);
+    let (dvi, _, rej_dvi) = build_heldout(DEV_VI, true);
+    let (den, _, rej_den) = build_heldout(DEV_EN, false);
+
+    let mut log = WordLog::default();
+    let mut bench = MissAgg::default();
+    let mut eval_vi = MissAgg::default();
+    let mut eval_en = MissAgg::default();
+    let mut detail = MissDetail::default();
+
+    let mut e = Engine::new(sim_opts());
+    for s in &bench_corpus {
+        sim_run_oracle(&mut e, s, wrong_ghost, Some(&mut log));
+        bench.add_sentence(s, &log);
+        detail.add_sentence(s, &log);
+    }
+    for s in &vi {
+        sim_run_oracle(&mut e, s, wrong_ghost, Some(&mut log));
+        eval_vi.add_sentence(s, &log);
+    }
+    for s in &en {
+        sim_run_oracle(&mut e, s, wrong_ghost, Some(&mut log));
+        eval_en.add_sentence(s, &log);
+    }
+
+    let mut dev_vi = MissAgg::default();
+    let mut dev_en = MissAgg::default();
+    let mut e = Engine::new(sim_opts());
+    for s in &bench_corpus {
+        sim_run_oracle(&mut e, s, wrong_ghost, None);
+    }
+    for s in &dvi {
+        sim_run_oracle(&mut e, s, wrong_ghost, Some(&mut log));
+        dev_vi.add_sentence(s, &log);
+        detail.add_sentence(s, &log);
+    }
+    for s in &den {
+        sim_run_oracle(&mut e, s, wrong_ghost, Some(&mut log));
+        dev_en.add_sentence(s, &log);
+        detail.add_sentence(s, &log);
+    }
+    MissReport {
+        eval_vi,
+        eval_en,
+        bench,
+        dev_vi,
+        dev_en,
+        dev_rejected: rej_dvi + rej_den,
+        detail,
+    }
+}
+
+impl MissReport {
+    /// JSON máy đọc (`schema: textvn-miss.v1`). Khối `heldout` chỉ có số — không chữ của corpus.
+    fn to_json(&self) -> String {
+        let missed = self
+            .detail
+            .top_missed()
+            .iter()
+            .map(|(w, c, r)| {
+                format!(
+                    "{{\"word\":\"{}\",\"count\":{c},\"reason\":\"{}\"}}",
+                    json_escape(w),
+                    r.key()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let wrong = self
+            .detail
+            .top_wrong()
+            .iter()
+            .map(|(p, g, c)| {
+                format!(
+                    "{{\"typed\":\"{}\",\"ghost\":\"{}\",\"count\":{c}}}",
+                    json_escape(p),
+                    json_escape(g)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "{{\"schema\":\"textvn-miss.v1\",\"heldout\":{{\"vi\":{},\"en\":{}}},\"dev\":{{\"bench\":{},\"vi\":{},\"en\":{},\"rejected\":{},\"top_missed\":[{missed}],\"top_wrong_ghosts\":[{wrong}]}}}}",
+            self.eval_vi.to_json(),
+            self.eval_en.to_json(),
+            self.bench.to_json(),
+            self.dev_vi.to_json(),
+            self.dev_en.to_json(),
+            self.dev_rejected,
+        )
+    }
+
+    /// Bảng Markdown cho người đọc (stdout).
+    fn to_markdown(&self) -> String {
+        let mut s = String::new();
+        let _ = writeln!(s, "# Miss report Dream RSI (BIZ-2)\n");
+        let _ = writeln!(
+            s,
+            "Từ người dùng oracle phải gõ tay hết, theo lý do. Tập held-out (`corpus/eval/`) chỉ có số tổng hợp — không liệt kê từ (RSI-2: chống rò rỉ tập đánh giá).\n"
+        );
+        let _ = writeln!(
+            s,
+            "| Corpus | Từ | Được gợi ý | Bỏ lỡ | không chữ mờ | chữ mờ sai | dừng giữa từ | lượt chữ mờ sai |"
+        );
+        let _ = writeln!(s, "|---|---:|---:|---:|---:|---:|---:|---:|");
+        for (name, a) in [
+            ("held-out VI", &self.eval_vi),
+            ("held-out EN", &self.eval_en),
+            ("dev bench", &self.bench),
+            ("dev VI", &self.dev_vi),
+            ("dev EN", &self.dev_en),
+        ] {
+            let _ = writeln!(
+                s,
+                "| {name} | {} | {} | {} ({:.1}%) | {} | {} | {} | {} |",
+                a.words,
+                a.covered,
+                a.missed,
+                pct(a.missed, a.words),
+                a.no_ghost,
+                a.wrong_ghost,
+                a.midword,
+                a.wrong_ghost_events
+            );
+        }
+        let _ = writeln!(s, "\n## Bỏ lỡ theo độ dài từ (held-out VI+EN)\n");
+        let _ = writeln!(s, "| Độ dài | Từ | Bỏ lỡ |");
+        let _ = writeln!(s, "|---|---:|---:|");
+        for (b, name) in MISS_LEN_BUCKETS.iter().enumerate() {
+            let w = self.eval_vi.len_words[b] + self.eval_en.len_words[b];
+            let m = self.eval_vi.len_missed[b] + self.eval_en.len_missed[b];
+            let _ = writeln!(s, "| {name} | {w} | {m} ({:.1}%) |", pct(m, w));
+        }
+        let _ = writeln!(s, "\n## Top {MISS_TOP_N} từ bỏ lỡ (chỉ tập dev)\n");
+        let _ = writeln!(s, "| # | Từ | Lần | Lý do trội |");
+        let _ = writeln!(s, "|---:|---|---:|---|");
+        for (k, (w, c, r)) in self.detail.top_missed().iter().enumerate() {
+            let _ = writeln!(s, "| {} | {w} | {c} | {} |", k + 1, r.key());
+        }
+        let _ = writeln!(s, "\n## Top {MISS_TOP_N} chữ mờ sai (chỉ tập dev)\n");
+        let _ = writeln!(s, "| # | Đã gõ | Chữ mờ | Lần |");
+        let _ = writeln!(s, "|---:|---|---|---:|");
+        for (k, (p, g, c)) in self.detail.top_wrong().iter().enumerate() {
+            let _ = writeln!(s, "| {} | `{p}` | `{g}` | {c} |", k + 1);
+        }
+        s
+    }
 }
 
 /// Một phép đo Dream RSI (oracle) trên toàn corpus.
@@ -907,13 +1337,13 @@ fn dream_rsi_oracle_run(wrong_ghost: bool) -> DreamRsiStat {
     let mut vi_stat = OracleStat::default();
     let mut en_stat = OracleStat::default();
     for s in &bench_corpus {
-        bench.add(&sim_run_oracle(&mut e, s, wrong_ghost));
+        bench.add(&sim_run_oracle(&mut e, s, wrong_ghost, None));
     }
     for s in &vi {
-        vi_stat.add(&sim_run_oracle(&mut e, s, wrong_ghost));
+        vi_stat.add(&sim_run_oracle(&mut e, s, wrong_ghost, None));
     }
     for s in &en {
-        en_stat.add(&sim_run_oracle(&mut e, s, wrong_ghost));
+        en_stat.add(&sim_run_oracle(&mut e, s, wrong_ghost, None));
     }
     let after = e.dream_rsi_snapshot();
     let mut tot = OracleStat::default();
@@ -1141,6 +1571,31 @@ fn main() -> std::process::ExitCode {
         .and_then(|i| args.get(i + 1))
         .and_then(|v| v.parse().ok())
         .unwrap_or(20_000);
+
+    if cmd == "miss-report" {
+        // BIZ-2: `miss-report [--json <tệp>]` — Markdown ra stdout; JSON máy đọc ra tệp nếu có.
+        let report = miss_report_run(false);
+        if report.dev_rejected > 0 {
+            eprintln!(
+                "miss-report: {} câu dev không tái lập được bằng Telex — sửa corpus/dev/",
+                report.dev_rejected
+            );
+            return ExitCode::FAILURE;
+        }
+        print!("{}", report.to_markdown());
+        if let Some(out) = args
+            .iter()
+            .position(|a| a == "--json")
+            .and_then(|i| args.get(i + 1))
+        {
+            if let Err(e) = std::fs::write(out, format!("{}\n", report.to_json())) {
+                eprintln!("miss-report: không ghi được `{out}`: {e}");
+                return ExitCode::FAILURE;
+            }
+            eprintln!("miss-report: đã ghi {out}");
+        }
+        return ExitCode::SUCCESS;
+    }
 
     if cmd == "dream-rsi" {
         // Standalone: in số Dream RSI KSR-oracle (G19c, RSI-1) không cần đo timing.
@@ -1606,5 +2061,134 @@ mod tests {
             None
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// BIZ-2: n-gram token (chữ thường, tách khoảng trắng) của mọi câu trong một corpus.
+    fn corpus_ngrams(text: &str, n: usize) -> std::collections::HashSet<Vec<String>> {
+        let mut out = std::collections::HashSet::new();
+        for line in text.lines().map(str::trim) {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let toks: Vec<String> = line.split_whitespace().map(str::to_lowercase).collect();
+            for w in toks.windows(n) {
+                out.insert(w.to_vec());
+            }
+        }
+        out
+    }
+
+    /// BIZ-2: tập dev được soi chi tiết và làm dữ liệu bản sau ⇒ KHÔNG được chung chuỗi
+    /// ≥ 6 token với tập held-out (cùng ngưỡng `LEAK_N` của gate eval-leak); mọi câu dev
+    /// phải tái lập được bằng Telex (không câu nào bị bỏ).
+    #[test]
+    fn biz2_tap_dev_khong_trung_eval_va_tai_lap_duoc() {
+        const N: usize = 6;
+        let eval: std::collections::HashSet<Vec<String>> = corpus_ngrams(HELDOUT_VI, N)
+            .into_iter()
+            .chain(corpus_ngrams(HELDOUT_EN, N))
+            .collect();
+        let mut leaks: Vec<String> = Vec::new();
+        for (name, dev) in [("vi", DEV_VI), ("en", DEV_EN)] {
+            for g in corpus_ngrams(dev, N) {
+                if eval.contains(&g) {
+                    leaks.push(format!("{name}: {}", g.join(" ")));
+                }
+            }
+        }
+        leaks.sort();
+        assert!(
+            leaks.is_empty(),
+            "corpus/dev trùng ≥{N} token với corpus/eval — viết lại câu dev:\n{}",
+            leaks.join("\n")
+        );
+        let (vi, _, rej_vi) = build_heldout(DEV_VI, true);
+        let (en, _, rej_en) = build_heldout(DEV_EN, false);
+        assert_eq!(
+            (rej_vi, rej_en),
+            (0, 0),
+            "câu dev không tái lập được bằng Telex"
+        );
+        assert!(vi.len() >= 25 && en.len() >= 15, "tập dev quá nhỏ");
+    }
+
+    /// BIZ-2: miss report tất định; khối `heldout` chỉ có SỐ — không một từ nào của
+    /// `corpus/eval/` (tách tập RSI-2); số từ khớp đúng corpus và `covered + missed = words`.
+    #[test]
+    fn biz2_miss_report_tat_dinh_va_heldout_chi_co_so() {
+        let a = miss_report_run(false);
+        let b = miss_report_run(false);
+        let json = a.to_json();
+        assert_eq!(json, b.to_json(), "miss report không tất định");
+
+        let start = json.find("\"heldout\"").expect("khối heldout");
+        let end = json.find("\"dev\"").expect("khối dev");
+        let heldout = &json[start..end];
+        assert!(
+            heldout
+                .chars()
+                .all(|c| c.is_ascii_digit() || "{}\":,_-+".contains(c) || c.is_ascii_lowercase()),
+            "khối heldout chỉ được có khoá + số: {heldout}"
+        );
+        for word in HELDOUT_VI
+            .lines()
+            .chain(HELDOUT_EN.lines())
+            .filter(|l| !l.trim_start().starts_with('#'))
+            .flat_map(str::split_whitespace)
+            .filter(|w| w.chars().count() >= 5)
+        {
+            assert!(
+                !heldout.contains(word),
+                "khối heldout lộ từ của corpus/eval: {word}"
+            );
+        }
+
+        let (vi, _, _) = build_heldout(HELDOUT_VI, true);
+        let words_vi: u64 = vi.iter().map(|s| s.words.len() as u64).sum();
+        assert_eq!(a.eval_vi.words, words_vi);
+        for agg in [&a.eval_vi, &a.eval_en, &a.bench, &a.dev_vi, &a.dev_en] {
+            assert_eq!(agg.covered + agg.missed, agg.words);
+            assert_eq!(agg.no_ghost + agg.wrong_ghost + agg.midword, agg.missed);
+            assert_eq!(agg.len_words.iter().sum::<u64>(), agg.words);
+            assert_eq!(agg.len_missed.iter().sum::<u64>(), agg.missed);
+        }
+        assert!(
+            a.eval_vi.covered > 0 && a.eval_en.covered > 0,
+            "oracle phải nhận được gợi ý"
+        );
+        assert!(a.detail.top_missed().len() <= MISS_TOP_N);
+
+        // Bảng chi tiết CHỈ được nuôi từ bench + dev: mọi từ bỏ lỡ phải là từ của tập dev/bench,
+        // mọi tiền tố "đã gõ" phải là tiền tố một từ dev/bench (chặn câu held-out lọt vào chi tiết).
+        let mut dev_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let (dvi, _, _) = build_heldout(DEV_VI, true);
+        let (den, _, _) = build_heldout(DEV_EN, false);
+        for s in build_bench_corpus().iter().chain(&dvi).chain(&den) {
+            for i in 0..s.words.len() {
+                dev_words.insert(word_text(s, i));
+            }
+        }
+        for (w, _, _) in a.detail.top_missed() {
+            assert!(dev_words.contains(&w), "từ bỏ lỡ ngoài tập dev: {w}");
+        }
+        for (typed, _, _) in a.detail.top_wrong() {
+            assert!(
+                dev_words.iter().any(|w| w.starts_with(&typed)),
+                "tiền tố chữ mờ sai ngoài tập dev: {typed}"
+            );
+        }
+    }
+
+    /// BIZ-2 đột biến: engine "luôn hiện chữ mờ sai" ⇒ không từ nào được gợi ý, mọi từ bỏ lỡ
+    /// thuộc lý do chữ mờ sai/không chữ mờ — miss report phải phản ánh đúng, không giấu.
+    #[test]
+    fn biz2_dot_bien_ghost_sai_moi_tu_bo_lo() {
+        let r = miss_report_run(true);
+        for agg in [&r.eval_vi, &r.eval_en, &r.bench, &r.dev_vi, &r.dev_en] {
+            assert_eq!(agg.covered, 0);
+            assert_eq!(agg.missed, agg.words);
+            assert_eq!(agg.midword, 0);
+        }
+        assert!(r.eval_vi.wrong_ghost > 0);
     }
 }
