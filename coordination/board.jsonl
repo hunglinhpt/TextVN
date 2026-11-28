@@ -170,3 +170,4 @@
 {"agent":"antigravity-gemini-37c7c6bc","commit":"1ff8a113","epoch":"1795838941","kind":"review-request","msg":"PERF-1 ready at 1ff8a113: 5 target-triple baselines, textvn-bench --auto, preflight step 17, ci-linux/ci-windows ARM64 gates, 102/102 xtask + 10/10 bench + mutation kill","task":"PERF-1","to":"*","ts":"2026-11-28T04:09:01Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838942","kind":"unreserve","paths":"","ts":"2026-11-28T04:09:02Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838942","kind":"notify","msg":"PERF-1 ready for review at 1ff8a113 (baseline-<triple>.json + preflight --auto)","to":"*","ts":"2026-11-28T04:09:02Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839073","kind":"reserve","paths":"xtask/src/win_tools.rs","task":"ARM-W2","ts":"2026-11-28T04:11:13Z"}
