@@ -53,6 +53,21 @@
   S1, AGENTS.md) — 0.2.97 has 13 artifacts (adds linux-aarch64 tar.gz, arm64 portable + setup, arm64 msix, msixbundle)
   ⇒ 13 × 4 + `SHA256SUMS.txt` + `gpg-release-key.asc` = **54 assets**.
 
+## Bằng chứng / Evidence
+- Dry-run B4b `release-candidate` 46130615662 (9e772256): job `Windows arm64 (setup + portable)` và
+  `Windows .msixbundle (x64 + arm64)` XANH — makeappx gộp đúng 2 gói `TextVN-0.2.96-windows-{x64,arm64}.msix`,
+  `verify-msix` bundle đạt luật Store với identity `MSIX_IDENTITY_NAME`. Tải 3 artifact Windows về mô phỏng
+  assert của `publish` (chỉ chạy khi push tag): `*.msix`=2, x64=1, arm64=1, `.msixbundle`=1, portable=2 ⇒ đạt;
+  `verify-msix --require-store-identity --expect-name 23651Linhi.TextVN` cục bộ trên bundle + gói arm64 ⇒ OK;
+  `verify-store-package.sh` với `PKG_NAME` lạ ⇒ FATAL (chặn đúng).
+- Dry run B4b `release-candidate` 46130615662 (9e772256): jobs `Windows arm64 (setup + portable)` and
+  `Windows .msixbundle (x64 + arm64)` GREEN — makeappx bundled exactly the 2 packages
+  `TextVN-0.2.96-windows-{x64,arm64}.msix`, bundle `verify-msix` passes Store rules with the `MSIX_IDENTITY_NAME`
+  identity. Downloaded the 3 Windows artifacts to simulate the `publish` assertions (they only run on tag push):
+  `*.msix`=2, x64=1, arm64=1, `.msixbundle`=1, portable=2 ⇒ pass; local `verify-msix --require-store-identity
+  --expect-name 23651Linhi.TextVN` on the bundle + arm64 package ⇒ OK; `verify-store-package.sh` with an unknown
+  `PKG_NAME` ⇒ FATAL (correctly rejected).
+
 ## Tài liệu / Docs
 
 `docs/release/msix-submission.md` (mục `.msixbundle` + CI phần 2, hàng `verify` của store-publish).

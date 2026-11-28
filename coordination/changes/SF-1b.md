@@ -1,4 +1,4 @@
-<!-- TASK: SF-1b · commit: <SHA_CODE> · agent: claude-opus-7e41b2d9 -->
+<!-- TASK: SF-1b · commit: f4a2e85d · agent: claude-opus-7e41b2d9 -->
 ## VI
 - **SF-1b — C ABI `ime_session_*` (P0-6 §4)**: thêm vào CÙNG `libtextvn_ffi` (không thư viện thứ hai)
   4 hàm `ime_session_new` / `ime_session_free` / `ime_session_event` / `ime_session_reload_config` và
