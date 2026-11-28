@@ -391,6 +391,38 @@ void         ime_session_free(ime_session *s);
 int32_t      ime_session_event(ime_session *s, const ime_session_event_v1 *ev,
                                ime_session_out_v1 *out);
 int32_t      ime_session_reload_config(ime_session *s, const uint8_t *json, size_t len);
+/* ---- SF-3 (P0-6 §5 compose) — planner preedit/commit dùng chung (`textvn_session::compose`) ----
+ * Hàm thuần, không trạng thái: adapter cấp ime_compose_plan_v1 (stack, abi_version đặt trước).
+ * `cur` = text đang soạn (UTF-32, có thể NULL khi cur_len = 0); `r` = kết quả ime_key của phím.
+ * Text kế hoạch > IME_COMPOSE_MAX ⇒ IME_ERR_BUFFER (POLICY_LINUX luôn ≤ 256). */
+#define IME_COMPOSE_ABI_VERSION 1u
+#define IME_COMPOSE_MAX 256
+#define IME_COMPOSE_POLICY_TSF   0u  /* ranh giới in được commit cùng từ, ăn phím (CUAS) */
+#define IME_COMPOSE_POLICY_LINUX 1u  /* commit từ rồi forward phím; tối đa 256; Ctrl+Space reset */
+#define IME_CKEY_CHAR       0u
+#define IME_CKEY_BACKSPACE  1u
+#define IME_CKEY_ESCAPE     2u
+#define IME_CKEY_ENTER      3u
+#define IME_CKEY_TAB        4u
+#define IME_CKEY_CTRL_SPACE 5u
+#define IME_CKEY_OTHER      6u
+#define IME_CKEY_ALTGR      7u
+
+typedef struct ime_compose_plan {
+    uint32_t abi_version;     /* IME_COMPOSE_ABI_VERSION */
+    uint32_t delete_before;   /* ký tự đã commit trước preedit phải xoá */
+    uint32_t cursor_left;     /* P11 math: số bước mũi tên trái sau commit */
+    uint32_t has_text;        /* 1 = cập nhật preedit/commit thành text */
+    uint32_t end;             /* 1 = commit rồi đóng preedit */
+    uint32_t eaten;           /* 1 = nuốt phím; 0 = app nhận phím gốc */
+    uint32_t reset_engine;    /* 1 = commit + ime_reset */
+    uint32_t text_len;
+    uint32_t text[IME_COMPOSE_MAX];
+} ime_compose_plan_v1;
+
+int32_t      ime_compose_plan(uint32_t policy, const uint32_t *cur, size_t cur_len,
+                              uint32_t key_kind, uint32_t key_ch, const ime_result_v1 *r,
+                              ime_compose_plan_v1 *out);
 #ifdef __cplusplus
 }
 #endif

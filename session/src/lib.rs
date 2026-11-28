@@ -37,6 +37,7 @@
 #![forbid(unsafe_code)]
 
 pub mod batch;
+pub mod compose;
 pub mod toggle;
 pub mod toggle_corpus;
 

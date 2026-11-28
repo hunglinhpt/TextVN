@@ -16,8 +16,10 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
+pub mod compose_abi;
 pub mod session_abi;
 pub mod settings;
+pub use compose_abi::*;
 pub use session_abi::*;
 
 use std::ffi::{c_char, c_void, CStr, CString};
@@ -1934,6 +1936,21 @@ pub extern "C" fn ime_session_reload_config(
     len: usize,
 ) -> i32 {
     session_abi::ime_session_reload_config_impl(s, json, len)
+}
+
+// ---- SF-3 (P0-6 §5 compose): planner preedit/commit dùng chung — thân ở `compose_abi.rs`. ----
+
+#[no_mangle]
+pub extern "C" fn ime_compose_plan(
+    policy: u32,
+    cur: *const u32,
+    cur_len: usize,
+    key_kind: u32,
+    key_ch: u32,
+    r: *const ime_result_v1,
+    out: *mut ime_compose_plan_v1,
+) -> i32 {
+    compose_abi::ime_compose_plan_impl(policy, cur, cur_len, key_kind, key_ch, r, out)
 }
 
 #[cfg(test)]

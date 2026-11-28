@@ -72,15 +72,6 @@ void lc_key_to_ime(lc_key key, uint32_t vk, uint32_t mods, ime_key_v1 *out) {
 
 /* ---- Kế hoạch ---- */
 
-static int boundary_char(lc_key key, uint32_t *out) {
-    switch (key.kind) {
-    case LC_KEY_CHAR:  *out = key.ch; return 1;
-    case LC_KEY_ENTER: *out = '\n';   return 1;
-    case LC_KEY_TAB:   *out = '\t';   return 1;
-    default: return 0;
-    }
-}
-
 static void plan_zero(lc_plan *p) {
     memset(p, 0, sizeof(*p));
 }
@@ -91,100 +82,29 @@ void lc_plan_pass_through(const lc_comp *cur, lc_plan *out) {
     out->eaten = 0;
 }
 
+/* SF-3 (P0-6 §5 compose, G22): kế hoạch do planner DÙNG CHUNG `textvn_session::compose` tính
+ * (C ABI `ime_compose_plan`, chính sách IME_COMPOSE_POLICY_LINUX: ranh giới in được commit từ
+ * rồi forward phím, tối đa LC_COMP_MAX, Ctrl+Space reset). Bản C cũ chỉ còn làm oracle trong
+ * tests/test_compose.c (parity tạm, xoá khi session thành mặc định). Lỗi ABI ⇒ fail-open:
+ * commit nguyên văn, phím đi thẳng. */
 void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan *out) {
-    const int composing = cur->len > 0;
-    const int word_end = (r->flags & IME_FLAG_WORD_END) != 0;
+    ime_compose_plan_v1 p;
+    p.abi_version = IME_COMPOSE_ABI_VERSION;
     plan_zero(out);
-
-    if (r->action == IME_ACTION_PASS) {
-        /* E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc huỷ)
-         * → đóng preedit nếu đang mở, KHÔNG đưa vào preedit và nuốt phím (eaten = 1). */
-        if (r->flags & IME_FLAG_CONSUMED) {
-            out->end = composing;
-            out->eaten = 1;
-            return;
-        }
-        if (key.kind == LC_KEY_CHAR && !word_end) {
-            /* Engine nhận ký tự vào từ nhưng chưa biến đổi → đưa vào preedit. */
-            if (cur->len + 1 >= LC_COMP_MAX) {
-                /* C5 (audit): cur->len == LC_COMP_MAX thi ghi text[cur->len] la
-                 * OOB intra-object (vuot mang text[256]) — commit nguyen chuoi
-                 * hien tai va KHONG noi phim moi vao: eaten = 0 nen phim di tiep
-                 * toi app, ky tu hien SAU phan vua commit (khong mat chu). */
-                memcpy(out->text, cur->text, (size_t)cur->len * sizeof(uint32_t));
-                out->text_len = cur->len;
-                out->has_text = 1;
-                out->end = 1;
-                out->eaten = (key.kind == LC_KEY_CHAR) ? 0 : 1;
-                out->reset_engine = 1;
-                return;
-            }
-            memcpy(out->text, cur->text, cur->len * sizeof(uint32_t));
-            out->text[cur->len] = key.ch;
-            out->text_len = cur->len + 1;
-            out->has_text = 1;
-            out->eaten = 1;
-            return;
-        }
-        if (key.kind == LC_KEY_BACKSPACE && composing) {
-            /* Engine bỏ 1 ký tự chưa biến đổi → bỏ khỏi preedit. */
-            memcpy(out->text, cur->text, (cur->len - 1) * sizeof(uint32_t));
-            out->text_len = cur->len - 1;
-            out->has_text = 1;
-            out->end = out->text_len == 0;
-            out->eaten = 1;
-            return;
-        }
+    if (ime_compose_plan(IME_COMPOSE_POLICY_LINUX, cur->text, cur->len, (uint32_t)key.kind,
+                         key.ch, r, &p) != IME_OK ||
+        p.text_len > LC_COMP_MAX) {
         lc_plan_pass_through(cur, out);
-        if (key.kind == LC_KEY_CTRL_SPACE) {
-            /* R2-121: Ctrl+Space không khớp dự đoán → như chord B6: chốt preedit
-             * (engine đã nhả từ — WORD_END), phím tới app và quên đuôi text (app có
-             * thể chèn dấu cách / dời caret mà engine không thấy). Giữ preedit mở
-             * thì phím kế tiếp lệch model của engine. */
-            out->reset_engine = 1;
-        }
         return;
     }
-
-    if (r->action == IME_ACTION_REPLACE || r->action == IME_ACTION_RESTORE ||
-        r->action == IME_ACTION_COMMIT) {
-        size_t keep = cur->len;
-        if (r->action != IME_ACTION_COMMIT) {
-            size_t del = r->delete_count;
-            if (del <= cur->len) {
-                keep = cur->len - del;
-            } else {
-                keep = 0;
-                out->delete_before = (uint16_t)(del - cur->len);
-            }
-        }
-        size_t ins = r->insert_len;
-        if (ins > IME_MAX_TEXT) ins = IME_MAX_TEXT;
-        if (keep + ins > LC_COMP_MAX) {
-            lc_plan_pass_through(cur, out);
-            out->reset_engine = 1;
-            return;
-        }
-        memcpy(out->text, cur->text, keep * sizeof(uint32_t));
-        memcpy(out->text + keep, r->insert, ins * sizeof(uint32_t));
-        out->text_len = keep + ins;
-        out->has_text = 1;
-        out->eaten = 1;
-        out->cursor_left = r->cursor_left;
-
-        uint32_t b = 0;
-        if (word_end && boundary_char(key, &b) &&
-            (r->action != IME_ACTION_REPLACE || b == '\n') &&
-            out->text_len > 0 && out->text[out->text_len - 1] == b) {
-            out->text_len -= 1;
-            out->eaten = 0;
-        }
-        out->end = word_end || out->text_len == 0 || !out->eaten;
-        return;
-    }
-
-    /* Action lạ (ABI mới hơn adapter): commit và để phím đi thẳng. */
-    lc_plan_pass_through(cur, out);
+    out->delete_before = (uint16_t)p.delete_before;
+    out->cursor_left = (uint16_t)p.cursor_left;
+    out->has_text = p.has_text != 0;
+    out->end = p.end != 0;
+    out->eaten = p.eaten != 0;
+    out->reset_engine = p.reset_engine != 0;
+    out->text_len = p.text_len;
+    memcpy(out->text, p.text, (size_t)p.text_len * sizeof(uint32_t));
 }
 
 void lc_comp_apply(lc_comp *cur, const lc_plan *plan) {

@@ -212,6 +212,19 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
         ("IME_SCMD_TIMER_CANCEL", IME_SCMD_TIMER_CANCEL as i64),
         ("IME_SCMD_IPC", IME_SCMD_IPC as i64),
         ("IME_SCMD_MODE_INDICATOR", IME_SCMD_MODE_INDICATOR as i64),
+        // SF-3 (P0-6 §5 compose): planner dùng chung.
+        ("IME_COMPOSE_ABI_VERSION", IME_COMPOSE_ABI_VERSION as i64),
+        ("IME_COMPOSE_MAX", IME_COMPOSE_MAX as i64),
+        ("IME_COMPOSE_POLICY_TSF", IME_COMPOSE_POLICY_TSF as i64),
+        ("IME_COMPOSE_POLICY_LINUX", IME_COMPOSE_POLICY_LINUX as i64),
+        ("IME_CKEY_CHAR", IME_CKEY_CHAR as i64),
+        ("IME_CKEY_BACKSPACE", IME_CKEY_BACKSPACE as i64),
+        ("IME_CKEY_ESCAPE", IME_CKEY_ESCAPE as i64),
+        ("IME_CKEY_ENTER", IME_CKEY_ENTER as i64),
+        ("IME_CKEY_TAB", IME_CKEY_TAB as i64),
+        ("IME_CKEY_CTRL_SPACE", IME_CKEY_CTRL_SPACE as i64),
+        ("IME_CKEY_OTHER", IME_CKEY_OTHER as i64),
+        ("IME_CKEY_ALTGR", IME_CKEY_ALTGR as i64),
     ]
 }
 
@@ -265,6 +278,8 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_session_free",
         "ime_session_event",
         "ime_session_reload_config",
+        // SF-3 (P0-6 §5 compose).
+        "ime_compose_plan",
     ]
 }
 
@@ -402,6 +417,20 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 count,
                 cmds,
                 arena,
+            }),
+        ),
+        (
+            "ime_compose_plan_v1",
+            field_names!(ime_compose_plan_v1 {
+                abi_version,
+                delete_before,
+                cursor_left,
+                has_text,
+                end,
+                eaten,
+                reset_engine,
+                text_len,
+                text,
             }),
         ),
     ]
@@ -576,6 +605,7 @@ fn is_type_name(name: &str) -> bool {
             | "ime_session_config_v1"
             | "ime_session_event_v1"
             | "ime_session_out_v1"
+            | "ime_compose_plan_v1"
     )
 }
 
@@ -640,6 +670,11 @@ pub fn run(header_path: &str, as_json: bool) -> Result<String, Vec<String>> {
             "sizeof(ime_session_out_v1)",
             size_of::<ime_session_out_v1>(),
             8 + 16 * 20 + 2048,
+        ),
+        (
+            "sizeof(ime_compose_plan_v1)",
+            size_of::<ime_compose_plan_v1>(),
+            8 * 4 + IME_COMPOSE_MAX * 4,
         ),
         (
             "offsetof(ime_session_event_v1, now_ms)",

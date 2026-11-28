@@ -164,6 +164,10 @@ int32_t ime_session_reload_config(ime_session *s, const char *json, size_t len);
   `ci-macos.yml` so với `ffi/include/` (gate đã có).
 - `textvn-cli verify` mở rộng: kiểm sizeof/offset 4 struct mới trên MỌI target (x86_64, i686,
   aarch64 Windows/Linux/macOS).
+- **SF-3 (đã thêm):** `ime_compose_plan(policy, cur, cur_len, key_kind, key_ch, r, out)` +
+  `ime_compose_plan_v1` (`text[IME_COMPOSE_MAX = 256]`): planner preedit/commit thuần của
+  `textvn_session::compose`. Khác biệt năng lực OS là `IME_COMPOSE_POLICY_{TSF,LINUX}`; Linux
+  `lc_plan_key` gọi hàm này thay bản C cũ.
 
 ## 5. Đặc tả từng khối (nguồn hiện tại → hợp nhất → luật phải giữ)
 

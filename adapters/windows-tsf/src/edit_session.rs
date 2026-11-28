@@ -550,6 +550,7 @@ impl KeyEditSession {
                         end: true,
                         eaten: false,
                         cursor_left: 0,
+                        reset_engine: false,
                     };
                     match apply_plan(&self.shared, &self.ctx, ec, &sel, comp, &plan) {
                         Ok(()) => {

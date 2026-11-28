@@ -37,6 +37,10 @@ pub mod vk {
     pub const LMENU: u32 = 0xA4;
     pub const RMENU: u32 = 0xA5;
     pub const F1: u32 = 0x70; // F1..F12 = 0x70..0x7B
+    /// App/IME khác đã xử lý phím này (Windows `VK_PROCESSKEY`).
+    pub const PROCESSKEY: u32 = 0xE5;
+    /// Unicode do `SendInput(KEYEVENTF_UNICODE)` bơm vào — không phải phím người gõ (`VK_PACKET`).
+    pub const PACKET: u32 = 0xE7;
 }
 
 /// `IME_MOD_*` (P0-2 §1).

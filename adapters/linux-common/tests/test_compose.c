@@ -956,6 +956,190 @@ static void test_toggle_corpus(void) {
     assert(failures == 0);
 }
 
+/* ---- SF-3: oracle = bản C `lc_plan_key` CŨ (trước khi chuyển sang `ime_compose_plan`), giữ
+ * nguyên văn để so sai khác với planner dùng chung trên ma trận đầu vào. Parity tạm (G22): xoá
+ * cùng lúc xoá mã cũ ở bản sau khi session thành mặc định. ---- */
+static int legacy_boundary_char(lc_key key, uint32_t *out) {
+    switch (key.kind) {
+    case LC_KEY_CHAR:  *out = key.ch; return 1;
+    case LC_KEY_ENTER: *out = '\n';   return 1;
+    case LC_KEY_TAB:   *out = '\t';   return 1;
+    default: return 0;
+    }
+}
+
+static void legacy_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan *out) {
+    const int composing = cur->len > 0;
+    const int word_end = (r->flags & IME_FLAG_WORD_END) != 0;
+    memset(out, 0, sizeof(*out));
+
+    if (r->action == IME_ACTION_PASS) {
+        /* E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc huỷ)
+         * → đóng preedit nếu đang mở, KHÔNG đưa vào preedit và nuốt phím (eaten = 1). */
+        if (r->flags & IME_FLAG_CONSUMED) {
+            out->end = composing;
+            out->eaten = 1;
+            return;
+        }
+        if (key.kind == LC_KEY_CHAR && !word_end) {
+            /* Engine nhận ký tự vào từ nhưng chưa biến đổi → đưa vào preedit. */
+            if (cur->len + 1 >= LC_COMP_MAX) {
+                /* C5 (audit): cur->len == LC_COMP_MAX thi ghi text[cur->len] la
+                 * OOB intra-object (vuot mang text[256]) — commit nguyen chuoi
+                 * hien tai va KHONG noi phim moi vao: eaten = 0 nen phim di tiep
+                 * toi app, ky tu hien SAU phan vua commit (khong mat chu). */
+                memcpy(out->text, cur->text, (size_t)cur->len * sizeof(uint32_t));
+                out->text_len = cur->len;
+                out->has_text = 1;
+                out->end = 1;
+                out->eaten = (key.kind == LC_KEY_CHAR) ? 0 : 1;
+                out->reset_engine = 1;
+                return;
+            }
+            memcpy(out->text, cur->text, cur->len * sizeof(uint32_t));
+            out->text[cur->len] = key.ch;
+            out->text_len = cur->len + 1;
+            out->has_text = 1;
+            out->eaten = 1;
+            return;
+        }
+        if (key.kind == LC_KEY_BACKSPACE && composing) {
+            /* Engine bỏ 1 ký tự chưa biến đổi → bỏ khỏi preedit. */
+            memcpy(out->text, cur->text, (cur->len - 1) * sizeof(uint32_t));
+            out->text_len = cur->len - 1;
+            out->has_text = 1;
+            out->end = out->text_len == 0;
+            out->eaten = 1;
+            return;
+        }
+        lc_plan_pass_through(cur, out);
+        if (key.kind == LC_KEY_CTRL_SPACE) {
+            /* R2-121: Ctrl+Space không khớp dự đoán → như chord B6: chốt preedit
+             * (engine đã nhả từ — WORD_END), phím tới app và quên đuôi text (app có
+             * thể chèn dấu cách / dời caret mà engine không thấy). Giữ preedit mở
+             * thì phím kế tiếp lệch model của engine. */
+            out->reset_engine = 1;
+        }
+        return;
+    }
+
+    if (r->action == IME_ACTION_REPLACE || r->action == IME_ACTION_RESTORE ||
+        r->action == IME_ACTION_COMMIT) {
+        size_t keep = cur->len;
+        if (r->action != IME_ACTION_COMMIT) {
+            size_t del = r->delete_count;
+            if (del <= cur->len) {
+                keep = cur->len - del;
+            } else {
+                keep = 0;
+                out->delete_before = (uint16_t)(del - cur->len);
+            }
+        }
+        size_t ins = r->insert_len;
+        if (ins > IME_MAX_TEXT) ins = IME_MAX_TEXT;
+        if (keep + ins > LC_COMP_MAX) {
+            lc_plan_pass_through(cur, out);
+            out->reset_engine = 1;
+            return;
+        }
+        memcpy(out->text, cur->text, keep * sizeof(uint32_t));
+        memcpy(out->text + keep, r->insert, ins * sizeof(uint32_t));
+        out->text_len = keep + ins;
+        out->has_text = 1;
+        out->eaten = 1;
+        out->cursor_left = r->cursor_left;
+
+        uint32_t b = 0;
+        if (word_end && legacy_boundary_char(key, &b) &&
+            (r->action != IME_ACTION_REPLACE || b == '\n') &&
+            out->text_len > 0 && out->text[out->text_len - 1] == b) {
+            out->text_len -= 1;
+            out->eaten = 0;
+        }
+        out->end = word_end || out->text_len == 0 || !out->eaten;
+        return;
+    }
+
+    /* Action lạ (ABI mới hơn adapter): commit và để phím đi thẳng. */
+    lc_plan_pass_through(cur, out);
+}
+
+
+static int plans_equal(const lc_plan *a, const lc_plan *b) {
+    if (a->delete_before != b->delete_before || a->has_text != b->has_text ||
+        a->end != b->end || a->eaten != b->eaten || a->reset_engine != b->reset_engine ||
+        a->cursor_left != b->cursor_left) {
+        return 0;
+    }
+    if (!a->has_text) return 1;
+    return a->text_len == b->text_len &&
+           memcmp(a->text, b->text, a->text_len * sizeof(uint32_t)) == 0;
+}
+
+/* Mọi tổ hợp (độ dài preedit × loại phím × action × cờ × delete_count × insert): planner dùng
+ * chung (lc_plan_key → ime_compose_plan POLICY_LINUX) phải ra ĐÚNG kế hoạch của bản C cũ. */
+static void test_sf3_plan_parity_with_legacy(void) {
+    static const size_t lens[] = { 0, 1, 3, 254, 255 };
+    static const lc_key keys[] = {
+        { LC_KEY_CHAR, 'a' }, { LC_KEY_CHAR, ' ' }, { LC_KEY_CHAR, '.' }, { LC_KEY_CHAR, 0x1EC7 },
+        { LC_KEY_BACKSPACE, 0 }, { LC_KEY_ESCAPE, 0 }, { LC_KEY_ENTER, 0 }, { LC_KEY_TAB, 0 },
+        { LC_KEY_CTRL_SPACE, 0 }, { LC_KEY_OTHER, 0 },
+    };
+    static const uint32_t actions[] = { IME_ACTION_PASS, IME_ACTION_REPLACE, IME_ACTION_COMMIT,
+                                        IME_ACTION_RESTORE, 99 };
+    static const uint32_t flagset[] = { 0, IME_FLAG_WORD_END, IME_FLAG_CONSUMED,
+                                        IME_FLAG_WORD_END | IME_FLAG_CONSUMED };
+    static const uint16_t dels[] = { 0, 1, 3, 5, 300 };
+    static const char *inserts[] = { "", "a", "x ", "x.", "\n", "\t", "sort ", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" };
+    static const uint16_t lefts[] = { 0, 2 };
+    unsigned n = 0, bad = 0;
+    lc_comp cur;
+    for (size_t li = 0; li < sizeof(lens) / sizeof(lens[0]); li++) {
+        cur.len = lens[li];
+        for (size_t i = 0; i < cur.len; i++) cur.text[i] = 'a' + (uint32_t)(i % 26);
+        for (size_t ki = 0; ki < sizeof(keys) / sizeof(keys[0]); ki++)
+        for (size_t ai = 0; ai < sizeof(actions) / sizeof(actions[0]); ai++)
+        for (size_t fi = 0; fi < sizeof(flagset) / sizeof(flagset[0]); fi++)
+        for (size_t di = 0; di < sizeof(dels) / sizeof(dels[0]); di++)
+        for (size_t ii = 0; ii < sizeof(inserts) / sizeof(inserts[0]); ii++)
+        for (size_t ci = 0; ci < sizeof(lefts) / sizeof(lefts[0]); ci++) {
+            ime_result_v1 r;
+            memset(&r, 0, sizeof(r));
+            r.abi_version = IME_ABI_VERSION;
+            r.action = actions[ai];
+            r.flags = flagset[fi];
+            r.delete_count = dels[di];
+            r.cursor_left = lefts[ci];
+            const char *ins = inserts[ii];
+            size_t il = strlen(ins);
+            for (size_t k = 0; k < il; k++) r.insert[k] = (unsigned char)ins[k];
+            /* insert kết thúc bằng ký tự của phím (ranh giới) — ca Linux bỏ ra và forward. */
+            if (il > 0 && il < IME_MAX_TEXT && keys[ki].kind == LC_KEY_CHAR && (ii == 2 || ii == 3)) {
+                r.insert[il - 1] = keys[ki].ch;
+            }
+            r.insert_len = (uint16_t)il;
+            lc_plan got, want;
+            lc_plan_key(&cur, keys[ki], &r, &got);
+            legacy_plan_key(&cur, keys[ki], &r, &want);
+            n++;
+            if (!plans_equal(&got, &want)) {
+                if (bad < 5) {
+                    fprintf(stderr, "SF-3 lệch: len=%zu key=%d/%u action=%u flags=%u del=%u ins=%zu "
+                            "left=%u | got end=%d eaten=%d reset=%d text=%zu | want end=%d eaten=%d reset=%d text=%zu\n",
+                            cur.len, (int)keys[ki].kind, (unsigned)keys[ki].ch, (unsigned)r.action,
+                            (unsigned)r.flags, (unsigned)r.delete_count, il, (unsigned)r.cursor_left,
+                            got.end, got.eaten, got.reset_engine, got.text_len,
+                            want.end, want.eaten, want.reset_engine, want.text_len);
+                }
+                bad++;
+            }
+        }
+    }
+    printf("SF-3 parity lc_plan_key: %u tổ hợp, %u lệch\n", n, bad);
+    assert(n > 50000);
+    assert(bad == 0);
+}
+
 static void test_engine_ctrl_tap(void) {
     ime_instance *inst = engine_with(NO_CAPS);
     doc d;
@@ -1110,6 +1294,7 @@ int main(void) {
     test_modifier_ctrl_tap();
     test_session_shadow_parity();
     test_toggle_corpus();
+    test_sf3_plan_parity_with_legacy();
     test_engine_ctrl_tap();
     test_mode_en_prediction_passthrough();
     test_config_sync();

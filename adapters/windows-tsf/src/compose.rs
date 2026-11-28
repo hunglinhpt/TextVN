@@ -20,9 +20,12 @@
 //! - `delete_before > 0` chỉ xuất hiện khi engine cần xóa text ngoài composition
 //!   (macro/emoji có trigger chứa dấu câu) — lớp COM phải xác minh được mới xóa.
 
-use textvn_ffi::{
-    ime_result_v1, ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE, IME_FLAG_CONSUMED,
-    IME_FLAG_WORD_END,
+// SF-3 (P0-6 §5 compose, G22): planner thuần là MỘT nguồn trong `textvn-session`; TSF dùng với
+// `ComposePolicy::TSF` (ranh giới in được commit cùng từ — CUAS). Re-export giữ API cũ;
+// `EngineStep::from_result(&ime_result_v1)` có sẵn nhờ `textvn_ffi` cài `RawEngineResult`.
+pub use textvn_session::compose::{
+    plan_key, plan_key_with, text_after, BoundaryPolicy, ComposePolicy, CompositionPlan,
+    EngineStep, KeyKind,
 };
 
 /// Win VK dùng để phân loại phím (khớp `textvn_core::keymap::vk`).
@@ -44,97 +47,6 @@ pub mod vk {
     pub const PACKET: u32 = 0xE7;
     /// App/IME khác đã xử lý phím này.
     pub const PROCESSKEY: u32 = 0xE5;
-}
-
-/// Phân loại phím sau khi adapter đã dịch VK → ký tự theo layout bàn phím.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KeyKind {
-    /// Phím sinh ký tự in được (gồm Space).
-    Char(char),
-    Backspace,
-    Escape,
-    Enter,
-    Tab,
-    CtrlSpace,
-    /// Tổ hợp AltGr (`Ctrl+Alt+<phím in được>`) dành cho Math & Science:
-    /// khớp biểu tượng thì thay thế, không khớp thì pass-through nguyên phím (không chèn chữ thô).
-    AltGr(char),
-    /// Không sinh ký tự: mũi tên, Delete, Home/End, F-key, PageUp…
-    Other,
-}
-
-impl KeyKind {
-    /// `ch` = kết quả `ToUnicodeEx` (0 nếu không sinh ký tự). Ký tự điều khiển
-    /// (`\r`, `\t`, `\b`, ESC) được quy về phím tương ứng; VK không sinh ký tự
-    /// tuyệt đối không được coi là chữ (trước đây `ch = vk` biến F1 thành `p`,
-    /// Delete thành `.`).
-    pub fn classify(vk: u32, ch: u32) -> KeyKind {
-        match vk {
-            vk::BACK => return KeyKind::Backspace,
-            vk::TAB => return KeyKind::Tab,
-            vk::RETURN => return KeyKind::Enter,
-            vk::ESCAPE => return KeyKind::Escape,
-            vk::PACKET | vk::PROCESSKEY => return KeyKind::Other,
-            _ => {}
-        }
-        match char::from_u32(ch) {
-            Some('\n' | '\r') => KeyKind::Enter,
-            Some('\t') => KeyKind::Tab,
-            Some('\u{8}') => KeyKind::Backspace,
-            Some('\u{1b}') => KeyKind::Escape,
-            Some(c) if ch != 0 && !c.is_control() => KeyKind::Char(c),
-            _ => KeyKind::Other,
-        }
-    }
-
-    /// `ime_key_v1.ch` gửi engine: chỉ ký tự in được; phím đặc biệt để engine tự
-    /// nhận qua `vk` (engine map Enter→`\n`, Tab→`\t`).
-    /// Phân loại kèm modifier: nhận diện Ctrl+Space (trigger Text Prediction & Text Correct).
-    pub fn classify_with_mods(vk: u32, ch: u32, mods: u32) -> KeyKind {
-        let mods_no_caps = mods & !textvn_ffi::MOD_CAPS;
-        if vk == 0x20 && mods_no_caps == textvn_ffi::MOD_CTRL {
-            return KeyKind::CtrlSpace;
-        }
-        let kind = Self::classify(vk, ch);
-        if mods_no_caps == (textvn_ffi::MOD_CTRL | textvn_ffi::MOD_ALT)
-            || mods_no_caps == (textvn_ffi::MOD_CTRL | textvn_ffi::MOD_ALT | textvn_ffi::MOD_SHIFT)
-        {
-            if let KeyKind::Char(c) = kind {
-                return KeyKind::AltGr(c);
-            }
-        }
-        kind
-    }
-
-    pub fn engine_ch(self) -> u32 {
-        match self {
-            KeyKind::Char(c) | KeyKind::AltGr(c) => c as u32,
-            _ => 0,
-        }
-    }
-
-    /// Ranh giới engine gắn vào cuối `insert` khi RESTORE/COMMIT mà app phải nhận
-    /// dưới dạng PHÍM thật (không chèn thành text). Ký tự in được không nằm ở đây:
-    /// chúng được commit cùng từ.
-    fn native_boundary_char(self) -> Option<char> {
-        match self {
-            KeyKind::Enter => Some('\n'),
-            KeyKind::Tab => Some('\t'),
-            _ => None,
-        }
-    }
-
-    /// Phím cần edit session khi chưa có composition (có thể sinh text/macro).
-    pub fn needs_session_when_idle(self) -> bool {
-        matches!(
-            self,
-            KeyKind::Char(_)
-                | KeyKind::AltGr(_)
-                | KeyKind::Enter
-                | KeyKind::Tab
-                | KeyKind::CtrlSpace
-        )
-    }
 }
 
 /// Phím chỉ là modifier/lock: không đóng composition, không tới engine.
@@ -417,192 +329,6 @@ impl ModifierToggle {
     }
 }
 
-/// Kết quả engine đã giải mã (không phụ thuộc layout C của `ime_result_v1`).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EngineStep {
-    pub action: u32,
-    pub delete_count: u16,
-    pub insert: Vec<char>,
-    pub flags: u32,
-    /// P11 math: số bước dịch con trỏ trái sau khi áp (0 = không đụng).
-    pub cursor_left: u16,
-}
-
-impl EngineStep {
-    pub fn pass() -> EngineStep {
-        EngineStep {
-            action: ACTION_PASS,
-            delete_count: 0,
-            insert: Vec::new(),
-            flags: 0,
-            cursor_left: 0,
-        }
-    }
-
-    pub fn from_result(r: &ime_result_v1) -> EngineStep {
-        let len = usize::from(r.insert_len).min(r.insert.len());
-        EngineStep {
-            action: r.action,
-            delete_count: r.delete_count,
-            insert: r.insert[..len]
-                .iter()
-                .filter_map(|&c| char::from_u32(c))
-                .collect(),
-            flags: r.flags,
-            cursor_left: r.cursor_left,
-        }
-    }
-
-    fn word_end(&self) -> bool {
-        self.flags & IME_FLAG_WORD_END != 0
-    }
-
-    fn consumed(&self) -> bool {
-        self.flags & IME_FLAG_CONSUMED != 0
-    }
-}
-
-/// Việc lớp COM phải làm trong edit session cho một phím.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompositionPlan {
-    /// Số ký tự đã commit NGAY TRƯỚC composition phải xóa (macro/emoji vượt ranh giới
-    /// composition). Lớp COM phải xác minh dịch chuyển đủ, nếu không → fail-open.
-    pub delete_before: u16,
-    /// Text composition sau phím này; `None` = giữ nguyên.
-    pub text: Option<Vec<char>>,
-    /// Đóng composition sau khi áp `text`.
-    pub end: bool,
-    /// `true` = phím bị ăn; `false` = app nhận phím gốc (sau khi composition đã đóng).
-    pub eaten: bool,
-    /// P11 math: số bước dịch con trỏ trái sau khi commit text (0 = bỏ qua).
-    pub cursor_left: u16,
-}
-
-impl CompositionPlan {
-    /// Không làm gì với composition, phím đi thẳng.
-    pub fn pass_through(composing: bool) -> CompositionPlan {
-        CompositionPlan {
-            delete_before: 0,
-            text: None,
-            end: composing,
-            eaten: false,
-            cursor_left: 0,
-        }
-    }
-}
-
-/// Tính kế hoạch cho một phím. `current` = text composition hiện tại (rỗng =
-/// không composing). Hàm thuần, không đoán text của app.
-pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> CompositionPlan {
-    let composing = !current.is_empty();
-    match step.action {
-        // E62 (P11 Math): engine nuốt phím im lặng (vd. backtick `` ` `` arm chord hoặc Esc huỷ chord)
-        // → KHÔNG chèn vào composition và KHÔNG forward cho app.
-        ACTION_PASS if step.consumed() => CompositionPlan {
-            delete_before: 0,
-            text: None,
-            end: composing,
-            eaten: true,
-            cursor_left: 0,
-        },
-        ACTION_PASS => match key {
-            // Engine đã nhận ký tự vào từ nhưng chưa biến đổi → TIP tự đưa vào composition.
-            KeyKind::Char(c) if !step.word_end() => {
-                let mut text = current.to_vec();
-                text.push(c);
-                CompositionPlan {
-                    delete_before: 0,
-                    text: Some(text),
-                    end: false,
-                    eaten: true,
-                    cursor_left: 0,
-                }
-            }
-            // Ranh giới in được (Space, dấu câu, số) khi đang composing: ký tự ranh giới
-            // vào cuối composition rồi commit CÙNG từ, phím bị ăn. Để app tự chèn ký tự
-            // thì với app IMM32 (CUAS: Notepad cổ điển, WinForms…) kết quả composition
-            // tới SAU WM_CHAR → " được" thay vì "được " (bắt được bằng test gõ thật trên
-            // Windows). Một lần commit nguyên khối đúng thứ tự ở mọi loại app.
-            KeyKind::Char(c) if composing => {
-                let mut text = current.to_vec();
-                text.push(c);
-                CompositionPlan {
-                    delete_before: 0,
-                    text: Some(text),
-                    end: true,
-                    eaten: true,
-                    cursor_left: 0,
-                }
-            }
-            // Engine đã bỏ 1 ký tự chưa biến đổi khỏi từ → bỏ khỏi composition.
-            KeyKind::Backspace if composing => {
-                let mut text = current.to_vec();
-                text.pop();
-                let end = text.is_empty();
-                CompositionPlan {
-                    delete_before: 0,
-                    text: Some(text),
-                    end,
-                    eaten: true,
-                    cursor_left: 0,
-                }
-            }
-            // Ranh giới / phím điều hướng / Ctrl+Space không khớp dự đoán: commit
-            // nguyên văn rồi để app xử lý phím. Ctrl+Space KHÔNG được giữ composition
-            // mở (R2-121): engine đã nhả từ (WORD_END) — composition còn mở thì phím
-            // kế tiếp lệch model, và overlay on-demand sửa vào giữa composition.
-            _ => CompositionPlan::pass_through(composing),
-        },
-        ACTION_REPLACE | ACTION_RESTORE | ACTION_COMMIT => {
-            let (mut text, delete_before) = if step.action == ACTION_COMMIT {
-                (current.to_vec(), 0)
-            } else {
-                let del = usize::from(step.delete_count);
-                if del <= current.len() {
-                    (current[..current.len() - del].to_vec(), 0)
-                } else {
-                    (Vec::new(), (del - current.len()) as u16)
-                }
-            };
-            text.extend_from_slice(&step.insert);
-            let mut eaten = true;
-            // RESTORE/COMMIT ở ranh giới: engine đặt ký tự ranh giới cuối `insert`.
-            // Ký tự in được ở lại trong text commit (phím bị ăn, như nhánh PASS ở trên).
-            // Enter/Tab thì bỏ ra và để app nhận phím gốc — Enter phải là phím Enter
-            // thật (chat gửi tin), không phải ký tự `\n` chèn vào text.
-            // REPLACE có WORD_END là macro/emoji/math: trigger Space/Tab bị nuốt,
-            // nhưng riêng Enter (`\n`) khi engine giữ `\n` ở cuối `insert` (vd. `\can` + Enter)
-            // thì bỏ `\n` và để app nhận phím Enter thật.
-            if step.word_end() {
-                if let Some(b) = key.native_boundary_char() {
-                    if (step.action != ACTION_REPLACE || b == '\n') && text.last() == Some(&b) {
-                        text.pop();
-                        eaten = false;
-                    }
-                }
-            }
-            let end = step.word_end() || text.is_empty() || !eaten;
-            CompositionPlan {
-                delete_before,
-                text: Some(text),
-                end,
-                eaten,
-                cursor_left: step.cursor_left,
-            }
-        }
-        // Action lạ (ABI mới hơn adapter): an toàn nhất là commit và để phím đi thẳng.
-        _ => CompositionPlan::pass_through(composing),
-    }
-}
-
-/// Text sau khi áp kế hoạch — dùng cho model của adapter sau khi COM áp thành công.
-pub fn text_after(current: &[char], plan: &CompositionPlan) -> Vec<char> {
-    if plan.end {
-        return Vec::new();
-    }
-    plan.text.clone().unwrap_or_else(|| current.to_vec())
-}
-
 #[cfg(test)]
 mod tests {
     /// R2-161: thanh tác vụ/khay/màn hình nền (cửa sổ gốc) không có ô nhập; ô nhập XAML ở app khác thì có.
@@ -703,6 +429,10 @@ mod tests {
 
     use super::*;
     use crate::EngineSession;
+    use textvn_ffi::{
+        ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE, IME_FLAG_CONSUMED,
+        IME_FLAG_WORD_END,
+    };
 
     /// Tài liệu mô phỏng: `committed` + composition ở cuối, caret sau composition.
     #[derive(Default)]
@@ -1719,7 +1449,7 @@ mod tests {
                     }
                     // P5: RESTORE/COMMIT + WORD_END với Enter/Tab → nhả phím native.
                     if step.word_end() && step.action != ACTION_REPLACE {
-                        let native = kind.native_boundary_char();
+                        let native = kind.native_boundary_char(BoundaryPolicy::CommitWithWord);
                         let insert_ends_native =
                             step.insert.last().is_some_and(|c| Some(*c) == native);
                         match native {
@@ -1757,10 +1487,12 @@ mod tests {
                         let mut insert_want = step.insert.clone();
                         if step.word_end()
                             && step.action != ACTION_REPLACE
-                            && kind.native_boundary_char().is_some()
-                            && insert_want
-                                .last()
-                                .is_some_and(|&c| Some(c) == kind.native_boundary_char())
+                            && kind
+                                .native_boundary_char(BoundaryPolicy::CommitWithWord)
+                                .is_some()
+                            && insert_want.last().is_some_and(|&c| {
+                                Some(c) == kind.native_boundary_char(BoundaryPolicy::CommitWithWord)
+                            })
                         {
                             insert_want.pop();
                         }
@@ -2168,7 +1900,7 @@ mod tests {
             let native = matches!(want, KeyKind::Enter | KeyKind::Tab);
             assert_eq!(
                 KeyKind::classify(*vknum, *ch)
-                    .native_boundary_char()
+                    .native_boundary_char(BoundaryPolicy::CommitWithWord)
                     .is_some(),
                 native,
                 "native_boundary {vknum:#x}"
