@@ -1,0 +1,9 @@
+{"case":"shared/emoji_expand_smile_01","step":0,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":1,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":2,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":3,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":4,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":5,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"delete_before","text":"","n":6}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"commit","text":"😀","n":0}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"eat_key","text":"","n":0}

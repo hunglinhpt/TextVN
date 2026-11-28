@@ -1,0 +1,7 @@
+{"case":"shared/undo_ass_01","step":0,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/undo_ass_01","step":1,"cmd":"delete_before","text":"","n":1}
+{"case":"shared/undo_ass_01","step":1,"cmd":"set_preedit","text":"á","n":1}
+{"case":"shared/undo_ass_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/undo_ass_01","step":1,"cmd":"commit","text":"á","n":0}
+{"case":"shared/undo_ass_01","step":1,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/undo_ass_01","step":2,"cmd":"forward_key","text":"","n":0}

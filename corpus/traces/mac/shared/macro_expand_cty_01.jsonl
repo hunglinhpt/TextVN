@@ -1,0 +1,6 @@
+{"case":"shared/macro_expand_cty_01","step":0,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/macro_expand_cty_01","step":1,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/macro_expand_cty_01","step":2,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/macro_expand_cty_01","step":3,"cmd":"delete_before","text":"","n":3}
+{"case":"shared/macro_expand_cty_01","step":3,"cmd":"commit","text":"Công ty TNHH","n":0}
+{"case":"shared/macro_expand_cty_01","step":3,"cmd":"eat_key","text":"","n":0}

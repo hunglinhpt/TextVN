@@ -1,0 +1,12 @@
+{"case":"shared/restore_en_dictionary_no_damage_01","step":0,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":1,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":2,"cmd":"delete_before","text":"","n":2}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":2,"cmd":"set_preedit","text":"té","n":2}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":2,"cmd":"commit","text":"té","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":2,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":3,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":4,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":5,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":6,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/restore_en_dictionary_no_damage_01","step":7,"cmd":"forward_key","text":"","n":0}

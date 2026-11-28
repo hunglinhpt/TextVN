@@ -28,6 +28,13 @@
   (`git status --porcelain`).
 - Test riêng `testRecordingTargetOrdersCommitBeforeHidingPreedit`: thứ tự commit trước ẩn preedit,
   và escape JSON.
+- **Kết quả** (run 46138878781, arm64): biên dịch + xanh ngay lần đầu; **58/58 vết** `corpus/shared`, mỗi
+  ca 2 lần giống hệt; đã commit vào `corpus/traces/mac/shared/` (gate chặn lệch bật). Phân bố lệnh:
+  set_preedit 668 · commit 344 · delete_before 320 · eat_key 344 · forward_key 1508. Ca toàn
+  `forward_key` chỉ có `loop_guard_injected_01` (phím bơm) và `macro_vi_off_disallowed_02` (tắt VN) — đúng.
+- **Khác biệt thật đầu tiên cho SF-1f**: TSF đưa MỌI chữ vào composition (`set_preedit "c"`…), còn
+  macOS để app tự gõ chữ không biến đổi (`forward_key`) và chỉ dùng marked khi engine biến đổi
+  (vd. `caps_after_dot_01`: `commit "B"` ở bước 6) — cần ghi/duyệt trong `ALLOWED_DIFF.md`.
 
 ## EN
 
@@ -58,3 +65,12 @@
   (`git status --porcelain`).
 - Dedicated test `testRecordingTargetOrdersCommitBeforeHidingPreedit`: commit-before-hide ordering and
   JSON escaping.
+- **Result** (run 46138878781, arm64): compiled and green on the first run; **58/58 traces** for
+  `corpus/shared`, each case identical across 2 runs; committed under `corpus/traces/mac/shared/` (drift
+  gate active). Command mix: set_preedit 668 · commit 344 · delete_before 320 · eat_key 344 ·
+  forward_key 1508. The only all-`forward_key` cases are `loop_guard_injected_01` (injected keys) and
+  `macro_vi_off_disallowed_02` (VN off), as expected.
+- **First real difference for SF-1f**: TSF puts EVERY letter into the composition (`set_preedit "c"`…),
+  while macOS lets the app type letters that need no transformation (`forward_key`) and uses marked
+  text only when the engine transforms (e.g. `caps_after_dot_01`: `commit "B"` at step 6). This must be
+  recorded and approved in `ALLOWED_DIFF.md`.
