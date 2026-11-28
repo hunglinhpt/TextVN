@@ -140,3 +140,41 @@
 - If the input desktop differs ⇒ conclusion: the windows-11-arm runner image does not
   support GUI input ⇒ the typing step becomes best-effort with a warning (E89 stays
   open); ARM-W4's core validations (build/verify/ACL/installer) stand.
+
+## VI — E89 KẾT LUẬN (2026-11-28, run cb28db20 — dump quyết định)
+
+- **Dump**: `thread-desktop=Default input-desktop=KHONG MO DUOC` — ảnh runner
+  windows-11-arm **không route input** vào phiên (OpenInputDesktop thất bại) ⇒
+  SendInput/click/setforeground vô nghĩa ở cấp nền tảng. 4 vòng fix trước đã đúng
+  kỹ thuật (minimized → virtual-screen → probe cursor) — nguyên nhân cuối là ảnh
+  runner, không phải code.
+- **Phương án chốt** (giữ main xanh, trung thực về giới hạn):
+  1. `test-typing.ps1` probe input-desktop ĐẦU TIÊN: không mở được ⇒ `exit 0` với
+     WARN "SKIP E2E go chu (E89)" — mọi gate khác của job ARM64 (build, verify,
+     check-pe-imports, installer/portable cấu trúc, sandbox_e2e trong cargo test)
+     vẫn cứng.
+  2. Ma trận kiến trúc x64/x86 (editor cùng nguồn) chuyển sang **job windows-2022/
+     2025** nơi input thật (x64 native + x86 dưới WOW64) — giá trị cốt lõi của
+     ARM-W2 ("forwarder phục vụ đúng DLL theo kiến trúc tiến trình") vẫn được
+     gate bằng typing thật.
+- E89 để mở theo nghĩa ảnh runner: khi GitHub cập nhật ảnh windows-11-arm có input
+  desktop, bỏ probe skip là ARM64 tự typing lại đầy đủ.
+
+## English — E89 CONCLUSION (2026-11-28, run cb28db20 — decisive dump)
+
+- **Dump**: `thread-desktop=Default input-desktop=KHONG MO DUOC` — the windows-11-arm
+  runner image does not route input into the session (OpenInputDesktop fails) ⇒
+  SendInput/click/setforeground are impossible at platform level. The previous 4
+  fix rounds were sound engineering (minimized → virtual-screen → cursor probe);
+  the final cause is the runner image, not our code.
+- **Settled plan** (keep main green, honest about the limit):
+  1. `test-typing.ps1` probes the input desktop FIRST: unopenable ⇒ `exit 0` with a
+     WARN "SKIP E2E go chu (E89)" — every other ARM64 job gate (build, verify,
+     check-pe-imports, installer/portable structure, sandbox_e2e in cargo test)
+     stays hard.
+  2. The x64/x86 architecture matrix (single-source editor) moves to the
+     **windows-2022/2025 job** where input works (x64 native + x86 under WOW64) —
+     ARM-W2's core value ("the forwarder serves the DLL matching the process
+     architecture") remains gated by REAL typing.
+- E89 stays open only in the runner-image sense: when GitHub ships a windows-11-arm
+  image with an input desktop, removing the skip probe restores full ARM64 typing.

@@ -300,6 +300,17 @@ foreach ($f in @($cli, $tray)) { if (-not (Test-Path $f)) { throw "missing $f" }
 if (Get-Process -Name TextVN,notepad,wordpad -ErrorAction SilentlyContinue) {
     throw 'Close existing TextVN/Notepad/WordPad before running the destructive typing smoke test'
 }
+
+# E89 (ket luan 2026-11-28, run cb28db20): runner windows-11-arm KHONG mo duoc
+# input desktop (OpenInputDesktop that bai - anh runner khong route input vao
+# phien) => SendInput/click vo nghia, khong the E2E go chu. Skip SACH se voi
+# canh bao thay vi do; may dev + windows-2022/2025 van route input binh thuong.
+$deskDiag = [TvKeys]::InputDesktopDiag()
+if ($deskDiag -match 'KHONG MO DUOC') {
+    Write-Host "SKIP E2E go chu (E89): session khong route input - $deskDiag"
+    Write-Host '  Runner anh windows-11-arm hien khong ho tro GUI input; cac gate khac (build/verify/ACL/installer) van chay that. Ma tran kien truc x64/x86 do o job windows-2022/2025.'
+    exit 0
+}
 $script:ownedEditor = $null
 # Cac case gia dinh dang o che do V. May dev co the dang de E (state.json
 # global_enabled=false) -> bat V cho phien test, finally tra lai NGUYEN VAN file

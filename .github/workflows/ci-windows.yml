@@ -228,6 +228,21 @@ jobs:
           name: baseline-x86_64-windows-${{ matrix.os }}
           path: perf/baseline-win.json
           if-no-files-found: error
+      # ARM-W5: ma tran kien truc do O DAY (job x64 co input that) - editor x64
+      # native + x86 duoi WOW64; runner ARM64 khong route input (E89) nen khong
+      # the do GUI o do (test-typing tu skip khi input desktop khong mo duoc).
+      - name: ARM-W5 build e2e editors (x64 + x86 best-effort)
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set "VS=%%i"
+          if not defined VS (echo WARN: no VS via vswhere & exit /b 1)
+          call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x64 || exit /b 1
+          cl /nologo /W3 /O1 /Fe:e2e-editor-x64.exe tools\win\e2e-editor.c user32.lib || exit /b 1
+          (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x86 && cl /nologo /W3 /O1 /Fe:e2e-editor-x86.exe tools\win\e2e-editor.c user32.lib) || echo WARN: x86 toolset khong co - bo qua cot x86
+          set "EXTRA="
+          if exist e2e-editor-x64.exe set "EXTRA=%CD%\e2e-editor-x64.exe"
+          if exist e2e-editor-x86.exe set "EXTRA=%EXTRA%;%CD%\e2e-editor-x86.exe"
+          echo TEXTVN_E2E_EXTRA_EDITORS=%EXTRA%>>"%GITHUB_ENV%"
       - name: Kịch bản 2 — giải nén ra dùng luôn (portable zip)
         shell: powershell
         run: |
