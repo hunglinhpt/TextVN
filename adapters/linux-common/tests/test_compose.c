@@ -739,20 +739,22 @@ typedef struct shadow_pair {
     uint64_t step_ms; /* thời gian giữa 2 sự kiện */
 } shadow_pair;
 
-static void sp_down(shadow_pair *p, lc_modifier which, int is_space, int ctrl, int shift,
-                    int alt) {
+static int sp_down(shadow_pair *p, lc_modifier which, int is_space, int ctrl, int shift,
+                   int alt) {
     lc_modifier_toggle_down(&p->t, which, ctrl, shift, alt);
     int legacy = which == LC_MOD_NONE && is_space && ctrl && shift; /* nhánh ADR-011 */
     if (legacy) lc_modifier_toggle_reset(&p->t);
     lc_session_shadow_key_down(&p->s, which, is_space, ctrl, shift, alt, legacy);
     p->s.now_override_ms += p->step_ms;
+    return legacy;
 }
 
-static void sp_up(shadow_pair *p, lc_modifier which) {
+static int sp_up(shadow_pair *p, lc_modifier which) {
     int tap = lc_modifier_ctrl_tap_up(&p->t, which);
     int toggled = !tap && lc_modifier_toggle_up(&p->t, which);
     lc_session_shadow_key_up(&p->s, which, toggled);
     p->s.now_override_ms += p->step_ms;
+    return toggled;
 }
 
 static void test_session_shadow_parity(void) {
@@ -850,6 +852,108 @@ static void test_session_shadow_parity(void) {
     lc_session_shadow_free(&p.s);
     assert(p.s.session == NULL);
     lc_session_shadow_free(&p.s); /* lần hai vô hại */
+}
+
+/* SF-2 · SF-G1/G2: corpus toggle dùng chung 3 OS (`corpus/toggle/toggle.cases`, cú pháp ở đầu
+ * tệp). Mã cũ Linux phải ra đúng số lần ghi (hoặc cột `linux=`), session đúng vết vàng.
+ * Lái giống `session::toggle_corpus::events`: modifier đang giữ TRƯỚC sự kiện, K/P xuống+lên
+ * cùng mốc, mặc định cách 300 ms. Gốc repo suy từ __FILE__ (CMake truyền đường dẫn tuyệt đối). */
+static char *trim_ws(char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    size_t n = strlen(s);
+    while (n > 0 && (s[n - 1] == ' ' || s[n - 1] == '\t' || s[n - 1] == '\n' || s[n - 1] == '\r')) {
+        s[--n] = '\0';
+    }
+    return s;
+}
+
+static void test_toggle_corpus(void) {
+    static const char suffix[] = "adapters/linux-common/tests/test_compose.c";
+    char path[1024];
+    const char *file = __FILE__;
+    size_t flen = strlen(file), slen = sizeof(suffix) - 1;
+    assert(flen >= slen && strcmp(file + (flen - slen), suffix) == 0);
+    snprintf(path, sizeof(path), "%.*scorpus/toggle/toggle.cases", (int)(flen - slen), file);
+    FILE *f = fopen(path, "r");
+    if (!f) fprintf(stderr, "không mở được %s\n", path);
+    assert(f != NULL);
+    char line[512];
+    int ncases = 0, failures = 0;
+    while (fgets(line, sizeof(line), f)) {
+        char *l = trim_ws(line);
+        if (*l == '\0' || *l == '#') continue;
+        char *cols[8];
+        int ncols = 0;
+        char *csave = NULL;
+        for (char *tok = strtok_r(l, "|", &csave); tok && ncols < 8; tok = strtok_r(NULL, "|", &csave)) {
+            cols[ncols++] = trim_ws(tok);
+        }
+        assert(ncols >= 3);
+        const char *name = cols[0];
+        unsigned expect_session = (unsigned)strtoul(cols[2], NULL, 10);
+        unsigned expect_legacy = expect_session;
+        for (int i = 3; i < ncols; i++) {
+            if (strncmp(cols[i], "linux=", 6) == 0) {
+                expect_legacy = (unsigned)strtoul(cols[i] + 6, NULL, 10);
+            }
+        }
+
+        shadow_pair p;
+        memset(&p, 0, sizeof(p));
+        assert(lc_session_shadow_init_force(&p.s) == 0);
+        uint64_t now = 1000, gap = 300;
+        int ctrl = 0, shift = 0, alt = 0;
+        unsigned legacy = 0;
+        char *save = NULL;
+        for (char *ev = strtok_r(cols[1], " ", &save); ev; ev = strtok_r(NULL, " ", &save)) {
+            if (ev[0] == 'w') {
+                gap = strtoull(ev + 1, NULL, 10);
+                continue;
+            }
+            p.s.now_override_ms = now;
+            if (strcmp(ev, "+C") == 0) {
+                legacy += (unsigned)sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, shift, alt);
+                ctrl = 1;
+            } else if (strcmp(ev, "+S") == 0) {
+                legacy += (unsigned)sp_down(&p, LC_MOD_KEY_SHIFT, 0, ctrl, 0, alt);
+                shift = 1;
+            } else if (strcmp(ev, "+A") == 0) {
+                legacy += (unsigned)sp_down(&p, LC_MOD_KEY_OTHER_MODIFIER, 0, ctrl, shift, 0);
+                alt = 1;
+            } else if (strcmp(ev, "-C") == 0) {
+                ctrl = 0;
+                legacy += (unsigned)sp_up(&p, LC_MOD_KEY_CTRL);
+            } else if (strcmp(ev, "-S") == 0) {
+                shift = 0;
+                legacy += (unsigned)sp_up(&p, LC_MOD_KEY_SHIFT);
+            } else if (strcmp(ev, "-A") == 0) {
+                alt = 0;
+                legacy += (unsigned)sp_up(&p, LC_MOD_KEY_OTHER_MODIFIER);
+            } else if (strcmp(ev, "K") == 0 || strcmp(ev, "P") == 0) {
+                int space = ev[0] == 'P';
+                legacy += (unsigned)sp_down(&p, LC_MOD_NONE, space, ctrl, shift, alt);
+                p.s.now_override_ms = now;
+                legacy += (unsigned)sp_up(&p, LC_MOD_NONE);
+            } else if (strcmp(ev, "R") == 0) {
+                lc_modifier_toggle_reset(&p.t);
+                lc_session_shadow_reset(&p.s);
+            } else {
+                fprintf(stderr, "toggle.cases: sự kiện lạ '%s' ở ca %s\n", ev, name);
+                assert(0);
+            }
+            now += gap;
+        }
+        if (legacy != expect_legacy || p.s.session_toggles != expect_session) {
+            fprintf(stderr, "FAIL toggle corpus %s: Linux cũ %u (mong %u), session %u (mong %u)\n",
+                    name, legacy, expect_legacy, (unsigned)p.s.session_toggles, expect_session);
+            failures++;
+        }
+        lc_session_shadow_free(&p.s);
+        ncases++;
+    }
+    fclose(f);
+    assert(ncases >= 16);
+    assert(failures == 0);
 }
 
 static void test_engine_ctrl_tap(void) {
@@ -1005,6 +1109,7 @@ int main(void) {
     test_assist_idle_arms();
     test_modifier_ctrl_tap();
     test_session_shadow_parity();
+    test_toggle_corpus();
     test_engine_ctrl_tap();
     test_mode_en_prediction_passthrough();
     test_config_sync();

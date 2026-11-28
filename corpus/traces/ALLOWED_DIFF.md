@@ -21,3 +21,28 @@
   đối chiếu 3 nền tảng chạy trên giao điểm chuẩn **58 ca** `corpus/shared/`.
 - `cargo xtask trace-diff` cũng sinh lại vết TSF vào thư mục tạm và đối chiếu
   byte-to-byte toàn bộ **136** tệp trong `corpus/traces/tsf/` (gate chống trôi vết TSF).
+
+## SF-2 · corpus phím chuyển `corpus/toggle/toggle.cases` / SF-2 · toggle corpus
+
+Khác biệt ĐÃ BIẾT giữa mã cũ từng OS và `textvn-session` (cột `<os>=` trong tệp corpus). Harness 3
+OS khẳng định đúng các số này; shadow `TEXTVN_SESSION_SHADOW=1` đếm chúng là lệch. Quyết định giữ
+hay đổi hành vi được đưa ra khi session thành mặc định (SF-2, bước "bật mặc định").
+/ KNOWN differences between each OS's old code and `textvn-session` (the `<os>=` column of the corpus
+file). The 3 OS harnesses assert exactly these numbers; the `TEXTVN_SESSION_SHADOW=1` shadow counts
+them as mismatches. Whether to keep or change the behaviour is decided when the session becomes the
+default (SF-2, "enable by default" step).
+
+- `alt_tap_between` · `mac=0`: IMK giữ cờ `otherKeyPressed` tới khi nhả hết Ctrl/Shift, nên Option/Cmd
+  nhấn-thả giữa chừng huỷ cả lần bấm; session (như TSF/Linux) chỉ huỷ phần đang chờ, Shift nhấn sau
+  vẫn bật/tắt. / IMK keeps `otherKeyPressed` until Ctrl/Shift are all released, so an Option/Cmd tap
+  in between cancels the whole press; the session (like TSF/Linux) only cancels what is pending, and a
+  later Shift press still toggles.
+- `chord_with_alt` · `linux=1`: IBus/Fcitx5 cũ nhận `Ctrl+Shift+Alt+Space` là chord ADR-011 (không xét
+  Alt); session, TSF (preserved key `TF_MOD_CONTROL|TF_MOD_SHIFT`) và IMK (`isToggleChord` so đúng
+  mask) thì không. / Old IBus/Fcitx5 treat `Ctrl+Shift+Alt+Space` as the ADR-011 chord (Alt
+  ignored); the session, TSF (preserved key `TF_MOD_CONTROL|TF_MOD_SHIFT`) and IMK (`isToggleChord`
+  exact mask) do not.
+- `double_toggle_fast` · `linux=2`: Linux cũ không có debounce 250 ms; session, TSF
+  (`claim_hotkey_toggle_at`) và IMK (`MacModifierTap.debounceSeconds`) gộp 2 lần bật/tắt < 250 ms
+  thành 1. / Old Linux has no 250 ms debounce; the session, TSF (`claim_hotkey_toggle_at`) and IMK
+  (`MacModifierTap.debounceSeconds`) merge two toggles < 250 ms apart into one.

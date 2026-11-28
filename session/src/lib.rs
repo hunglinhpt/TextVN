@@ -38,6 +38,7 @@
 
 pub mod batch;
 pub mod toggle;
+pub mod toggle_corpus;
 
 pub use batch::{EditBatch, EDIT_BATCH_MAX_BYTES};
 pub use toggle::{ToggleOutcome, ToggleState, CTRL_TAP_MAX_MS, TOGGLE_DEBOUNCE_MS};

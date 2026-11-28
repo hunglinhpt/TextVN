@@ -151,6 +151,7 @@ typedef struct lc_session_shadow {
     ime_session *session;     /* NULL = tắt */
     uint32_t     mismatches;
     uint32_t     toggles;     /* số lần mã cũ bật/tắt khi shadow bật (mẫu số) */
+    uint32_t     session_toggles; /* số lần session bật/tắt */
     uint64_t     now_override_ms; /* test: != 0 thay đồng hồ đơn điệu */
 } lc_session_shadow;
 

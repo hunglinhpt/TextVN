@@ -338,6 +338,22 @@ pub struct ModifierToggle {
 /// chuột… mà bộ gõ không thấy (R2-143). Macos/Linux dùng cùng trị số.
 pub const CTRL_TAP_MAX: std::time::Duration = std::time::Duration::from_millis(400);
 
+/// Cửa sổ debounce phím chuyển Việt/Anh (khớp tray và `textvn_session::toggle::TOGGLE_DEBOUNCE_MS`).
+pub const HOTKEY_TOGGLE_DEBOUNCE_MS: u64 = 250;
+
+/// Chiếm lượt bật/tắt: `true` khi cách lần trước trong `cell` ≥ [`HOTKEY_TOGGLE_DEBOUNCE_MS`].
+/// Lõi thuần của `ipc_client::try_claim_hotkey_toggle` (đồng hồ do caller đưa vào — harness SF-2).
+/// Cùng cốt lõi với tray (`textvn_tray::claim_debounced`) — giữ đồng bộ hành vi hai bên.
+pub fn claim_hotkey_toggle_at(cell: &std::sync::atomic::AtomicU64, now_ms: u64) -> bool {
+    use std::sync::atomic::Ordering;
+    let last = cell.load(Ordering::Acquire);
+    if now_ms.saturating_sub(last) < HOTKEY_TOGGLE_DEBOUNCE_MS {
+        return false;
+    }
+    cell.compare_exchange(last, now_ms, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+}
+
 impl ModifierToggle {
     /// Key-down bất kỳ. `ctrl_down`/`shift_down` = trạng thái phím còn lại của cặp
     /// (đã được xử lý trước phím hiện tại); `alt_or_win` = Alt/Win đang giữ.
@@ -1054,6 +1070,64 @@ mod tests {
         p.up(vk::CONTROL, 3020);
 
         assert_eq!(p.mismatches, 0);
+    }
+
+    /// SF-2 · SF-G1/G2: corpus toggle dùng chung 3 OS — mã cũ TSF (`ModifierToggle` +
+    /// debounce `claim_hotkey_toggle_at` + preserved key Ctrl+Shift+Space) và session phải ra
+    /// đúng số lần bật/tắt đã ghi (khác biệt TSF chỉ được ở cột `tsf=`).
+    #[test]
+    fn sf2_toggle_corpus_tsf_legacy_vs_session() {
+        use std::sync::atomic::AtomicU64;
+        use textvn_session::toggle::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_SUPER, VK_SPACE};
+        use textvn_session::toggle_corpus::{events, parse, run_session, CorpusEvent};
+
+        let cases = parse(include_str!("../../../corpus/toggle/toggle.cases")).unwrap();
+        let mut failures = Vec::new();
+        for case in &cases {
+            let mut t = ModifierToggle::default();
+            let cell = AtomicU64::new(0);
+            let t0 = std::time::Instant::now();
+            let mut legacy = 0u32;
+            for ev in events(case) {
+                match ev {
+                    CorpusEvent::KeyDown { vk, mods, now_ms } => {
+                        let ctrl = mods & MOD_CTRL != 0;
+                        let shift = mods & MOD_SHIFT != 0;
+                        let alt = mods & (MOD_ALT | MOD_SUPER) != 0;
+                        // WIN-015: preserved key TF_MOD_CONTROL|TF_MOD_SHIFT (không kèm Alt/Win)
+                        // không tới key sink; OnPreservedKey hủy Ctrl+Shift đang chờ rồi toggle.
+                        if vk == VK_SPACE && ctrl && shift && !alt {
+                            t.reset();
+                            legacy += u32::from(claim_hotkey_toggle_at(&cell, now_ms));
+                            continue;
+                        }
+                        t.on_key_down(vk, ctrl, shift, alt);
+                        t.mark_ctrl_down(t0 + std::time::Duration::from_millis(now_ms));
+                    }
+                    CorpusEvent::KeyUp { vk, now_ms, .. } => {
+                        // Như `key_event::handle_key_up`.
+                        let fire = t.on_key_up(vk);
+                        if !fire {
+                            let _ = t.on_ctrl_tap_up(vk);
+                        }
+                        if fire && claim_hotkey_toggle_at(&cell, now_ms) {
+                            legacy += 1;
+                        }
+                    }
+                    CorpusEvent::Reset { .. } => t.reset(),
+                }
+            }
+            let session = run_session(case);
+            if legacy != case.legacy_toggles("tsf") || session != case.session_toggles {
+                failures.push(format!(
+                    "{}: TSF cũ {legacy} (mong {}), session {session} (mong {})",
+                    case.name,
+                    case.legacy_toggles("tsf"),
+                    case.session_toggles
+                ));
+            }
+        }
+        assert!(failures.is_empty(), "{failures:#?}");
     }
 
     #[test]

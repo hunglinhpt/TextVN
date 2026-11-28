@@ -70,6 +70,71 @@ final class SessionShadowTests: XCTestCase {
         XCTAssertTrue(shadow.isActive)
     }
 
+    /// SF-2 · SF-G1/G2: corpus toggle dùng chung 3 OS (`corpus/toggle/toggle.cases`). IMK chỉ có
+    /// `flagsChanged` ⇒ +X/-X đổi bộ cờ (phím giữ lặp không phát sự kiện), K/P là keyDown.
+    /// Mã cũ macOS phải ra đúng số lần ghi (hoặc cột `mac=`), session đúng vết vàng.
+    func testToggleCorpus() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // IMKLibTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // macos-imk
+            .deletingLastPathComponent() // adapters
+            .deletingLastPathComponent() // gốc repo
+            .appendingPathComponent("corpus/toggle/toggle.cases")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        var ncases = 0
+        var failures: [String] = []
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("#") { continue }
+            let cols = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+            XCTAssertGreaterThanOrEqual(cols.count, 3, line)
+            let name = cols[0]
+            let expectSession = try XCTUnwrap(UInt32(cols[2]), line)
+            var expectLegacy = expectSession
+            for col in cols.dropFirst(3) where col.hasPrefix("mac=") {
+                expectLegacy = try XCTUnwrap(UInt32(col.dropFirst(4)), line)
+            }
+
+            let shadow = try XCTUnwrap(SessionShadow())
+            var p = Pair(shadow: shadow)
+            var ctrl = false, shift = false, alt = false
+            for ev in cols[1].split(separator: " ") {
+                if ev.hasPrefix("w") {
+                    p.stepMs = try XCTUnwrap(UInt64(ev.dropFirst()), line)
+                    continue
+                }
+                switch ev {
+                case "+C", "-C":
+                    let v = ev == "+C"
+                    if v != ctrl { ctrl = v; p.flags(ctrl, shift, alt) } else { p.ms += p.stepMs }
+                case "+S", "-S":
+                    let v = ev == "+S"
+                    if v != shift { shift = v; p.flags(ctrl, shift, alt) } else { p.ms += p.stepMs }
+                case "+A", "-A":
+                    let v = ev == "+A"
+                    if v != alt { alt = v; p.flags(ctrl, shift, alt) } else { p.ms += p.stepMs }
+                case "K":
+                    p.key()
+                case "P":
+                    // isToggleChord: đúng Ctrl+Shift (Option/Cmd ⇒ không phải chord).
+                    p.key(space: true, chord: ctrl && shift && !alt)
+                case "R":
+                    p.reset()
+                default:
+                    XCTFail("sự kiện lạ \(ev) ở ca \(name)")
+                }
+            }
+            if UInt32(p.legacyToggles) != expectLegacy || shadow.sessionToggles != expectSession {
+                failures.append("\(name): macOS cũ \(p.legacyToggles) (mong \(expectLegacy)), "
+                    + "session \(shadow.sessionToggles) (mong \(expectSession))")
+            }
+            ncases += 1
+        }
+        XCTAssertGreaterThanOrEqual(ncases, 16)
+        XCTAssertEqual(failures, [])
+    }
+
     func testShadowCountsMismatch() throws {
         // Shadow phải BẮT được lệch: mã cũ "báo" bật/tắt ở phím thường mà session không.
         let shadow = try XCTUnwrap(SessionShadow())

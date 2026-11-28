@@ -91,6 +91,52 @@ run_cases() {
 }
 export -f run_cases
 
+# SF-2: phím chuyển Ctrl+Shift kiểu UniKey (nhấn-thả, X11) — tắt tiếng Việt, gõ thô, bật lại.
+# Hai lần chuyển cách nhau > 250 ms (debounce của textvn-session) để shadow so được 1-1.
+toggle_case() {
+    local win="$1" got
+    xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
+    xdotool key --clearmodifiers ctrl+a Delete
+    sleep 0.3
+    xdotool key ctrl+shift
+    sleep 0.4
+    xdotool type --delay 90 -- "vieetj"
+    xdotool key space
+    sleep 0.4
+    xdotool key ctrl+shift
+    sleep 0.4
+    xdotool type --delay 90 -- "vieetj"
+    xdotool key space
+    sleep 0.6
+    xdotool key --clearmodifiers ctrl+a ctrl+c
+    sleep 0.4
+    got="$(xclip -selection clipboard -o 2>/dev/null | sed 's/[[:space:]]*$//')"
+    if [[ "$got" == "vieetj việt" ]]; then
+        echo "PASS  Ctrl+Shift tắt/bật → $got"
+        return 0
+    fi
+    echo "FAIL  Ctrl+Shift tắt/bật → '$got' (mong đợi 'vieetj việt')"
+    return 1
+}
+export -f toggle_case
+
+# SF-2: shadow `textvn-session` (TEXTVN_SESSION_SHADOW=1) phải 0 lệch với mã cũ. Engine ghi
+# stderr (G8: chỉ loại phím + số đếm) vào log của daemon IM.
+shadow_check() {
+    local log="$1"
+    if grep -q 'SF2 shadow mismatch' "$log"; then
+        grep 'SF2 shadow' "$log" | head -n 20
+        echo "FAIL SF-2 shadow lệch mã cũ" >&2
+        return 1
+    fi
+    if grep -q 'SF2 shadow on' "$log"; then
+        echo "[e2e-desktop:$DE] SF-2 shadow: bật, 0 lệch"
+    else
+        echo "[e2e-desktop:$DE] SF-2 shadow: không thấy stderr của engine trong log — không kiểm được"
+    fi
+}
+export -f shadow_check
+
 # Oracle gate: danh sách case phải khớp CHÍNH engine của gói vừa cài (cấu hình mặc định) trước khi
 # gõ GUI — ca sai sẽ đỏ ở đây, không bị đổ cho môi trường desktop (COMPAT-3 bắt 2 dòng sai cũ).
 oracle_cases() {
@@ -135,6 +181,8 @@ case "$DE" in
             set +a
             # Như im-config/phiên Xfce chọn IBus.
             export GTK_IM_MODULE=ibus XMODIFIERS=@im=ibus QT_IM_MODULE=ibus
+            # SF-2: engine (con của ibus-daemon) chạy shadow textvn-session song song mã cũ.
+            export TEXTVN_SESSION_SHADOW=1
             ibus-daemon --xim --panel=disable --config=default --cache=refresh --replace --single >"$T/ibus.log" 2>&1 &
             for _ in $(seq 1 50); do ibus list-engine >/dev/null 2>&1 && break; sleep 0.2; done
             ibus list-engine 2>/dev/null | grep -qw textvn || {
@@ -168,6 +216,8 @@ case "$DE" in
             echo "[e2e-desktop:$DE] engine hiện hành: $(ibus engine)"
             local rc=0
             run_cases "$win" || rc=$?
+            if [[ $rc -eq 0 ]]; then toggle_case "$win" || rc=$?; fi
+            shadow_check "$T/ibus.log" || rc=$?
             if [[ $rc -ne 0 ]]; then
                 echo "--- ibus engine: $(ibus engine 2>&1) ---"
                 tail -n 20 "$T/ibus.log" || true

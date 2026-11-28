@@ -334,20 +334,11 @@ pub static LAST_HOTKEY_TOGGLE_MS: std::sync::atomic::AtomicU64 =
 
 /// Thử chiếm lượt toggle phía process này: `true` khi cách lần trước ≥ 250ms.
 pub fn try_claim_hotkey_toggle() -> bool {
-    // Cùng cốt lõi với tray (`textvn_tray::claim_debounced`) — giữ đồng bộ
-    // hành vi hai bên; cell riêng của process TIP.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    use std::sync::atomic::Ordering;
-    let last = LAST_HOTKEY_TOGGLE_MS.load(Ordering::Acquire);
-    if now.saturating_sub(last) < 250 {
-        return false;
-    }
-    LAST_HOTKEY_TOGGLE_MS
-        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
-        .is_ok()
+    crate::compose::claim_hotkey_toggle_at(&LAST_HOTKEY_TOGGLE_MS, now)
 }
 
 fn read_state_file() -> Option<BTreeMap<String, bool>> {

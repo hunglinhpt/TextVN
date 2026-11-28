@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SF-2 · corpus phím chuyển Việt/Anh (SF-G1/G2) — MỘT nguồn kịch bản cho mọi harness (G22):
+#   - session/tests/toggle_corpus.rs           : session một mình (vết vàng SF-G1)
+#   - adapters/windows-tsf/src/compose.rs      : ModifierToggle + debounce + preserved key ↔ session
+#   - adapters/linux-common/tests/test_compose.c : lc_modifier_toggle ↔ session (C ABI)
+#   - adapters/macos-imk/Tests/IMKLibTests/SessionShadowTests.swift : MacModifierTap ↔ session
+#
+# Dòng: <tên> | <sự kiện …> | <số lần bật/tắt của session> [| <os>=<số lần của mã cũ> …]
+# Sự kiện (cách nhau dấu cách; giữa 2 sự kiện mặc định 300 ms, > debounce 250 ms):
+#   +C -C   Ctrl xuống / lên              +S -S   Shift xuống / lên
+#   +A -A   Alt (Win/Super; macOS Option/Cmd) xuống / lên
+#   K       phím thường (xuống + lên)     P       Space (xuống + lên) với modifier đang giữ
+#   R       mất focus / reset             wN      từ đây các sự kiện cách nhau N ms
+# Cột <os>= (tsf/linux/mac) chỉ dùng cho khác biệt ĐÃ BIẾT giữa mã cũ của OS đó và session;
+# lý do ghi ở corpus/traces/ALLOWED_DIFF.md (mục SF-2). Không có cột ⇒ mã cũ = session.
+ctrl_shift_release_shift   | +C +S -S -C             | 1
+ctrl_shift_release_ctrl    | +C +S -C -S             | 1
+shift_ctrl_release_ctrl    | +S +C -C -S             | 1
+key_repeat                 | +C +C +S +S -S -C       | 1
+third_key_cancels          | +C +S K -S -C           | 0
+alt_held_first             | +A +C +S -S -C -A       | 0
+alt_after_both             | +C +S +A -A -S -C       | 0
+alt_tap_between            | +C +A -A +S -S -C       | 1 | mac=0
+chord_space                | +C +S P -S -C           | 1
+chord_with_alt             | +C +S +A P -A -S -C     | 0 | linux=1
+focus_lost                 | +C +S R -S -C           | 0
+ctrl_tap                   | +C -C                   | 0
+shift_tap                  | +S -S                   | 0
+typing_then_toggle         | K K +C +S -S -C K       | 1
+double_toggle_slow         | +C +S -S -C +C +S -S -C | 2
+double_toggle_fast         | w20 +C +S -S -C +C +S -S -C | 1 | linux=2

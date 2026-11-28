@@ -311,6 +311,7 @@ static void shadow_compare(lc_session_shadow *s, const char *phase, lc_modifier 
                            int is_space, int legacy, int session) {
     if (session < 0) return;
     if (legacy) s->toggles++;
+    if (session) s->session_toggles++;
     if ((legacy != 0) == (session != 0)) return;
     s->mismatches++;
     fprintf(stderr, "textvn: SF2 shadow mismatch %s key=%s legacy=%d session=%d (total %u)\n",
@@ -322,7 +323,9 @@ void lc_session_shadow_init(lc_session_shadow *s) {
     if (!s) return;
     memset(s, 0, sizeof(*s));
     const char *v = getenv("TEXTVN_SESSION_SHADOW");
-    if (v && strcmp(v, "1") == 0) (void)lc_session_shadow_init_force(s);
+    if (v && strcmp(v, "1") == 0 && lc_session_shadow_init_force(s) == 0) {
+        fprintf(stderr, "textvn: SF2 shadow on (textvn-session toggle)\n");
+    }
 }
 
 int lc_session_shadow_init_force(lc_session_shadow *s) {

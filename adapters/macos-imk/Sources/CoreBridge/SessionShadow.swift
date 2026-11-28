@@ -24,6 +24,8 @@ public final class SessionShadow {
     public private(set) var mismatches: UInt32 = 0
     /// Số lần mã cũ bật/tắt khi shadow bật (mẫu số).
     public private(set) var toggles: UInt32 = 0
+    /// Số lần session bật/tắt.
+    public private(set) var sessionToggles: UInt32 = 0
 
     /// Bật nếu env `TEXTVN_SESSION_SHADOW=1`, ngược lại nil.
     public static func fromEnvironment() -> SessionShadow? {
@@ -139,6 +141,7 @@ public final class SessionShadow {
 
     private func compare(phase: String, legacy: Bool, session: Bool) {
         if legacy { toggles += 1 }
+        if session { sessionToggles += 1 }
         guard legacy != session else { return }
         mismatches += 1
         Diagnostics.log("SF2 shadow mismatch \(phase) legacy=\(legacy) session=\(session) (total \(mismatches))")

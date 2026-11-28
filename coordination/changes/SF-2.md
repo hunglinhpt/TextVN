@@ -80,9 +80,38 @@
 - **Test** `SessionShadowTests`: 8 kịch bản (gồm debounce, Option chen giữa, chord, mất focus) ⇒ 4 lần
   bật/tắt, **0 lệch**; shadow bắt được lệch giả lập; tắt mặc định.
 
-### Còn lại (pha 3b, task tiếp tục)
-- **Đưa batch vào đường áp lệnh** của 3 adapter, kiểm SF-G1/G2 cho corpus toggle, đo shadow 0 lệch trên
-  e2e, rồi bật mặc định ở bản kế tiếp.
+### Pha 3b — corpus toggle SF-G1/G2 + e2e shadow — XONG
+- **`corpus/toggle/toggle.cases`**: 16 ca, MỘT nguồn kịch bản cho mọi harness (G22). Cú pháp ghi ở đầu
+  tệp; cột `<os>=` chỉ dành cho khác biệt đã biết, lý do ghi ở `corpus/traces/ALLOWED_DIFF.md` mục SF-2.
+- **`session/src/toggle_corpus.rs`**: parse và dựng sự kiện (VK + modifier đang giữ + `now_ms`), không
+  I/O. **SF-G1** `session/tests/toggle_corpus.rs`: session khớp vết vàng 16/16; có test đột biến vết
+  vàng.
+- **SF-G2**, mỗi OS đọc cùng tệp:
+  - TSF `sf2_toggle_corpus_tsf_legacy_vs_session`: `ModifierToggle` + debounce + preserved key;
+  - Linux `test_compose.c::test_toggle_corpus`: `lc_modifier_toggle` + shadow C ABI; gốc repo
+    suy từ `__FILE__`;
+  - macOS `SessionShadowTests.testToggleCorpus`: `MacModifierTap` + `SessionShadow`, chuyển `+X/-X`
+    thành bộ cờ `flagsChanged`.
+
+  Mã cũ từng OS và session phải ra đúng số ghi.
+- **Debounce TSF**: tách lõi thuần `compose::claim_hotkey_toggle_at` +
+  `HOTKEY_TOGGLE_DEBOUNCE_MS`; `ipc_client::try_claim_hotkey_toggle` gọi lại nó, hành vi không đổi.
+- **Khác biệt đã biết** (3): `alt_tap_between` `mac=0`, `chord_with_alt` `linux=1`,
+  `double_toggle_fast` `linux=2`.
+- **Đột biến đã thử (D3)**:
+  - debounce session = 0 ⇒ `double_toggle_fast` đỏ;
+  - bỏ điều kiện Alt khi Shift xuống ⇒ `alt_held_first` đỏ ở harness TSF.
+- **e2e IBus (Xfce/X11)** `scripts/e2e-desktop.sh`:
+  - chạy với `TEXTVN_SESSION_SHADOW=1`;
+  - ca mới `toggle_case`: Ctrl+Shift tắt ⇒ gõ `vieetj` ra thô ⇒ Ctrl+Shift bật ⇒ `việt`;
+  - `shadow_check` đỏ khi log có `SF2 shadow mismatch`; engine in `SF2 shadow on` để chứng minh
+    shadow có chạy.
+
+### Còn lại (task tiếp tục / bản kế tiếp)
+- **Đưa `EditBatch` vào đường áp lệnh**: đi cùng SF-3. Lệnh xoá/commit chỉ phát sinh khi compose chạy
+  trong session; trước đó Linux vẫn dùng `lc_edit_batch` (C) cùng luật.
+- **Bật session mặc định** ở bản kế tiếp, sau khi chốt 3 khác biệt đã biết; **xoá mã cũ** ở bản sau
+  nữa (P0-7 SF-2 "Bước").
 - **Nợ G22**: adapter TSF còn module `vk` riêng trong `compose.rs` (không phụ thuộc `textvn-core`); gom
   về core là một bước dọn riêng.
 
@@ -165,8 +194,38 @@
 - **Test** `SessionShadowTests`: 8 scenarios (including debounce, Option in between, chord, focus loss)
   ⇒ 4 toggles, **0 mismatches**; the shadow catches a simulated mismatch; off by default.
 
-### Remaining (phase 3b, task continues)
-- **Route the batch into the apply path** of all 3 adapters, check SF-G1/G2 on the toggle corpus,
-  measure 0 shadow mismatches on e2e, then turn it on by default in the next release.
+### Phase 3b — SF-G1/G2 toggle corpus + e2e shadow — DONE
+- **`corpus/toggle/toggle.cases`**: 16 cases, ONE scenario source for every harness (G22). The syntax
+  is described at the top of the file; the `<os>=` column is only for known differences, explained in
+  `corpus/traces/ALLOWED_DIFF.md` section SF-2.
+- **`session/src/toggle_corpus.rs`**: parses the file and builds events (VK + held modifiers +
+  `now_ms`), no I/O. **SF-G1** `session/tests/toggle_corpus.rs`: the session matches the golden counts
+  16/16; includes a golden-mutation test.
+- **SF-G2**, each OS reads the same file:
+  - TSF `sf2_toggle_corpus_tsf_legacy_vs_session`: `ModifierToggle` + debounce + preserved key;
+  - Linux `test_compose.c::test_toggle_corpus`: `lc_modifier_toggle` + C ABI shadow; repo root
+    derived from `__FILE__`;
+  - macOS `SessionShadowTests.testToggleCorpus`: `MacModifierTap` + `SessionShadow`, turning `+X/-X`
+    into `flagsChanged` flag sets.
+
+  Each OS's old code and the session must produce the recorded counts.
+- **TSF debounce**: pure core `compose::claim_hotkey_toggle_at` + `HOTKEY_TOGGLE_DEBOUNCE_MS` extracted;
+  `ipc_client::try_claim_hotkey_toggle` calls it, behaviour unchanged.
+- **Known differences** (3): `alt_tap_between` `mac=0`, `chord_with_alt` `linux=1`,
+  `double_toggle_fast` `linux=2`.
+- **Mutations tried (D3)**:
+  - session debounce = 0 ⇒ `double_toggle_fast` red;
+  - dropping the Alt condition on Shift down ⇒ `alt_held_first` red in the TSF harness.
+- **IBus e2e (Xfce/X11)** `scripts/e2e-desktop.sh`:
+  - runs with `TEXTVN_SESSION_SHADOW=1`;
+  - new `toggle_case`: Ctrl+Shift off ⇒ typing `vieetj` stays raw ⇒ Ctrl+Shift on ⇒ `việt`;
+  - `shadow_check` fails when the log has `SF2 shadow mismatch`; the engine prints `SF2 shadow on` to
+    prove the shadow actually ran.
+
+### Remaining (task continues / next release)
+- **Route `EditBatch` into the apply path**: goes with SF-3. Delete/commit commands only appear once
+  compose runs in the session; until then Linux keeps `lc_edit_batch` (C) with the same rules.
+- **Turn the session on by default** in the next release, after settling the 3 known differences;
+  **remove the old code** in the release after that (P0-7 SF-2 "Steps").
 - **G22 debt**: the TSF adapter still has its own `vk` module in `compose.rs` (it does not depend on
   `textvn-core`); moving it into core is a separate cleanup.
