@@ -56,9 +56,11 @@ pub fn layout_spec(lang: u16) -> String {
 }
 
 /// Machine ID `IMAGE_FILE_MACHINE_ARM64` trả về từ `IsWow64Process2` trên Windows ARM64.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const IMAGE_FILE_MACHINE_ARM64: u16 = 0xAA64;
 
 /// Kiểm tra mã máy gốc (`native_machine` từ `IsWow64Process2`) có phải ARM64 không.
+#[cfg_attr(not(windows), allow(dead_code))]
 #[must_use]
 pub const fn is_arm64_native_machine(native_machine: u16) -> bool {
     native_machine == IMAGE_FILE_MACHINE_ARM64
@@ -68,6 +70,7 @@ pub const fn is_arm64_native_machine(native_machine: u16) -> bool {
 ///
 /// Trên Windows gọi `IsWow64Process2` qua `LoadLibraryExW`/`GetProcAddress` (nạp động E65
 /// để giữ tương thích Windows 10 1507/1607); trên nền tảng khác trả về `false`.
+#[cfg_attr(not(windows), allow(dead_code))]
 #[must_use]
 pub fn host_is_arm64() -> bool {
     #[cfg(windows)]
@@ -85,6 +88,7 @@ pub fn host_is_arm64() -> bool {
 /// Trên Windows ARM64 (`is_arm64_host = true`), ưu tiên forwarder ARM64X `textvn-tsf.dll`
 /// (P0-5 §6.2) rồi mới fallback sang `textvn-tsf-arm64.dll` và `textvn_win_tsf.dll`.
 /// Trên x64/x86 giữ nguyên ưu tiên `textvn-tsf.dll` rồi `textvn_win_tsf.dll`.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn select_inproc_dll_in_dir(dir: &Path, is_arm64_host: bool) -> Result<PathBuf, String> {
     let candidates: &[&str] = if is_arm64_host {
         &[
@@ -115,6 +119,7 @@ pub fn select_inproc_dll_in_dir(dir: &Path, is_arm64_host: bool) -> Result<PathB
 /// Luôn bao gồm `inproc_dll` và bổ sung các companion DLL cùng thư mục (trên ARM64 gồm
 /// đủ tối đa 4 DLL: `textvn-tsf.dll`, `textvn-tsf-arm64.dll`, `textvn-tsf-x64.dll`,
 /// `textvn-tsf-x86.dll`; trên x64 chỉ thêm `textvn-tsf-x86.dll`), không trùng lặp.
+#[cfg_attr(not(windows), allow(dead_code))]
 #[must_use]
 pub fn companion_dlls_for_acl(inproc_dll: &Path, is_arm64_host: bool) -> Vec<PathBuf> {
     let mut out = vec![inproc_dll.to_path_buf()];
