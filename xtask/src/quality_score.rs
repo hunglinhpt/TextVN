@@ -17,7 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn repo_root() -> PathBuf {
+pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("CARGO_MANIFEST_DIR luôn nằm trong repo")
@@ -108,6 +108,11 @@ pub fn direction(key: &str) -> i8 {
     match key {
         "rsi_saved_keys" | "rsi_vi_saved" | "rsi_en_saved" | "rsi_accepts" | "assist_detected"
         | "regression_codes" => 1,
+        // `precision` KHÔNG phải khoá KPI trong `perf/quality/*.json` (`collect`/`render`
+        // không bao giờ sinh) — chỉ là khoá hiển thị của bảng xu hướng BIZ-3 cho hàng
+        // precision % (`quality_trend`). Thêm vào đây không đổi gate `quality-score`
+        // (G22: một nguồn hướng cho gate lẫn mũi tên, không bản sao).
+        "precision" => 1,
         "rsi_noise"
         | "rsi_invariant_breaks"
         | "rsi_diverged"
@@ -118,8 +123,8 @@ pub fn direction(key: &str) -> i8 {
     }
 }
 
-/// KPI chỉ so được khi corpus của nó không đổi.
-fn needs_same_eval(key: &str) -> bool {
+/// KPI chỉ so được khi corpus của nó không đổi (BIZ-3 tái dùng cho hàng phụ thuộc corpus).
+pub fn needs_same_eval(key: &str) -> bool {
     key.starts_with("rsi_")
 }
 
@@ -245,7 +250,7 @@ fn render(version: &str, eval: &str, k: &Kpis) -> String {
     )
 }
 
-fn parse_file(text: &str) -> (String, Kpis) {
+pub fn parse_file(text: &str) -> (String, Kpis) {
     let eval = text
         .find("\"eval_hash\":\"")
         .map(|p| text[p + 13..].chars().take_while(|c| *c != '"').collect())
@@ -267,7 +272,7 @@ fn parse_file(text: &str) -> (String, Kpis) {
 }
 
 /// So khoá phiên bản `a.b.c` (số).
-fn ver_key(v: &str) -> Vec<u64> {
+pub fn ver_key(v: &str) -> Vec<u64> {
     v.split('.').map(|p| p.parse().unwrap_or(0)).collect()
 }
 
@@ -296,25 +301,51 @@ fn previous_file(dir: &Path, version: &str, include_equal: bool) -> Option<(Stri
         .max_by_key(|(v, _)| ver_key(v))
 }
 
+/// Mười giá trị hiển thị suy ra từ KPI thô — **DUY NHẤT** nơi định nghĩa công thức cho
+/// cả chuỗi in `quality-score` lẫn bảng xu hướng `quality-trend` (BIZ-3, G22 — cấm bản
+/// sao công thức). Tên phần tử: `KSR`, `KSR_VI`, `KSR_EN`, `PRECISION`, `NOISE`,
+/// `RECALL`, `FP`, `CODES`, `DEBT`, `LEAK`. % = 100·a/b (mẫu số 0 ⇒ 0 — như công thức
+/// cũ trong `cli`). Khoá thô thiếu ⇒ 0: nhánh không xảy ra với `collect()` (đủ khoá mới
+/// trả Ok); bảng xu hướng tự kiểm presence trước khi dùng (hàng thiếu ⇒ `—`).
+pub fn derived_display(k: &Kpis) -> Vec<(&'static str, f64)> {
+    let g = |name: &str| k.get(name).copied().unwrap_or(0.0);
+    let pct = |a: f64, b: f64| if b > 0.0 { 100.0 * a / b } else { 0.0 };
+    vec![
+        ("KSR", pct(g("rsi_saved_keys"), g("rsi_baseline_keys"))),
+        ("KSR_VI", pct(g("rsi_vi_saved"), g("rsi_vi_baseline"))),
+        ("KSR_EN", pct(g("rsi_en_saved"), g("rsi_en_baseline"))),
+        (
+            "PRECISION",
+            pct(g("rsi_ghosts_good"), g("rsi_ghosts_shown")),
+        ),
+        ("NOISE", g("rsi_noise")),
+        ("RECALL", pct(g("assist_detected"), g("assist_errors"))),
+        ("FP", g("assist_fp_hard")),
+        ("CODES", g("regression_codes")),
+        ("DEBT", g("regression_todo")),
+        ("LEAK", g("eval_leak")),
+    ]
+}
+
 pub fn cli(args: &[String]) -> Result<(), String> {
     let root = repo_root();
     let write = args.iter().any(|a| a == "--write");
     let version = workspace_version(&root)?;
     let eval = eval_hash(&root)?;
     let kpis = collect(&root)?;
-    let pct = |a: f64, b: f64| if b > 0.0 { 100.0 * a / b } else { 0.0 };
+    let d: BTreeMap<&'static str, f64> = derived_display(&kpis).into_iter().collect();
     println!(
         "quality-score {version}: KSR {:.1}% (VI {:.1}% · EN {:.1}%) · precision {:.1}% · nhiễu {} · trợ lý recall {:.1}% FP {} · mã lỗi {} (nợ {}) · rò rỉ eval {}",
-        pct(kpis["rsi_saved_keys"], kpis["rsi_baseline_keys"]),
-        pct(kpis["rsi_vi_saved"], kpis["rsi_vi_baseline"]),
-        pct(kpis["rsi_en_saved"], kpis["rsi_en_baseline"]),
-        pct(kpis["rsi_ghosts_good"], kpis["rsi_ghosts_shown"]),
-        kpis["rsi_noise"],
-        pct(kpis["assist_detected"], kpis["assist_errors"]),
-        kpis["assist_fp_hard"],
-        kpis["regression_codes"],
-        kpis["regression_todo"],
-        kpis["eval_leak"],
+        d["KSR"],
+        d["KSR_VI"],
+        d["KSR_EN"],
+        d["PRECISION"],
+        d["NOISE"],
+        d["RECALL"],
+        d["FP"],
+        d["CODES"],
+        d["DEBT"],
+        d["LEAK"],
     );
     let dir = root.join("perf/quality");
     let mut bad = Vec::new();
