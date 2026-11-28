@@ -271,8 +271,12 @@ fn ver_key(v: &str) -> Vec<u64> {
     v.split('.').map(|p| p.parse().unwrap_or(0)).collect()
 }
 
-/// Tệp của bản gần nhất TRƯỚC `version` (không tính chính nó).
-fn previous_file(dir: &Path, version: &str) -> Option<(String, PathBuf)> {
+/// Tệp của bản so sánh gần nhất. `include_equal`:
+/// - `false` (khi `--write`): bản TRƯỚC `version` — đang ghi đè chính nó, không tự so mình.
+/// - `true` (đo lường thường): bản GẦN NHẤT ≤ `version` (gồm chính nó) — sau phát hành,
+///   commit dev kế tiếp (cùng version tới khi bump) phải so với bản vừa phát hành,
+///   không được lùi về bản cũ hơn rồi "đạt" (review BIZ-1 2026-11-28).
+fn previous_file(dir: &Path, version: &str, include_equal: bool) -> Option<(String, PathBuf)> {
     let cur = ver_key(version);
     fs::read_dir(dir)
         .ok()?
@@ -280,8 +284,14 @@ fn previous_file(dir: &Path, version: &str) -> Option<(String, PathBuf)> {
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
             let v = name.strip_suffix(".json")?.to_string();
-            (v.chars().all(|c| c.is_ascii_digit() || c == '.') && ver_key(&v) < cur)
-                .then(|| (v, e.path()))
+            let newer_than_cur = ver_key(&v) > cur;
+            let keep = v.chars().all(|c| c.is_ascii_digit() || c == '.')
+                && (if include_equal {
+                    !newer_than_cur
+                } else {
+                    ver_key(&v) < cur
+                });
+            keep.then(|| (v, e.path()))
         })
         .max_by_key(|(v, _)| ver_key(v))
 }
@@ -308,7 +318,7 @@ pub fn cli(args: &[String]) -> Result<(), String> {
     );
     let dir = root.join("perf/quality");
     let mut bad = Vec::new();
-    match previous_file(&dir, &version) {
+    match previous_file(&dir, &version, !write) {
         Some((pv, p)) => {
             let (pe, pk) =
                 parse_file(&fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?);
@@ -410,5 +420,39 @@ mod tests {
             fnv64(&[b"ab"]),
             "ranh giới tệp tính vào băm"
         );
+    }
+
+    /// Review BIZ-1 (2026-11-28): bản so sánh phụ thuộc --write.
+    /// - Đo lường thường (không --write): so với bản GẦN NHẤT ≤ version hiện tại
+    ///   (gồm chính nó) — sau phát hành 0.2.97, commit dev kế tiếp (vẫn 0.2.97) phải
+    ///   so với 0.2.97 vừa phát hành, không được lùi so với 0.2.96 rồi "đạt".
+    /// - Khi `--write`: chỉ so bản TRƯỚC (đang ghi đè chính nó).
+    #[test]
+    fn biz_1_chon_ban_so_sanh_theo_write() {
+        let dir = std::env::temp_dir().join(format!("textvn-quality-prev-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for v in ["0.2.96", "0.2.97", "0.2.98"] {
+            std::fs::write(dir.join(format!("{v}.json")), "{}").unwrap();
+        }
+        // Đang ở 0.2.97: đo thường so với CHÍNH 0.2.97; --write so với 0.2.96.
+        assert_eq!(
+            previous_file(&dir, "0.2.97", true).map(|(v, _)| v),
+            Some("0.2.97".to_string())
+        );
+        assert_eq!(
+            previous_file(&dir, "0.2.97", false).map(|(v, _)| v),
+            Some("0.2.96".to_string())
+        );
+        // Chưa có bản của version hiện tại: đo thường rơi về bản gần nhất ≤ version.
+        assert_eq!(
+            previous_file(&dir, "0.2.99", true).map(|(v, _)| v),
+            Some("0.2.98".to_string())
+        );
+        assert_eq!(
+            previous_file(&dir, "0.2.99", false).map(|(v, _)| v),
+            Some("0.2.98".to_string())
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

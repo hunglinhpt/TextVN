@@ -87,3 +87,45 @@
 - Remaining: BIZ-2 (miss report), BIZ-3 (README/CHANGELOG KPI trend); the "B4b runs
   `cargo xtask quality-score --write`" line will be added to `docs/release/release-process.md`
   by the release manager in the next release (file is under the rm-lock process).
+
+## VI — Sửa sau review (2026-11-28)
+
+- **Review CHƯA PASS (2 lỗi, "gate không bao giờ được vô hiệu")**:
+  1. `perf/quality/` rỗng + release-process.md không có bước `--write` ⇒ gate
+     so-bản-trước vô hiệu vĩnh viễn. **Fix**: (a) thêm bước **B4c** vào
+     `docs/release/release-process.md` — `cargo xtask quality-score --write` + commit
+     `perf/quality/<N.N.N>.json` + `history.jsonl` cùng bộ docs B4; (b) commit ngay
+     `perf/quality/0.2.96.json` (số thật đo từ main: KSR 7,3%, recall 83,7%, nợ 0,
+     rò rỉ 0) ⇒ gate sống từ bây giờ.
+  2. `previous_file()` loại chính version hiện tại ⇒ sau khi phát hành 0.2.97, commit
+     dev kế tiếp (vẫn 0.2.97) so với 0.2.96 — tụt so với bản vừa phát hành mà vẫn
+     "đạt". **Fix**: `previous_file(dir, version, include_equal)` — đo thường (không
+     `--write`) so với bản GẦN NHẤT ≤ version (gồm chính nó); khi `--write` mới loại
+     chính nó (đang ghi đè). Test mới `biz_1_chon_ban_so_sanh_theo_write` phủ cả 2
+     nhánh + nhánh chưa có bản cùng version.
+- **PERF-1 review gợi ý (áp dụng)**: `validate_baseline` từ chối `run` bắt đầu
+  `local-dev` khi `GITHUB_ACTIONS=true` — số máy dev không được quay lại gate CI.
+- Bằng chứng: `cargo test -p xtask quality_score` 3/3, bench 11/11, clippy -D warnings
+  sạch; `quality-score --write` ghi 0.2.96.json + history.jsonl thật.
+
+## English — Post-review fixes (2026-11-28)
+
+- **Review not passed (2 defects, "a gate must never be disabled")**:
+  1. Empty `perf/quality/` + no `--write` step in release-process.md ⇒ the
+     previous-version gate would stay dead forever. **Fix**: (a) new step **B4c** in
+     `docs/release/release-process.md` — `cargo xtask quality-score --write` + commit
+     `perf/quality/<N.N.N>.json` + `history.jsonl` with the B4 docs; (b) committed
+     `perf/quality/0.2.96.json` right now (real numbers measured from main: KSR 7.3%,
+     recall 83.7%, debt 0, leaks 0) so the gate is alive from today.
+  2. `previous_file()` excluded the CURRENT version ⇒ after 0.2.97 ships, the next dev
+     commit (still 0.2.97) compared against 0.2.96 — a regression vs the just-released
+     version would pass. **Fix**: `previous_file(dir, version, include_equal)` — normal
+     measurement compares against the CLOSEST version ≤ current (including itself);
+     only `--write` excludes itself (it is overwriting it). New test
+     `biz_1_chon_ban_so_sanh_theo_write` covers both branches + the missing-current
+     case.
+- **PERF-1 review suggestion applied**: `validate_baseline` rejects a `run` starting
+  with `local-dev` when `GITHUB_ACTIONS=true` — dev-machine numbers can never re-enter
+  the CI gate.
+- Evidence: xtask quality_score tests 3/3, bench 11/11, clippy clean at -D warnings;
+  `quality-score --write` wrote real 0.2.96.json + history.jsonl.

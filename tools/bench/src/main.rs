@@ -264,6 +264,13 @@ pub fn validate_baseline(old: &str, triple: &str) -> Result<(), String> {
     if run.is_empty() {
         return Err("baseline thiếu provenance `run` — re-record bằng `textvn-bench write --auto` từ CI (R2-176)".into());
     }
+    // PERF-1 review 2026-11-28: trên CI không được chấp nhận số máy dev — số
+    // "local-dev" được ghi trên máy ai đó rồi commit lên thì gate mất nghĩa.
+    if std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true") && run.starts_with("local-dev") {
+        return Err(format!(
+            "baseline ghi `run: {run}` nhưng đang chạy trên CI — commit số thật re-record từ runner (R2-176)"
+        ));
+    }
     if let Some(t) = json_str(old, "\"triple\"") {
         if t != triple {
             return Err(format!(
