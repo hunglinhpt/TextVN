@@ -55,11 +55,100 @@ pub fn layout_spec(lang: u16) -> String {
     format!("0x{lang:04X}:{CLSID_STR}{PROFILE_STR}")
 }
 
+/// Machine ID `IMAGE_FILE_MACHINE_ARM64` trả về từ `IsWow64Process2` trên Windows ARM64.
+pub const IMAGE_FILE_MACHINE_ARM64: u16 = 0xAA64;
+
+/// Kiểm tra mã máy gốc (`native_machine` từ `IsWow64Process2`) có phải ARM64 không.
+#[must_use]
+pub const fn is_arm64_native_machine(native_machine: u16) -> bool {
+    native_machine == IMAGE_FILE_MACHINE_ARM64
+}
+
+/// Kiểm tra máy chủ hiện tại có phải Windows ARM64 không.
+///
+/// Trên Windows gọi `IsWow64Process2` qua `LoadLibraryExW`/`GetProcAddress` (nạp động E65
+/// để giữ tương thích Windows 10 1507/1607); trên nền tảng khác trả về `false`.
+#[must_use]
+pub fn host_is_arm64() -> bool {
+    #[cfg(windows)]
+    {
+        win_impl::is_arm64_host()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+/// Chọn đường dẫn `InprocServer32` DLL trong `dir` theo kiến trúc máy chủ.
+///
+/// Trên Windows ARM64 (`is_arm64_host = true`), ưu tiên forwarder ARM64X `textvn-tsf.dll`
+/// (P0-5 §6.2) rồi mới fallback sang `textvn-tsf-arm64.dll` và `textvn_win_tsf.dll`.
+/// Trên x64/x86 giữ nguyên ưu tiên `textvn-tsf.dll` rồi `textvn_win_tsf.dll`.
+pub fn select_inproc_dll_in_dir(dir: &Path, is_arm64_host: bool) -> Result<PathBuf, String> {
+    let candidates: &[&str] = if is_arm64_host {
+        &[
+            "textvn-tsf.dll",
+            "textvn-tsf-arm64.dll",
+            "textvn_win_tsf.dll",
+        ]
+    } else {
+        &["textvn-tsf.dll", "textvn_win_tsf.dll"]
+    };
+
+    for name in candidates {
+        let candidate = dir.join(name);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+
+    Err(format!(
+        "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll) trong {}\n\
+         Dùng --dll <path> để chỉ định thủ công hoặc chạy `cargo build` trước.",
+        dir.display()
+    ))
+}
+
+/// Danh sách các DLL cần cấp quyền AppContainer read / kiểm tra thư mục machine scope.
+///
+/// Luôn bao gồm `inproc_dll` và bổ sung các companion DLL cùng thư mục (trên ARM64 gồm
+/// đủ tối đa 4 DLL: `textvn-tsf.dll`, `textvn-tsf-arm64.dll`, `textvn-tsf-x64.dll`,
+/// `textvn-tsf-x86.dll`; trên x64 chỉ thêm `textvn-tsf-x86.dll`), không trùng lặp.
+#[must_use]
+pub fn companion_dlls_for_acl(inproc_dll: &Path, is_arm64_host: bool) -> Vec<PathBuf> {
+    let mut out = vec![inproc_dll.to_path_buf()];
+    let Some(dir) = inproc_dll.parent() else {
+        return out;
+    };
+    let inproc_name = inproc_dll.file_name();
+    let names: &[&str] = if is_arm64_host {
+        &[
+            "textvn-tsf.dll",
+            "textvn-tsf-arm64.dll",
+            "textvn-tsf-x64.dll",
+            "textvn-tsf-x86.dll",
+        ]
+    } else {
+        &["textvn-tsf-x86.dll"]
+    };
+    for name in names {
+        let candidate = dir.join(name);
+        if candidate.is_file()
+            && candidate != inproc_dll
+            && inproc_name != Some(std::ffi::OsStr::new(name))
+        {
+            out.push(candidate);
+        }
+    }
+    out
+}
+
 /// Tìm đường dẫn DLL `textvn-tsf.dll` (hoặc `textvn_win_tsf.dll`).
 ///
 /// Ưu tiên:
 /// 1. `custom` nếu được cung cấp và file tồn tại.
-/// 2. Cùng thư mục với `textvn.exe` (cạnh CLI binary).
+/// 2. Cùng thư mục với `textvn.exe` (cạnh CLI binary; ARM64 ưu tiên forwarder `textvn-tsf.dll`).
 /// 3. Lỗi nếu không tìm thấy.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
@@ -75,18 +164,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|e| format!("Không xác định được current_exe: {e}"))?;
     dir.pop();
 
-    for name in &["textvn-tsf.dll", "textvn_win_tsf.dll"] {
-        let candidate = dir.join(name);
-        if candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-
-    Err(format!(
-        "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll) trong {}\n\
-         Dùng --dll <path> để chỉ định thủ công hoặc chạy `cargo build` trước.",
-        dir.display()
-    ))
+    select_inproc_dll_in_dir(&dir, host_is_arm64())
 }
 
 // ─── Ghi log ra console + file ───────────────────────────────────────────────────────────────────
@@ -457,6 +535,40 @@ mod win_impl {
     const ILOT_UNINSTALL: u32 = 0x0000_0001;
     /// `InstallLayoutOrTip` flag ILOT_DEFPROFILE — đặt profile làm default.
     const ILOT_DEFPROFILE: u32 = 0x0000_0002;
+
+    /// Phát hiện máy chủ Windows ARM64 qua `IsWow64Process2` nạp động (E65).
+    ///
+    /// Nếu không có `IsWow64Process2` (Windows 10 < 1709) hoặc gọi thất bại,
+    /// fallback theo `cfg!(target_arch = "aarch64")`.
+    pub fn is_arm64_host() -> bool {
+        type PfnIsWow64Process2 = unsafe extern "system" fn(HANDLE, *mut u16, *mut u16) -> i32;
+
+        // SAFETY: `kernel32.dll` luôn nằm trong System32; kiểm tra `GetProcAddress` trước
+        // khi transmute chữ ký hàm và giải phóng HMODULE qua `FreeLibrary`.
+        unsafe {
+            let Ok(hmod) = LoadLibraryExW(w!("kernel32.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32)
+            else {
+                return cfg!(target_arch = "aarch64");
+            };
+            let detected = match GetProcAddress(hmod, s!("IsWow64Process2")) {
+                Some(proc_ptr) => {
+                    let func: PfnIsWow64Process2 = std::mem::transmute(proc_ptr);
+                    let mut process_machine: u16 = 0;
+                    let mut native_machine: u16 = 0;
+                    // Pseudo-handle tiến trình hiện tại (-1isize) tránh kéo thêm Win32_System_Threading.
+                    let current_proc = HANDLE(-1isize as *mut core::ffi::c_void);
+                    if func(current_proc, &mut process_machine, &mut native_machine) != 0 {
+                        is_arm64_native_machine(native_machine)
+                    } else {
+                        cfg!(target_arch = "aarch64")
+                    }
+                }
+                None => cfg!(target_arch = "aarch64"),
+            };
+            let _ = FreeLibrary(hmod);
+            detected
+        }
+    }
 
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub enum Scope {
@@ -1884,13 +1996,8 @@ mod win_impl {
         }
 
         if !activate_machine_for_user {
-            grant_appcontainer_read(dll_path);
-            if let Some(x86) = dll_path
-                .parent()
-                .map(|d| d.join("textvn-tsf-x86.dll"))
-                .filter(|p| p.is_file())
-            {
-                grant_appcontainer_read(&x86);
+            for dll in companion_dlls_for_acl(dll_path, is_arm64_host()) {
+                grant_appcontainer_read(&dll);
             }
         }
 
@@ -2243,18 +2350,30 @@ mod win_impl {
 
     pub fn do_status() -> i32 {
         say("=== TextVN status ===");
+        let arm64 = is_arm64_host();
+        if arm64 {
+            say("Host arch: ARM64 (IsWow64Process2)");
+        }
         let inproc = format!(r"{}\InprocServer32", clsid_key());
         let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
             .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
         match &server {
-            Some(p) => say(&format!(
-                "COM server: {p} ({})",
-                if Path::new(p).is_file() {
-                    "OK"
-                } else {
-                    "FILE MISSING"
+            Some(p) => {
+                say(&format!(
+                    "COM server: {p} ({})",
+                    if Path::new(p).is_file() {
+                        "OK"
+                    } else {
+                        "FILE MISSING"
+                    }
+                ));
+                for companion in companion_dlls_for_acl(Path::new(p), arm64)
+                    .into_iter()
+                    .skip(1)
+                {
+                    say(&format!("Companion DLL: {}", companion.display()));
                 }
-            )),
+            }
             None => say("COM server: missing"),
         }
         say(&format!(
@@ -2402,10 +2521,9 @@ fn machine_scope_dll(dll_path: &Path) -> Result<PathBuf, String> {
         }
     };
     let dll = canonical(dll_path)?;
-    if let Some(dir) = dll.parent() {
-        let x86 = dir.join("textvn-tsf-x86.dll");
-        if x86.is_file() {
-            canonical(&x86)?;
+    for extra in companion_dlls_for_acl(&dll, host_is_arm64()) {
+        if extra != dll {
+            canonical(&extra)?;
         }
     }
     Ok(dll)
@@ -2917,5 +3035,74 @@ mod tests {
         let rc = unsafe { RegDeleteTreeW(HKEY_USERS, PCWSTR(target.as_ptr())) };
         assert!(rc.is_ok(), "xoá qua HKU\\<sid>\\… phải được: {rc:?}");
         assert!(!win_impl::reg_key_exists(HKEY_CURRENT_USER, &leaf));
+    }
+
+    #[test]
+    fn arm_w3_is_arm64_native_machine_chinh_xac() {
+        assert!(is_arm64_native_machine(0xAA64));
+        assert!(!is_arm64_native_machine(0x8664)); // AMD64
+        assert!(!is_arm64_native_machine(0x014C)); // i386
+        assert!(!is_arm64_native_machine(0));
+    }
+
+    fn fresh_test_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("textvn-arm-w3-{}-{tag}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create test dir");
+        dir
+    }
+
+    #[test]
+    fn arm_w3_select_inproc_dll_uu_tien_forwarder_tren_arm64() {
+        let dir = fresh_test_dir("select");
+        let arm64 = dir.join("textvn-tsf-arm64.dll");
+        std::fs::write(&arm64, b"arm64").unwrap();
+        // Chưa có forwarder -> fallback sang textvn-tsf-arm64.dll trên ARM64, không thấy trên x64.
+        assert_eq!(select_inproc_dll_in_dir(&dir, true).unwrap(), arm64);
+        assert!(select_inproc_dll_in_dir(&dir, false).is_err());
+
+        // Khi có đủ forwarder `textvn-tsf.dll`, ARM64 và x64 đều trỏ về forwarder `textvn-tsf.dll`.
+        let forwarder = dir.join("textvn-tsf.dll");
+        std::fs::write(&forwarder, b"fwd").unwrap();
+        assert_eq!(select_inproc_dll_in_dir(&dir, true).unwrap(), forwarder);
+        assert_eq!(select_inproc_dll_in_dir(&dir, false).unwrap(), forwarder);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn arm_w3_companion_dlls_for_acl_du_4_dll_tren_arm64() {
+        let dir = fresh_test_dir("acl");
+        for name in [
+            "textvn-tsf.dll",
+            "textvn-tsf-arm64.dll",
+            "textvn-tsf-x64.dll",
+            "textvn-tsf-x86.dll",
+        ] {
+            std::fs::write(dir.join(name), b"dll").unwrap();
+        }
+        let inproc = dir.join("textvn-tsf.dll");
+
+        let arm64_list = companion_dlls_for_acl(&inproc, true);
+        let arm64_names: Vec<String> = arm64_list
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            arm64_names,
+            vec![
+                "textvn-tsf.dll",
+                "textvn-tsf-arm64.dll",
+                "textvn-tsf-x64.dll",
+                "textvn-tsf-x86.dll",
+            ]
+        );
+
+        let x64_list = companion_dlls_for_acl(&inproc, false);
+        let x64_names: Vec<String> = x64_list
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(x64_names, vec!["textvn-tsf.dll", "textvn-tsf-x86.dll"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
