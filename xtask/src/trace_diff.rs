@@ -317,6 +317,68 @@ fn match_linux_mac_rule(linux: &[TraceCmd], mac: &[TraceCmd]) -> Option<&'static
     None
 }
 
+/// Độ dài preedit sau một bước: `n` của `set_preedit` CUỐI trong bước, không có thì giữ nguyên.
+fn preedit_len_after(prev: u32, cmds: &[TraceCmd]) -> u32 {
+    cmds.iter().fold(prev, |acc, c| match c {
+        TraceCmd::SetPreedit(_, n) => *n,
+        _ => acc,
+    })
+}
+
+fn delete_count(cmds: &[TraceCmd]) -> u32 {
+    cmds.iter()
+        .find_map(|c| match c {
+            TraceCmd::DeleteBefore(n) => Some(*n),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
+
+fn commit_text(cmds: &[TraceCmd]) -> Option<&str> {
+    cmds.iter().find_map(|c| match c {
+        TraceCmd::Commit(t) => Some(t.as_str()),
+        _ => None,
+    })
+}
+
+/// E96 — kiểm GIÁ TRỊ (không chỉ hình dạng) cho bước Linux↔macOS đã khớp một quy tắc — audit SF-1f
+/// (claude-opus-7e41b2d9): matcher cũ nhận `delete_before` bất kỳ số > 0 và ký tự ranh giới bất kỳ.
+/// - `delete_before(dm)` của macOS phải xoá ĐÚNG phần chữ nó đã cho đi thẳng: `dl` (Linux xoá ở bước
+///   này) + (preedit Linux trước bước − preedit macOS trước bước). Lệch = xoá lẹm/thiếu chữ người dùng.
+/// - Ranh giới từ: TSF (CUAS) và macOS cùng commit `word + boundary` cho CÙNG phím ⇒ hai chuỗi commit
+///   phải giống hệt nhau.
+fn check_rule_values(
+    rule: &str,
+    tv: &[TraceCmd],
+    tsf_rule: Option<&str>,
+    lv: &[TraceCmd],
+    mv: &[TraceCmd],
+    linux_prev_len: u32,
+    mac_prev_len: u32,
+) -> Result<(), String> {
+    if mv.iter().any(|c| matches!(c, TraceCmd::DeleteBefore(_))) {
+        let want = delete_count(lv) + linux_prev_len.saturating_sub(mac_prev_len);
+        let got = delete_count(mv);
+        if got != want {
+            return Err(format!(
+                "`{rule}`: macOS delete_before({got}) != {want} (Linux xoá {} + đã cho đi thẳng {} ký tự)",
+                delete_count(lv),
+                linux_prev_len.saturating_sub(mac_prev_len)
+            ));
+        }
+    }
+    if rule == "MAC_PRINTABLE_BOUNDARY_COMMIT" && tsf_rule == Some("CUAS_PRINTABLE_BOUNDARY") {
+        if let (Some(tc), Some(mc)) = (commit_text(tv), commit_text(mv)) {
+            if tc != mc {
+                return Err(format!(
+                    "`{rule}`: macOS commit {mc:?} != TSF commit {tc:?} (cùng phím ranh giới)"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn collect_trace_map(dir: &Path) -> Result<BTreeMap<String, PathBuf>, String> {
     if !dir.is_dir() {
         return Err(format!("thiếu thư mục vết: {}", dir.display()));
@@ -406,15 +468,21 @@ pub fn compare_roots(
         all_steps.extend(l_steps.keys().copied());
         all_steps.extend(m_steps.keys().copied());
 
+        let (mut linux_len, mut mac_len) = (0u32, 0u32);
         for step in all_steps {
             summary.steps_compared += 1;
             let tv = t_steps.get(&step).map(Vec::as_slice).unwrap_or(&[]);
             let lv = l_steps.get(&step).map(Vec::as_slice).unwrap_or(&[]);
             let mv = m_steps.get(&step).map(Vec::as_slice).unwrap_or(&[]);
 
+            let tsf_rule = if tv == lv {
+                None
+            } else {
+                match_tsf_linux_rule(tv, lv)
+            };
             if tv == lv {
                 summary.exact_tl_steps += 1;
-            } else if let Some(rule) = match_tsf_linux_rule(tv, lv) {
+            } else if let Some(rule) = tsf_rule {
                 if approved_ids.contains(rule) {
                     *summary.rule_hits.entry(rule.to_string()).or_insert(0) += 1;
                 } else {
@@ -431,7 +499,9 @@ pub fn compare_roots(
             if lv == mv {
                 summary.exact_lm_steps += 1;
             } else if let Some(rule) = match_linux_mac_rule(lv, mv) {
-                if approved_ids.contains(rule) {
+                if let Err(e) = check_rule_values(rule, tv, tsf_rule, lv, mv, linux_len, mac_len) {
+                    unapproved.push(format!("{case_rel}#step={step} [linux vs mac]: {e}"));
+                } else if approved_ids.contains(rule) {
                     *summary.rule_hits.entry(rule.to_string()).or_insert(0) += 1;
                 } else {
                     unapproved.push(format!(
@@ -443,6 +513,8 @@ pub fn compare_roots(
                     "{case_rel}#step={step} [linux vs mac]: Linux={lv:?} vs Mac={mv:?}"
                 ));
             }
+            linux_len = preedit_len_after(linux_len, lv);
+            mac_len = preedit_len_after(mac_len, mv);
         }
     }
 
@@ -713,5 +785,38 @@ mod tests {
         .unwrap_err();
         let _ = fs::remove_dir_all(&tmp);
         assert!(err_dir.contains("E94"), "{err_dir}");
+    }
+
+    /// Audit SF-1f: quy tắc cho phép phải kiểm GIÁ TRỊ — số xoá và ký tự ranh giới.
+    #[test]
+    fn sf1f_rule_kiem_gia_tri_so_xoa_va_ranh_gioi() {
+        use TraceCmd::*;
+        let lv = [SetPreedit("ba".into(), 2), EatKey];
+        let ok = [DeleteBefore(1), SetPreedit("ba".into(), 2), EatKey];
+        // Linux giữ preedit 1 ký tự, macOS đã cho đi thẳng nó ⇒ phải xoá đúng 1.
+        assert!(check_rule_values("MAC_IMK_PREEDIT_LIFECYCLE", &[], None, &lv, &ok, 1, 0).is_ok());
+        let over = [DeleteBefore(2), SetPreedit("ba".into(), 2), EatKey];
+        let e = check_rule_values("MAC_IMK_PREEDIT_LIFECYCLE", &[], None, &lv, &over, 1, 0)
+            .unwrap_err();
+        assert!(e.contains("delete_before(2) != 1"), "{e}");
+        // Ranh giới: macOS phải commit đúng chuỗi TSF commit cho cùng phím.
+        let tv = [Commit("ba ".into()), SetPreedit(String::new(), 0), EatKey];
+        let lb = [
+            Commit("ba".into()),
+            SetPreedit(String::new(), 0),
+            ForwardKey,
+        ];
+        let mb_ok = [Commit("ba ".into()), SetPreedit(String::new(), 0), EatKey];
+        let mb_bad = [Commit("baZ".into()), SetPreedit(String::new(), 0), EatKey];
+        let r = "MAC_PRINTABLE_BOUNDARY_COMMIT";
+        let tr = Some("CUAS_PRINTABLE_BOUNDARY");
+        assert!(check_rule_values(r, &tv, tr, &lb, &mb_ok, 0, 0).is_ok());
+        let e = check_rule_values(r, &tv, tr, &lb, &mb_bad, 0, 0).unwrap_err();
+        assert!(e.contains("!= TSF commit"), "{e}");
+        assert_eq!(preedit_len_after(3, &[EatKey]), 3);
+        assert_eq!(
+            preedit_len_after(3, &[Commit("x".into()), SetPreedit(String::new(), 0)]),
+            0
+        );
     }
 }

@@ -105,6 +105,8 @@
 | E92 | project-common-errors | `process:commit luôn kèm pathspec git commit -- <tệp…>; không git rm/git mv trước commit thật — coordination/README.md (E92)` · `gate:coordination/README.md` |
 | E93 | project-common-errors | `test:xtask/src/hygiene.rs::e93_workflow_khong_co_echo_chuyen_huong_handle_so` · `test:xtask/src/hygiene.rs::e93_cmd_digit_redirect_bat_dung_dang_loi` · `gate:installer/windows/tests/test-installer.ps1` |
 | E94 | project-common-errors | `gate:scripts/test-macos-universal-gate.sh` · `gate:scripts/build-macos.sh` |
+| E95 | project-common-errors | `test:board/src/lib.rs::e95_unknown_flag_rejected_before_write` · `test:board/src/lib.rs::e95_missing_deps_needs_release_done` · `test:board/src/lib.rs::e95_task_deps_from_plan_card` |
+| E96 | project-common-errors | `test:xtask/src/trace_diff.rs::sf1f_rule_kiem_gia_tri_so_xoa_va_ranh_gioi` · `gate:xtask/src/trace_diff.rs` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |

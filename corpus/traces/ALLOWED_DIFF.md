@@ -17,6 +17,7 @@
 | `MAC_BACKSPACE_TYPE_CLEAR_ORDER` | `linux-mac` | Với `.restore`, gõ tắt/emoji, tự viết hoa, hoặc `--`, `ApplyReplace.backspaceType` thu hồi `set_preedit("")` trước khi xoá phần đã pass + `commit(T)`; chuỗi `T` bắt buộc khớp Linux byte-for-byte. / For restore, macro/emoji expansion, auto-cap, or em-dash, `ApplyReplace.backspaceType` retracts preedit before deleting passed chars and committing `T`, which MUST match Linux byte-for-byte. | `antigravity-gemini-37c7c6bc` |
 
 ## Ghi chú / Notes
+- **Kiểm giá trị (E96)**: khớp quy tắc chưa đủ — `trace-diff` còn kiểm (1) mỗi `delete_before(d)` của macOS bằng đúng `d_linux + preedit_linux_trước − preedit_mac_trước` (số ký tự macOS đã cho đi thẳng), (2) commit ranh giới của macOS giống hệt commit TSF cùng bước. / **Value checks (E96)**: matching a rule is not enough — `trace-diff` also checks (1) every macOS `delete_before(d)` equals `d_linux + linux_preedit_before − mac_preedit_before` (the chars macOS passed through), (2) the macOS word-boundary commit is identical to the TSF commit at the same step.
 - `corpus/traces/tsf/win/*.jsonl` phủ các ca đặc thù Windows (TSF/hook/sandbox), nên
   đối chiếu 3 nền tảng chạy trên giao điểm chuẩn **58 ca** `corpus/shared/`.
 - `cargo xtask trace-diff` cũng sinh lại vết TSF vào thư mục tạm và đối chiếu
