@@ -272,6 +272,33 @@ jobs:
           swift build --arch ${{ matrix.arch }} --build-tests
           if [ "${{ matrix.arch }}" = "arm64" ]; then swift test --arch arm64; fi
 
+      # SF-1e: vết vàng macOS (P0-6 §6.1). Luồng phím do Rust xuất (`--emit-keys`, MỘT bộ đọc
+      # `.keys` — G22); TraceTests chạy engine thật + ApplyReplace/MarkedState, ghi
+      # corpus/traces/mac/*.jsonl (cùng 5 lệnh với TSF/Linux) cho SF-1f so 3 adapter.
+      - name: SF-1e vết macOS (TraceTests)
+        if: ${{ matrix.arch == 'arm64' }}
+        run: |
+          set -euo pipefail
+          cargo run -q -p textvn-cli -- replay corpus/shared --adapter mac --emit-keys "$RUNNER_TEMP/emit-keys"
+          (cd adapters/macos-imk && TEXTVN_EMIT_KEYS="$RUNNER_TEMP/emit-keys"             TEXTVN_TRACE_OUT="$GITHUB_WORKSPACE/corpus/traces/mac"             swift test --arch arm64 --filter TraceTests)
+          n="$(find corpus/traces/mac -name '*.jsonl' | wc -l | tr -d ' ')"
+          echo "SF-1e: $n vết macOS"
+          test "$n" -ge 50
+          if git ls-files corpus/traces/mac | grep -q .; then
+            drift="$(git status --porcelain -- corpus/traces/mac)"
+            if [ -n "$drift" ]; then
+              echo "$drift" | head -20
+              echo "::error::vết macOS lệch bản đã commit (corpus/traces/mac) — sinh lại và commit"
+              exit 1
+            fi
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ matrix.arch == 'arm64' && !cancelled() }}
+        with:
+          name: sf1e-traces-mac
+          path: corpus/traces/mac/
+          if-no-files-found: error
+
       # 3 package độc lập (staticlib đã có từ bước trên) — IMK lỗi vẫn build/test
       # tap + app để một lần chạy CI báo đủ lỗi cả 3; job vẫn fail như cũ.
       - name: swift build + test (tap opt-in — P2-2 §8)
