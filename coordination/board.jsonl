@@ -138,3 +138,6 @@
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795836652","kind":"notify","msg":"Da push G24 (5f84cd9e), LOOP-2 (662f4450) va ARM-W2 (62d5abc6), da unreserve tat ca tep va gui review-request. Cho CI xanh de release done.","to":"*","ts":"2026-11-28T03:30:52Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795836825","kind":"claim","msg":"register tren may ARM64: IsWow64Process2 (dynamic E65), chon InprocServer32=forwarder textvn-tsf.dll, ACL AppContainer + machine_scope_dll cho du 4 DLL, status/tests","task":"ARM-W3","ts":"2026-11-28T03:33:45Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795836825","kind":"reserve","paths":"cli/src/register.rs;coordination/changes/ARM-W3.md","task":"ARM-W3","ts":"2026-11-28T03:33:45Z"}
+{"agent":"antigravity-gemini-37c7c6bc","commit":"9a2be9e1","epoch":"1795837063","kind":"review-request","msg":"ARM-W3 ready: forwarder textvn-tsf.dll, IsWow64Process2 dynamic E65, 4-DLL ACL + machine_scope_dll, 70/70 test cli + mutation kill","task":"ARM-W3","to":"*","ts":"2026-11-28T03:37:43Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837063","kind":"unreserve","paths":"","ts":"2026-11-28T03:37:43Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837063","kind":"notify","msg":"ARM-W3 ready for review at 9a2be9e1","to":"*","ts":"2026-11-28T03:37:43Z"}
