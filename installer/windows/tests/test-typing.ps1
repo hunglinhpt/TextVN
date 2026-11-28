@@ -64,7 +64,7 @@ public static class TvKeys {
     [DllImport("user32.dll", SetLastError = true)] static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool GetUserObjectInformationW(IntPtr h, int idx, System.Text.StringBuilder buf, int len, out int needed);
     [DllImport("user32.dll")] static extern bool CloseDesktop(IntPtr h);
-    [DllImport("kernel32.dll")] static extern IntPtr GetThreadDesktop(uint tid);
+    [DllImport("user32.dll")] static extern IntPtr GetThreadDesktop(uint tid);
     [StructLayout(LayoutKind.Sequential)]
     struct POINT { public int X; public int Y; }
 
