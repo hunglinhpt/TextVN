@@ -5,7 +5,8 @@
 #
 #   tools/release/verify-store-package.sh <thư-mục-asset> <version A.B.C> [<identity-name>]
 #
-# Thư mục phải có đúng các asset tải từ release: TextVN-<ver>-windows-x64.msix kèm .asc,
+# Thư mục phải có đúng các asset tải từ release: gói nộp (mặc định TextVN-<ver>-windows-x64.msix;
+# ARM-W6: PKG_NAME=TextVN-<ver>-windows.msixbundle cho bundle x64 + arm64) kèm .asc,
 # .cosign.sig, .cosign.cert và SHA256SUMS.txt (clearsign). Kiểm:
 #   1. chữ ký GPG tách rời của .msix VÀ chữ ký clearsign của SHA256SUMS.txt đều do khoá phát
 #      hành (FPR cố định bên dưới). Public key lấy từ checkout của repo
@@ -32,7 +33,11 @@ REPO="${GITHUB_REPOSITORY:-hunglinhpt/TextVN}"
 die() { echo "FATAL: $*" >&2; exit 1; }
 
 [[ "$VERSION" =~ ^[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$ ]] || die "version '$VERSION' không phải A.B.C"
-NAME="TextVN-${VERSION}-windows-x64.msix"
+NAME="${PKG_NAME:-TextVN-${VERSION}-windows-x64.msix}"
+case "$NAME" in
+    "TextVN-${VERSION}-windows-x64.msix" | "TextVN-${VERSION}-windows.msixbundle") ;;
+    *) die "PKG_NAME '$NAME' không phải gói Store của $VERSION (x64 .msix hoặc .msixbundle)" ;;
+esac
 MSIX="$DIR/$NAME"
 for f in "$MSIX" "$MSIX.asc" "$DIR/SHA256SUMS.txt" "$KEY"; do
     [ -f "$f" ] || die "thiếu $f"

@@ -56,6 +56,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       mode: ${{ steps.resolve.outputs.mode }}
       sha256: ${{ steps.check.outputs.sha256 }}
+      pkg_name: ${{ steps.pkg.outputs.name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,13 +105,24 @@ jobs:
             echo "mode=$mode"
           } >> "$GITHUB_OUTPUT"
       - name: Download release assets
+        id: pkg
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.resolve.outputs.tag }}
           VERSION: ${{ steps.resolve.outputs.version }}
         run: |
           set -euo pipefail
-          msix="TextVN-${VERSION}-windows-x64.msix"
+          # ARM-W6: gói nộp Store = .msixbundle (x64 + arm64) khi release có; release cũ
+          # (trước ARM-W6) chỉ có .msix x64. release.yml publish bắt buộc bundle từ ARM-W6.
+          bundle="TextVN-${VERSION}-windows.msixbundle"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' \
+              | grep -Fxq "$bundle"; then
+            msix="$bundle"
+          else
+            msix="TextVN-${VERSION}-windows-x64.msix"
+            echo "::warning::$TAG không có $bundle (release trước ARM-W6) — nộp $msix (chỉ x64)"
+          fi
+          echo "name=$msix" >> "$GITHUB_OUTPUT"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir store-pkg \
             --pattern "$msix" --pattern "$msix.asc" \
             --pattern "$msix.cosign.sig" --pattern "$msix.cosign.cert" \
@@ -121,6 +133,7 @@ jobs:
         env:
           VERSION: ${{ steps.resolve.outputs.version }}
           MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          PKG_NAME: ${{ steps.pkg.outputs.name }}
         run: |
           set -euo pipefail
           name="$(printf '%s' "${MSIX_IDENTITY_NAME:-}" | tr -d '[:space:]')"
@@ -135,7 +148,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: store-msix
-          path: store-pkg/TextVN-${{ steps.resolve.outputs.version }}-windows-x64.msix
+          path: store-pkg/${{ steps.pkg.outputs.name }}
           if-no-files-found: error
           retention-days: 7
 
@@ -158,6 +171,7 @@ jobs:
       MSSTORE_CLI_SHA256: c5fb008b616f96b1b55f1d52e4e0a5dd8f6c156129b5f52f9b97ec0eed11bd57
       VERSION: ${{ needs.verify.outputs.version }}
       MODE: ${{ needs.verify.outputs.mode }}
+      PKG_NAME: ${{ needs.verify.outputs.pkg_name }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -167,7 +181,7 @@ jobs:
         env:
           WANT: ${{ needs.verify.outputs.sha256 }}
         run: |
-          $msix = Join-Path $PWD "store-pkg\TextVN-$env:VERSION-windows-x64.msix"
+          $msix = Join-Path $PWD "store-pkg\$env:PKG_NAME"
           $have = (Get-FileHash -Algorithm SHA256 -LiteralPath $msix).Hash.ToLowerInvariant()
           if ($have -ne $env:WANT) { throw "SHA-256 $msix = $have, job verify đã kiểm $env:WANT" }
           "MSIX_PATH=$msix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -288,7 +302,7 @@ jobs:
           $summary = @(
             "### Microsoft Store — TextVN $env:VERSION"
             ""
-            "- Gói: ``TextVN-$env:VERSION-windows-x64.msix`` (Version ``$env:NEW_VERSION``, sha256 ``$env:SHA256``)"
+            "- Gói: ``$env:PKG_NAME`` (Version ``$env:NEW_VERSION``, sha256 ``$env:SHA256``)"
             "- Store trước lượt này: submission ``$env:STATE_STATUS``, version cao nhất ``$env:STORE_VERSION``"
             "- Chế độ: **$env:MODE** (check = chỉ đọc; draft = bản nháp chờ bấm Submit; submit = đã nộp chứng nhận) — msstore publish: **$env:OUTCOME**"
           )

@@ -135,6 +135,12 @@ arm64, mỗi gói đạt toàn bộ luật như gói lẻ, Identity Name/Publish
 khai báo phải khớp PE Machine của `TextVN.exe` (0x8664 / 0xAA64) và gói arm64 phải có forwarder `textvn-tsf.dll` +
 `textvn-tsf-arm64.dll` + `textvn-tsf-x64.dll` + `textvn-tsf-x86.dll` (ADR-015).
 
+**Trong CI (ARM-W6 phần 2):** `release.yml` job `windows-arm64` build + verify `TextVN-<ver>-windows-arm64.msix`
+trên runner ARM64 thật; job `windows-msixbundle` (windows-2022, cần `windows` + `windows-arm64`) gộp hai gói thành
+`TextVN-<ver>-windows.msixbundle` rồi `verify-msix` bundle; `publish` bắt buộc đúng 2 `.msix` (x64, arm64) + 1
+`.msixbundle`, mỗi file được ký GPG + Sigstore như mọi artifact. `store-publish.yml` nộp **`.msixbundle`** khi release
+có (từ bản đầu tiên có ARM-W6); release cũ chỉ có `.msix` x64 thì nộp gói x64 kèm cảnh báo.
+
 **Version:** Partner Center từ chối Identity Version có phần đầu bằng 0 → gói map
 `A.B.C` thành `(A+1).B.C.0` (0.2.27 → **1.2.27.0**; bản 1.0.0 sau này → 2.0.0.0, vẫn
 tăng dần). Store chỉ cập nhật khi Version mới **lớn hơn** — đừng nộp lại số cũ.
@@ -198,7 +204,7 @@ hành vi chi tiết đối chiếu mã nguồn [microsoft/msstore-cli v0.4.3](ht
 
 #| Job | Máy | Secret | Việc |
 |---|---|---|---|
-| `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `cargo xtask verify-msix --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`, E59) |
+| `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải gói nộp `TextVN-<ver>-windows.msixbundle` (ARM-W6; release cũ không có bundle: `TextVN-<ver>-windows-x64.msix`) + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `cargo xtask verify-msix --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`, E59) |
 | `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → `msstore reconfigure` (kiểm luôn đăng nhập) → tắt telemetry CLI → **đọc trạng thái Store** (submission đang chờ/đã phát hành, version gói) và chặn sớm → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`; `check` bỏ qua) → `msstore submission status` + tóm tắt run |
 
 Ba chế độ (ô `mode` khi chạy tay; mặc định `check`):

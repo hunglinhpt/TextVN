@@ -1,4 +1,4 @@
-# ARM-W6 — `.msixbundle` x64 + arm64 (claude-opus-7e41b2d9) — phần 1/2
+# ARM-W6 — `.msixbundle` x64 + arm64 (claude-opus-7e41b2d9) — phần 1 + 2
 
 ## VI
 
@@ -13,8 +13,18 @@
 - **Kiểm thử thật (máy dev, makeappx 10.0.26100)**: build gói x64 + một gói "arm64" GIẢ từ exe x64 rồi `-Bundle` ⇒
   `verify-msix` bắt đúng `TextVN.exe Machine 0x8664 không khớp ProcessorArchitecture arm64`, đọc được
   `AppxBundleManifest.xml` thật của makeappx.
-- **Phần 2 (sau khi ARM-W7 nhả `release.yml`)**: job `release.yml` build gói arm64 trên `windows-11-arm`, job gộp bundle,
-  `store-publish.yml` nộp `.msixbundle`, sideload thử trên runner ARM.
+
+- **Phần 2 (CI phát hành)**: `release.yml` job `windows-arm64` build + `verify-msix` gói `TextVN-<ver>-windows-arm64.msix`
+  trên runner ARM64 thật (PowerShell, kiểm Machine 0xAA64 + đủ DLL đích); job mới `windows-msixbundle` (windows-2022,
+  cần `windows` + `windows-arm64`) gộp `-Bundle` + `verify-msix` bundle → artifact `release-windows-msixbundle`;
+  `publish` cần job này và bắt buộc đúng 2 `.msix` (x64, arm64) + 1 `.msixbundle`. `store-publish.yml` nộp
+  `.msixbundle` khi release có, release cũ (trước ARM-W6) nộp `.msix` x64 kèm `::warning::`;
+  `verify-store-package.sh` nhận `PKG_NAME` (chỉ 2 tên hợp lệ của đúng version).
+- **Chưa làm (nói thật)**: sideload thử gói arm64 trên runner ARM — gói chưa ký (Store ký khi phát hành), `Add-AppxPackage`
+  không nhận gói chưa ký nếu không bật Developer Mode + chứng thư tự ký; để lại cho lần nộp Store thật (chủ repo).
+- **Release-manager gộp khi phát hành**: số asset B7 ("34 asset" ở `release-process.md`, `store-submission.md` S1,
+  AGENTS.md) — 0.2.97 có 13 artifact (thêm linux-aarch64 tar.gz, portable + setup arm64, msix arm64, msixbundle)
+  ⇒ 13 × 4 + `SHA256SUMS.txt` + `gpg-release-key.asc` = **54 asset**.
 
 ## EN
 
@@ -30,12 +40,22 @@
 - **Real test (dev machine, makeappx 10.0.26100)**: built an x64 package + a FAKE "arm64" package from x64 exes, then
   `-Bundle` ⇒ `verify-msix` correctly reports `TextVN.exe Machine 0x8664 không khớp ProcessorArchitecture arm64`, and
   reads makeappx's real `AppxBundleManifest.xml`.
-- **Part 2 (after ARM-W7 releases `release.yml`)**: `release.yml` builds the arm64 package on `windows-11-arm`, a bundle
-  job merges them, `store-publish.yml` submits the `.msixbundle`, sideload test on the ARM runner.
+- **Part 2 (release CI)**: `release.yml` job `windows-arm64` builds + `verify-msix` the package
+  `TextVN-<ver>-windows-arm64.msix` on a real ARM64 runner (PowerShell, checks Machine 0xAA64 + every target DLL); new job
+  `windows-msixbundle` (windows-2022, needs `windows` + `windows-arm64`) runs `-Bundle` + `verify-msix` on the bundle →
+  artifact `release-windows-msixbundle`; `publish` needs it and requires exactly 2 `.msix` (x64, arm64) + 1 `.msixbundle`.
+  `store-publish.yml` submits the `.msixbundle` when the release has one; older releases (before ARM-W6) submit the x64
+  `.msix` with a `::warning::`; `verify-store-package.sh` takes `PKG_NAME` (only the 2 valid names for that version).
+- **Not done (honestly)**: sideload test of the arm64 package on the ARM runner — the package is unsigned (the Store signs
+  it on publish), and `Add-AppxPackage` refuses unsigned packages without Developer Mode + a self-signed cert; left for the
+  real Store submission (repo owner).
+- **For the release manager at cut time**: the B7 asset count ("34 assets" in `release-process.md`, `store-submission.md`
+  S1, AGENTS.md) — 0.2.97 has 13 artifacts (adds linux-aarch64 tar.gz, arm64 portable + setup, arm64 msix, msixbundle)
+  ⇒ 13 × 4 + `SHA256SUMS.txt` + `gpg-release-key.asc` = **54 assets**.
 
 ## Tài liệu / Docs
 
-`docs/release/msix-submission.md` (mục `.msixbundle`).
+`docs/release/msix-submission.md` (mục `.msixbundle` + CI phần 2, hàng `verify` của store-publish).
 
 ## Kiểm thử / Testing
 

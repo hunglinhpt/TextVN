@@ -211,12 +211,78 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # ARM-W6: goi MSIX arm64 (cung identity voi x64) - gop thanh .msixbundle o job windows-msixbundle.
+      - name: Build MSIX arm64 (ARM-W6)
+        shell: powershell
+        env:
+          MSIX_IDENTITY_NAME: ${{ inputs.msix_identity_name || vars.MSIX_IDENTITY_NAME }}
+          MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
+        run: |
+          if ($env:MSIX_IDENTITY_NAME) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Arch arm64 -RequireStoreIdentity
+          } else {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Arch arm64
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify MSIX arm64 (luat Store + payload + Machine ARM64)
+        shell: powershell
+        env:
+          MSIX_IDENTITY_NAME: ${{ inputs.msix_identity_name || vars.MSIX_IDENTITY_NAME }}
+          MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
+        run: |
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $pkg = "dist\TextVN-$ver-windows-arm64.msix"
+          $extra = @()
+          if ($env:MSIX_IDENTITY_NAME) { $extra += '--require-store-identity' }
+          cargo run -q -p xtask -- verify-msix $pkg --expect-version $ver @extra
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows-arm64
           path: |
             dist/TextVN-portable-*-windows-arm64-*.zip
             dist/TextVN-setup-*-windows-arm64.exe
+            dist/TextVN-*-windows-arm64.msix
+          if-no-files-found: error
+
+  # ARM-W6: MOT .msixbundle (x64 + arm64, cung identity/version) - Store chon dung goi theo may.
+  windows-msixbundle:
+    name: Windows .msixbundle (x64 + arm64)
+    needs: [windows, windows-arm64]
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows-arm64
+          path: dist
+      - name: Bundle x64 + arm64 (makeappx bundle)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Bundle
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify .msixbundle (2 goi, cung identity, tung goi dat luat Store)
+        shell: bash
+        env:
+          MSIX_IDENTITY_NAME: ${{ inputs.msix_identity_name || vars.MSIX_IDENTITY_NAME }}
+          MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
+        run: |
+          ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          extra=()
+          if [ -n "${MSIX_IDENTITY_NAME:-}" ]; then extra+=(--require-store-identity); fi
+          cargo run -q -p xtask -- verify-msix "dist/TextVN-${ver}-windows.msixbundle" --expect-version "$ver" "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-msixbundle
+          path: dist/TextVN-*-windows.msixbundle
           if-no-files-found: error
 
   # COMPAT-1: kiem E2E goi phat hanh tren windows-2025 song song windows-2022.
@@ -662,7 +728,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, windows-arm64, windows-2025-e2e, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
+    needs: [windows, windows-arm64, windows-msixbundle, windows-2025-e2e, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
     # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
     # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -729,7 +795,11 @@ jobs:
           test "$(find release-assets -maxdepth 1 -type f -name '*.pkg' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l)" -ge 2
           # MSIX la asset BAT BUOC tu 0.2.17 (yeu cau chu repo: moi release kem msix)
-          test "$(find release-assets -maxdepth 1 -type f -name '*.msix' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name '*.msix' | wc -l)" -eq 2
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-windows-x64.msix' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-windows-arm64.msix' | wc -l)" -eq 1
+          # ARM-W6: goi nop Store = .msixbundle (x64 + arm64)
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-windows.msixbundle' | wc -l)" -eq 1
           for portable in release-assets/TextVN-portable-*.zip; do
             unzip -p "$portable" RELEASE_REPORT.json | jq -e \
               --arg version "$version" --arg commit "$GITHUB_SHA" \
