@@ -504,11 +504,35 @@ static void write_textvn_file(const char *name, const char *json) {
         die(name, strerror(errno));
 }
 
+/* ARM-L1 chẩn đoán: input method fcitx đang chọn (Controller1.CurrentInputMethod) — phân biệt
+ * "engine TextVN tự tắt tiếng Việt" (vẫn là `textvn`) với "fcitx tự đổi sang keyboard-us"
+ * (phím chuyển bị fcitx ăn trước engine). Lỗi D-Bus ⇒ "?" (chỉ để in, không làm test đỏ). */
+static void print_current_im(const char *label) {
+    DBusMessage *msg = dbus_message_new_method_call(
+        FCITX_NAME, "/controller", "org.fcitx.Fcitx.Controller1", "CurrentInputMethod");
+    const char *im = "?";
+    DBusMessage *reply = NULL;
+    if (msg) {
+        DBusError err;
+        dbus_error_init(&err);
+        reply = dbus_connection_send_with_reply_and_block(conn, msg, CALL_TIMEOUT_MS, &err);
+        dbus_message_unref(msg);
+        if (dbus_error_is_set(&err))
+            dbus_error_free(&err);
+        if (reply)
+            dbus_message_get_args(reply, NULL, DBUS_TYPE_STRING, &im, DBUS_TYPE_INVALID);
+    }
+    printf("  [diag] %s: fcitx CurrentInputMethod=%s\n", label, im ? im : "?");
+    if (reply)
+        dbus_message_unref(reply);
+}
+
 /* state.json global_enabled == enabled? (thiếu file → None → fail). */
 static void state_says(int enabled) {
     char path[600];
     snprintf(path, sizeof path, "%s/state.json", config_dir);
     FILE *f = fopen(path, "r");
+    const int have_file = f != NULL;
     int found = -1;
     if (f) {
         static char buf[4096];
@@ -531,6 +555,11 @@ static void state_says(int enabled) {
         ok = 0;
     printf("%s state.json global_enabled=%s\n", good ? "PASS" : "FAIL",
            enabled ? "true" : "false");
+    if (!good) {
+        /* Chỉ cấu hình/trạng thái do chính test ghi (không có chữ người dùng — G8). */
+        printf("  [diag] state.json %s, global_enabled đọc được=%d\n", have_file ? "có" : "KHÔNG có", found);
+        print_current_im("sau Ctrl+Shift");
+    }
 }
 
 int main(void) {
