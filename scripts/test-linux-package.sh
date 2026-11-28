@@ -14,6 +14,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Fcitx5 test session hotkeys: ONE source (G22, E68/R2-175).
+. "$ROOT/scripts/lib/fcitx5-test-env.sh"
+export -f textvn_fcitx5_test_hotkeys
 TARBALL="$(realpath "${1:?cần đường dẫn tarball}")"
 BUILD="${2:-$ROOT/target/linux-adapters}"
 E2E_IBUS="$BUILD/ibus/e2e_ibus"
@@ -51,6 +54,7 @@ export -f new_home
 
 fcitx_profile() {
     mkdir -p "$XDG_CONFIG_HOME/fcitx5"
+    textvn_fcitx5_test_hotkeys "$XDG_CONFIG_HOME/fcitx5"
     cat > "$XDG_CONFIG_HOME/fcitx5/profile" <<'P'
 [Groups/0]
 Name=Default

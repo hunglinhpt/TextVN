@@ -8,6 +8,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Fcitx5 test session hotkeys: ONE source (G22, E68/R2-175).
+. "$ROOT/scripts/lib/fcitx5-test-env.sh"
+export -f textvn_fcitx5_test_hotkeys
 BUILD="${1:-$ROOT/target/linux-adapters}"
 
 echo "== build engine (staticlib)"
@@ -44,6 +47,7 @@ run_fcitx5() {
     local t; t="$(mktemp -d)"
     export HOME="$t" XDG_CONFIG_HOME="$t/config" XDG_DATA_HOME="$t/data"
     mkdir -p "$t/data/fcitx5/addon" "$t/data/fcitx5/inputmethod" "$t/config/fcitx5"
+    textvn_fcitx5_test_hotkeys "$t/config/fcitx5"
     cp "$ROOT/packaging/linux/fcitx5/addon/textvn.conf" "$t/data/fcitx5/addon/"
     cp "$ROOT/packaging/linux/fcitx5/inputmethod/textvn.conf" "$t/data/fcitx5/inputmethod/"
     cat >"$t/config/fcitx5/profile" <<'P'

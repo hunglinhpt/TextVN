@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+# Fcitx5 test session hotkeys: ONE source (G22, E68/R2-175).
+. "$(dirname "${BASH_SOURCE[0]}")/lib/fcitx5-test-env.sh"
+export -f textvn_fcitx5_test_hotkeys
+
 SYSTEM_ONLY=0
 if [[ "${1:-}" == --system-only ]]; then
     SYSTEM_ONLY=1
@@ -222,18 +226,8 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
             export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
             unset IBUS_COMPONENT_PATH FCITX_ADDON_DIRS
             mkdir -p "$t/x" "$XDG_CONFIG_HOME/fcitx5"
-            # E68: Fcitx5 5.0.x (Ubuntu 22.04 / Debian 12) mặc định gắn Ctrl+Shift vào
-            # EnumerateForwardKeys (đổi IM của Fcitx5 trước khi phím tới TextVN).
-            # Tắt phím đổi IM mặc định trong phiên test để e2e_fcitx5 kiểm đúng Ctrl+Shift của TextVN.
-            cat >"$XDG_CONFIG_HOME/fcitx5/config" <<'C'
-[Hotkey/EnumerateForwardKeys]
-
-[Hotkey/EnumerateBackwardKeys]
-
-[Hotkey/EnumerateGroupForwardKeys]
-
-[Hotkey/EnumerateGroupBackwardKeys]
-C
+            # E68/R2-175: tắt phím đổi IM mặc định của Fcitx5 5.0.x (Ctrl+Shift) — scripts/lib/fcitx5-test-env.sh.
+            textvn_fcitx5_test_hotkeys "$XDG_CONFIG_HOME/fcitx5"
             cat >"$XDG_CONFIG_HOME/fcitx5/profile" <<'P'
 [Groups/0]
 Name=Default
