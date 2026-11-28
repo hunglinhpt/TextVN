@@ -31,7 +31,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-shared-${{ github.ref }}
+  # E86: push lên main = MỘT nhóm cho MỖI commit (github.sha) — trước đây nhóm theo ref giữ 1 run chạy + 1 run
+  # chờ, run chờ mới thay run chờ cũ ⇒ khi nhiều agent cùng đẩy, commit code mất run CI (không có bằng chứng).
+  # PR vẫn chung nhóm theo ref và huỷ run cũ.
+  group: ci-shared-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   # main KHÔNG cancel-in-progress: push graphify/docs ngay sau commit code từng
   # giết run CI của commit code → mất bằng chứng xanh cho commit đó (2026-09-30).
   # PR thì cancel bản cũ để tiết kiệm runner.

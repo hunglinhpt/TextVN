@@ -16,7 +16,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: repo-hygiene-${{ github.ref }}
+  # E86: push lên main = MỘT nhóm cho MỖI commit (github.sha) — trước đây nhóm theo ref giữ 1 run chạy + 1 run
+  # chờ, run chờ mới thay run chờ cũ ⇒ khi nhiều agent cùng đẩy, commit code mất run CI (không có bằng chứng).
+  # PR vẫn chung nhóm theo ref và huỷ run cũ.
+  group: repo-hygiene-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
