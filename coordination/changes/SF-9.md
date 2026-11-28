@@ -92,3 +92,27 @@
     (with `TEXTVN_SKIP_APPCONTAINER_E2E=1` for local `D:` drive AppContainer ACL; CI runs full
     AppContainer): **99 + 3 passed** (including all 4 parity tests).
   - `regression-index --todo-max 0`, `hygiene-docs`, `hygiene-secrets`, `hygiene-apis`: all exit 0.
+
+## Audit chéo / Cross-audit (claude-opus-7e41b2d9, 2026-11-28)
+- VI: đột biến trên worktree riêng — `check-ui` ĐỎ đúng khi: chép tay chuỗi vào `SettingsView.swift` / `settings_model.c`,
+  sửa nguồn mà không sinh lại, sửa tay bản sinh, `default`/`values` lệch schema. **Lọt 1**: bỏ một nhãn
+  `charset_labels` (còn 3 nhãn, 4 giá trị) rồi `gen-ui` ⇒ `check-ui` vẫn PASS — combo Windows lệch nhãn/giá trị,
+  SwiftUI `UiStrings.charsetLabels[3]` crash lúc chạy (chỉ test tay `CHARSET_LABELS.len() == 4` của tray chặn
+  riêng bảng mã). **Đã sửa**: cài đặt enum khai báo `labels = "<id>"` (một hoặc nhiều danh sách: method,
+  output_charset, assist_mode = nhãn + dòng gợi ý); `verify_labels` bắt buộc danh sách tồn tại và đúng số `values`;
+  test `sf9_labels_phai_khop_so_values`; chạy lại đột biến ⇒ `labels charset_labels có 3 mục != 4 values`.
+- VI, ghi nhận (không chặn): đối chiếu schema là một chiều model ⇒ schema — bỏ hẳn một `[[setting]]` rồi sinh lại thì
+  `check-ui` PASS (17 cài đặt), chỉ bị bắt muộn khi từng OS biên dịch (hằng `TV_UI_*`/`UiStrings.*` biến mất);
+  SwiftUI vẫn ghi tay giá trị `.tag("unicode_precomposed")` (giá trị config, không phải chữ UI).
+- EN: mutations on a separate worktree — `check-ui` correctly goes RED for: a hand copy in `SettingsView.swift` /
+  `settings_model.c`, editing the source without regenerating, hand-editing a generated file, `default`/`values`
+  diverging from the schema. **1 escaped**: removing one `charset_labels` entry (3 labels, 4 values) then `gen-ui` ⇒
+  `check-ui` still PASSED — the Windows combo mismatches labels/values and SwiftUI `UiStrings.charsetLabels[3]` crashes
+  at runtime (only the tray's hand test `CHARSET_LABELS.len() == 4` guarded the charset case). **Fixed**: enum settings
+  declare `labels = "<id>"` (one or more lists: method, output_charset, assist_mode = labels + hint lines);
+  `verify_labels` requires the list to exist with exactly as many entries as `values`; test
+  `sf9_labels_phai_khop_so_values`; re-running the mutation ⇒ `labels charset_labels có 3 mục != 4 values`.
+- EN, noted (non-blocking): the schema check is one-way model ⇒ schema — deleting a whole `[[setting]]` and
+  regenerating still PASSES `check-ui` (17 settings), caught only later when each OS compiles (`TV_UI_*` /
+  `UiStrings.*` constants disappear); SwiftUI still hand-writes value tags `.tag("unicode_precomposed")` (config values,
+  not UI text).

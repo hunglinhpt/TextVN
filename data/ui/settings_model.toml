@@ -30,6 +30,7 @@ config_key = "method"
 kind = "enum"
 values = ["telex", "vni", "viqr", "simple_telex"]
 default = "telex"
+labels = "method_labels"
 
 [[setting]]
 id = "output_charset"
@@ -38,6 +39,7 @@ config_key = "output_charset"
 kind = "enum"
 values = ["unicode_precomposed", "unicode_decomposed", "tcvn3", "vni_windows"]
 default = "unicode_precomposed"
+labels = "charset_labels"
 
 [[setting]]
 id = "diacritic_style"
@@ -97,6 +99,7 @@ config_key = "assist.mode"
 kind = "enum"
 values = ["off", "highlight", "autocorrect"]
 default = "highlight"
+labels = ["assist_mode_labels", "assist_mode_hints"]
 
 [[setting]]
 id = "assist_auto_fix"

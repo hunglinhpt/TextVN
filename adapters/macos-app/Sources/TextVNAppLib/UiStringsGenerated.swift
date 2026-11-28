@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // == GENERATED FILE — KHÔNG SỬA TAY ==
-// Nguồn: data/ui/strings.toml + data/ui/settings_model.toml (digest FNV-1a 64 = 0xfb4541bb002c52eb) · sinh bằng `cargo xtask gen-ui` (SF-9, P0-6 §5b).
+// Nguồn: data/ui/strings.toml + data/ui/settings_model.toml (digest FNV-1a 64 = 0x961b6c2f9503062f) · sinh bằng `cargo xtask gen-ui` (SF-9, P0-6 §5b).
 // Đổi chữ/cài đặt: sửa nguồn TOML rồi chạy lại `cargo xtask gen-ui`; `cargo xtask check-ui` (CI) fail nếu lệch.
 
 /// Chữ UI & mô hình cài đặt dùng chung Windows/Linux/macOS (G22) — chỉ NỘI DUNG; vẽ UI vẫn native.

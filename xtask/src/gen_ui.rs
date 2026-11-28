@@ -204,6 +204,9 @@ pub struct SettingSpec {
     pub values: Vec<String>,
     pub default: SettingDefault,
     pub depends_on: Option<String>,
+    /// Id danh sách trong `strings.toml` hiển thị theo từng giá trị (nhãn, dòng gợi ý…) — độ dài
+    /// phải bằng `values` (kiểm ở [`verify_labels`]); chỉ cho `enum`.
+    pub labels: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,7 +251,13 @@ pub fn parse_settings_model(input: &str) -> Result<SettingsModel, String> {
         for k in s.values.keys() {
             if !matches!(
                 k.as_str(),
-                "id" | "group" | "config_key" | "kind" | "values" | "default" | "depends_on"
+                "id" | "group"
+                    | "config_key"
+                    | "kind"
+                    | "values"
+                    | "default"
+                    | "depends_on"
+                    | "labels"
             ) {
                 return Err(format!("[[setting]] khoá lạ `{k}`"));
             }
@@ -330,6 +339,13 @@ pub fn parse_settings_model(input: &str) -> Result<SettingsModel, String> {
             }
             None => None,
         };
+        let labels = match s.values.get("labels") {
+            Some(_) if kind != SettingKind::Enum => {
+                return Err(format!("`{id}`: `labels` chỉ dùng cho kind `enum`"));
+            }
+            Some(_) => s.str_list("labels")?,
+            None => Vec::new(),
+        };
         settings.push(SettingSpec {
             id,
             group,
@@ -338,6 +354,7 @@ pub fn parse_settings_model(input: &str) -> Result<SettingsModel, String> {
             values,
             default,
             depends_on,
+            labels,
         });
     }
 
@@ -353,6 +370,35 @@ fn schema_prop<'a>(root: &'a Json, dot_key: &str) -> Result<&'a Json, String> {
             .ok_or_else(|| format!("schema thiếu `properties.{seg}` cho khoá `{dot_key}`"))?;
     }
     Ok(node)
+}
+
+/// Mỗi danh sách `labels` khai báo cho một cài đặt enum phải tồn tại trong `strings.toml`, là
+/// danh sách, và có ĐÚNG số phần tử bằng `values` — thiếu một nhãn = combo Windows lệch giá trị,
+/// SwiftUI `UiStrings.x[i]` crash lúc chạy (audit SF-9, claude-opus-7e41b2d9).
+pub fn verify_labels(model: &SettingsModel, items: &[UiString]) -> Result<(), String> {
+    for spec in &model.settings {
+        for lid in &spec.labels {
+            let item = items.iter().find(|u| u.id == *lid).ok_or_else(|| {
+                format!("`{}`: labels `{lid}` không có trong strings.toml", spec.id)
+            })?;
+            match &item.value {
+                UiValue::List(v) if v.len() == spec.values.len() => {}
+                UiValue::List(v) => {
+                    return Err(format!(
+                        "`{}`: labels `{lid}` có {} mục != {} values {:?}",
+                        spec.id,
+                        v.len(),
+                        spec.values.len(),
+                        spec.values
+                    ))
+                }
+                UiValue::One(_) => {
+                    return Err(format!("`{}`: labels `{lid}` phải là danh sách", spec.id))
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn verify_against_schema(model: &SettingsModel, schema_text: &str) -> Result<(), String> {
@@ -781,6 +827,7 @@ pub fn run(write: bool) -> Result<(), String> {
     let items = parse(&src)?;
     let model = parse_settings_model(&model_src)?;
     verify_against_schema(&model, &schema_src)?;
+    verify_labels(&model, &items)?;
     let combined = format!("{src}\n---\n{model_src}");
     let digest = toml::digest(combined.as_bytes());
     let outs = [
@@ -913,6 +960,36 @@ default = "telex"
         assert!(sw.contains("    static let aboutTagline = \"Bộ gõ, đa nền tảng\""));
         assert!(sw.contains("    static let assistModeHints: [String] = [\n        \"Một\",\n        \"Hai\",\n    ]"));
         assert!(sw.contains("    static let methodValues: [String] = [\"telex\", \"vni\"]"));
+    }
+
+    #[test]
+    fn sf9_labels_phai_khop_so_values() {
+        let items = parse(
+            "[[string]]\nid = \"m_labels\"\nindex = 0\nvi = \"A\"\n\
+             [[string]]\nid = \"m_labels\"\nindex = 1\nvi = \"B\"\n\
+             [[string]]\nid = \"one\"\nvi = \"X\"\n",
+        )
+        .unwrap();
+        let model = |vals: &str, labels: &str| {
+            parse_settings_model(&format!(
+                "[[group]]\nid = \"g\"\nlabel_vi = \"G\"\n[[setting]]\nid = \"m\"\ngroup = \"g\"\n\
+                 config_key = \"m\"\nkind = \"enum\"\nvalues = {vals}\ndefault = \"a\"\nlabels = {labels}\n"
+            ))
+            .unwrap()
+        };
+        assert!(verify_labels(&model("[\"a\", \"b\"]", "\"m_labels\""), &items).is_ok());
+        let e = verify_labels(&model("[\"a\", \"b\", \"c\"]", "\"m_labels\""), &items).unwrap_err();
+        assert!(e.contains("2 mục != 3 values"), "{e}");
+        let e = verify_labels(&model("[\"a\", \"b\"]", "\"khong_co\""), &items).unwrap_err();
+        assert!(e.contains("không có trong strings.toml"), "{e}");
+        let e = verify_labels(&model("[\"a\", \"b\"]", "\"one\""), &items).unwrap_err();
+        assert!(e.contains("phải là danh sách"), "{e}");
+        let bool_labels =
+            "[[group]]\nid = \"g\"\nlabel_vi = \"G\"\n[[setting]]\nid = \"b\"\ngroup = \"g\"\n\
+             config_key = \"b\"\nkind = \"bool\"\ndefault = true\nlabels = \"m_labels\"\n";
+        assert!(parse_settings_model(bool_labels)
+            .unwrap_err()
+            .contains("chỉ dùng cho kind `enum`"));
     }
 
     #[test]
