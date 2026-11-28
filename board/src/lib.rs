@@ -27,6 +27,8 @@ pub const BOARD_PATH: &str = "coordination/board.jsonl";
 pub const CLAIM_LEASE_H: u64 = 8;
 pub const RESERVE_LEASE_H: u64 = 4;
 pub const RM_LEASE_H: u64 = 6;
+/// Kế hoạch có thẻ task `**<TASK> · … (…, Dep: A, B)**` — nguồn DoR cho `claim` (E95).
+pub const PLAN_PATH: &str = "docs/10-shared/P0-7-TASKS-ARM-SF.md";
 
 pub type Event = BTreeMap<String, String>;
 
@@ -464,6 +466,58 @@ pub fn validate(st: &State, mut ev: Event, now: u64) -> Result<Event, String> {
     Ok(ev)
 }
 
+/// Phụ thuộc của `task` theo thẻ trong kế hoạch: dòng `**<task> · … Dep: A, B)**`.
+/// `None` = không có thẻ (task ngoài kế hoạch); `Some([])` = `Dep: —` hoặc không có task nào.
+/// Chỉ nhận mã task dạng `CHỮ-…` (bỏ chú thích như "secrets Apple").
+pub fn task_deps(plan: &str, task: &str) -> Option<Vec<String>> {
+    let head = format!("**{task} · ");
+    let line = plan.lines().find(|l| l.trim_start().starts_with(&head))?;
+    let Some(i) = line.find("Dep:") else {
+        return Some(Vec::new());
+    };
+    let rest = &line[i + 4..];
+    let rest = rest.split(')').next().unwrap_or(rest);
+    Some(
+        rest.split(',')
+            .map(str::trim)
+            .filter(|t| {
+                t.contains('-')
+                    && t.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                    && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            })
+            .map(str::to_string)
+            .collect(),
+    )
+}
+
+/// DoR (E95): mọi phụ thuộc phải đã `release --status done`. Trả danh sách còn thiếu.
+pub fn missing_deps(st: &State, deps: &[String]) -> Vec<String> {
+    deps.iter()
+        .filter(|d| {
+            st.finished
+                .get(*d)
+                .is_none_or(|(status, _)| status != "done")
+        })
+        .cloned()
+        .collect()
+}
+
+/// Cờ hợp lệ của từng lệnh (E95: cờ lạ như `--dry-run` từng bị bỏ qua im lặng ⇒ ghi thật).
+fn allowed_flags(sub: &str) -> &'static [&'static str] {
+    match sub {
+        "log" => &["n"],
+        "claim" => &["lease", "msg", "dor-override"],
+        "heartbeat" => &["lease", "msg"],
+        "release" => &["status", "commit", "msg"],
+        "handoff" => &["to", "msg"],
+        "reserve" => &["task", "lease", "msg"],
+        "unreserve" => &["task", "msg"],
+        "notify" | "review-request" | "review-done" | "note" => &["to", "msg", "commit", "task"],
+        "ack" | "rm-lock" | "rm-unlock" => &["msg", "lease"],
+        _ => &[],
+    }
+}
+
 // ---------------------------------------------------------------- I/O + CLI
 
 fn board_path() -> PathBuf {
@@ -568,6 +622,39 @@ fn agent_of(a: &Args) -> String {
         .unwrap_or_default()
 }
 
+/// DoR của `claim` (E95): phụ thuộc trong thẻ kế hoạch phải đã done; vượt chỉ khi có
+/// `--dor-override` kèm `--msg <lý do>` (ghi vào sự kiện để ai cũng thấy).
+fn check_dor(task: &str, a: &Args, e: &mut Event) -> Result<(), String> {
+    let plan_path = std::env::var_os("TEXTVN_PLAN")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(PLAN_PATH));
+    let Ok(plan) = std::fs::read_to_string(&plan_path) else {
+        return Ok(()); // không có kế hoạch (repo khác/test) ⇒ không kiểm được, như trước
+    };
+    let Some(deps) = task_deps(&plan, task) else {
+        return Ok(());
+    };
+    let missing = missing_deps(&read_state()?, &deps);
+    if missing.is_empty() {
+        return Ok(());
+    }
+    if a.flags.contains_key("dor-override") {
+        if a.flags
+            .get("msg")
+            .is_none_or(|m| m.trim().is_empty() || m == "1")
+        {
+            return Err("--dor-override cần --msg <lý do> (ghi lên board)".into());
+        }
+        e.insert("dor_override".into(), missing.join(","));
+        return Ok(());
+    }
+    Err(format!(
+        "claim {task}: chưa đạt DoR — phụ thuộc chưa done: {} (E95). \
+         Chờ `release --status done`, hoặc --dor-override --msg <lý do> nếu chủ repo cho phép",
+        missing.join(", ")
+    ))
+}
+
 fn ev(kind: &str, agent: &str) -> Event {
     let mut e = Event::new();
     e.insert("kind".into(), kind.into());
@@ -663,6 +750,22 @@ pub fn cargo_subcommand_args(argv_after_exe: Vec<String>) -> Vec<String> {
 pub fn cli(args: &[String]) -> Result<(), String> {
     let sub = args.first().map(String::as_str).unwrap_or("status");
     let a = parse_args(args.get(1..).unwrap_or(&[]));
+    if !matches!(sub, "help" | "--help") {
+        let allowed = allowed_flags(sub);
+        if let Some(bad) = a
+            .flags
+            .keys()
+            .find(|k| k.as_str() != "agent" && !allowed.contains(&k.as_str()))
+        {
+            return Err(format!(
+                "board {sub}: cờ lạ `--{bad}` (E95 — không ghi gì). Cờ hợp lệ: --agent{}",
+                allowed
+                    .iter()
+                    .map(|f| format!(", --{f}"))
+                    .collect::<String>()
+            ));
+        }
+    }
     let agent = agent_of(&a);
     let now = now_epoch();
     let task = a.positional.first().cloned().unwrap_or_default();
@@ -706,6 +809,9 @@ pub fn cli(args: &[String]) -> Result<(), String> {
         "claim" | "heartbeat" | "release" | "handoff" => {
             let mut e = ev(sub, &agent);
             copy_flags(&mut e, &a, &["lease", "msg", "status", "commit", "to"]);
+            if sub == "claim" {
+                check_dor(&task, &a, &mut e)?;
+            }
             write(e)
         }
         "reserve" | "unreserve" => {
@@ -774,7 +880,8 @@ pub fn usage() -> &'static str {
      (= `cargo xtask board …` khi workspace build được; = `cargo run -p textvn-board -- …` khi WIP hỏng)\n  \
      status                       khoá phát hành · task đang nhận · tệp giữ chỗ · số thư chưa đọc\n  \
      inbox | ack                  xem thư gửi mình/`*` chưa đọc | đánh dấu đã đọc tới giờ\n  \
-     claim <TASK> [--lease 8] [--msg ..]      nhận task (từ chối nếu agent khác giữ, lease còn hạn)\n  \
+     claim <TASK> [--lease 8] [--msg ..]      nhận task (từ chối nếu agent khác giữ, lease còn hạn,\n  \
+                                  hoặc Dep: trong P0-7 chưa done — --dor-override --msg <lý do>)\n  \
      heartbeat <TASK>             gia hạn lease task + tệp giữ chỗ (mỗi ≤ 4 giờ khi đang làm)\n  \
      handoff <TASK> --to <agent> --msg ..     giao lại task (người nhận thấy trong inbox)\n  \
      release <TASK> --status done|abandoned|blocked [--commit <sha>] [--msg ..]\n  \
@@ -789,6 +896,82 @@ pub fn usage() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn e95_task_deps_from_plan_card() {
+        let plan = "**SF-2 · toggle (L, Dep: SF-1b, SF-1f)**\n\
+                    **SF-3 · compose (L, Dep: SF-2)** — text\n\
+                    **ARM-L1 · CI (M, Dep: —)**\n\
+                    **ARM-M3 · Notarization (S, Dep: secrets Apple)** — chờ\n";
+        assert_eq!(
+            task_deps(plan, "SF-2"),
+            Some(vec!["SF-1b".into(), "SF-1f".into()])
+        );
+        assert_eq!(task_deps(plan, "SF-3"), Some(vec!["SF-2".into()]));
+        assert_eq!(task_deps(plan, "ARM-L1"), Some(vec![]));
+        assert_eq!(task_deps(plan, "ARM-M3"), Some(vec![]));
+        assert_eq!(task_deps(plan, "SF-30"), None);
+    }
+
+    #[test]
+    fn e95_missing_deps_needs_release_done() {
+        let ev = |pairs: &[(&str, &str)]| -> Event {
+            pairs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect()
+        };
+        let st = derive(vec![
+            ev(&[
+                ("kind", "claim"),
+                ("agent", "a"),
+                ("task", "SF-1b"),
+                ("epoch", "1"),
+            ]),
+            ev(&[
+                ("kind", "release"),
+                ("agent", "a"),
+                ("task", "SF-1b"),
+                ("status", "done"),
+                ("epoch", "2"),
+            ]),
+            ev(&[
+                ("kind", "claim"),
+                ("agent", "a"),
+                ("task", "SF-1f"),
+                ("epoch", "3"),
+            ]),
+            ev(&[
+                ("kind", "release"),
+                ("agent", "a"),
+                ("task", "SF-1f"),
+                ("status", "blocked"),
+                ("epoch", "4"),
+            ]),
+            ev(&[
+                ("kind", "claim"),
+                ("agent", "b"),
+                ("task", "SF-2"),
+                ("epoch", "5"),
+            ]),
+        ]);
+        let deps = vec!["SF-1b".to_string(), "SF-1f".to_string(), "SF-2".to_string()];
+        assert_eq!(
+            missing_deps(&st, &deps),
+            vec!["SF-1f".to_string(), "SF-2".to_string()]
+        );
+    }
+
+    #[test]
+    fn e95_unknown_flag_rejected_before_write() {
+        // Không có tệp board nào bị chạm: lỗi trả về trước khi đọc/ghi.
+        let v = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let err = cli(&v(&["claim", "SF-3", "--dry-run", "--agent", "x"])).unwrap_err();
+        assert!(err.contains("--dry-run"), "{err}");
+        let err = cli(&v(&["release", "SF-3", "--status", "done", "--to", "y"])).unwrap_err();
+        assert!(err.contains("--to"), "{err}");
+        assert!(allowed_flags("claim").contains(&"dor-override"));
+    }
 
     #[test]
     fn board_1b_cargo_external_subcommand_argv() {

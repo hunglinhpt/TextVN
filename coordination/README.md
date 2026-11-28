@@ -37,7 +37,7 @@ mỗi phiên (hoặc truyền `--agent`). Không dùng chung định danh giữa
 | # | Khi | Bắt buộc làm |
 |---|---|---|
 | R1 | Bắt đầu phiên | `git pull --ff-only` → `cargo xtask board status --agent $TEXTVN_AGENT` → `board inbox` → xử lý thư → `board ack` |
-| R2 | Nhận task | task phải đạt **DoR** (P0-7 §2) và mọi `Dep` đã `done`. `board claim <TASK> --msg "<kế hoạch 1 dòng>"` → commit RIÊNG `coordination/board.jsonl` (`board: claim <TASK> (<agent>)`) → push ngay. Tối đa **2 task** đang giữ mỗi agent |
+| R2 | Nhận task | task phải đạt **DoR** (P0-7 §2) và mọi `Dep` đã `done` — `claim` tự kiểm `Dep:` trong thẻ P0-7 và từ chối nếu thiếu; vượt chỉ khi chủ repo cho phép: `--dor-override --msg "<lý do>"` (E95; cờ lạ cũng bị từ chối, không ghi gì). `board claim <TASK> --msg "<kế hoạch 1 dòng>"` → commit RIÊNG `coordination/board.jsonl` (`board: claim <TASK> (<agent>)`) → push ngay. Tối đa **2 task** đang giữ mỗi agent |
 | R3 | Trước khi sửa tệp | `board reserve <tệp/thư mục/> --task <TASK>` cho mọi tệp sẽ sửa. Tệp "nóng" chỉ **người giữ khoá phát hành** sửa: `CHANGELOG.md`, `README.md`, `docs/release/build-release-report.md`, `Cargo.toml` (version), `Cargo.lock`, `debian/changelog`, `packaging/**` — agent task viết **mảnh ghi chú** `coordination/changes/<TASK>.md` (VI + EN) thay vào đó |
 | R4 | Đang làm | `board heartbeat <TASK>` ít nhất mỗi 4 giờ (lease task 8 h, giữ chỗ 4 h). Hết lease = người khác được nhận |
 | R5 | Trước MỖI commit | `cargo xtask board guard $(git diff --cached --name-only)` phải OK; chỉ `git add` danh sách tệp tường minh (G2); không commit tệp agent khác đang giữ chỗ |
