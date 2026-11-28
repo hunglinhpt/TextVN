@@ -13,33 +13,8 @@
 //! (mở cycle) cần Telex transform trước (vd "coongj" → "cộng").
 
 use textvn_core::keymap::{self, vk, KeyEvent};
-use textvn_core::{Action, Engine, EngineOptions, Method};
-
-fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            for _ in 0..*delete_count {
-                buf.pop();
-            }
-            buf.extend(insert.iter().cloned());
-        }
-        Action::Commit { insert } => buf.extend(insert.iter().cloned()),
-    }
-}
+use textvn_core::sim::apply;
+use textvn_core::{Engine, EngineOptions, Method};
 
 fn press(e: &mut Engine, buf: &mut Vec<char>, k: &KeyEvent) {
     let out = e.key(k);

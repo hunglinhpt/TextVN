@@ -18,7 +18,8 @@ use textvn_core::keymap::{vk, KeyEvent};
 use textvn_core::post::predict::{
     predict_next_phrase_candidates, predict_prefix_candidates, EN_OFFICE_PHRASES_DATA,
 };
-use textvn_core::{Action, Engine, EngineOptions};
+use textvn_core::sim::apply;
+use textvn_core::{Engine, EngineOptions};
 
 type Row = (&'static str, &'static str, u32);
 
@@ -126,31 +127,6 @@ fn lookup_latency_duoi_1ms() {
         worst < std::time::Duration::from_millis(factor as u64),
         "lookup chậm nhất {worst:?} — vượt ngân sách 1 ms (x{factor})"
     );
-}
-
-fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if let Some(c) = k.printable() {
-                if !c.is_control() || matches!(c, '\n' | '\r' | '\t' | ' ') {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            let keep = buf.len().saturating_sub(*delete_count as usize);
-            buf.truncate(keep);
-            buf.extend(insert.iter().cloned());
-        }
-        Action::Commit { insert } => buf.extend(insert.iter().cloned()),
-    }
 }
 
 fn press(e: &mut Engine, buf: &mut Vec<char>, k: &KeyEvent) {

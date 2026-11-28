@@ -52,55 +52,31 @@ fn key_event(k: K) -> KeyEvent {
 }
 
 /// Document = `PREFIX` + text gõ; con trỏ luôn ở cuối.
-fn apply(doc: &mut Vec<char>, base: usize, o: &textvn_core::Outcome, k: &KeyEvent, ctx: &str) {
+fn apply_checked(
+    doc: &mut Vec<char>,
+    base: usize,
+    o: &textvn_core::Outcome,
+    k: &KeyEvent,
+    ctx: &str,
+) {
+    // Bất biến riêng của bộ test này (MAX_TEXT, R1-2); phần áp action vào văn bản là bộ mô phỏng
+    // dùng chung `textvn_core::sim` (SIM-1, G22) với `floor = base` (không xoá lẹm text có sẵn).
     assert!(
         o.preedit.len() <= MAX_TEXT,
         "{ctx}: preedit {} > MAX_TEXT",
         o.preedit.len()
     );
-    match &o.action {
-        Action::Pass => match k.vk {
-            vk::BACK => {
-                doc.pop();
-            }
-            vk::ESCAPE | vk::LEFT => {}
-            _ => {
-                if let Some(c) = k.printable() {
-                    doc.push(c);
-                }
-            }
-        },
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            assert!(
-                insert.len() <= MAX_TEXT,
-                "{ctx}: insert {} > MAX_TEXT",
-                insert.len()
-            );
-            let d = usize::from(*delete_count);
-            assert!(
-                d <= doc.len() - base,
-                "{ctx}: delete_count {d} lẹm vào text có sẵn (gõ được {})",
-                doc.len() - base
-            );
-            doc.truncate(doc.len() - d);
-            doc.extend_from_slice(insert);
-        }
-        Action::Commit { insert } => {
-            assert!(
-                insert.len() <= MAX_TEXT,
-                "{ctx}: insert {} > MAX_TEXT",
-                insert.len()
-            );
-            doc.extend_from_slice(insert);
-        }
+    if let Action::Replace { insert, .. }
+    | Action::Restore { insert, .. }
+    | Action::Commit { insert } = &o.action
+    {
+        assert!(
+            insert.len() <= MAX_TEXT,
+            "{ctx}: insert {} > MAX_TEXT",
+            insert.len()
+        );
     }
+    textvn_core::sim::apply_from(doc, base, &o.action, k);
 }
 
 fn letters(method: Method) -> &'static [char] {
@@ -167,7 +143,7 @@ fn run(method: Method, charset: OutputCharset, preedit: bool, seed: u64) {
             let o = e.key(&ev);
             let ctx =
                 format!("{method:?}/{charset:?}/preedit={preedit} seed={seed} step={step}.{r}");
-            apply(&mut doc, base, &o, &ev, &ctx);
+            apply_checked(&mut doc, base, &o, &ev, &ctx);
         }
     }
     let head: String = doc[..base].iter().collect();
@@ -220,7 +196,7 @@ fn held_key_after_toned_word_keeps_previous_text() {
         for c in typed.chars() {
             let k = KeyEvent::char_down(c);
             let o = e.key(&k);
-            apply(&mut doc, base, &o, &k, &format!("preedit={preedit}"));
+            apply_checked(&mut doc, base, &o, &k, &format!("preedit={preedit}"));
         }
         let got: String = doc.iter().collect();
         assert_eq!(got, format!("xin chao dẹ{}", "p".repeat(100)));
@@ -255,14 +231,14 @@ fn backspace_removes_exactly_one_visible_char() {
                 typed.push(c);
                 let ev = KeyEvent::char_down(c);
                 let o = e.key(&ev);
-                apply(&mut doc, base, &o, &ev, &format!("{method:?} `{typed}`"));
+                apply_checked(&mut doc, base, &o, &ev, &format!("{method:?} `{typed}`"));
             }
             while doc.len() > base {
                 let before = doc.clone();
                 let ev = KeyEvent::key_down(vk::BACK);
                 let o = e.key(&ev);
                 let ctx = format!("{method:?} `{typed}` BS trên {:?}", &before[base..]);
-                apply(&mut doc, base, &o, &ev, &ctx);
+                apply_checked(&mut doc, base, &o, &ev, &ctx);
                 let kept = &before[..before.len() - 1];
                 assert_eq!(doc.len(), kept.len(), "{ctx}: phải bớt đúng 1 ký tự");
                 assert_eq!(strip(&doc), strip(kept), "{ctx}: chỉ được dời dấu thanh");

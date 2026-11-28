@@ -12,6 +12,8 @@ pub mod keymap;
 pub mod keymap_mac_generated;
 pub mod method;
 pub mod post;
+#[doc(hidden)]
+pub mod sim;
 pub mod transform;
 pub mod validate;
 
@@ -3466,31 +3468,7 @@ mod tests {
     use keymap::{MOD_CTRL, MOD_SHIFT};
     use transform::DiacriticStyle;
 
-    fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-        match action {
-            Action::Pass => {
-                if let Some(c) = k.printable() {
-                    if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                        buf.push(c);
-                    }
-                }
-            }
-            Action::Replace {
-                delete_count,
-                insert,
-            }
-            | Action::Restore {
-                delete_count,
-                insert,
-            } => {
-                let del = *delete_count as usize;
-                assert!(del <= buf.len(), "delete_count vượt buffer (đừng mask bug)");
-                buf.truncate(buf.len() - del);
-                buf.extend_from_slice(insert);
-            }
-            Action::Commit { insert } => buf.extend_from_slice(insert),
-        }
-    }
+    use crate::sim::apply;
 
     /// Gõ cả down+up từng ký tự (đúng mô tả P0-4 §2.2), áp action vào buffer.
     fn type_keys(e: &mut Engine, input: &str) -> (String, String) {
@@ -3605,13 +3583,8 @@ mod tests {
             .map(|_| {
                 let k = KeyEvent::key_down(keymap::vk::BACK);
                 let o = e.key(&k);
-                match o.action {
-                    // PASS: app tự xoá 1 ký tự.
-                    Action::Pass => {
-                        buf.pop();
-                    }
-                    ref a => apply(buf, a, &k),
-                }
+                // PASS: app tự xoá 1 ký tự — bộ mô phỏng chung làm việc đó (SIM-1).
+                apply(buf, &o.action, &k);
                 text(buf)
             })
             .collect()
@@ -4169,9 +4142,8 @@ mod tests {
     fn backspace_after_sentence_end_cancels_auto_capitalize() {
         let mut e = engine();
         let mut buf = type_buf(&mut e, "hi.");
+        // BACK là PASS: app xoá glyph — bộ mô phỏng chung `sim::apply` làm việc đó (SIM-1).
         press(&mut e, &mut buf, keymap::vk::BACK);
-        // `press` mô phỏng engine action; BACK là PASS nên app mới là bên xóa glyph.
-        buf.pop();
         buf.extend(type_buf(&mut e, "ban"));
         assert_eq!(text(&buf), "hiban");
     }
@@ -4207,7 +4179,6 @@ mod tests {
         let mut buf = type_buf(&mut e, "hi.");
         press(&mut e, &mut buf, keymap::vk::SPACE);
         press(&mut e, &mut buf, keymap::vk::BACK);
-        buf.pop();
         buf.extend(type_buf(&mut e, "com"));
         assert_eq!(text(&buf), "hi.com");
     }

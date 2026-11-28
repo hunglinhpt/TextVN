@@ -3,6 +3,7 @@
 //! trên bản 0.2.68. Thiết kế DRBFM: `docs/release/AUDIT-0.2.69-DFMEA-DRBFM.md`.
 
 use strategy::{IME_FIELD_ADDRESS_BAR, IME_FIELD_SEARCH, IME_FIELD_TERMINAL};
+use textvn_core::sim::apply;
 use textvn_core::{keymap, Action, Context, Engine, EngineOptions, KeyEvent, Method};
 
 fn opts() -> EngineOptions {
@@ -10,32 +11,6 @@ fn opts() -> EngineOptions {
         method: Method::Telex,
         auto_capitalize: false,
         ..Default::default()
-    }
-}
-
-fn apply(doc: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if k.vk == keymap::vk::BACK {
-                doc.pop();
-            } else if let Some(c) = k.printable() {
-                if !k.is_ctrl_space() {
-                    doc.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            doc.truncate(doc.len().saturating_sub(usize::from(*delete_count)));
-            doc.extend(insert);
-        }
-        Action::Commit { insert } => doc.extend(insert),
     }
 }
 

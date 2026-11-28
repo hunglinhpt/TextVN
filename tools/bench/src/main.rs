@@ -16,7 +16,7 @@ use std::hint::black_box;
 use std::time::Instant;
 
 use textvn_core::keymap::{vk, KeyEvent};
-use textvn_core::{Action, Engine, EngineOptions, Method};
+use textvn_core::{Engine, EngineOptions, Method};
 use textvn_ffi::*;
 use textvn_field_detect::{FieldContext, ProbeCache, ProbeSnapshot, SecurityState};
 
@@ -442,39 +442,10 @@ const RSI_WORDS: [&str; 16] = [
 const HELDOUT_VI: &str = include_str!("../../../corpus/eval/vi_office.txt");
 const HELDOUT_EN: &str = include_str!("../../../corpus/eval/en_office.txt");
 
-// ---------------------------------------------------------------------------------------
-// Bộ mô phỏng văn bản (bản sao thứ 13 của `apply` trong repo — SIM-1 sẽ hợp nhất, G22)
-// ---------------------------------------------------------------------------------------
-
-fn sim_apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            let del = *delete_count as usize;
-            assert!(del <= buf.len(), "delete_count vượt buffer");
-            buf.truncate(buf.len() - del);
-            buf.extend_from_slice(insert);
-        }
-        Action::Commit { insert } => buf.extend_from_slice(insert),
-    }
-}
-
+// Bộ mô phỏng văn bản: MỘT nguồn `textvn_core::sim::apply` (SIM-1, G22 — trước là bản sao thứ 13).
 fn sim_press(e: &mut Engine, buf: &mut Vec<char>, k: &KeyEvent) {
     let out = e.key(k);
-    sim_apply(buf, &out.action, k);
+    textvn_core::sim::apply(buf, &out.action, k);
 }
 
 fn special_key(code: u32, ch: char) -> KeyEvent {

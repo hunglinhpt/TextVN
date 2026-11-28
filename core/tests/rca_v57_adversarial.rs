@@ -6,33 +6,8 @@
 //! 4. Cycle-accept: Tab ×2 học candidate thứ 2, không học candidate 1 hai lần
 //! 5. Drain 2 lần liên tiếp: lần 2 chỉ chứa pending mới
 use textvn_core::keymap::{self, KeyEvent};
-use textvn_core::{Action, Engine, EngineOptions, Method};
-
-fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            for _ in 0..*delete_count {
-                buf.pop();
-            }
-            buf.extend(insert.iter().cloned());
-        }
-        Action::Commit { insert } => buf.extend(insert.iter().cloned()),
-    }
-}
+use textvn_core::sim::apply;
+use textvn_core::{Engine, EngineOptions, Method};
 
 fn press(e: &mut Engine, buf: &mut Vec<char>, k: &KeyEvent) {
     let out = e.key(k);

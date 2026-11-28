@@ -15,12 +15,13 @@
 //! khi từ đã dựng lại raw (`dduocj⌫j` + Space cũ ra `"dduwowjj"` = phím lạ).
 
 use std::sync::atomic::{AtomicUsize, Ordering};
+use textvn_core::sim::apply;
 
 use textvn_core::keymap::{self, KeyEvent};
 use textvn_core::method::{self, Method};
 use textvn_core::post::restore_en;
 use textvn_core::transform::DiacriticStyle;
-use textvn_core::{Action, Engine, EngineOptions};
+use textvn_core::{Engine, EngineOptions};
 
 static CASES: AtomicUsize = AtomicUsize::new(0);
 fn count_case() {
@@ -29,42 +30,6 @@ fn count_case() {
 
 const BS: char = '\u{8}';
 const ESC: char = '\u{1b}';
-
-fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            // Phím PASS tới app như phím thật: Backspace phải xoá 1 ký tự
-            // (app tự xoá), chữ in được vào cuối.
-            if k.vk == keymap::vk::BACK {
-                buf.pop();
-                return;
-            }
-            if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            let del = *delete_count as usize;
-            assert!(
-                del <= buf.len(),
-                "delete_count {del} vượt buffer {} — lệch sổ engine (nhân đôi/mất chữ)",
-                buf.len()
-            );
-            buf.truncate(buf.len() - del);
-            buf.extend_from_slice(insert);
-        }
-        Action::Commit { insert } => buf.extend_from_slice(insert),
-    }
-}
 
 fn key_event(c: char, down: bool) -> KeyEvent {
     let (vk, ch) = if c == BS {

@@ -27,6 +27,7 @@
 //! tương đương chiến lược.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
+use textvn_core::sim::apply;
 
 use strategy::{
     IME_FIELD_BODY, IME_STRATEGY_BACKSPACE_TYPE, IME_STRATEGY_FORWARD_AS_COMMIT,
@@ -45,40 +46,6 @@ fn count_case() {
 
 const BS: char = '\u{8}';
 const ESC: char = '\u{1b}';
-
-fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
-    match action {
-        Action::Pass => {
-            if k.vk == keymap::vk::BACK {
-                buf.pop();
-                return;
-            }
-            if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                    buf.push(c);
-                }
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            let del = *delete_count as usize;
-            assert!(
-                del <= buf.len(),
-                "delete_count {del} vượt buffer {} — lệch sổ engine (nhân đôi/mất chữ)",
-                buf.len()
-            );
-            buf.truncate(buf.len() - del);
-            buf.extend_from_slice(insert);
-        }
-        Action::Commit { insert } => buf.extend_from_slice(insert),
-    }
-}
 
 fn key_event(c: char, down: bool) -> KeyEvent {
     let (vk, ch) = if c == BS {

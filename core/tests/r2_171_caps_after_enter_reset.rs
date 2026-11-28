@@ -10,7 +10,8 @@
 //! Cùng vòng đối chiếu (P3-8 §7): R2-172 — địa danh `Đắk Lắk`, `Krông Búk` (xkey#135), cuối file.
 
 use textvn_core::keymap::vk;
-use textvn_core::{Action, Engine, EngineOptions, KeyEvent};
+use textvn_core::sim::apply;
+use textvn_core::{Engine, EngineOptions, KeyEvent};
 
 fn opts() -> EngineOptions {
     EngineOptions {
@@ -19,38 +20,17 @@ fn opts() -> EngineOptions {
     }
 }
 
-fn apply(buf: &mut Vec<char>, action: Action, c: Option<char>) {
-    match action {
-        Action::Pass => {
-            if let Some(c) = c {
-                buf.push(c);
-            }
-        }
-        Action::Replace {
-            delete_count,
-            insert,
-        }
-        | Action::Restore {
-            delete_count,
-            insert,
-        } => {
-            buf.truncate(buf.len() - delete_count as usize);
-            buf.extend(insert);
-        }
-        Action::Commit { insert } => buf.extend(insert),
-    }
-}
-
 fn type_str(e: &mut Engine, s: &str, buf: &mut Vec<char>) {
     for c in s.chars() {
         let out = e.key(&KeyEvent::char_down(c));
-        apply(buf, out.action, Some(c));
+        apply(buf, &out.action, &KeyEvent::char_down(c));
     }
 }
 
 fn enter(e: &mut Engine, buf: &mut Vec<char>) {
     let out = e.key(&KeyEvent::key_down(vk::RETURN));
-    apply(buf, out.action, Some('\n'));
+    // Engine nhận Enter thật (vk RETURN, không ký tự); app chèn xuống dòng khi Pass.
+    apply(buf, &out.action, &KeyEvent::char_down('\n'));
 }
 
 fn text(buf: &[char]) -> String {
