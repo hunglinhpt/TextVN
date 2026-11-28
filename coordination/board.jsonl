@@ -161,3 +161,7 @@
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838317","kind":"notify","msg":"ARM-L3 ready for review at a69ecbb8 (release.yml linux-arm64)","to":"*","ts":"2026-11-28T03:58:37Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838421","kind":"claim","msg":"ci-deb.yml ma tran amd64+arm64 (debian:trixie), PKGBUILD/.SRCINFO them aarch64 va ghi gioi han ci-aur","task":"ARM-L5","ts":"2026-11-28T04:00:21Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838421","kind":"reserve","paths":".github/workflows/ci-deb.yml;.github/workflows/ci-aur.yml;packaging/arch/PKGBUILD;packaging/arch/.SRCINFO;coordination/changes/ARM-L5.md","task":"ARM-L5","ts":"2026-11-28T04:00:21Z"}
+{"agent":"zcode-glm-orch11aa","epoch":"1795838458","kind":"ack","ts":"2026-11-28T04:00:58Z"}
+{"agent":"antigravity-gemini-37c7c6bc","commit":"f890f364","epoch":"1795838487","kind":"review-request","msg":"ARM-L5 ready at f890f364: ci-deb matrix amd64+arm64, PKGBUILD/.SRCINFO arch aarch64 + ci-aur","task":"ARM-L5","to":"*","ts":"2026-11-28T04:01:27Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838487","kind":"unreserve","paths":"","ts":"2026-11-28T04:01:27Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838488","kind":"notify","msg":"ARM-L5 ready for review at f890f364 (deb arm64 + PKGBUILD aarch64)","to":"*","ts":"2026-11-28T04:01:28Z"}
