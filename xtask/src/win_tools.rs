@@ -610,6 +610,41 @@ fn validate_arm64x_def_dir(def_dir: &Path) -> Result<(), String> {
 }
 
 /// CLI (ARM-W2): `cargo xtask build-arm64x [--out <dll>] [--def-dir <dir>]`.
+/// Cắt tiền tố verbatim `\\?\` (và `\\?\UNC\`) từ `fs::canonicalize` vì `cmd.exe` không nhận `\\?\`.
+pub fn strip_win_verbatim(p: &Path) -> String {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else if let Some(rest) = s.strip_prefix(r"\\?\") {
+        rest.to_string()
+    } else {
+        s.into_owned()
+    }
+}
+
+/// Chọn đối số kiến trúc cho `vcvarsall.bat`: chỉ dùng `arm64` khi host là `aarch64` VÀ có
+/// `Hostarm64\arm64\cl.exe`; ngược lại fallback `x64_arm64` để không chết trên runner thiếu Hostarm64.
+pub fn pick_arm64_vcvars_arch(vs_root: &Path, host_arch: &str) -> &'static str {
+    if host_arch == "aarch64" {
+        let msvc_dir = vs_root.join("VC").join("Tools").join("MSVC");
+        if let Ok(entries) = fs::read_dir(&msvc_dir) {
+            for entry in entries.flatten() {
+                if entry
+                    .path()
+                    .join("bin")
+                    .join("Hostarm64")
+                    .join("arm64")
+                    .join("cl.exe")
+                    .is_file()
+                {
+                    return "arm64";
+                }
+            }
+        }
+    }
+    "x64_arm64"
+}
+
 pub fn build_arm64x_cli(args: &[String]) -> Result<(), String> {
     let opts = parse_build_arm64x_args(args)?;
     let def_dir = Path::new(&opts.def_dir);
@@ -658,45 +693,38 @@ pub fn build_arm64x_cli(args: &[String]) -> Result<(), String> {
         );
     }
     let vcvars = Path::new(&vs_root).join(r"VC\Auxiliary\Build\vcvarsall.bat");
-    let vc_arch = if std::env::consts::ARCH == "aarch64" {
-        "arm64"
-    } else {
-        "x64_arm64"
-    };
+    let vc_arch = pick_arm64_vcvars_arch(Path::new(&vs_root), std::env::consts::ARCH);
     let work_dir = out_dir.join("arm64x-obj");
     fs::create_dir_all(&work_dir).map_err(|e| format!("mkdir {}: {e}", work_dir.display()))?;
     let abs_work = fs::canonicalize(&work_dir).map_err(|e| format!("canonicalize work: {e}"))?;
+    let vcvars_s = strip_win_verbatim(&vcvars);
+    let abs_work_s = strip_win_verbatim(&abs_work);
+    let abs_out_s = strip_win_verbatim(&abs_out);
     let cmd_file = abs_work.join("build-arm64x.cmd");
-    let dummy_c = abs_def.join("dummy.c");
-    let a64_def = abs_def.join("tsf_arm64.def");
-    let x64_def = abs_def.join("tsf_x64.def");
+    let cmd_file_s = strip_win_verbatim(&cmd_file);
+    let dummy_c = strip_win_verbatim(&abs_def.join("dummy.c"));
+    let a64_def = strip_win_verbatim(&abs_def.join("tsf_arm64.def"));
+    let x64_def = strip_win_verbatim(&abs_def.join("tsf_x64.def"));
     let cmd_body = format!(
         "@echo off\r\n\
-         call \"{}\" {} >nul || exit /b 1\r\n\
-         cd /d \"{}\" || exit /b 1\r\n\
-         cl /nologo /c /Foempty_arm64.obj \"{}\" || exit /b 1\r\n\
-         cl /nologo /c /arm64EC /Foempty_x64.obj \"{}\" || exit /b 1\r\n\
-         link /lib /nologo /machine:x64 /def:\"{}\" /out:fwd_x64.lib || exit /b 1\r\n\
-         link /lib /nologo /machine:arm64 /def:\"{}\" /out:fwd_arm64.lib || exit /b 1\r\n\
-         link /nologo /dll /noentry /machine:arm64x /defArm64Native:\"{}\" /def:\"{}\" empty_arm64.obj empty_x64.obj /out:\"{}\" fwd_arm64.lib fwd_x64.lib || exit /b 1\r\n",
-        vcvars.display(),
-        vc_arch,
-        abs_work.display(),
-        dummy_c.display(),
-        dummy_c.display(),
-        x64_def.display(),
-        a64_def.display(),
-        a64_def.display(),
-        x64_def.display(),
-        abs_out.display(),
+         call \"{vcvars_s}\" {vc_arch} || exit /b 1\r\n\
+         cd /d \"{abs_work_s}\" || exit /b 1\r\n\
+         cl /nologo /c /Foempty_arm64.obj \"{dummy_c}\" || exit /b 1\r\n\
+         cl /nologo /c /arm64EC /Foempty_x64.obj \"{dummy_c}\" || exit /b 1\r\n\
+         link /lib /nologo /machine:x64 /def:\"{x64_def}\" /out:fwd_x64.lib || exit /b 1\r\n\
+         link /lib /nologo /machine:arm64 /def:\"{a64_def}\" /out:fwd_arm64.lib || exit /b 1\r\n\
+         link /nologo /dll /noentry /machine:arm64x /defArm64Native:\"{a64_def}\" /def:\"{x64_def}\" empty_arm64.obj empty_x64.obj /out:\"{abs_out_s}\" fwd_arm64.lib fwd_x64.lib || exit /b 1\r\n",
     );
     fs::write(&cmd_file, cmd_body).map_err(|e| format!("ghi {}: {e}", cmd_file.display()))?;
     let st = std::process::Command::new("cmd.exe")
-        .args(["/c", &cmd_file.to_string_lossy()])
+        .args(["/c", &cmd_file_s])
         .status()
-        .map_err(|e| format!("chạy cmd.exe build-arm64x: {e}"))?;
+        .map_err(|e| format!("chạy cmd.exe build-arm64x ({cmd_file_s}): {e}"))?;
     if !st.success() {
-        return Err(format!("build-arm64x link thất bại (exit {:?})", st.code()));
+        return Err(format!(
+            "build-arm64x link thất bại (exit {:?}; vs_root={vs_root}, vc_arch={vc_arch})",
+            st.code()
+        ));
     }
     let dll = fs::read(&abs_out).map_err(|e| format!("đọc {}: {e}", abs_out.display()))?;
     if !pe_is_arm64x(&dll)? {
@@ -2508,5 +2536,37 @@ mod tests {
         if !cfg!(windows) {
             assert!(build_arm64x_cli(&[]).is_err());
         }
+    }
+
+    #[test]
+    fn arm_w2_strip_win_verbatim_bo_tien_to_unc() {
+        assert_eq!(
+            strip_win_verbatim(Path::new(r"\\?\C:\a\TextVN\dist\textvn-tsf.dll")),
+            r"C:\a\TextVN\dist\textvn-tsf.dll"
+        );
+        assert_eq!(
+            strip_win_verbatim(Path::new(r"\\?\UNC\server\share\out.dll")),
+            r"\\server\share\out.dll"
+        );
+        assert_eq!(
+            strip_win_verbatim(Path::new(r"C:\plain\out.dll")),
+            r"C:\plain\out.dll"
+        );
+    }
+
+    #[test]
+    fn arm_w2_pick_vcvars_arch_fallback_x64_arm64_khi_thieu_hostarm64() {
+        let dir = std::env::temp_dir().join(format!("textvn-arm64x-vs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("VC/Tools/MSVC/14.44.35207/bin/Hostx64/arm64")).unwrap();
+        assert_eq!(pick_arm64_vcvars_arch(&dir, "aarch64"), "x64_arm64");
+        assert_eq!(pick_arm64_vcvars_arch(&dir, "x86_64"), "x64_arm64");
+
+        let hostarm = dir.join("VC/Tools/MSVC/14.44.35207/bin/Hostarm64/arm64");
+        fs::create_dir_all(&hostarm).unwrap();
+        fs::write(hostarm.join("cl.exe"), b"MZ").unwrap();
+        assert_eq!(pick_arm64_vcvars_arch(&dir, "aarch64"), "arm64");
+        assert_eq!(pick_arm64_vcvars_arch(&dir, "x86_64"), "x64_arm64");
+        let _ = fs::remove_dir_all(&dir);
     }
 }
