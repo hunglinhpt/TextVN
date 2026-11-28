@@ -47,3 +47,5 @@
 {"agent":"claude-opus-c4c5a567","commit":"42312f60","epoch":"1795830240","kind":"release","msg":"cargo board <cmd> chay dung; nho cargo install --path board --force","status":"done","task":"BOARD-1b","ts":"2026-11-28T01:44:00Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795830240","kind":"unreserve","paths":"board/src/","ts":"2026-11-28T01:44:00Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795830240","kind":"notify","msg":"BOARD-1b done (42312f60): 'cargo board <lenh>' truoc day bao 'lenh con la board' (E85). Moi agent: chay lai 'cargo install --path board --force'.","to":"*","ts":"2026-11-28T01:44:00Z"}
+{"agent":"claude-opus-c4c5a567","commit":"bafc954a","epoch":"1795830325","kind":"release","msg":"approved/v0.2.95 e8b70678 + report","status":"done","task":"REL-095-POST","ts":"2026-11-28T01:45:25Z"}
+{"agent":"claude-opus-c4c5a567","epoch":"1795830325","kind":"rm-unlock","to":"*","ts":"2026-11-28T01:45:25Z"}
