@@ -25,9 +25,24 @@ permissions:
 
 jobs:
   dpkg:
-    runs-on: ubuntu-latest
+    name: dpkg (${{ matrix.arch }})
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
     container: debian:trixie
     steps:
+      - name: Kiểm tra kiến trúc container (${{ matrix.arch }})
+        run: |
+          dpkg --print-architecture
+          test "$(dpkg --print-architecture)" = "${{ matrix.arch }}"
+
       - name: Phụ thuộc build + packaging
         run: |
           apt-get update
@@ -39,6 +54,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Cargo vendor (mô phỏng chuẩn bị source PPA — build không Internet)
         run: |
@@ -112,6 +129,6 @@ jobs:
       - name: Upload .deb làm artifact
         uses: actions/upload-artifact@v4
         with:
-          name: textvn-deb-package
+          name: textvn-deb-package-${{ matrix.arch }}
           path: dist-deb/*.deb
           if-no-files-found: error

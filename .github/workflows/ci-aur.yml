@@ -29,7 +29,10 @@ permissions:
 
 jobs:
   makepkg:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
+    # Giới hạn ARM-L5: ảnh Docker chính thức `archlinux:base-devel` chỉ cung cấp `x86_64`
+    # (Arch Linux ARM là bản downstream tách riêng); build native Linux aarch64 được kiểm ở ARM-L1/ARM-L3.
     container: archlinux:base-devel
     steps:
       - name: Phụ thuộc build (rust/cmake + dev headers IBus/Fcitx5/GTK4)
@@ -39,6 +42,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # makepkg từ chối chạy bằng root → user builder với HOME riêng.
       - name: Build bằng makepkg (user thường)
@@ -73,6 +78,10 @@ jobs:
           sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
           diff -u /home/build/packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
             echo "::error::.SRCINFO lệch — chạy lại 'makepkg --printsrcinfo > packaging/arch/.SRCINFO' và commit";
+            exit 1;
+          }
+          grep -qx $'\tarch = aarch64' /home/build/packaging/arch/.SRCINFO || {
+            echo "::error::.SRCINFO thiếu arch = aarch64";
             exit 1;
           }
 

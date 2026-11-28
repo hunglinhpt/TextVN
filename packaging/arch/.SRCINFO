@@ -4,6 +4,7 @@ pkgbase = textvn
 	pkgrel = 1
 	url = https://github.com/hunglinhpt/TextVN
 	arch = x86_64
+	arch = aarch64
 	license = GPL3
 	makedepends = cargo
 	makedepends = cmake
