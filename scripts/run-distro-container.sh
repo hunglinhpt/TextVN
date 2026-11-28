@@ -44,7 +44,12 @@ docker run --rm \
         dnf install -y --setopt=install_weak_deps=False \
           ibus gtk3 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
         ;;
-      fedora-41)
+      almalinux-10)
+        # EL10: không có fcitx5 ở kho gốc (EPEL) — chỉ IBus như EL9; GTK4 có sẵn.
+        dnf install -y --setopt=install_weak_deps=False \
+          ibus gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
+        ;;
+      fedora-41|fedora-42|fedora-43)
         dnf install -y --setopt=install_weak_deps=False \
           ibus fcitx5 gtk4 dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config diffutils findutils tar gzip shadow-utils util-linux >/dev/null
         if [[ ! -s /etc/machine-id ]]; then
@@ -56,7 +61,15 @@ docker run --rm \
         zypper --non-interactive install --no-recommends \
           ibus libgtk-3-0 dbus-1 procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
         ;;
-      ubuntu-22-04|debian-12)
+      opensuse-tumbleweed)
+        zypper --non-interactive install --no-recommends \
+          ibus fcitx5 libgtk-4-1 dbus-1 dbus-1-daemon procps gawk dconf xkeyboard-config diffutils findutils tar gzip glib2-tools shadow util-linux >/dev/null
+        if [[ ! -s /etc/machine-id ]]; then
+          dbus-uuidgen > /etc/machine-id
+          chmod 0444 /etc/machine-id
+        fi
+        ;;
+      ubuntu-22-04|ubuntu-24-04|ubuntu-26-04|mint-22|debian-12|debian-13)
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -qq
         apt-get install -y -qq --no-install-recommends \

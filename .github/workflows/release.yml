@@ -432,6 +432,38 @@ jobs:
             label: Fedora 41 / RHEL 10 upstream
             image: fedora:41
             mode: matrix
+          - tag: ubuntu-24-04
+            label: Ubuntu 24.04 LTS
+            image: ubuntu:24.04
+            mode: matrix
+          - tag: ubuntu-26-04
+            label: Ubuntu 26.04 LTS
+            image: ubuntu:26.04
+            mode: matrix
+          - tag: debian-13
+            label: Debian 13 Trixie
+            image: debian:13
+            mode: matrix
+          - tag: fedora-42
+            label: Fedora 42
+            image: fedora:42
+            mode: matrix
+          - tag: fedora-43
+            label: Fedora 43
+            image: fedora:43
+            mode: matrix
+          - tag: opensuse-tumbleweed
+            label: openSUSE Tumbleweed
+            image: opensuse/tumbleweed
+            mode: matrix
+          - tag: almalinux-10
+            label: RHEL 10 / AlmaLinux 10
+            image: almalinux:10
+            mode: matrix
+          - tag: mint-22
+            label: Linux Mint 22 (Ubuntu 24.04 base)
+            image: linuxmintd/mint22-amd64
+            mode: matrix
     steps:
       - uses: actions/checkout@v4
         with:
@@ -447,7 +479,8 @@ jobs:
       - name: Run container E2E on ${{ matrix.label }}
         run: bash scripts/run-distro-container.sh "${{ matrix.image }}" "${{ matrix.tag }}" "${{ matrix.mode }}" "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)" e2e-helpers "-"
 
-  # ARM-L4: E2E 6 distro Linux trên container arm64 (gói TextVN-*-linux-aarch64.tar.gz).
+  # ARM-L4 + COMPAT-2: E2E 13 distro Linux trên container arm64 (gói TextVN-*-linux-aarch64.tar.gz;
+  # Mint 22 chỉ có ảnh amd64 nên chỉ chạy ở ma trận x86_64).
   # G22: khối docker-run (deps/machine-id/user tester) là scripts/run-distro-container.sh
   # dùng chung với job x86_64 — chỉ khác runner, artifact và assert arch.
   linux-arm64-distro-matrix:
@@ -482,6 +515,34 @@ jobs:
           - tag: fedora-41
             label: Fedora 41 / RHEL 10 upstream
             image: fedora:41
+            mode: matrix
+          - tag: ubuntu-24-04
+            label: Ubuntu 24.04 LTS
+            image: ubuntu:24.04
+            mode: matrix
+          - tag: ubuntu-26-04
+            label: Ubuntu 26.04 LTS
+            image: ubuntu:26.04
+            mode: matrix
+          - tag: debian-13
+            label: Debian 13 Trixie
+            image: debian:13
+            mode: matrix
+          - tag: fedora-42
+            label: Fedora 42
+            image: fedora:42
+            mode: matrix
+          - tag: fedora-43
+            label: Fedora 43
+            image: fedora:43
+            mode: matrix
+          - tag: opensuse-tumbleweed
+            label: openSUSE Tumbleweed
+            image: opensuse/tumbleweed
+            mode: matrix
+          - tag: almalinux-10
+            label: RHEL 10 / AlmaLinux 10
+            image: almalinux:10
             mode: matrix
     steps:
       - uses: actions/checkout@v4

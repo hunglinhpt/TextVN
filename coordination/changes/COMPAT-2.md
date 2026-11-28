@@ -12,7 +12,7 @@
   nên distro mới thêm vào ma trận không bị kiểm GTK. Nay là danh sách đóng gồm cả các tag
   COMPAT-2; tag chưa khai báo ⇒ FAIL.
 
-### Phần 2 — (chờ ARM-L4 nhả `release.yml` + `run-distro-container.sh`)
+### Phần 2 — `release.yml` + `scripts/run-distro-container.sh`
 - Thêm vào `release.yml` (cùng `scripts/run-distro-container.sh`):
 
 | Tag | Ảnh | x86_64 | arm64 | Kỳ vọng settings |
@@ -42,7 +42,7 @@
   tags**, so distros newly added to the matrix were never GTK-checked. It is now a closed list
   that includes the COMPAT-2 tags; an undeclared tag FAILS.
 
-### Part 2 — (waiting for ARM-L4 to release `release.yml` + `run-distro-container.sh`)
+### Part 2 — `release.yml` + `scripts/run-distro-container.sh`
 - Add the distros in the table above to `release.yml`, using the same
   `scripts/run-distro-container.sh`: x86_64 for all 8, arm64 for all but Mint 22, which only has
   an amd64 image on Docker Hub.
