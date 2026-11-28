@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   hygiene:
-    name: repo hygiene (11 checks)
+    name: repo hygiene (12 checks)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -64,6 +64,9 @@ jobs:
 
       - name: 5. markdown link tương đối không hỏng
         run: cargo run -q -p xtask -- hygiene-docs
+
+      - name: "5b. Sổ hồi quy: mã lỗi đã sửa ↔ test/gate (REG-1)"
+        run: cargo run -q -p xtask -- regression-index
 
       - name: 6. file quy trình bắt buộc tồn tại
         run: |

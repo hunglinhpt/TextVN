@@ -250,6 +250,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "regression-index",
+        guards: "REG-1: mã lỗi đã sửa (E/R/R2/win) ↔ test/gate còn tồn tại — xoá test chặn lỗi cũ hoặc thêm mã không bằng chứng = đỏ (P0-5 §9b)",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "regression-index"],
+        optional: false,
+    },
+    Step {
         name: "hygiene-docs",
         guards: "link markdown nội bộ không hỏng",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-docs"],

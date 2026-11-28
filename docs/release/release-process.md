@@ -32,7 +32,7 @@
 
 ### A0. `cargo xtask preflight` — BẮT BUỘC exit 0 (thay cho chạy tay từng lệnh)
 
-Một lệnh chạy đủ 25 bước (mảng `STEPS` trong `xtask/src/preflight.rs`) theo đúng thứ tự CI, fail-fast, exit code thật
+Một lệnh chạy đủ 26 bước (mảng `STEPS` trong `xtask/src/preflight.rs`) theo đúng thứ tự CI, fail-fast, exit code thật
 (không bao giờ pipe `| tail` che exit code — sự cố 2 lần 2026-10-02: clippy
 `unused-mut` đẩy code rồi mới phát hiện). Preflight xanh = CI thấy đúng cây
 đang test ⇒ khả năng đỏ chỉ còn nhiễu runner (perf, typing smoke — rerun).
@@ -49,6 +49,7 @@ Chi tiết từng bước + điều nó chặn: `xtask/src/preflight.rs` (mảng
 | check-tables/en-office/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus / bảng câu EN văn phòng quên regenerate |
 | version-sync | 15 chỗ version | bump sót chỗ |
 | perf | hồi quy so baseline | baseline chết theo runner → phải re-record từ CI (7f069f0) |
+| regression-index | REG-1: mã lỗi đã sửa ↔ test/gate còn tồn tại (`docs/specs/regression-index.md`); xoá test chặn lỗi cũ / thêm mã không bằng chứng / tăng `todo:REG-2` = đỏ | P0-5 §9b |
 | hygiene-apis / hygiene-docs / hygiene-secrets | API giống-malware, link hỏng, rò rỉ secret | — |
 | no-python | cấm file `.py` / Python shebang trong repo (E59) | kéo runtime Python ngược lại vào repo |
 | store-validate | 3 bước manual package validation của Microsoft trên `dist/TextVN-setup-*.exe` (SKIP nếu máy dev đang cài TextVN) | B13 (Store đỏ 3 mục) |

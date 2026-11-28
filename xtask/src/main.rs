@@ -30,6 +30,7 @@ mod linux_tools;
 mod mac_corpus_cases;
 mod png;
 mod preflight;
+mod regression_index;
 mod toml;
 mod win_corpus_cases;
 mod win_tools;
@@ -119,6 +120,7 @@ fn main() -> ExitCode {
         // G21: bảng điều phối nhiều agent (coordination/board.jsonl) — BOARD-1/E83: logic
         // nằm ở crate `textvn-board` độc lập với build sản phẩm, `cargo xtask board` chỉ mượn lib.
         "board" => textvn_board::cli(&args[1..]),
+        "regression-index" => regression_index::cli(&args[1..]),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -151,6 +153,7 @@ fn usage() -> &'static str {
      cargo xtask check-mac-targets  # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
      cargo xtask board <lệnh>       # G21: nhận/giao task, giữ chỗ tệp, thông báo (board help)\n  \
+     cargo xtask regression-index   # REG-1: mã lỗi đã sửa ↔ test/gate (--bootstrap [--merge])\n  \
      cargo xtask check-ibus-component <xml> <base> # kiểm tra component IBus (E59)\n  \
      cargo xtask hygiene-docs       # link markdown nội bộ không hỏng\n  \
      cargo xtask hygiene-secrets    # secret/token/private key không được commit\n  \
