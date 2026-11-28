@@ -48,3 +48,46 @@
 - `cargo clippy -p textvn-bench -p xtask --all-targets -- -D warnings` (Windows + `x86_64-unknown-linux-gnu`): PASSED.
 - `cargo test -p textvn-bench` & `cargo test -p xtask`: PASSED (including mutation check on `target_triple_for`).
 - `cargo run -q --release -p textvn-bench -- check --auto`: selected `perf/baseline-x86_64-pc-windows-msvc.json` and PASSED.
+
+## VI — Sửa sau review (R2-176, 2026-11-28)
+
+- **Review CHƯA PASS**: 4 baseline aarch64/linux là **số liệu tròn tự đặt** (không đo từ
+  runner nào) — vi phạm luật "baseline phải re-record từ CI"; fallback baseline-win.json
+  cho host khác arch = so chéo arch = gate vô nghĩa (fail-open); baseline-win.json và
+  baseline-x86_64-pc-windows-msvc.json trùng nội dung = 2 nguồn (G22).
+- **Fix cả lớp lỗi**:
+  1. **Xoá 5 baseline số liệu giả** — repo chỉ còn `perf/baseline-win.json` (canonical
+     x86_64-windows); ghi `triple` + `run` trung thực vào nó (hiện "local-dev", TODO
+     re-record từ CI artifact ở B4).
+  2. **Provenance bắt buộc khi đọc**: `render()` ghi `"triple"` + `"run"` (GITHUB_RUN_ID
+     hoặc "local-dev"); `validate_baseline()` từ chối baseline thiếu `run` (số liệu giả
+     không qua gate nữa) và từ chối baseline arch khác host (không so chéo). Test mới
+     `r2_176_baseline_khong_provenance_hoac_sai_arch_bi_tu_choi` (bench 11/11).
+  3. **Thiếu baseline đúng arch ⇒ SKIP có cảnh báo** (không FAIL, không so chéo):
+     `resolve_baseline_path`/`baseline_path_for` trả `None`; preflight in SKIP (đếm ở
+     dòng tổng kết); bench `check --auto` in cảnh báo R2-176 + thoát SUCCESS. Test
+     `perf1_preflight_chon_dung_baseline_theo_may` mở rộng cho cả 2 nhánh (107/107).
+  4. **CI ghi số thật**: bước `textvn-bench write --auto` + upload artifact trên
+     ubuntu-24.04 (x86_64-linux), ma trận aarch64 Linux, windows-11-arm và job Windows
+     package (ghi thẳng `baseline-win.json` — một nguồn, `write --auto` đặt tên canonical
+     cho x86_64-windows). Số thật sẽ được commit kèm run id ở vòng kế.
+- Đột biến đã thử: baseline thiếu `run` ⇒ check ĐỎ; baseline `triple` khác host ⇒ check
+  ĐỎ; xoá baseline aarch64 ⇒ preflight SKIP (không đỏ, không so chéo).
+
+## English — Post-review fix (R2-176, 2026-11-28)
+
+- **Review not passed**: 4 aarch64/linux baselines were **fabricated round numbers**
+  (never measured on any runner) — violating "baselines must be re-recorded from CI";
+  baseline-win fallback on a different arch = cross-arch comparison = meaningless gate
+  (fail-open); baseline-win.json duplicated baseline-x86_64-pc-windows-msvc.json (G22).
+- **Class fix**: (1) deleted the 5 fabricated baselines — only canonical
+  `perf/baseline-win.json` remains, now carrying honest `triple` + `run` fields (CI
+  re-record TODO at B4); (2) mandatory provenance on read — `render()` writes
+  `triple`+`run` (GITHUB_RUN_ID), `validate_baseline()` rejects baselines without `run`
+  or from a different arch (new bench test, 11/11); (3) missing arch-correct baseline ⇒
+  SKIP with warning (preflight counts skips; bench `check --auto` warns + SUCCESS);
+  (4) CI now records real numbers via `textvn-bench write --auto` + uploads artifacts on
+  ubuntu-24.04, the aarch64 Linux matrix, windows-11-arm, and the Windows package job
+  (writes canonical baseline-win.json directly).
+- Mutations tried: baseline without `run` ⇒ check RED; baseline `triple` ≠ host ⇒ RED;
+  deleting an aarch64 baseline ⇒ preflight SKIP (no red, no cross-arch compare).

@@ -217,6 +217,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "quality",
+        guards: "bảng KPI chung BIZ-1 (Dream RSI oracle + trợ lý recall/FP + nợ hồi quy + rò rỉ eval): KPI tụt so bản trước trong perf/quality/ ⇒ đỏ; bất biến (rò rỉ/đột biến/vi phạm bất biến chữ mờ/nợ todo) phải = 0",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "quality-score"],
+        optional: false,
+    },
+    Step {
         name: "hygiene-apis",
         guards: "API giống malware bị cấm (Farch-3 / AV policy)",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-apis"],
@@ -296,8 +302,11 @@ pub fn target_triple_for(arch: &str, os: &str) -> &'static str {
     }
 }
 
-/// Chọn `perf/baseline-<triple>.json` theo máy đang chạy; fallback `perf/baseline-win.json`.
-pub fn baseline_path_for(root: &std::path::Path, arch: &str, os: &str) -> String {
+/// Chọn baseline theo máy đang chạy (R2-176): file đúng triple nếu có; fallback
+/// `perf/baseline-win.json` CHỈ khi host chính là x86_64-windows (đó là số thật của
+/// triple đó). Host khác mà thiếu baseline arch mình ⇒ `None` — bước perf phải SKIP
+/// có cảnh báo, tuyệt đối không so số chéo arch (gate vô nghĩa = fail-open).
+pub fn baseline_path_for(root: &std::path::Path, arch: &str, os: &str) -> Option<String> {
     let triple = target_triple_for(arch, os);
     let rel = format!("perf/baseline-{triple}.json");
     if root
@@ -305,10 +314,9 @@ pub fn baseline_path_for(root: &std::path::Path, arch: &str, os: &str) -> String
         .join(format!("baseline-{triple}.json"))
         .is_file()
     {
-        rel
-    } else {
-        "perf/baseline-win.json".to_string()
+        return Some(rel);
     }
+    (triple == "x86_64-pc-windows-msvc").then(|| "perf/baseline-win.json".to_string())
 }
 
 pub fn run() -> Result<(), String> {
@@ -321,6 +329,7 @@ pub fn run() -> Result<(), String> {
         std::env::consts::OS,
     );
     let mut failed: Vec<String> = Vec::new();
+    let mut skipped: usize = 0;
     for (i, step) in STEPS.iter().enumerate() {
         print!(
             "[{:>2}/{}] {:<15} — {} … ",
@@ -329,16 +338,37 @@ pub fn run() -> Result<(), String> {
             step.name,
             step.guards
         );
-        let mut cmd = Command::new(step.argv[0]);
         if step.name == "perf" {
+            let Some(baseline) = perf_baseline.as_deref() else {
+                println!(
+                    "SKIP — chưa có baseline re-record từ CI cho arch này (R2-176); CI ghi số thật bằng `textvn-bench write --auto` + artifact"
+                );
+                skipped += 1;
+                continue;
+            };
             let mut argv: Vec<&str> = step.argv[1..].to_vec();
             if let Some(last) = argv.last_mut() {
-                *last = perf_baseline.as_str();
+                *last = baseline;
             }
+            let mut cmd = Command::new(step.argv[0]);
             cmd.args(&argv);
-        } else {
-            cmd.args(&step.argv[1..]);
+            match cmd.status() {
+                Ok(s) if s.success() => println!("PASS"),
+                Ok(s) => {
+                    println!("FAIL (exit {})", s.code().unwrap_or(-1));
+                    failed.push(step.name.to_string());
+                    break; // fail-fast: sửa hết lỗi này đã rồi mới tới lỗi kế
+                }
+                Err(e) => {
+                    println!("KHÔNG CHẠY ĐƯỢC ({e})");
+                    failed.push(format!("{}: {e}", step.name));
+                    break;
+                }
+            }
+            continue;
         }
+        let mut cmd = Command::new(step.argv[0]);
+        cmd.args(&step.argv[1..]);
         let status = cmd.status();
         match status {
             Ok(s) if s.success() => println!("PASS"),
@@ -359,10 +389,17 @@ pub fn run() -> Result<(), String> {
     }
 
     if failed.is_empty() {
-        println!(
-            "\nOK — {} bước PASS. An toàn để commit/tag (CI sẽ thấy đúng cây này).",
-            STEPS.len()
-        );
+        if skipped > 0 {
+            println!(
+                "\nOK — {} bước PASS, {skipped} SKIP (thiếu baseline arch này — R2-176). An toàn để commit/tag (CI sẽ thấy đúng cây này).",
+                STEPS.len() - skipped
+            );
+        } else {
+            println!(
+                "\nOK — {} bước PASS. An toàn để commit/tag (CI sẽ thấy đúng cây này).",
+                STEPS.len()
+            );
+        }
         Ok(())
     } else {
         Err(format!(
@@ -392,13 +429,38 @@ mod tests {
         ] {
             let name = format!("baseline-{triple}.json");
             std::fs::write(dir.join("perf").join(&name), "{}").unwrap();
-            assert_eq!(baseline_path_for(&dir, arch, os), format!("perf/{name}"));
+            assert_eq!(
+                baseline_path_for(&dir, arch, os),
+                Some(format!("perf/{name}"))
+            );
         }
 
+        // R2-176: KHÔNG có file đúng triple ⇒ chỉ x86_64-windows được dùng baseline-win
+        // (số thật của đúng arch đó); arch khác ⇒ None (bước perf SKIP có cảnh báo,
+        // cấm so số chéo arch). File x86_64-windows cụ thể do vòng lặp tạo ra ở trên
+        // phải xoá để chạm đúng nhánh fallback.
+        std::fs::remove_file(
+            dir.join("perf")
+                .join("baseline-x86_64-pc-windows-msvc.json"),
+        )
+        .unwrap();
         assert_eq!(
-            baseline_path_for(&dir, "riscv64", "linux"),
-            "perf/baseline-win.json"
+            baseline_path_for(&dir, "x86_64", "windows"),
+            Some("perf/baseline-win.json".to_string())
         );
+        assert_eq!(baseline_path_for(&dir, "riscv64", "linux"), None);
+        // Xoá các file triple cụ thể ⇒ arch tương ứng chuyển sang None (bước perf SKIP
+        // có cảnh báo) — đúng trạng thái repo sau khi bỏ baseline số liệu giả (R2-176).
+        for (arch, os, triple) in [
+            ("aarch64", "windows", "aarch64-pc-windows-msvc"),
+            ("aarch64", "linux", "aarch64-unknown-linux-gnu"),
+            ("x86_64", "linux", "x86_64-unknown-linux-gnu"),
+            ("aarch64", "macos", "aarch64-apple-darwin"),
+        ] {
+            std::fs::remove_file(dir.join("perf").join(format!("baseline-{triple}.json")))
+                .unwrap();
+            assert_eq!(baseline_path_for(&dir, arch, os), None);
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

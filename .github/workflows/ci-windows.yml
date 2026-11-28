@@ -105,6 +105,15 @@ jobs:
           cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
       - name: PERF-1 — check perf baseline (aarch64-pc-windows-msvc)
         run: cargo run -q --release --locked -p textvn-bench -- check --auto
+      - name: PERF-1 — ghi số thật của runner + artifact (R2-176: baseline phải từ CI)
+        run: |
+          cargo run -q --release --locked -p textvn-bench -- write --auto
+          Get-Content perf\baseline-aarch64-pc-windows-msvc.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-aarch64-windows
+          path: perf/baseline-aarch64-pc-windows-msvc.json
+          if-no-files-found: error
       - name: Inno Setup 6 (ARM-W4)
         shell: powershell
         run: |
@@ -193,6 +202,16 @@ jobs:
       - name: build-release.ps1 (fmt, clippy, verify, replay, build, smoke, zip, installer)
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -SkipTests -BuildInstaller
+      - name: PERF-1 — ghi baseline-win.json thật của runner + artifact (R2-176)
+        shell: powershell
+        run: |
+          cargo run -q --release --locked -p textvn-bench -- write --auto
+          Get-Content perf\baseline-win.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-x86_64-windows-${{ matrix.os }}
+          path: perf/baseline-win.json
+          if-no-files-found: error
       - name: Kịch bản 2 — giải nén ra dùng luôn (portable zip)
         shell: powershell
         run: |

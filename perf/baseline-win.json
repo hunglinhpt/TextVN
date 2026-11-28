@@ -1,6 +1,8 @@
 {
   "schema": "textvn-bench.v1",
   "platform": "win",
+  "triple": "x86_64-pc-windows-msvc",
+  "run": "local-dev (re-record tu CI qua artifact windows-latest - todo PERF-1/R2-176)",
   "regression_pct": 10,
   "measurements": [
     {"name":"ime_key","samples":20000,"p50_ns":587,"p99_ns":625,"mean_ns":596,"budget_ns":500000},

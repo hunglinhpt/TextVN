@@ -153,6 +153,15 @@ jobs:
       - run: scripts/build-linux.sh --skip-tests --el8-dir target/linux-el8 --compat-dir target/linux-compat
       # 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng textvn-portable.sh) × IBus + Fcitx5 trên Ubuntu 24.04.
       - run: scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      - name: PERF-1 — ghi số thật của runner + artifact (R2-176: baseline phải từ CI)
+        run: |
+          cargo run -q --release --locked -p textvn-bench -- write --auto
+          cat perf/baseline-x86_64-unknown-linux-gnu.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-x86_64-linux
+          path: perf/baseline-x86_64-unknown-linux-gnu.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: textvn-linux-x86_64
@@ -206,6 +215,15 @@ jobs:
           cargo run -q -p textvn-cli -- sizes
       - name: PERF-1 — so baseline hiệu năng ARM64 Linux (aarch64-unknown-linux-gnu)
         run: cargo run -q --release --locked -p textvn-bench -- check --auto
+      - name: PERF-1 — ghi số thật của runner + artifact (R2-176: baseline phải từ CI)
+        run: |
+          cargo run -q --release --locked -p textvn-bench -- write --auto
+          cat perf/baseline-aarch64-unknown-linux-gnu.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-aarch64-linux-${{ matrix.os }}
+          path: perf/baseline-aarch64-unknown-linux-gnu.json
+          if-no-files-found: error
       - name: replay corpus 4 adapter (headless/tsf/mac/linux)
         run: |
           cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless

@@ -244,13 +244,60 @@ fn host_target_triple() -> &'static str {
     target_triple_for(std::env::consts::ARCH, std::env::consts::OS)
 }
 
-/// Chọn `perf/baseline-<triple>.json` nếu tồn tại, fallback về `perf/baseline-win.json`.
-fn resolve_baseline_path(dir: &std::path::Path, triple: &str) -> std::path::PathBuf {
+/// Chọn `perf/baseline-<triple>.json` nếu tồn tại; chỉ fallback về `perf/baseline-win.json`
+/// khi host CHÍNH LÀ x86_64-windows (baseline-win là số thật của triple đó). Host khác mà
+/// không có baseline của arch mình ⇒ `None` — caller phải SKIP với cảnh báo (R2-176: cấm
+/// so số ARM/linux với số x86_windows, đó là gate vô nghĩa/fail-open).
+fn resolve_baseline_path(dir: &std::path::Path, triple: &str) -> Option<std::path::PathBuf> {
     let specific = dir.join(format!("baseline-{triple}.json"));
     if specific.is_file() {
-        specific
+        return Some(specific);
+    }
+    (triple == "x86_64-pc-windows-msvc").then(|| dir.join("baseline-win.json"))
+}
+
+/// Provenance bắt buộc trong baseline (R2-176 — số liệu giả bị chặn khi đọc): `run` phải
+/// có (CI run id hoặc "local-<nguồn>"), và `triple` (nếu ghi) phải khớp host; baseline cũ
+/// không ghi `triple` chỉ được nhận khi host là x86_64-windows (kỷ nguyên baseline-win).
+pub fn validate_baseline(old: &str, triple: &str) -> Result<(), String> {
+    let run = num_str(old, "\"run\"");
+    if run.is_empty() {
+        return Err("baseline thiếu provenance `run` — re-record bằng `textvn-bench write --auto` từ CI (R2-176)".into());
+    }
+    if let Some(t) = json_str(old, "\"triple\"") {
+        if t != triple {
+            return Err(format!(
+                "baseline của `{t}` nhưng host là `{triple}` — không so chéo arch (R2-176)"
+            ));
+        }
+    } else if triple != "x86_64-pc-windows-msvc" {
+        return Err(format!(
+            "baseline không ghi `triple` chỉ hợp lệ trên x86_64-windows, host là `{triple}` (R2-176)"
+        ));
+    }
+    Ok(())
+}
+
+/// Giá trị chuỗi của khoá `"key":"..."` (JSON phẳng của bench tự viết).
+fn json_str(text: &str, key: &str) -> Option<String> {
+    let pat = format!("{key}:");
+    let p = text.find(&pat)? + pat.len();
+    let rest = text[p..].trim_start();
+    let rest = rest.strip_prefix('"')?;
+    Some(rest.chars().take_while(|c| *c != '"').collect())
+}
+
+/// Giá trị của khoá `"key":` — chuỗi hoặc số (dạng chữ), dùng chung cho provenance.
+fn num_str(text: &str, key: &str) -> String {
+    let pat = format!("{key}:");
+    let Some(p) = text.find(&pat) else {
+        return String::new();
+    };
+    let rest = text[p + pat.len()..].trim_start();
+    if rest.starts_with('"') {
+        rest[1..].chars().take_while(|c| *c != '"').collect()
     } else {
-        dir.join("baseline-win.json")
+        rest.chars().take_while(char::is_ascii_digit).collect()
     }
 }
 
@@ -260,6 +307,11 @@ fn render(all: &[Measurement], with_platform: bool, dream: &DreamRsiStat) -> Str
         let _ = writeln!(s, "  \"platform\": \"{}\",", platform());
         let _ = writeln!(s, "  \"target\": \"{}\",", host_target_triple());
     }
+    // Provenance R2-176: ai ghi số này (CI run id, hoặc nguồn máy dev) — validate_baseline
+    // từ chối mọi baseline thiếu `run` để số liệu giả không thể qua gate.
+    let run = std::env::var("GITHUB_RUN_ID").unwrap_or_else(|_| "local-dev".into());
+    let _ = writeln!(s, "  \"triple\": \"{}\",", host_target_triple());
+    let _ = writeln!(s, "  \"run\": \"{run}\",");
     let _ = writeln!(
         s,
         "  \"regression_pct\": {REGRESSION_PCT},\n  \"measurements\": ["
@@ -1118,7 +1170,14 @@ fn main() -> std::process::ExitCode {
         "write" => {
             let p = match path.as_deref() {
                 None | Some("--auto") => {
-                    format!("perf/baseline-{}.json", host_target_triple())
+                    // R2-176: x86_64-windows chỉ có MỘT baseline canonical là
+                    // baseline-win.json (tránh 2 file trùng nội dung — G22).
+                    let triple = host_target_triple();
+                    if triple == "x86_64-pc-windows-msvc" {
+                        "perf/baseline-win.json".to_string()
+                    } else {
+                        format!("perf/baseline-{triple}.json")
+                    }
                 }
                 Some(explicit) => explicit.to_string(),
             };
@@ -1134,17 +1193,31 @@ fn main() -> std::process::ExitCode {
             println!("đã ghi baseline: {p}");
         }
         "check" => {
+            let triple = host_target_triple();
             let resolved = match path.as_deref() {
                 None | Some("--auto") => {
-                    resolve_baseline_path(std::path::Path::new("perf"), host_target_triple())
+                    resolve_baseline_path(std::path::Path::new("perf"), triple)
                 }
-                Some(explicit) => std::path::PathBuf::from(explicit),
+                Some(explicit) => Some(std::path::PathBuf::from(explicit)),
+            };
+            let Some(resolved) = resolved else {
+                // R2-176: host không có baseline của arch mình → SKIP có cảnh báo, cấm
+                // so chéo arch (gate vô nghĩa). CI ghi số thật bằng `write --auto` + artifact;
+                // khi số thật được commit với provenance thì gate tự bật lại.
+                eprintln!(
+                    "SKIP perf gate: chưa có baseline re-record từ CI cho `{triple}` (R2-176) — chạy `write --auto` trên runner để ghi số thật"
+                );
+                return ExitCode::SUCCESS;
             };
             let p = resolved.to_string_lossy().into_owned();
             let Ok(old) = std::fs::read_to_string(&resolved) else {
                 eprintln!("không đọc được baseline `{p}` — chạy `write` trước");
                 return ExitCode::FAILURE;
             };
+            if let Err(e) = validate_baseline(&old, triple) {
+                eprintln!("baseline `{p}` từ chối: {e}");
+                return ExitCode::FAILURE;
+            }
             println!("baseline: {p}");
             match compare(&old, &all, &dream) {
                 Ok(text) => println!("{text}"),
@@ -1178,6 +1251,34 @@ mod tests {
             p99_ns: p50 * 2,
             mean_ns: p50,
         }
+    }
+
+    /// R2-176: baseline không provenance hoặc sai arch phải bị từ chối khi check —
+    /// số liệu giả/khác arch không được qua gate hiệu năng.
+    #[test]
+    fn r2_176_baseline_khong_provenance_hoac_sai_arch_bi_tu_choi() {
+        // Đủ provenance, khớp arch → nhận.
+        let ok = r#"{"triple":"aarch64-unknown-linux-gnu","run":"46106174366","measurements":[]}"#;
+        assert!(validate_baseline(ok, "aarch64-unknown-linux-gnu").is_ok());
+        // Thiếu `run` (số liệu giả kiểu PERF-1) → từ chối.
+        let no_run = r#"{"triple":"aarch64-unknown-linux-gnu","measurements":[]}"#;
+        assert!(validate_baseline(no_run, "aarch64-unknown-linux-gnu")
+            .err()
+            .unwrap()
+            .contains("provenance"));
+        // `triple` khác host (so chéo arch) → từ chối.
+        let wrong_arch = r#"{"triple":"x86_64-pc-windows-msvc","run":"42","measurements":[]}"#;
+        assert!(validate_baseline(wrong_arch, "aarch64-unknown-linux-gnu")
+            .err()
+            .unwrap()
+            .contains("không so chéo"));
+        // Baseline kỷ nguyên cũ không ghi `triple`: chỉ hợp lệ trên x86_64-windows.
+        let legacy = r#"{"platform":"win","run":"42","measurements":[]}"#;
+        assert!(validate_baseline(legacy, "x86_64-pc-windows-msvc").is_ok());
+        assert!(validate_baseline(legacy, "aarch64-pc-windows-msvc")
+            .err()
+            .unwrap()
+            .contains("không ghi"));
     }
 
     #[test]
@@ -1487,11 +1588,16 @@ mod tests {
         std::fs::write(&arm_file, "{}").unwrap();
         assert_eq!(
             resolve_baseline_path(&dir, "aarch64-unknown-linux-gnu"),
-            arm_file
+            Some(arm_file)
+        );
+        // R2-176: fallback baseline-win CHỈ cho x86_64-windows; arch lạ ⇒ None (skip).
+        assert_eq!(
+            resolve_baseline_path(&dir, "x86_64-pc-windows-msvc"),
+            Some(dir.join("baseline-win.json"))
         );
         assert_eq!(
             resolve_baseline_path(&dir, "riscv64gc-unknown-linux-gnu"),
-            dir.join("baseline-win.json")
+            None
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
