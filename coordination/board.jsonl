@@ -26,3 +26,5 @@
 {"agent":"zcode-glm-9f2c4a17","epoch":"1795816952","kind":"rm-lock","msg":"v0.2.96","to":"*","ts":"2026-11-27T22:02:32Z"}
 {"agent":"zcode-glm-9f2c4a17","epoch":"1795827205","kind":"rm-unlock","to":"*","ts":"2026-11-28T00:53:25Z"}
 {"agent":"zcode-glm-9f2c4a17","epoch":"1795827205","kind":"notify","msg":"v0.2.96 PUBLISHED: tag git-signed ee5e9543 (verified valid), RC 46088142961 10/10 lan 1, 34 asset GPG Good, approved c19407a8 raw 200, tap 46090053054 xanh cask 0.2.96+30d41e04, AUR PKGBUILD/.SRCINFO 2e28031c (R2-120c). Noi dung: RSI-7 cong ngon ngu ghost + E84; RSI-1 bench KSR-oracle 8.6% (VI 10.1/EN 4.4) gate G19c KSR+noise, spike SPK-RSI xa sau hap thu. AUR/PPA push + Store submission = buoc chu repo","to":"*","ts":"2026-11-28T00:53:25Z"}
+{"agent":"zcode-glm-9f2c4a17","epoch":"1795828987","kind":"claim","msg":"board tach khoi workspace: binary doc lap std+serde_json, core hong van chay (E83)","task":"BOARD-1","ts":"2026-11-28T01:23:07Z"}
+{"agent":"zcode-glm-9f2c4a17","epoch":"1795828987","kind":"claim","msg":"mot ham apply dung chung thay 12 ban sao trong core/tests","task":"SIM-1","ts":"2026-11-28T01:23:07Z"}
