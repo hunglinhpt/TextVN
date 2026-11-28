@@ -53,6 +53,29 @@ fn u64_at(d: &[u8], off: usize) -> Result<u64, String> {
         .ok_or_else(|| format!("ZIP: thiếu byte tại 0x{off:X}"))
 }
 
+/// ARM-W1 — trường `Machine` của COFF header (`IMAGE_FILE_MACHINE_*`): 0x8664 x64, 0x14C x86,
+/// 0xAA64 ARM64 (cả ảnh ARM64X — phân biệt bằng bảng CHPE, ngoài phạm vi kiểm này).
+pub fn pe_machine(d: &[u8]) -> Result<u16, String> {
+    if d.len() < 0x40 || &d[..2] != b"MZ" {
+        return Err("không phải PE (thiếu MZ)".into());
+    }
+    let pe = u32_at(d, 0x3C)? as usize;
+    if d.get(pe..pe.saturating_add(4)) != Some(b"PE\0\0") {
+        return Err("không phải PE (thiếu chữ ký PE)".into());
+    }
+    u16_at(d, pe.checked_add(4).ok_or("PE: tràn Machine")?)
+}
+
+/// Tên kiến trúc ↔ mã `Machine` cho `check-pe-imports --machine`.
+pub fn machine_code(name: &str) -> Option<u16> {
+    match name {
+        "x64" | "x86_64" | "amd64" => Some(0x8664),
+        "x86" | "i686" => Some(0x14C),
+        "arm64" | "aarch64" => Some(0xAA64),
+        _ => None,
+    }
+}
+
 /// Đọc bảng import (và delay-load import nếu có) của một PE (Portable Executable)
 /// — parser thuần byte với kiểm tra biên/tràn đầy đủ, KHÔNG cần dumpbin/Visual Studio.
 pub fn pe_imports_bytes(d: &[u8]) -> Result<Vec<String>, String> {
@@ -239,9 +262,22 @@ fn is_forbidden_eager_graphics_dll(name: &str) -> bool {
 
 /// CLI: `xtask check-pe-imports <files>...` — Err khi PE nào phụ thuộc
 /// VC++ runtime, link tĩnh DLL đồ họa nặng (E66), hoặc không đọc được.
-pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
+pub fn check_pe_imports_cli(args: &[String]) -> Result<(), String> {
+    // `--machine <x64|x86|arm64>` (ARM-W1): mọi tệp phải đúng kiến trúc — chặn bản ARM64 lẫn
+    // DLL x64 (hoặc ngược lại) khi đóng gói nhiều kiến trúc.
+    let mut want_machine: Option<u16> = None;
+    let mut files: Vec<&String> = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "--machine" {
+            let name = it.next().ok_or("--machine cần giá trị x64|x86|arm64")?;
+            want_machine = Some(machine_code(name).ok_or_else(|| format!("--machine lạ: {name}"))?);
+        } else {
+            files.push(a);
+        }
+    }
     if files.is_empty() {
-        return Err("cách dùng: cargo xtask check-pe-imports <file.exe|file.dll> [...]".into());
+        return Err("cách dùng: cargo xtask check-pe-imports [--machine x64|x86|arm64] <file.exe|file.dll> [...]".into());
     }
     let mut bad = 0usize;
     for path in files {
@@ -253,6 +289,21 @@ pub fn check_pe_imports_cli(files: &[String]) -> Result<(), String> {
                 continue;
             }
         };
+        if let Some(want) = want_machine {
+            match pe_machine(&data) {
+                Ok(m) if m == want => println!("OK   {path}: Machine 0x{m:04X}"),
+                Ok(m) => {
+                    println!("FAIL {path}: Machine 0x{m:04X}, cần 0x{want:04X}");
+                    bad += 1;
+                    continue;
+                }
+                Err(e) => {
+                    println!("FAIL {path}: {e}");
+                    bad += 1;
+                    continue;
+                }
+            }
+        }
         match pe_imports_bytes(&data) {
             Err(e) => {
                 println!("FAIL {path}: {e}");
@@ -1515,6 +1566,21 @@ mod tests {
         pe[sec_off + 20..sec_off + 24].copy_from_slice(&(raw_off as u32).to_le_bytes());
         pe[raw_off..raw_off + sec_data.len()].copy_from_slice(&sec_data);
         pe
+    }
+
+    /// ARM-W1: đọc đúng trường `Machine` của COFF header; tên kiến trúc ↔ mã.
+    #[test]
+    fn arm_w1_pe_machine_doc_dung_kien_truc() {
+        let mut pe = build_synthetic_pe(true, &["KERNEL32.dll"]);
+        let off = u32::from_le_bytes(pe[0x3C..0x40].try_into().unwrap()) as usize + 4;
+        for (name, code) in [("arm64", 0xAA64u16), ("x64", 0x8664), ("x86", 0x14C)] {
+            pe[off..off + 2].copy_from_slice(&code.to_le_bytes());
+            assert_eq!(pe_machine(&pe).unwrap(), code);
+            assert_eq!(machine_code(name), Some(code));
+        }
+        assert_eq!(machine_code("aarch64"), Some(0xAA64));
+        assert_eq!(machine_code("mips"), None);
+        assert!(pe_machine(b"not a pe").is_err());
     }
 
     #[test]

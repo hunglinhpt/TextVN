@@ -10,3 +10,8 @@ rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# ARM-W1: Windows ARM64 (Snapdragon X / Surface Pro X) — cùng luật R2-18: TIP ARM64 nạp vào mọi
+# tiến trình ARM64 native, không được phụ thuộc VC++ redist (`check-pe-imports --machine arm64`).
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
