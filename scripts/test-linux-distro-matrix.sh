@@ -3,7 +3,8 @@
 # test-linux-distro-matrix.sh [--system-only] <distro-tag> <tarball> <e2e_ibus_bin> [e2e_fcitx5_bin]
 # Kiểm thử đầu-cuối ĐÚNG MỘT gói phát hành đa distro trên các distro Linux doanh nghiệp
 # và phổ thông hàng đầu: RHEL 9 / AlmaLinux 9, SLES 15 / openSUSE Leap 15.6,
-# Ubuntu 22.04 LTS, Debian 12 Bookworm, Fedora 41 (E68).
+# Ubuntu 22.04 LTS, Debian 12 Bookworm, Fedora 41 (E68); COMPAT-2 thêm Ubuntu 24.04/26.04,
+# Linux Mint 22, Debian 13 Trixie, Fedora 42/43, openSUSE Tumbleweed, AlmaLinux 10.
 
 set -euo pipefail
 
@@ -16,7 +17,7 @@ if [[ "${1:-}" == --system-only ]]; then
     SYSTEM_ONLY=1
     shift
 fi
-DISTRO="${1:?cần tên distro (vd. almalinux-9, ubuntu-22-04, debian-12, opensuse-leap-15-6, fedora-41)}"
+DISTRO="${1:?cần tên distro (vd. almalinux-9, almalinux-10, ubuntu-22-04, ubuntu-24-04, ubuntu-26-04, mint-22, debian-12, debian-13, opensuse-leap-15-6, opensuse-tumbleweed, fedora-41, fedora-42, fedora-43)}"
 TARBALL="$(realpath "${2:?cần đường dẫn tarball}")"
 E2E_IBUS="$(realpath "${3:?cần đường dẫn e2e_ibus}")"
 E2E_FCITX5=""
@@ -82,12 +83,17 @@ if [[ "$SYSTEM_ONLY" == 0 ]]; then
     "$pkg1/bin/textvn-settings" --check-abi || fail "textvn-settings --check-abi lỗi"
     set_ver="$("$pkg1/bin/textvn-settings" --version)" || fail "textvn-settings --version lỗi"
     echo "  settings backend: $set_ver"
+    # Danh sách ĐÓNG (COMPAT-2): tag mới phải khai báo kỳ vọng GTK ở đây — trước đây tag
+    # lạ rơi qua `case` không kiểm gì (fail-open khi mở rộng ma trận distro).
     case "$DISTRO" in
-        ubuntu-22-04|debian-12|fedora-41)
+        ubuntu-22-04|ubuntu-24-04|ubuntu-26-04|mint-22|debian-12|debian-13|fedora-41|fedora-42|fedora-43|opensuse-tumbleweed)
             grep -q "GTK4" <<<"$set_ver" || fail "mong đợi GTK4 native trên $DISTRO nhưng ra: $set_ver"
             ;;
-        almalinux-9|opensuse-leap-15-6)
+        almalinux-9|almalinux-10|opensuse-leap-15-6)
             grep -qE "GTK(3|4)" <<<"$set_ver" || fail "settings không nhận diện GTK3/GTK4: $set_ver"
+            ;;
+        *)
+            fail "DISTRO_TAG '$DISTRO' chưa khai báo kỳ vọng GTK trong test-linux-distro-matrix.sh"
             ;;
     esac
     if command -v fcitx5 >/dev/null 2>&1; then
