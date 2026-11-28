@@ -40,3 +40,43 @@
 - `cargo xtask iss-tabs`, `cargo xtask check-version-sync`, `cargo xtask no-python`, `cargo xtask hygiene-docs`, `cargo xtask hygiene-apis`, `cargo xtask hygiene-secrets`, `cargo xtask regression-index`, and `cargo xtask eval-leak` PASSED.
 - `ISCC.exe` (Inno Setup 6.7.3) compiled all 3 modes (`/DTargetArch=x64`, `/DTargetArch=arm64`, `/DTargetArch=multi` including `[Code]` `IsArm64Arch()`) cleanly.
 - Real Windows ARM64 packaging and install/uninstall E2E run in the `windows-arm64` CI job (`windows-11-arm`).
+
+## VI — Sửa sau review (E89, 2026-11-28)
+
+- **Review CHƯA PASS**: ci-windows job ARM64 đỏ tại bước test-portable —
+  `test-typing.ps1:141 "could not focus notepad main window"`. Nguyên nhân gốc: session
+  runner windows-11-arm không có foreground window (`GetForegroundWindow() = NULL`) làm
+  `AttachThreadInput(0)` vô nghĩa và `SetForegroundWindow` bị từ chối theo thuật toán
+  foreground-lock của Win32 — thang cũ chỉ có 1 mức.
+- **Fix cả lớp lỗi (E89)** — `Ensure-Focus` dùng thang 4 mức `FocusLadder`:
+  1. `AttachThreadInput` + `SetForegroundWindow` (mức cũ, nhanh);
+  2. `SwitchToThisWindow` ×3 (cho session "lạnh");
+  3. Alt-trick: SendInput VK_MENU rồi `SetForegroundWindow` (mở khoá foreground-lock);
+  4. **Click chuột thật** vào tâm cửa sổ chính (`SendInput MOUSEEVENTF_ABSOLUTE`, quy
+     đổi 0–65535 theo GetSystemMetrics) — click đặt foreground + focus edit cùng lúc,
+     không bao giờ chết trên runner có desktop tương tác.
+  Mỗi mức đều VERIFY `GetForegroundWindow() == main`; fail hết mới throw kèm dump chẩn
+  đoán E89 (giá trị fg/main hex — không có nội dung người dùng, G8).
+- Bằng chứng: `Parser::ParseFile` xanh; `cargo xtask ascii-ps1` 30 file OK (G7); comment
+  trong C# heredoc ASCII thuần.
+- Việc còn (theo review): ADR-015 nêu rõ asset `windows-arm64` (setup/portable) là kế
+  hoạch phát hành riêng — ghim task release kế (ARM-W7, đăng ký trên board).
+
+## English — Post-review fix (E89, 2026-11-28)
+
+- **Review not passed**: ci-windows ARM64 job red at the portable E2E step —
+  `test-typing.ps1:141 "could not focus notepad main window"`. Root cause: the
+  windows-11-arm runner session has no foreground window (`GetForegroundWindow() =
+  NULL`), making `AttachThreadInput(0)` a no-op and `SetForegroundWindow` rejected by
+  the Win32 foreground-lock algorithm — the old ladder had a single rung.
+- **Class fix (E89)** — `Ensure-Focus` now walks a 4-rung `FocusLadder`:
+  (1) AttachThreadInput + SetForegroundWindow; (2) SwitchToThisWindow ×3; (3) Alt-trick
+  (SendInput VK_MENU) then SetForegroundWindow; (4) a REAL mouse click at the main
+  window centre (MOUSEEVENTF_ABSOLUTE normalised to 0–65535 via GetSystemMetrics) which
+  sets foreground and edit focus in one gesture. Every rung verifies
+  `GetForegroundWindow() == main`; final failure throws with an E89 diagnostic dump
+  (fg/main hex — no user content, G8).
+- Evidence: Parser::ParseFile green; ascii-ps1 gate 30 files OK (G7); C# heredoc
+  comments pure ASCII.
+- Remaining (per review): ADR-015 states windows-arm64 setup/portable release assets are
+  a separate planned release task (ARM-W7, to be registered on the board).

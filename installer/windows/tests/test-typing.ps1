@@ -20,8 +20,12 @@ using System.Runtime.InteropServices;
 public static class TvKeys {
     [StructLayout(LayoutKind.Sequential)]
     struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
     [StructLayout(LayoutKind.Explicit, Size = 40)]
-    struct INPUT { [FieldOffset(0)] public uint type; [FieldOffset(8)] public KEYBDINPUT ki; }
+    struct INPUT { [FieldOffset(0)] public uint type; [FieldOffset(8)] public KEYBDINPUT ki; [FieldOffset(8)] public MOUSEINPUT mi; }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint n, INPUT[] p, int cb);
     [DllImport("user32.dll")] static extern uint MapVirtualKeyW(uint code, uint type);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -37,6 +41,12 @@ public static class TvKeys {
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr w, StringBuilder l);
     [DllImport("user32.dll")] static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr w, IntPtr l);
+    // E89: thang focus cho session khong co foreground window (runner windows-11-arm:
+    // GetForegroundWindow() = NULL lam AttachThreadInput(0) vo nghia va SetForegroundWindow
+    // tu choi theo thuat toan foreground-lock cua Win32).
+    [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr h, bool altTab);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] static extern int GetSystemMetrics(int i);
 
     const uint INPUT_KEYBOARD = 1, KEYEVENTF_KEYUP = 2, KEYEVENTF_EXTENDEDKEY = 1;
 
@@ -98,6 +108,51 @@ public static class TvKeys {
         return ok && GetForegroundWindow() == h;
     }
 
+    // E89: click chuot that vao tam cua so chinh - duong focus tin cay nhat khi session
+    // khong co foreground window: click dat foreground + focus edit cung luc (edit cua
+    // Notepad/WordPad phu phan lon client nen tam cua so nam trong vung go chu).
+    public static bool ClickFocus(IntPtr main, IntPtr edit) {
+        RECT r;
+        if (!GetWindowRect(main, out r)) return false;
+        int cx = (r.Left + r.Right) / 2, cy = (r.Top + r.Bottom) / 2;
+        int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
+        if (sw <= 0 || sh <= 0) return false;
+        int ax = (int)((long)cx * 65535 / (sw - 1));
+        int ay = (int)((long)cy * 65535 / (sh - 1));
+        const uint MOVE = 0x0001 | 0x4000 /*ABSOLUTE*/, DOWN = 0x0002, UP = 0x0004;
+        var seq = new[] {
+            new INPUT { type = 0 }, new INPUT { type = 0 }, new INPUT { type = 0 } };
+        seq[0].mi = new MOUSEINPUT { dx = ax, dy = ay, dwFlags = MOVE };
+        seq[1].mi = new MOUSEINPUT { dwFlags = DOWN };
+        seq[2].mi = new MOUSEINPUT { dwFlags = UP };
+        if (SendInput(3, seq, Marshal.SizeOf(typeof(INPUT))) != 3) return false;
+        Thread.Sleep(250);
+        return GetForegroundWindow() == main;
+    }
+
+    // E89: thang focus 4 muc - tra ten muc thanh cong ("" neu that bai het). Mun
+    // chan danh cho CI: muc (1) nhanh; (2) SwitchToThisWindow cho session "lanh";
+    // (3) Alt-trick mo khoa foreground-lock; (4) click that vao edit (dat FOREGROUND
+    // + focus cung luc - khong bao gio chet tren runner co desktop tuong tac).
+    public static string FocusLadder(IntPtr main, IntPtr edit) {
+        if (Focus(main)) return "setforeground";
+        for (int k = 0; k < 3; k++) {
+            SwitchToThisWindow(main, true);
+            Thread.Sleep(200);
+            if (GetForegroundWindow() == main) return "switchtothiswindow";
+        }
+        for (int k = 0; k < 3; k++) {
+            SendInput(2, new[] { Key(0x12 /*VK_MENU*/, false), Key(0x12, true) },
+                Marshal.SizeOf(typeof(INPUT)));
+            if (Focus(main)) return "alt-trick";
+        }
+        for (int k = 0; k < 3; k++) {
+            Focus(main);
+            if (ClickFocus(main, edit)) return "click-edit";
+        }
+        return "";
+    }
+
     public static IntPtr EditOf(IntPtr main) {
         foreach (var cls in new[] { "Edit", "RichEditD2DPT", "RICHEDIT50W" }) {
             IntPtr e = FindWindowExW(main, IntPtr.Zero, cls, null);
@@ -133,12 +188,19 @@ function Codes([string]$s) { ($s.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f 
 
 # Focus must be VERIFIED before every burst: a single SetForegroundWindow call
 # loses races on slow shared runners and keys land nowhere ("got []" FAILs).
+# E89: session khong co foreground window (windows-11-arm) lam SetForegroundWindow
+# tu choi -> thang 4 muc (setforeground/switch/alt-trick/click-edit) + dump chan doan.
 function Ensure-Focus($app) {
     for ($i = 0; $i -lt 10; $i++) {
-        if ([TvKeys]::Focus($app.Main)) { return }
+        $how = [TvKeys]::FocusLadder($app.Main, $app.Edit)
+        if ($how -ne '') {
+            if ($i -gt 0) { Write-Host "focus OK (lan $i, kenh: $how)" }
+            return
+        }
         Start-Sleep -Milliseconds 300
     }
-    throw "could not focus $($app.Name) main window"
+    $fg = [TvKeys]::GetForegroundWindow()
+    throw "could not focus $($app.Name) main window (E89: fg=0x$($fg.ToString('X')), main=0x$($app.Main.ToString('X')))"
 }
 
 # Clear must be VERIFIED before typing the next case: keys landing after a lost
