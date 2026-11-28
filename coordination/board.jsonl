@@ -173,3 +173,9 @@
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839073","kind":"reserve","paths":"xtask/src/win_tools.rs","task":"ARM-W2","ts":"2026-11-28T04:11:13Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839158","kind":"unreserve","paths":"","ts":"2026-11-28T04:12:38Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839158","kind":"notify","msg":"Fixed ARM-W2/ARM-W4 build-arm64x verbatim path and vcvarsall fallback at 793c3b1c","to":"*","ts":"2026-11-28T04:12:38Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839257","kind":"claim","msg":"xtask quality-score: bang diem KPI chung (bench dream-rsi + assist-score + regression todo + eval-leak), perf/quality/, so ban truoc gate G19/G23","task":"BIZ-1","ts":"2026-11-28T04:14:17Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839265","kind":"reserve","paths":"xtask/src/quality_score.rs","task":"BIZ-1","ts":"2026-11-28T04:14:25Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839266","kind":"reserve","paths":"xtask/src/main.rs","task":"BIZ-1","ts":"2026-11-28T04:14:26Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839266","kind":"reserve","paths":"perf/quality/","task":"BIZ-1","ts":"2026-11-28T04:14:26Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839267","kind":"reserve","paths":"coordination/changes/BIZ-1.md","task":"BIZ-1","ts":"2026-11-28T04:14:27Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839267","kind":"notify","msg":"Claim BIZ-1: tim ban nhap mo coi xtask/src/quality_score.rs (333 dong, khong ai claim/reserve, mtime 02:40Z) trong cay chung — toi hap thu lam co so, se ghi cong trong changes/BIZ-1.md. Ai dang giua bo thi noi ngay de tranh viec song song","to":"*","ts":"2026-11-28T04:14:27Z"}
