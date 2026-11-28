@@ -80,3 +80,33 @@
   comments pure ASCII.
 - Remaining (per review): ADR-015 states windows-arm64 setup/portable release assets are
   a separate planned release task (ARM-W7, to be registered on the board).
+
+## VI — E89 vòng 2 (2026-11-28, CI run 46111640219)
+
+- **Bằng chứng dump của vòng 1 chỉ ra nguyên nhân thật**: `fg=0x901E8` — runner CÓ
+  foreground window (không phải null như giả thuyết đầu) nhưng cả 4 mức thang đều
+  không đổi được nó; click tuyệt-định cũng vô hiệu ⇒ cửa sổ Notepad đang ở trạng thái
+  **minimized** — `GetWindowRect` trả (-32000,-32000), click chuẩn-hóa rơi vào góc màn
+  hình, không bao giờ chạm cửa sổ.
+- **Fix vòng 2** (`test-typing.ps1`): (1) `Focus()` dùng `SW_RESTORE(9)` thay
+  `SW_SHOW(5)` — SW_SHOW không gỡ minimized; (2) `ClickFocus` gọi `IsIconic` →
+  `SW_RESTORE` + chờ 400 ms trước khi lấy rect; (3) chặn gửi click khi rect ngoài màn
+  hình (virtual screen GetSystemMetrics 76/77); (4) sau click xác minh cả
+  foreground lẫn vị trí con trỏ ±4 px (click bị nuốt = kênh này không đáng tin);
+  (5) dump thêm `iconic=` vào lỗi cuối.
+- Bằng chứng: Parser::ParseFile OK; ascii-ps1 OK (G7). Chờ run CI kế tiếp xác nhận.
+
+## English — E89 round 2 (2026-11-28, CI run 46111640219)
+
+- **Round-1 dump exposed the real cause**: `fg=0x901E8` — the runner HAS a foreground
+  window (not null as first assumed) and none of the 4 ladder rungs changed it; even
+  the absolute click was ineffective ⇒ Notepad started **minimized** — GetWindowRect
+  returns (-32000,-32000), the normalised click lands in the screen corner and never
+  touches the window.
+- **Round-2 fix** (`test-typing.ps1`): (1) Focus() uses SW_RESTORE(9) instead of
+  SW_SHOW(5) (SW_SHOW does not clear minimized); (2) ClickFocus checks IsIconic →
+  SW_RESTORE + 400 ms wait before reading the rect; (3) refuses to click when the rect
+  is off-screen (virtual screen via GetSystemMetrics 76/77); (4) after the click it
+  verifies BOTH foreground and cursor position ±4 px (an swallowed click means this
+  channel is not trustworthy); (5) the final error dump now includes `iconic=`.
+- Evidence: Parser::ParseFile OK; ascii-ps1 OK (G7). Next CI run confirms.

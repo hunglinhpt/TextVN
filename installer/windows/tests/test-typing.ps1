@@ -47,6 +47,16 @@ public static class TvKeys {
     [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr h, bool altTab);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int i);
+    // E89 vong 2: Notepad tren runner co the MO O TRANG THAI MINIMIZED — GetWindowRect
+    // luc do tra (-32000,-32000) nen click absolute-normalize roi vao goc man hinh,
+    // khong bao gio cham cua so (bang chung: ci-windows 9a2dbe64 fg=0x901E8 khong doi).
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+    [StructLayout(LayoutKind.Sequential)]
+    struct POINT { public int X; public int Y; }
+
+    // Chan doan cho PS: cua so co dang minimized khong (E89v2).
+    public static bool IsWindowMinimized(IntPtr h) { return IsIconic(h); }
 
     const uint INPUT_KEYBOARD = 1, KEYEVENTF_KEYUP = 2, KEYEVENTF_EXTENDEDKEY = 1;
 
@@ -100,7 +110,7 @@ public static class TvKeys {
         uint fgThread = GetWindowThreadProcessId(GetForegroundWindow(), out pid);
         uint me = GetCurrentThreadId();
         AttachThreadInput(me, fgThread, true);
-        ShowWindow(h, 5);
+        ShowWindow(h, 9); /*SW_RESTORE - SW_SHOW(5) khong go bo minimized (E89 v2)*/
         BringWindowToTop(h);
         bool ok = SetForegroundWindow(h);
         AttachThreadInput(me, fgThread, false);
@@ -111,12 +121,22 @@ public static class TvKeys {
     // E89: click chuot that vao tam cua so chinh - duong focus tin cay nhat khi session
     // khong co foreground window: click dat foreground + focus edit cung luc (edit cua
     // Notepad/WordPad phu phan lon client nen tam cua so nam trong vung go chu).
+    // Vong 2: khoi phuc truoc neu minimized (rect -32000 lam click roi goc man hinh)
+    // va kiem tra toa do nam tren man hinh truoc khi gui click.
     public static bool ClickFocus(IntPtr main, IntPtr edit) {
+        if (IsIconic(main)) {
+            ShowWindow(main, 9); /*SW_RESTORE*/
+            Thread.Sleep(400);
+        }
         RECT r;
         if (!GetWindowRect(main, out r)) return false;
-        int cx = (r.Left + r.Right) / 2, cy = (r.Top + r.Bottom) / 2;
         int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
         if (sw <= 0 || sh <= 0) return false;
+        int vw = GetSystemMetrics(76), vh = GetSystemMetrics(77);
+        if (r.Left < 0 || r.Top < 0 || r.Left >= (vw > 0 ? vw : sw) || r.Top >= (vh > 0 ? vh : sh)) {
+            return false; /*rect ngoai man hinh - khong gui click muu*/
+        }
+        int cx = (r.Left + r.Right) / 2, cy = (r.Top + r.Bottom) / 2;
         int ax = (int)((long)cx * 65535 / (sw - 1));
         int ay = (int)((long)cy * 65535 / (sh - 1));
         const uint MOVE = 0x0001 | 0x4000 /*ABSOLUTE*/, DOWN = 0x0002, UP = 0x0004;
@@ -127,7 +147,12 @@ public static class TvKeys {
         seq[2].mi = new MOUSEINPUT { dwFlags = UP };
         if (SendInput(3, seq, Marshal.SizeOf(typeof(INPUT))) != 3) return false;
         Thread.Sleep(250);
-        return GetForegroundWindow() == main;
+        // Chan doan: con tro phai den dung diem click - neu khong thi bang chung
+        // click bi an (vi du cursor bị khop) chu khong phai loi cua so.
+        POINT cp;
+        GetCursorPos(out cp);
+        return GetForegroundWindow() == main
+            && Math.Abs(cp.X - cx) <= 4 && Math.Abs(cp.Y - cy) <= 4;
     }
 
     // E89: thang focus 4 muc - tra ten muc thanh cong ("" neu that bai het). Mun
@@ -200,7 +225,7 @@ function Ensure-Focus($app) {
         Start-Sleep -Milliseconds 300
     }
     $fg = [TvKeys]::GetForegroundWindow()
-    throw "could not focus $($app.Name) main window (E89: fg=0x$($fg.ToString('X')), main=0x$($app.Main.ToString('X')))"
+    throw "could not focus $($app.Name) main window (E89v2: fg=0x$($fg.ToString('X')), main=0x$($app.Main.ToString('X')), iconic=$([TvKeys]::IsWindowMinimized($app.Main)))"
 }
 
 # Clear must be VERIFIED before typing the next case: keys landing after a lost
