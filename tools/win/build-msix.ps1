@@ -16,6 +16,9 @@
 # Cach dung:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
 #   ... -Version 0.2.16 -Publisher "CN=ABCDEF12-..." -IdentityName "12345LinhBH.TextVN"
+#   ARM-W6: -Arch arm64 (payload build-release.ps1 -Arch arm64: ARM64 exe + ARM64X forwarder
+#   textvn-tsf.dll + textvn-tsf-{arm64,x64,x86}.dll); -Bundle gop 2 goi x64 + arm64 da build trong
+#   -OutDir thanh TextVN-<ver>-windows.msixbundle (makeappx bundle, cung identity/version).
 #
 # ASCII-only (quy tac G7/A5).
 
@@ -31,8 +34,12 @@ param(
     [string]$IdentityName = "",
     [string]$DisplayName = "TextVN",
     [string]$PublisherDisplay = "LinhBH.CoM",
-    [string]$TargetDir = "target\x86_64-pc-windows-msvc\release",
+    [string]$TargetDir = "",
     [string]$OutDir = "dist",
+    # ARM-W6: kien truc goi (x64 | arm64) va che do gop bundle.
+    [ValidateSet("x64", "arm64")]
+    [string]$Arch = "x64",
+    [switch]$Bundle,
     # Release/nop Store: thieu IdentityName that -> FAIL thay vi canh bao.
     [switch]$RequireStoreIdentity
 )
@@ -42,6 +49,9 @@ $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $root
 # R2-13: API .NET ([IO.File]::WriteAllText...) dung thu muc hien hanh cua TIEN
 # TRINH, khong theo Set-Location -> moi duong dan phai tuyet doi.
+if (-not $TargetDir) {
+    $TargetDir = if ($Arch -eq "arm64") { "target\aarch64-pc-windows-msvc\release" } else { "target\x86_64-pc-windows-msvc\release" }
+}
 if (-not [System.IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $root $OutDir }
 if (-not [System.IO.Path]::IsPathRooted($TargetDir)) { $TargetDir = Join-Path $root $TargetDir }
 
@@ -99,6 +109,44 @@ if ($vMajor -gt 65535 -or $vMinor -gt 65535 -or $vPatch -gt 65535) { throw "Vers
 $msixVersion = "$vMajor.$vMinor.$vPatch.0"
 Write-Host "MSIX Identity Version: $msixVersion (san pham $Version)"
 
+# 3 (som). Tim makeappx.exe (PATH -> Windows Kits moi nhat; host ARM64 uu tien ban arm64).
+$makeappx = (Get-Command makeappx.exe -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $makeappx) {
+    $kits = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+    $hostDir = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+    foreach ($h in @($hostDir, 'x64')) {
+        if ((-not $makeappx) -and (Test-Path $kits)) {
+            $makeappx = Get-ChildItem "$kits\*\$h\makeappx.exe" -ErrorAction SilentlyContinue |
+                Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+        }
+    }
+}
+if (-not $makeappx) { throw 'makeappx.exe khong tim thay (can Windows SDK). CI windows-2022 co san.' }
+Write-Host "makeappx: $makeappx"
+
+# ARM-W6: che do gop bundle (khong dong goi lai payload).
+if ($Bundle) {
+    $parts = @()
+    foreach ($a in @('x64', 'arm64')) {
+        $f = Join-Path $OutDir "TextVN-$Version-windows-$a.msix"
+        if (-not (Test-Path $f)) { throw "Thieu $f - build tung goi truoc (-Arch x64 va -Arch arm64)." }
+        $parts += $f
+    }
+    $bdir = Join-Path $OutDir 'msixbundle-stage'
+    if (Test-Path $bdir) { Remove-Item $bdir -Recurse -Force }
+    New-Item -ItemType Directory -Path $bdir | Out-Null
+    foreach ($f in $parts) { Copy-Item $f $bdir }
+    $bout = Join-Path $OutDir "TextVN-$Version-windows.msixbundle"
+    if (Test-Path $bout) { Remove-Item $bout -Force }
+    & $makeappx bundle /o /d $bdir /p $bout /bv $msixVersion
+    if ($LASTEXITCODE -ne 0) { throw "makeappx bundle failed ($LASTEXITCODE)" }
+    Remove-Item $bdir -Recurse -Force
+    $bhash = (Get-FileHash $bout -Algorithm SHA256).Hash.ToLower()
+    Write-Host "MSIXBUNDLE: $bout"
+    Write-Host "SHA256: $bhash"
+    exit 0
+}
+
 # 2. Payload.
 $need = @(
     (Join-Path $TargetDir 'TextVN.exe'),
@@ -113,18 +161,6 @@ $dll = (Join-Path $TargetDir 'textvn_win_tsf.dll')
 if (-not (Test-Path $dll)) { $dll = (Join-Path $TargetDir 'textvn-tsf.dll') }
 if (-not (Test-Path $dll)) { throw "Thieu textvn_win_tsf.dll/textvn-tsf.dll trong $TargetDir" }
 
-# 3. Tim makeappx.exe (PATH -> Windows Kits moi nhat theo x64).
-$makeappx = (Get-Command makeappx.exe -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $makeappx) {
-    $kits = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
-    if (Test-Path $kits) {
-        $makeappx = Get-ChildItem "$kits\*\x64\makeappx.exe" -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-    }
-}
-if (-not $makeappx) { throw 'makeappx.exe khong tim thay (can Windows SDK). CI windows-2022 co san.' }
-Write-Host "makeappx: $makeappx"
-
 # 4. Stage.
 $stage = Join-Path $OutDir 'msix-stage'
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
@@ -134,6 +170,15 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'Assets') | Out-Null
 Copy-Item (Join-Path $TargetDir 'TextVN.exe') $stage
 Copy-Item (Join-Path $TargetDir 'textvn-cli.exe') $stage
 Copy-Item $dll (Join-Path $stage 'textvn-tsf.dll')
+# ARM-W6/ADR-015: goi arm64 = forwarder ARM64X textvn-tsf.dll + DLL dich ARM64 native + x64 (app x64
+# gia lap tren ARM64). Thieu mot DLL dich thi app thuoc kien truc do khong nap duoc TIP.
+if ($Arch -eq "arm64") {
+    foreach ($n in @('textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll')) {
+        $src = Join-Path $TargetDir $n
+        if (-not (Test-Path $src)) { throw "Thieu $src - chay build-release.ps1 -Arch arm64 truoc." }
+        Copy-Item $src (Join-Path $stage $n)
+    }
+}
 # Vong 14 (Zalo 32-bit): x86 DLL di theo package - bootstrap stage-out giai
 # nen ra thu muc cai dat, app 32-bit (Zalo/Office x86) moi nap duoc TIP.
 $x86Dll = Join-Path $TargetDir 'textvn-tsf-x86.dll'
@@ -175,7 +220,8 @@ $manifest = $tpl.Replace('{{VERSION}}', (Esc $msixVersion)).
     Replace('{{PUBLISHER}}', (Esc $Publisher)).
     Replace('{{IDENTITY_NAME}}', (Esc $IdentityName)).
     Replace('{{DISPLAY_NAME}}', (Esc $DisplayName)).
-    Replace('{{PUBLISHER_DISPLAY}}', (Esc $PublisherDisplay))
+    Replace('{{PUBLISHER_DISPLAY}}', (Esc $PublisherDisplay)).
+    Replace('{{ARCH}}', $Arch)
 if ($manifest -match '\{\{[A-Z_]+\}\}') { throw "Manifest con placeholder chua thay: $($Matches[0])" }
 # Chot chong mojibake: chuoi tieng Viet trong template phai con nguyen sau khi thay.
 if (-not $manifest.Contains([string][char]0x1ED9)) { throw 'Manifest mat ky tu tieng Viet (encoding sai)' }
@@ -184,7 +230,7 @@ if (-not $manifest.Contains([string][char]0x1ED9)) { throw 'Manifest mat ky tu t
 
 # 6. Dong goi (khong ky - Store ky lai).
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
-$out = Join-Path $OutDir "TextVN-$Version-windows-x64.msix"
+$out = Join-Path $OutDir "TextVN-$Version-windows-$Arch.msix"
 if (Test-Path $out) { Remove-Item $out -Force }
 & $makeappx pack /o /d $stage /p $out
 if ($LASTEXITCODE -ne 0) { throw "makeappx pack failed ($LASTEXITCODE)" }

@@ -118,6 +118,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
 cargo xtask verify-msix dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
 ```
 
+**Gói đa kiến trúc `.msixbundle` (ARM-W6 — Windows ARM64: Snapdragon X, Surface Pro X):** build từng
+gói rồi gộp — cùng identity/version (Store chọn đúng gói theo máy người dùng):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1                 # x64
+powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -Arch arm64     # ARM64 + forwarder ARM64X
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Arch x64   -IdentityName "<...>" -RequireStoreIdentity
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Arch arm64 -IdentityName "<...>" -RequireStoreIdentity
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -Bundle   # -> dist\TextVN-<ver>-windows.msixbundle
+cargo xtask verify-msix dist\TextVN-<ver>-windows.msixbundle --expect-version <ver> --require-store-identity
+```
+
+`verify-msix` với `.msixbundle` kiểm: `AppxMetadata/AppxBundleManifest.xml`, **đúng hai** gói application x64 +
+arm64, mỗi gói đạt toàn bộ luật như gói lẻ, Identity Name/Publisher/Version gói con = bundle; với gói lẻ: kiến trúc
+khai báo phải khớp PE Machine của `TextVN.exe` (0x8664 / 0xAA64) và gói arm64 phải có forwarder `textvn-tsf.dll` +
+`textvn-tsf-arm64.dll` + `textvn-tsf-x64.dll` + `textvn-tsf-x86.dll` (ADR-015).
+
 **Version:** Partner Center từ chối Identity Version có phần đầu bằng 0 → gói map
 `A.B.C` thành `(A+1).B.C.0` (0.2.27 → **1.2.27.0**; bản 1.0.0 sau này → 2.0.0.0, vẫn
 tăng dần). Store chỉ cập nhật khi Version mới **lớn hơn** — đừng nộp lại số cũ.

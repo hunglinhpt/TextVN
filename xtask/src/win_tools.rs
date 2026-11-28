@@ -1633,8 +1633,39 @@ fn verify_full(
             Err(e) => fails.push(e),
         }
     }
-    if ident.attr("ProcessorArchitecture") != Some("x64") {
-        fails.push("Identity/ProcessorArchitecture phải là x64".into());
+    // ARM-W6: gói x64 hoặc arm64 (bundle gộp cả hai); kiến trúc khai báo phải khớp PE của TextVN.exe.
+    let arch = ident
+        .attr("ProcessorArchitecture")
+        .unwrap_or("")
+        .to_string();
+    let want_machine = match arch.as_str() {
+        "x64" => Some(0x8664u16),
+        "arm64" => Some(0xAA64u16),
+        _ => {
+            fails.push(format!(
+                "Identity/ProcessorArchitecture phải là x64 hoặc arm64 (được '{arch}')"
+            ));
+            None
+        }
+    };
+    if let Some(want) = want_machine {
+        match dir.get("TextVN.exe").map(pe_machine) {
+            Some(Ok(m)) if m == want => {}
+            Some(Ok(m)) => fails.push(format!(
+                "TextVN.exe Machine 0x{m:04X} không khớp ProcessorArchitecture {arch} (0x{want:04X})"
+            )),
+            Some(Err(e)) => fails.push(format!("TextVN.exe: {e}")),
+            None => {} // thiếu tệp — báo ở kiểm payload bên dưới
+        }
+    }
+    if arch == "arm64" {
+        // ARM-W4/ADR-015: forwarder ARM64X textvn-tsf.dll + DLL đích ARM64 native và x64 (app x64
+        // giả lập trên ARM64) — thiếu một DLL đích thì app thuộc kiến trúc đó không dùng được TIP.
+        for rel in ["textvn-tsf-arm64.dll", "textvn-tsf-x64.dll"] {
+            if dir.get(rel).is_none() {
+                fails.push(format!("payload arm64 thiếu {rel}"));
+            }
+        }
     }
 
     let props = root.child_ns(NS_FOUNDATION, "Properties");
@@ -1731,6 +1762,107 @@ fn verify_full(
         .any(|k| k.starts_with("data/tables/") && k.ends_with(".toml"))
     {
         fails.push("payload thiếu data/tables/*.toml (engine đọc bảng từ đĩa)".into());
+    }
+    fails
+}
+
+const NS_BUNDLE: &str = "http://schemas.microsoft.com/appx/2013/bundle";
+
+/// ARM-W6 — `.msixbundle` x64 + arm64: manifest bundle hợp lệ, ĐÚNG hai gói application (x64,
+/// arm64), mỗi gói đạt toàn bộ luật `verify_full`, cùng Identity Name/Publisher/Version với bundle.
+fn verify_bundle(
+    bundle: &MsixArchive,
+    want_ver: Option<&str>,
+    require_identity: bool,
+    expect_display: &str,
+    expect_name: Option<&str>,
+) -> Vec<String> {
+    let mut fails = Vec::new();
+    let Some(raw) = bundle.get("AppxMetadata/AppxBundleManifest.xml") else {
+        return vec!["thiếu AppxMetadata/AppxBundleManifest.xml".into()];
+    };
+    let Ok(text) = String::from_utf8(raw.to_vec()) else {
+        return vec!["AppxBundleManifest.xml không phải UTF-8".into()];
+    };
+    let root = match parse_xml(&text) {
+        Ok(r) => r,
+        Err(e) => return vec![format!("AppxBundleManifest.xml XML lỗi: {e}")],
+    };
+    if root.ns != NS_BUNDLE || root.name != "Bundle" {
+        return vec![format!("gốc bundle phải là <Bundle> namespace {NS_BUNDLE}")];
+    }
+    let Some(ident) = root.child_ns(NS_BUNDLE, "Identity") else {
+        return vec!["bundle thiếu <Identity>".into()];
+    };
+    let (b_name, b_pub, b_ver) = (
+        ident.attr("Name").unwrap_or("").to_string(),
+        ident.attr("Publisher").unwrap_or("").to_string(),
+        ident.attr("Version").unwrap_or("").to_string(),
+    );
+    let mut all = Vec::new();
+    root.descendants(&mut all);
+    let mut arches = BTreeSet::new();
+    for pkg in all.iter().filter(|n| {
+        n.ns == NS_BUNDLE && n.name == "Package" && n.attr("Type") == Some("application")
+    }) {
+        let arch = pkg.attr("Architecture").unwrap_or("").to_string();
+        let file = pkg.attr("FileName").unwrap_or("").to_string();
+        if !arches.insert(arch.clone()) {
+            fails.push(format!("bundle có hai gói {arch}"));
+        }
+        let Some(inner_bytes) = bundle.get(&file) else {
+            fails.push(format!("bundle thiếu gói {file} ({arch})"));
+            continue;
+        };
+        let inner = match read_msix_bytes(inner_bytes) {
+            Ok(a) => a,
+            Err(e) => {
+                fails.push(format!("[{arch}] {file}: {e}"));
+                continue;
+            }
+        };
+        for f in verify_full(
+            &inner,
+            want_ver,
+            require_identity,
+            expect_display,
+            expect_name,
+        ) {
+            fails.push(format!("[{arch}] {f}"));
+        }
+        // Identity gói con phải trùng bundle (Store từ chối bundle trộn identity/version).
+        if let Some(t) = inner
+            .get("AppxManifest.xml")
+            .and_then(|b| String::from_utf8(b.to_vec()).ok())
+        {
+            if let Ok(m) = parse_xml(&t) {
+                if let Some(id) = m.child_ns(NS_FOUNDATION, "Identity") {
+                    for (k, want) in [
+                        ("Name", &b_name),
+                        ("Publisher", &b_pub),
+                        ("Version", &b_ver),
+                    ] {
+                        if id.attr(k).unwrap_or("") != want {
+                            fails.push(format!(
+                                "[{arch}] Identity/{k} '{}' ≠ bundle '{want}'",
+                                id.attr(k).unwrap_or("")
+                            ));
+                        }
+                    }
+                    if id.attr("ProcessorArchitecture").unwrap_or("") != arch {
+                        fails.push(format!(
+                            "[{arch}] gói khai kiến trúc khác Architecture trong bundle"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    let want: BTreeSet<String> = ["arm64", "x64"].iter().map(|s| s.to_string()).collect();
+    if arches != want {
+        fails.push(format!(
+            "bundle phải gồm đúng gói x64 + arm64 (được {arches:?})"
+        ));
     }
     fails
 }
@@ -1833,13 +1965,24 @@ pub fn verify_msix_cli(args: &[String]) -> Result<(), String> {
         .map(str::trim)
         .filter(|s| !s.is_empty());
     let dir = read_msix_file(Path::new(&opts.msix))?;
-    let fails = verify_full(
-        &dir,
-        opts.want_ver.as_deref(),
-        opts.require_identity,
-        &display,
-        expect_name,
-    );
+    let is_bundle = opts.msix.to_ascii_lowercase().ends_with(".msixbundle");
+    let fails = if is_bundle {
+        verify_bundle(
+            &dir,
+            opts.want_ver.as_deref(),
+            opts.require_identity,
+            &display,
+            expect_name,
+        )
+    } else {
+        verify_full(
+            &dir,
+            opts.want_ver.as_deref(),
+            opts.require_identity,
+            &display,
+            expect_name,
+        )
+    };
     if fails.is_empty() {
         println!(
             "OK   {}: identity/version/tên hiển thị/encoding/ảnh/payload đạt luật Store",
@@ -2104,20 +2247,30 @@ mod tests {
         png
     }
 
+    /// PE tổng hợp có trường Machine cho trước (ARM-W6: verify-msix đối chiếu kiến trúc gói).
+    fn fake_pe(machine: u16) -> Vec<u8> {
+        let mut pe = build_synthetic_pe(true, &["KERNEL32.dll"]);
+        let off = u32::from_le_bytes(pe[0x3C..0x40].try_into().unwrap()) as usize + 4;
+        pe[off..off + 2].copy_from_slice(&machine.to_le_bytes());
+        pe
+    }
+
     fn fake_msix_zip_bytes(manifest_name: &str, manifest: &str) -> Vec<u8> {
+        let arm64 = manifest.contains("ProcessorArchitecture=\"arm64\"");
+        let exe = fake_pe(if arm64 { 0xAA64 } else { 0x8664 });
         let p50 = fake_png(50, 50);
         let p150 = fake_png(150, 150);
         let p44 = fake_png(44, 44);
         let p310 = fake_png(310, 150);
         let p71 = fake_png(71, 71);
-        build_zip(&[
+        let mut files: Vec<(&str, &[u8], bool)> = vec![
             (manifest_name, manifest.as_bytes(), true),
             ("Assets/storelogo.png", &p50, false),
             ("Assets/s150.png", &p150, true),
             ("Assets/s44.png", &p44, false),
             ("Assets/w310.png", &p310, true),
             ("Assets/s71.png", &p71, false),
-            ("TextVN.exe", b"MZ", false),
+            ("TextVN.exe", &exe, false),
             ("textvn-cli.exe", b"MZ", true),
             ("textvn-tsf.dll", b"MZ", false),
             ("textvn-tsf-x86.dll", b"MZ", true),
@@ -2126,7 +2279,12 @@ mod tests {
             ("resources/textvn_e.ico", b"icon", false),
             ("data/appdb.default.json", b"{}", true),
             ("data/tables/vowels.toml", b"[a]", false),
-        ])
+        ];
+        if arm64 {
+            files.push(("textvn-tsf-arm64.dll", b"MZ", false));
+            files.push(("textvn-tsf-x64.dll", b"MZ", true));
+        }
+        build_zip(&files)
     }
 
     fn fake_msix_archive(manifest: &str) -> MsixArchive {
@@ -2153,6 +2311,57 @@ mod tests {
         ]);
         let _ = fs::remove_file(&tmp);
         assert!(res.is_ok(), "verify_msix_cli phải pass: {res:?}");
+    }
+
+    /// ARM-W6: bundle hợp lệ (x64 + arm64 cùng identity) đạt; thiếu một kiến trúc / lệch version ⇒ đỏ.
+    #[test]
+    fn arm_w6_msixbundle_x64_arm64() {
+        let x64 = mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn");
+        let arm = x64.replace("x64\"", "arm64\"");
+        let px = fake_msix_zip_bytes("AppxManifest.xml", &x64);
+        let pa = fake_msix_zip_bytes("AppxManifest.xml", &arm);
+        let manifest = |ver: &str, both: bool| {
+            let mut m = format!(
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?><Bundle xmlns=\"{NS_BUNDLE}\" SchemaVersion=\"5.0\"><Identity Name=\"23651Linhi.TextVN\" Publisher=\"CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545\" Version=\"{ver}\"/><Packages><Package Type=\"application\" Version=\"{ver}\" Architecture=\"x64\" FileName=\"x64.msix\"/>"
+            );
+            if both {
+                m.push_str(&format!("<Package Type=\"application\" Version=\"{ver}\" Architecture=\"arm64\" FileName=\"arm64.msix\"/>"));
+            }
+            m.push_str("</Packages></Bundle>");
+            m
+        };
+        let bundle = |m: String| {
+            read_msix_bytes(&build_zip(&[
+                ("AppxMetadata/AppxBundleManifest.xml", m.as_bytes(), true),
+                ("x64.msix", &px, false),
+                ("arm64.msix", &pa, false),
+            ]))
+            .expect("bundle zip")
+        };
+        let ok = verify_bundle(
+            &bundle(manifest("1.2.85.0", true)),
+            Some("0.2.85"),
+            false,
+            "TextVN",
+            None,
+        );
+        assert!(ok.is_empty(), "bundle hợp lệ: {ok:?}");
+        let one = verify_bundle(
+            &bundle(manifest("1.2.85.0", false)),
+            None,
+            false,
+            "TextVN",
+            None,
+        );
+        assert!(one.iter().any(|f| f.contains("đúng gói x64 + arm64")));
+        let ver = verify_bundle(
+            &bundle(manifest("1.2.86.0", true)),
+            None,
+            false,
+            "TextVN",
+            None,
+        );
+        assert!(ver.iter().any(|f| f.contains("Identity/Version")));
     }
 
     #[test]
@@ -2214,11 +2423,32 @@ mod tests {
         let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("từ chối phần đầu = 0")));
 
-        // Arch sai
+        // Arch sai (ARM-W6: chỉ x64 | arm64)
         let men =
-            mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn").replace("x64\"", "arm64\"");
+            mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn").replace("x64\"", "x86\"");
         let fails = verify_full(&fake_msix_archive(&men), None, false, "TextVN", None);
         assert!(fails.iter().any(|f| f.contains("ProcessorArchitecture")));
+
+        // ARM-W6: gói arm64 đúng (TextVN.exe ARM64 + forwarder + 2 DLL đích) ⇒ đạt.
+        let arm =
+            mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn").replace("x64\"", "arm64\"");
+        let fails = verify_full(&fake_msix_archive(&arm), None, false, "TextVN", None);
+        assert!(fails.is_empty(), "gói arm64 hợp lệ: {fails:?}");
+        // arm64 khai báo nhưng exe x64 ⇒ lệch kiến trúc.
+        let x64_zip = fake_msix_zip_bytes(
+            "AppxManifest.xml",
+            &mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn"),
+        );
+        let mut d = read_msix_bytes(&x64_zip).expect("zip");
+        d.entries
+            .insert("appxmanifest.xml".into(), arm.as_bytes().to_vec());
+        let fails = verify_full(&d, None, false, "TextVN", None);
+        assert!(fails
+            .iter()
+            .any(|f| f.contains("không khớp ProcessorArchitecture arm64")));
+        assert!(fails
+            .iter()
+            .any(|f| f.contains("payload arm64 thiếu textvn-tsf-arm64.dll")));
 
         // expect-name sai
         let men = mini_manifest("1.2.85.0", "Trình gõ tiếng Việt an toàn");
