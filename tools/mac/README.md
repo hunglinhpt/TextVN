@@ -8,7 +8,7 @@ Công cụ chạy trên **máy Mac thật** (hoặc runner macOS có GUI). Mọi
 | File | Task | Chạy |
 |---|---|---|
 | `soak.sh` | MAC-063 | `tools/mac/soak.sh -Hours 24` (weekly) · `-Hours 2 -Interval 60` (nightly) · `-Seconds 60` (thử nhanh) |
-| `smoke-imk.sh` | P2-5 §4.1 | `tools/mac/smoke-imk.sh` — TextEdit + 6 case + toggle EN/VN; CI chạy ở job `imk-e2e` (`ci-macos.yml`, ARM-M2) trên runner arm64 — exit 3 = giới hạn runner, in `::warning::` + job summary |
+| `smoke-imk.sh` | P2-5 §4.1 | `tools/mac/smoke-imk.sh` — TextEdit + 6 case + toggle EN/VN; CI chạy ở job `imk-e2e` (`ci-macos.yml`, ARM-M2) trên runner arm64 — **hiện luôn rơi vào GIỚI HẠN** (runner không liệt kê IM bên thứ ba qua TIS), in `::warning::` + job summary; gõ thật chỉ chạy được trên máy Mac thật |
 | `tis-select.swift` | ARM-M2 | `swift tools/mac/tis-select.swift "$HOME/Library/Input Methods/TextVN-IM.app" vn.textvn.im` — đăng ký + bật + chọn input source qua TIS, xác minh nguồn hiện hành; lỗi TIS = exit 1 (không phải SKIP) |
 | `mem-check.sh` | P2-5 §5 | `tools/mac/mem-check.sh` — IMK < 60 MB · TextVN.app < 80 MB · CPU idle |
 | `targets/*.json` | MAC-061 | input cho `ax-driver` (MAC-060) |

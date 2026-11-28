@@ -81,8 +81,42 @@ pub struct LeakScan {
     pub leaks: Vec<(String, String, String, String)>,
 }
 
+/// Nguồn KHÔNG được chung chuỗi ≥ [`LEAK_N`] token với tập đánh giá: dữ liệu dự đoán
+/// `data/*phrases*.tsv` và tập dev `corpus/dev/*.txt` (BIZ-2 — tập dev được soi chi tiết bằng
+/// miss report và làm đầu vào dữ liệu bản sau, nên dev ↔ eval trùng cũng là rò rỉ gián tiếp).
+pub fn leak_sources(root: &Path) -> Result<Vec<(String, String)>, String> {
+    let mut out = Vec::new();
+    for (dir, pred) in [
+        (
+            "data",
+            (|n: &str| n.contains("phrases") && n.ends_with(".tsv")) as fn(&str) -> bool,
+        ),
+        ("corpus/dev", |n: &str| n.ends_with(".txt")),
+    ] {
+        let Ok(rd) = fs::read_dir(root.join(dir)) else {
+            if dir == "data" {
+                return Err(format!("{dir}: không đọc được"));
+            }
+            continue;
+        };
+        let mut v = Vec::new();
+        for ent in rd.flatten() {
+            let name = ent.file_name().to_string_lossy().to_string();
+            if pred(&name) {
+                let text =
+                    fs::read_to_string(ent.path()).map_err(|e| format!("{dir}/{name}: {e}"))?;
+                v.push((format!("{dir}/{name}"), text));
+            }
+        }
+        v.sort();
+        out.extend(v);
+    }
+    Ok(out)
+}
+
 /// Quét toàn bộ repo: mọi câu trong `corpus/eval/*.txt` đối chiếu n-gram của
-/// `data/*phrases*.tsv`. Lỗi nếu thư mục đánh giá rỗng (tập held-out bị xoá).
+/// [`leak_sources`] (`data/*phrases*.tsv` + `corpus/dev/*.txt`). Lỗi nếu thư mục đánh giá
+/// rỗng (tập held-out bị xoá).
 pub fn scan(root: &Path) -> Result<LeakScan, String> {
     let read_dir =
         |dir: &str, pred: &dyn Fn(&str) -> bool| -> Result<Vec<(String, String)>, String> {
@@ -99,7 +133,7 @@ pub fn scan(root: &Path) -> Result<LeakScan, String> {
             v.sort();
             Ok(v)
         };
-    let data = read_dir("data", &|n| n.contains("phrases") && n.ends_with(".tsv"))?;
+    let data = leak_sources(root)?;
     let evals = read_dir("corpus/eval", &|n| n.ends_with(".txt"))?;
     if evals.is_empty() {
         return Err("corpus/eval/*.txt không có — tập đánh giá RSI-2 bị xoá?".into());
@@ -143,6 +177,28 @@ pub fn cli() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// BIZ-2 (review claude-opus-7e41b2d9): tập dev `corpus/dev/` phải nằm trong nguồn của gate
+    /// eval-leak — dev trùng ≥ LEAK_N token với eval là rò rỉ gián tiếp; một câu dev chép từ eval
+    /// phải bị báo.
+    #[test]
+    fn biz2_eval_leak_quet_ca_corpus_dev() {
+        let src = leak_sources(&repo_root()).expect("đọc nguồn eval-leak");
+        assert!(
+            src.iter().any(|(n, _)| n.starts_with("corpus/dev/")),
+            "eval-leak phải quét corpus/dev/: {:?}",
+            src.iter().map(|(n, _)| n).collect::<Vec<_>>()
+        );
+        assert!(src.iter().any(|(n, _)| n.starts_with("data/")));
+        // Đột biến: một câu dev chép nguyên từ eval ⇒ phải bị bắt.
+        let eval_line = "em gửi anh bản báo cáo tuần này để anh xem trước buổi họp";
+        let dev = vec![(
+            "corpus/dev/x.txt".to_string(),
+            format!("# c\n{eval_line}\n"),
+        )];
+        let grams = data_ngrams(&dev, LEAK_N);
+        assert!(!leaks(eval_line, &grams, LEAK_N).is_empty());
+    }
 
     #[test]
     fn rsi_2_bat_ro_ri_dai_bo_qua_cum_ngan() {

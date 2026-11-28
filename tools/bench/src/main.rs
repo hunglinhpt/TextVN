@@ -2063,45 +2063,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// BIZ-2: n-gram token (chữ thường, tách khoảng trắng) của mọi câu trong một corpus.
-    fn corpus_ngrams(text: &str, n: usize) -> std::collections::HashSet<Vec<String>> {
-        let mut out = std::collections::HashSet::new();
-        for line in text.lines().map(str::trim) {
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let toks: Vec<String> = line.split_whitespace().map(str::to_lowercase).collect();
-            for w in toks.windows(n) {
-                out.insert(w.to_vec());
-            }
-        }
-        out
-    }
-
-    /// BIZ-2: tập dev được soi chi tiết và làm dữ liệu bản sau ⇒ KHÔNG được chung chuỗi
-    /// ≥ 6 token với tập held-out (cùng ngưỡng `LEAK_N` của gate eval-leak); mọi câu dev
-    /// phải tái lập được bằng Telex (không câu nào bị bỏ).
+    /// BIZ-2: mọi câu dev phải tái lập được bằng Telex (không câu nào bị bỏ). Luật "dev không
+    /// chung ≥ LEAK_N token với eval" có MỘT nguồn là gate `cargo xtask eval-leak`
+    /// (`leak_sources` quét cả `corpus/dev/`, test `biz2_eval_leak_quet_ca_corpus_dev`) — G22.
     #[test]
-    fn biz2_tap_dev_khong_trung_eval_va_tai_lap_duoc() {
-        const N: usize = 6;
-        let eval: std::collections::HashSet<Vec<String>> = corpus_ngrams(HELDOUT_VI, N)
-            .into_iter()
-            .chain(corpus_ngrams(HELDOUT_EN, N))
-            .collect();
-        let mut leaks: Vec<String> = Vec::new();
-        for (name, dev) in [("vi", DEV_VI), ("en", DEV_EN)] {
-            for g in corpus_ngrams(dev, N) {
-                if eval.contains(&g) {
-                    leaks.push(format!("{name}: {}", g.join(" ")));
-                }
-            }
-        }
-        leaks.sort();
-        assert!(
-            leaks.is_empty(),
-            "corpus/dev trùng ≥{N} token với corpus/eval — viết lại câu dev:\n{}",
-            leaks.join("\n")
-        );
+    fn biz2_tap_dev_tai_lap_duoc() {
         let (vi, _, rej_vi) = build_heldout(DEV_VI, true);
         let (en, _, rej_en) = build_heldout(DEV_EN, false);
         assert_eq!(

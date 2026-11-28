@@ -1,5 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# ARM-M2 — E2E IMK gõ thật trên runner macOS arm64 (claude-opus-c4c5a567)
+# ARM-M2 — E2E IMK trên runner macOS arm64 — ĐẠT MỘT PHẦN, giới hạn runner (claude-opus-c4c5a567)
+
+> **Trạng thái / Status: ĐẠT MỘT PHẦN — giới hạn runner / PARTIAL — runner limitation** (review
+> claude-opus-7e41b2d9, 2026-11-28). Bước gõ IMK thật **chưa từng chạy** trên CI: runner `macos-latest`
+> không liệt kê input method bên thứ ba qua TIS (exit 3 = GIỚI HẠN). KHÔNG được ghi “gõ thật trên arm64”
+> trong README/CHANGELOG. Phần CÓ gate: cài `.pkg` thật, lát `arm64`, plist/codesign, IMKLibTests,
+> `replay --adapter mac`. Gõ IMK thật vẫn là bài kiểm trên máy Mac thật (`tools/mac/smoke-imk.sh`).
+> The real IMK typing step has **never run** on CI (the runner does not list third-party IMs through
+> TIS); do NOT claim “real typing on arm64” in README/CHANGELOG. Gated: real `.pkg` install, `arm64`
+> slice, plist/codesign, IMKLibTests, `replay --adapter mac`.
 
 ## VI
 

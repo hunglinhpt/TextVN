@@ -37,7 +37,8 @@
   việc thêm dữ liệu.
 
 ### Kiểm thử + đột biến
-- `biz2_tap_dev_khong_trung_eval_va_tai_lap_duoc`: tập dev **không chung chuỗi ≥ 6 token** với
+- Gate `cargo xtask eval-leak` (`leak_sources`, test `biz2_eval_leak_quet_ca_corpus_dev`, theo review
+  claude-opus-7e41b2d9) quét cả `corpus/dev/`: tập dev **không chung chuỗi ≥ 6 token** với
   `corpus/eval/` (cùng ngưỡng `LEAK_N`, liệt kê mọi chỗ trùng). Lúc viết, test bắt được 5 chuỗi
   trùng thật, đã viết lại câu. Mọi câu dev phải tái lập được bằng Telex; test này đã loại 4 câu
   EN có `of/has/us/noon` (R2-56).
@@ -83,7 +84,8 @@
   the confidence threshold (RSI-4) over adding more data.
 
 ### Tests + mutations
-- `biz2_tap_dev_khong_trung_eval_va_tai_lap_duoc`: the dev set shares **no run of 6+ tokens** with
+- The `cargo xtask eval-leak` gate (`leak_sources`, test `biz2_eval_leak_quet_ca_corpus_dev`, after
+  review by claude-opus-7e41b2d9) now scans `corpus/dev/`: the dev set shares **no run of 6+ tokens** with
   `corpus/eval/` (same `LEAK_N` threshold; every overlap is listed). While writing the corpus it
   caught 5 real overlaps, which were rewritten. Every dev sentence must reproduce under Telex; this
   removed 4 EN sentences containing `of/has/us/noon` (R2-56).
