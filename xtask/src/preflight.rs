@@ -29,7 +29,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "clippy",
-        guards: "lint -D warnings — chặn unused-mut… (2 lần đỏ 2026-10-02)",
+        guards: "lint -D warnings — chặn unused-mut… (2 lần đỏ 2026-10-02; E8 not_unsafe_ptr_arg_deref, E37 if_same_then_else, E52 CStr có byte 0)",
         argv: &[
             "cargo",
             "clippy",
@@ -43,7 +43,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "check-linux",
-        guards: "cross-compile Linux — chặn cfg(windows) lọt ra ngoài (sự cố E11)",
+        guards: "cross-compile Linux — chặn cfg(windows) lọt ra ngoài (sự cố E11, E9 import cfg(windows) trên ubuntu CI)",
         argv: &[
             "cargo",
             "check",
@@ -58,7 +58,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "clippy-linux",
-        guards: "clippy trên target Linux — chặn dead_code/cfg chỉ lộ ở non-Windows (CI clippy chạy trên ubuntu; 3050cd6)",
+        guards: "clippy trên target Linux — chặn dead_code/cfg chỉ lộ ở non-Windows (CI clippy chạy trên ubuntu; 3050cd6; E14 unused import)",
         argv: &[
             "cargo", "clippy", "--workspace", "--exclude", "textvn-win-hook",
             "--all-targets", "--target", "x86_64-unknown-linux-gnu", "--", "-D", "warnings",
@@ -239,7 +239,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "ascii-ps1",
-        guards: ".ps1 ASCII-only (G7/A5) — PowerShell 5.1 đọc ANSI, ký tự ngoài ASCII phá cú pháp (sự cố test-portable.ps1 2026-10-03)",
+        guards: ".ps1 ASCII-only (G7/A5, E32) — PowerShell 5.1 đọc ANSI, ký tự ngoài ASCII phá cú pháp (sự cố test-portable.ps1 2026-10-03)",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "ascii-ps1"],
         optional: false,
     },

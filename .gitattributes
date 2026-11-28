@@ -13,4 +13,5 @@
 # G21: bảng điều phối append-only — hai máy cùng nối dòng thì gộp cả hai (không xung đột).
 coordination/board.jsonl text eol=lf merge=union
 *.desktop text eol=lf
+# E35: postinstall CRLF làm `bash -n` đỏ trên ci-macos — giữ LF.
 packaging/macos/pkg-scripts/postinstall text eol=lf

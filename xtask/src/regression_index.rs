@@ -6,7 +6,7 @@
 //! | Tham chiếu | Ý nghĩa | Kiểm khi chạy gate |
 //! |---|---|---|
 //! | `test:<tệp>::<hàm>` | test hồi quy (Rust/C/Swift) | tệp tồn tại VÀ còn khai báo hàm đó ⇒ xoá test = đỏ |
-//! | `file:<tệp>` | corpus/fixture | tệp tồn tại |
+//! | `file:<tệp>` | corpus/fixture, hoặc chương trình test cả tệp (C/C++ `main()` chạy bởi ctest/e2e) | tệp tồn tại |
 //! | `gate:<tệp>` | gate tự động (xtask/script/workflow) | tệp tồn tại VÀ còn nhắc mã |
 //! | `lesson:<tệp>` | bài học harness Windows (`win/*` — không phải hành vi sản phẩm) | tệp còn nhắc mã |
 //! | `process:<mô tả>` | mã chỉ-quy-trình (phát hành, thao tác) | mô tả không rỗng |
@@ -281,10 +281,31 @@ fn collect_tests(root: &Path, files: &[PathBuf]) -> Vec<TestFn> {
                     lines[from..i].join("\n"),
                     lines[i + 1..to].join("\n")
                 );
+                // Đầu tệp (`//!`, chú thích mở đầu) mô tả cả tệp test — mã nêu ở đó gắn với hàm test
+                // ĐẦU TIÊN của tệp (`readme_numbers.rs`: "//! E40 — số liệu README…").
+                // Chỉ tệp test thuần (`tests/`, `Tests/`) — đầu tệp `src/*.rs` mô tả mã, không phải test.
+                let test_file = r.contains("/tests/") || r.contains("Tests/");
+                let first_in_file = test_file && !out.iter().any(|t: &TestFn| t.file == r);
+                let header = if first_in_file {
+                    lines
+                        .iter()
+                        .take_while(|l| {
+                            let t = l.trim_start();
+                            t.is_empty()
+                                || t.starts_with("//")
+                                || t.starts_with("/*")
+                                || t.starts_with('*')
+                        })
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                } else {
+                    String::new()
+                };
                 out.push(TestFn {
                     file: r.clone(),
                     name,
-                    context,
+                    context: format!("{context}\n{header}"),
                 });
                 after_attr = false;
             } else if after_attr && !(t.starts_with("#[") || t.starts_with("//") || t.is_empty()) {
@@ -300,11 +321,21 @@ fn is_gate_file(r: &str) -> bool {
     (r.starts_with("xtask/src/") && r.ends_with(".rs") && !r.ends_with("regression_index.rs"))
         || (r.starts_with("scripts/") && r.ends_with(".sh"))
         || (r.starts_with("tools/") && (r.ends_with(".ps1") || r.ends_with(".sh")))
+        // Test bộ cài/portable Windows (`test-installer.ps1`, `test-portable.ps1`) chạy trên CI.
+        || (r.starts_with("installer/windows/tests/") && r.ends_with(".ps1"))
         || (r.starts_with(".github/workflows/") && r.ends_with(".yml"))
+        || r == ".gitattributes"
 }
 
 fn is_corpus_file(r: &str) -> bool {
-    r.starts_with("corpus/") && !r.ends_with(".md")
+    (r.starts_with("corpus/") && !r.ends_with(".md")) || is_program_test(r)
+}
+
+/// Chương trình test cả tệp (C/C++ `main()` của ctest/e2e Linux) — bằng chứng dạng `file:`.
+fn is_program_test(r: &str) -> bool {
+    r.starts_with("adapters/")
+        && r.contains("/tests/")
+        && (r.ends_with(".c") || r.ends_with(".cpp"))
 }
 
 // ---------------------------------------------------------------------------------------
@@ -516,14 +547,18 @@ fn discover(root: &Path, codes: &BTreeMap<String, &'static str>) -> BTreeMap<Str
     out
 }
 
+/// `cap` = `todo-max` cũ khi `--merge`: ratchet chỉ được GIẢM (mã mới không được đẩy nợ lên —
+/// gate sẽ đỏ tới khi mã đó có bằng chứng thật).
 fn render_index(
     codes: &BTreeMap<String, &'static str>,
     rows: &BTreeMap<String, (String, Vec<Ref>)>,
+    cap: Option<usize>,
 ) -> String {
-    let todo = rows
+    let count = rows
         .values()
         .filter(|(_, r)| r.contains(&Ref::Todo))
         .count();
+    let todo = cap.map_or(count, |c| c.min(count));
     let mut s = String::new();
     s.push_str("# Sổ hồi quy — mã lỗi đã sửa ↔ bằng chứng chống tái diễn (REG-1)\n\n");
     s.push_str("> Gate: `cargo xtask regression-index` (preflight + `repo-hygiene`). Mỗi mã trong `project-common-errors.md` (E*),\n");
@@ -555,20 +590,33 @@ pub fn cli(args: &[String]) -> Result<(), String> {
     if bootstrap {
         let found = discover(&root, &codes);
         let mut rows: BTreeMap<String, (String, Vec<Ref>)> = BTreeMap::new();
+        let mut cap = None;
         if merge {
             let text = fs::read_to_string(&path).map_err(|e| format!("{INDEX}: {e}"))?;
-            rows = parse_index(&text)?.rows;
+            let old = parse_index(&text)?;
+            cap = old.todo_max;
+            rows = old.rows;
         } else if path.exists() && !args.iter().any(|a| a == "--force") {
             return Err(format!("{INDEX} đã có — dùng `--bootstrap --merge` (thêm mã mới) hoặc `--force` (dựng lại)"));
         }
         let mut added = 0;
         for (code, refs) in found {
-            if let std::collections::btree_map::Entry::Vacant(v) = rows.entry(code.clone()) {
-                v.insert((codes[&code].to_string(), refs));
-                added += 1;
+            match rows.entry(code.clone()) {
+                std::collections::btree_map::Entry::Vacant(v) => {
+                    v.insert((codes[&code].to_string(), refs));
+                    added += 1;
+                }
+                // `--merge` nâng cấp dòng còn nợ khi nay đã tìm được bằng chứng thật; dòng sửa tay giữ nguyên.
+                std::collections::btree_map::Entry::Occupied(mut o)
+                    if o.get().1 == vec![Ref::Todo] && !refs.contains(&Ref::Todo) =>
+                {
+                    o.get_mut().1 = refs;
+                    added += 1;
+                }
+                _ => {}
             }
         }
-        fs::write(&path, render_index(&codes, &rows)).map_err(|e| format!("{INDEX}: {e}"))?;
+        fs::write(&path, render_index(&codes, &rows, cap)).map_err(|e| format!("{INDEX}: {e}"))?;
         println!(
             "regression-index: ghi {INDEX} ({added} dòng mới, {} dòng)",
             rows.len()

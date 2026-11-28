@@ -46,6 +46,7 @@ jobs:
           fi
           echo "OK"
 
+      # E54: script debug `.tmp/` từng bị commit nhầm (repo-hygiene đỏ) — bước này chặn file rác.
       - name: 2. file tạm / debug không được commit
         run: |
           bad=$(git ls-files | grep -E '\.(log|bak|tmp|swp|orig|rej)$|(^|/)(\.DS_Store|Thumbs\.db|desktop\.ini)$|(^|/)(dbg_|debug_|tmp_|temp_)' || true)
