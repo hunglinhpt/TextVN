@@ -304,7 +304,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        de: [xfce-x11]
+        include:
+          - de: xfce-x11
+            pkgs: xvfb xfwm4 mousepad xdotool xclip ibus ibus-gtk3 dbus-x11 dbus-user-session
+          - de: sway-wayland
+            pkgs: sway wtype wl-clipboard fcitx5 fcitx5-modules mousepad dbus-user-session
     steps:
       - uses: actions/checkout@v4
         with:
@@ -316,8 +320,7 @@ jobs:
       - name: Cài môi trường desktop (${{ matrix.de }})
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends \
-            xvfb xfwm4 mousepad xdotool xclip ibus ibus-gtk3 dbus-x11 dbus-user-session >/dev/null
+          sudo apt-get install -y -qq --no-install-recommends ${{ matrix.pkgs }} >/dev/null
       - name: Gõ thật (${{ matrix.de }})
         run: bash scripts/e2e-desktop.sh "${{ matrix.de }}" "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)"
 

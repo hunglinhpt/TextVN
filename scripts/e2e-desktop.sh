@@ -6,7 +6,8 @@
 # phím đi đúng đường người dùng — X server/compositor → toolkit GTK của app → IM module →
 # IBus/Fcitx5 → TextVN → chữ cam kết vào ô soạn thảo của một app thật, rồi đọc lại.
 #
-#   de = xfce-x11   Xvfb + xfwm4 (WM của Xfce) + IBus + Mousepad (GTK3, editor của Xfce)
+#   de = xfce-x11      Xvfb + xfwm4 (WM của Xfce) + IBus + Mousepad (GTK3, editor của Xfce)
+#   de = sway-wayland  Sway headless (wlroots) + Fcitx5 qua input-method-v2 + Mousepad Wayland gốc
 #
 # Gói được cài bằng CHÍNH install.sh của tarball (per-user, HOME cách ly) — kiểm luôn đường cài.
 # Bộ case: tools/e2e/typing-cases.txt (MỘT nguồn với harness macOS smoke-imk.sh, G22).
@@ -15,7 +16,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DE="${1:?cần môi trường: xfce-x11}"
+DE="${1:?cần môi trường: xfce-x11 | sway-wayland}"
 TARBALL="$(realpath "${2:?cần đường dẫn tarball TextVN-*-linux-*.tar.gz}")"
 CASES_FILE="$ROOT/tools/e2e/typing-cases.txt"
 
@@ -41,19 +42,30 @@ cleanup() {
 trap cleanup EXIT
 
 # Gõ một chuỗi phím vào cửa sổ đang focus rồi đọc lại toàn bộ văn bản qua clipboard.
-# Dùng chung cho mọi DE X11 (hàm được export vào phiên dbus-run-session).
+# X11: xdotool (XTest) + xclip. Wayland: wtype (virtual-keyboard-v1) + wl-paste.
+# Dấu cách cuối cam kết từ đang soạn (preedit không có trong buffer của app).
 type_and_read() {
     local win="$1" keys="$2"
-    xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
-    xdotool key --clearmodifiers ctrl+a Delete
-    sleep 0.3
-    xdotool type --delay 90 -- "$keys"
-    # Dấu cách cam kết từ đang soạn (preedit không có trong buffer của app).
-    xdotool key space
-    sleep 0.6
-    xdotool key --clearmodifiers ctrl+a ctrl+c
-    sleep 0.4
-    xclip -selection clipboard -o 2>/dev/null | sed 's/[[:space:]]*$//'
+    if [[ -n "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
+        wtype -M ctrl a -m ctrl -k Delete
+        sleep 0.3
+        wtype -d 90 -- "$keys"
+        wtype -k space
+        sleep 0.6
+        wtype -M ctrl a -m ctrl -M ctrl c -m ctrl
+        sleep 0.4
+        wl-paste -n 2>/dev/null | sed 's/[[:space:]]*$//'
+    else
+        xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
+        xdotool key --clearmodifiers ctrl+a Delete
+        sleep 0.3
+        xdotool type --delay 90 -- "$keys"
+        xdotool key space
+        sleep 0.6
+        xdotool key --clearmodifiers ctrl+a ctrl+c
+        sleep 0.4
+        xclip -selection clipboard -o 2>/dev/null | sed 's/[[:space:]]*$//'
+    fi
 }
 export -f type_and_read
 
@@ -88,6 +100,7 @@ case "$DE" in
 
         xfce_session() {
             set -euo pipefail
+            trap 'echo "FAIL [e2e-desktop:$DE] dòng $LINENO: $BASH_COMMAND" >&2; for f in install ibus fcitx5 sway editor wm; do [[ -s "$T/$f.log" ]] && { echo "--- $f.log"; tail -n 25 "$T/$f.log"; }; done; command -v ibus >/dev/null && { echo "--- ibus list-engine:"; ibus list-engine 2>&1 | grep -i -C1 textvn; echo "IBUS_COMPONENT_PATH=${IBUS_COMPONENT_PATH:-}"; }' ERR
             xfwm4 --compositor=off >"$T/wm.log" 2>&1 &
             sleep 1
             mkdir -p "$T/x"
@@ -127,7 +140,80 @@ case "$DE" in
         dbus-run-session -- bash -c xfce_session || fail "gõ thật trong Xfce/X11 không đạt"
         say "✅ PASS (Xvfb + xfwm4 + IBus + Mousepad)"
         ;;
+    sway-wayland)
+        for tool in sway wtype wl-paste fcitx5 fcitx5-remote mousepad; do
+            command -v "$tool" >/dev/null 2>&1 || fail "thiếu $tool"
+        done
+        # Compositor wlroots headless (không GPU, không thiết bị vào) — chuẩn bị WL-1.
+        export WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman
+        unset DISPLAY
+        printf 'output HEADLESS-1 resolution 1280x800\n' > "$T/sway.conf"
+
+        sway_session() {
+            set -euo pipefail
+            trap 'echo "FAIL [e2e-desktop:$DE] dòng $LINENO: $BASH_COMMAND" >&2; for f in install ibus fcitx5 sway editor wm; do [[ -s "$T/$f.log" ]] && { echo "--- $f.log"; tail -n 25 "$T/$f.log"; }; done; command -v ibus >/dev/null && { echo "--- ibus list-engine:"; ibus list-engine 2>&1 | grep -i -C1 textvn; echo "IBUS_COMPONENT_PATH=${IBUS_COMPONENT_PATH:-}"; }' ERR
+            . "$ROOT/scripts/lib/fcitx5-test-env.sh"
+            sway -c "$T/sway.conf" >"$T/sway.log" 2>&1 &
+            local sock=""
+            for _ in $(seq 1 50); do
+                sock="$(cd "$XDG_RUNTIME_DIR" && ls wayland-* 2>/dev/null | grep -v '\.lock$' | head -n1 || true)"
+                [[ -n "$sock" ]] && break
+                sleep 0.2
+            done
+            [[ -n "$sock" ]] || { cat "$T/sway.log"; echo "FAIL sway headless không tạo socket Wayland" >&2; return 1; }
+            export WAYLAND_DISPLAY="$sock"
+            mkdir -p "$T/x"
+            tar -C "$T/x" -xzf "$TARBALL"
+            local pkg
+            pkg="$(echo "$T"/x/TextVN-*)"
+            "$pkg/install.sh" --no-restart >"$T/install.log" 2>&1 || { cat "$T/install.log"; echo "FAIL install.sh" >&2; return 1; }
+            set -a
+            # shellcheck disable=SC1091
+            . "$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
+            set +a
+            # Profile phiên test: nhóm Default có textvn; phím đổi IM mặc định tắt (E68/R2-175).
+            textvn_fcitx5_test_hotkeys "$XDG_CONFIG_HOME/fcitx5"
+            cat >"$XDG_CONFIG_HOME/fcitx5/profile" <<'P'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=textvn
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=textvn
+Layout=
+
+[GroupOrder]
+0=Default
+P
+            # Wayland gốc: app dùng text-input-v3, Fcitx5 nối compositor qua input-method-v2.
+            unset GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
+            export GDK_BACKEND=wayland
+            fcitx5 --replace >"$T/fcitx5.log" 2>&1 &
+            for _ in $(seq 1 50); do fcitx5-remote >/dev/null 2>&1 && break; sleep 0.2; done
+            : > "$T/doc.txt"
+            mousepad "$T/doc.txt" >"$T/editor.log" 2>&1 &
+            sleep 3
+            fcitx5-remote -s textvn || true
+            echo "[e2e-desktop:$DE] fcitx5 IM hiện hành: $(fcitx5-remote -n 2>&1)"
+            local rc=0
+            run_cases "-" || rc=$?
+            if [[ $rc -ne 0 ]]; then
+                echo "--- fcitx5 IM: $(fcitx5-remote -n 2>&1) · sway:"; tail -n 15 "$T/sway.log" || true
+                echo "--- fcitx5.log:"; tail -n 25 "$T/fcitx5.log" || true
+            fi
+            return $rc
+        }
+        export -f sway_session
+        export ROOT
+        dbus-run-session -- bash -c sway_session || fail "gõ thật trong Sway/Wayland không đạt"
+        say "✅ PASS (Sway headless + Fcitx5 input-method-v2 + Mousepad Wayland)"
+        ;;
     *)
-        fail "môi trường lạ: $DE (hỗ trợ: xfce-x11)"
+        fail "môi trường lạ: $DE (hỗ trợ: xfce-x11, sway-wayland)"
         ;;
 esac
