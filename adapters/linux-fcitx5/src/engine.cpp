@@ -1537,7 +1537,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     }
     /* R2-155: mọi phím gõ chữ/xoá ẩn danh sách đang hiện và hẹn lại timer idle. */
     if (!terminal &&
-        lc_assist_idle_arms(k.kind == LC_KEY_CHAR, k.kind == LC_KEY_BACKSPACE, viEnabled_ ? 1 : 0)) {
+        lc_assist_idle_arms_key(vk, ch, mods, viEnabled_ ? 1 : 0)) {
         clearAssistUI(st);
         assistIdleArm(st);
     }

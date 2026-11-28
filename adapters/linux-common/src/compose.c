@@ -510,25 +510,49 @@ int lc_assist_should_display(int assist_mode, int is_sentence_trigger) {
     return assist_mode != LC_ASSIST_MODE_OFF;
 }
 
-int lc_assist_idle_arms(int is_char, int is_backspace, int vi_enabled) {
-    return vi_enabled && (is_char || is_backspace);
+/* SF-5 (G22): luật idle do session quyết (ime_assist_idle_arms). */
+int lc_assist_idle_arms_key(uint32_t vk, uint32_t ch, uint32_t mods, int vi_enabled) {
+    return ime_assist_idle_arms(vk, ch, mods, vi_enabled ? 1 : 0) == 1;
+}
+
+/* Keysym X11 (IBus keyval == FcitxKeySym) → (vk canonical, ch) cho luật phím dùng chung. Chỉ các
+ * phím luật trợ lý cần phân biệt; phím khác ⇒ (0, 0) (= không phải phím gõ). */
+void lc_keysym_to_vk_ch(uint32_t keysym, uint32_t *vk, uint32_t *ch) {
+    *vk = 0;
+    *ch = 0;
+    switch (keysym) {
+    case 0xff1b: *vk = 0x1B; return;               /* Escape */
+    case 0xff08: *vk = LC_VK_BACK; return;         /* BackSpace */
+    case 0xff0d: case 0xff8d: *vk = LC_VK_RETURN; *ch = '\n'; return; /* Return, KP_Enter */
+    case 0xff09: *vk = LC_VK_TAB; *ch = '\t'; return;
+    default: break;
+    }
+    if (keysym >= 0x20 && keysym <= 0x7e) {        /* ASCII in được */
+        *ch = keysym;
+        *vk = (keysym >= 'a' && keysym <= 'z') ? keysym - 'a' + 'A' : keysym;
+    } else if (keysym >= 0xa0 && keysym <= 0xff) { /* Latin-1 */
+        *ch = keysym;
+    } else if (keysym >= 0x01000100 && keysym <= 0x0110ffff) { /* keysym Unicode */
+        *ch = keysym - 0x01000000;
+    } else if (keysym >= 0xffb0 && keysym <= 0xffb9) {          /* KP_0..9 */
+        *ch = '0' + (keysym - 0xffb0);
+    } else if (keysym >= 0xffaa && keysym <= 0xffaf) {          /* KP * + , - . / */
+        static const char kp[] = "*+,-./";
+        *ch = (uint32_t)kp[keysym - 0xffaa];
+    }
 }
 
 int lc_assist_live_key(uint32_t keysym, int ctrl, int alt, int super) {
-    /* Keysym X11 (IBus keyval == FcitxKeySym). */
-    if (!ctrl && !alt && !super && keysym == 0xff1b) return LC_LIVE_CLOSE; /* Escape */
-    if (alt && !ctrl && !super && keysym >= 0x31 && keysym <= 0x33) {
-        return LC_LIVE_APPLY_1 + (int)(keysym - 0x31); /* Alt+1..3 */
-    }
-    if (ctrl || alt || super) return LC_LIVE_DISMISS;
-    if ((keysym >= 0x20 && keysym <= 0x7e) || /* ASCII in được (chữ, số, cách, dấu câu) */
-        (keysym >= 0xa0 && keysym <= 0xff) || /* Latin-1 */
-        (keysym >= 0x01000100 && keysym <= 0x0110ffff) || /* keysym Unicode (bàn phím Việt XKB) */
-        keysym == 0xff08 || /* BackSpace */
-        (keysym >= 0xffaa && keysym <= 0xffb9)) { /* numpad * + , - . / 0..9 */
-        return LC_LIVE_KEEP;
-    }
-    return LC_LIVE_DISMISS; /* Enter, Tab, mũi tên, Home/End, F-key… */
+    /* SF-5 (G22): luật R2-129 do session quyết (ime_assist_live_key); Linux chưa có UI gọi lại
+     * (Ctrl+Shift+G) ⇒ RECALL coi như đóng rồi đi tiếp. */
+    uint32_t vk = 0, ch = 0;
+    lc_keysym_to_vk_ch(keysym, &vk, &ch);
+    uint32_t mods = (ctrl ? IME_MOD_CTRL : 0u) | (alt ? IME_MOD_ALT : 0u) | (super ? IME_MOD_SUPER : 0u);
+    int32_t r = ime_assist_live_key(vk, ch, mods);
+    if (r == IME_ALIVE_CLOSE) return LC_LIVE_CLOSE;
+    if (r >= IME_ALIVE_APPLY_1 && r < IME_ALIVE_APPLY_1 + 3) return LC_LIVE_APPLY_1 + (r - IME_ALIVE_APPLY_1);
+    if (r == IME_ALIVE_KEEP) return LC_LIVE_KEEP;
+    return LC_LIVE_DISMISS;
 }
 
 int lc_config_read_assist_mode(const char *path, int default_mode) {

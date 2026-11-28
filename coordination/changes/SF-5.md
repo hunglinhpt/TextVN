@@ -22,10 +22,21 @@
 - **Test**: `session/tests/assist.rs` có 5 nhóm (D11, R2-154, R-5/R-6, R2-129 live/on-demand/selection,
   biến thể vk/ch). Preflight 29/30 PASS (homebrew SKIP local).
 
-### Còn lại (pha 1b+)
-- Linux: `lc_assist_live_key(keysym,…)` và `lc_assist_idle_arms` gọi session qua C ABI. Cần đưa
-  `(vk, ch)` từ keymap adapter, viết lại test C theo `(vk, ch)`.
-- macOS: `assistIdleArms` qua C ABI. macOS hiện đếm cả ký tự C1 là chữ, lệch nhẹ với TSF/Linux.
+### Pha 1b — Linux + macOS dùng cùng luật qua C ABI — XONG
+- **C ABI** `ime_assist_live_key(vk, ch, mods)` (`IME_ALIVE_KEEP/DISMISS/CLOSE/RECALL/APPLY_1`) và
+  `ime_assist_idle_arms(vk, ch, mods, vi_on)` (header, bản sao macOS, `verify` 48 export).
+- **Linux**: `lc_assist_live_key(keysym, …)` giữ nguyên chữ ký, ruột gọi session qua
+  `lc_keysym_to_vk_ch` (helper dùng chung linux-common). 14 assert keysym cũ trong `test_compose.c`
+  vẫn pass, chứng minh hành vi không đổi. `RECALL` (Ctrl+Shift+G) chưa có UI trên Linux nên coi như
+  đóng rồi đi tiếp. Idle: `lc_assist_idle_arms_key(vk, ch, mods, vi)` thay
+  `lc_assist_idle_arms(is_char, is_backspace, vi)` ở IBus/Fcitx5.
+- **macOS**: `CoreBridge/AssistPolicy.swift`; `assistIdleArms` gọi session. Ký tự C1 không còn tính là
+  chữ, khớp TSF/Linux. Test macOS cũ giữ nguyên.
+- **Kiểm**: 2 test ABI `sf5_*`; preflight bước 1–18 và 20–29 PASS. Bước perf local đỏ vì máy đang bị
+  bóp: CPU ở 57% hiệu năng danh định, `ime_key` và `parse_config` cùng chậm ×3. Đó là môi trường, không
+  phải mã (E97); job perf trên CI là thước đo.
+
+### Còn lại (pha 2)
 - Trạng thái trợ lý trong session: undo chỉ sống tới phím kế (R-3), Ctrl+Space sửa câu (R2-131), Mode EN
   không sửa câu (R2-143), timer idle qua `TimerStart`/`Timer`. Kèm corpus `corpus/assist` và e2e trợ lý
   3 OS.
@@ -52,11 +63,21 @@
 - **Tests**: `session/tests/assist.rs` has 5 groups (D11, R2-154, R-5/R-6, R2-129 live/on-demand/
   selection, vk/ch variant). Preflight 29/30 PASS (homebrew SKIP local).
 
-### Remaining (phase 1b+)
-- Linux: `lc_assist_live_key(keysym,…)` and `lc_assist_idle_arms` call the session through the C ABI.
-  This needs `(vk, ch)` from the adapter keymap and the C tests rewritten around `(vk, ch)`.
-- macOS: `assistIdleArms` through the C ABI. macOS currently counts C1 characters as text, a slight
-  difference from TSF/Linux.
+### Phase 1b — Linux + macOS use the same rules through the C ABI — DONE
+- **C ABI** `ime_assist_live_key(vk, ch, mods)` (`IME_ALIVE_KEEP/DISMISS/CLOSE/RECALL/APPLY_1`) and
+  `ime_assist_idle_arms(vk, ch, mods, vi_on)` (header, macOS copy, `verify` 48 exports).
+- **Linux**: `lc_assist_live_key(keysym, …)` keeps its signature; its body calls the session through
+  `lc_keysym_to_vk_ch` (a shared linux-common helper). The 14 existing keysym asserts in
+  `test_compose.c` still pass, proving the behaviour is unchanged. `RECALL` (Ctrl+Shift+G) has no UI on
+  Linux yet, so it closes and the key goes on. Idle: `lc_assist_idle_arms_key(vk, ch, mods, vi)`
+  replaces `lc_assist_idle_arms(is_char, is_backspace, vi)` in IBus/Fcitx5.
+- **macOS**: `CoreBridge/AssistPolicy.swift`; `assistIdleArms` calls the session. C1 characters no
+  longer count as text, matching TSF/Linux. The existing macOS test is unchanged.
+- **Checks**: 2 ABI tests `sf5_*`; preflight steps 1–18 and 20–29 PASS. The local perf step is red
+  because the machine is throttled: the CPU runs at 57% of nominal, and `ime_key` and `parse_config`
+  are both ×3 slower. That is the environment, not the code (E97); the CI perf job is the measure.
+
+### Remaining (phase 2)
 - Assistant state in the session: undo lives only until the next key (R-3), Ctrl+Space fixes the
   sentence (R2-131), Mode EN does not fix sentences (R2-143), idle timer via `TimerStart`/`Timer`.
   Plus the `corpus/assist` corpus and 3-OS assistant e2e.

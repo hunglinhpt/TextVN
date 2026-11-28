@@ -1414,7 +1414,7 @@ static gboolean process_key_inner(IBusEngine *engine, guint keyval, guint keycod
     }
     /* R2-155: mọi phím gõ chữ/xoá hẹn lại timer idle (danh sách đang hiện đã bị ẩn ở đầu hàm). */
     if (!self->terminal &&
-        lc_assist_idle_arms(key.kind == LC_KEY_CHAR, key.kind == LC_KEY_BACKSPACE, s_vi_enabled)) {
+        lc_assist_idle_arms_key(vk, ch, mods, s_vi_enabled)) {
         clear_assist_ui(self); /* phím số/chữ trần không đóng danh sách sống — ẩn ở đây */
         assist_idle_arm(self);
     }

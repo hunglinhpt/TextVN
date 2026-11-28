@@ -1223,9 +1223,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Phím nào hẹn lại timer idle (khớp `panel_idle::idle_arms` Windows và
     /// `lc_assist_idle_arms` Linux): chữ in được, dấu câu, xoá — khi tiếng Việt bật.
+    /// SF-5: luật dùng chung 3 OS (`AssistPolicy` → `ime_assist_idle_arms`). Ký tự điều khiển C1
+    /// (U+0080..U+009F) không còn tính là chữ — khớp Windows/Linux.
     static func assistIdleArms(ch: UInt32, vk: UInt32, viEnabled: Bool) -> Bool {
-        guard viEnabled else { return false }
-        return vk == vkBack || (ch >= 0x20 && ch != 0x7F)
+        AssistPolicy.idleArms(vk: vk, ch: ch, mods: 0, viEnabled: viEnabled)
     }
 
     func cancelAssistIdle() {

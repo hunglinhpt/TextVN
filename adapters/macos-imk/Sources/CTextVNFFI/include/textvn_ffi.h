@@ -492,6 +492,19 @@ int32_t      ime_imk_plan(const ime_imk_input_v1 *in, ime_imk_plan_v1 *out);
 #define IME_GHOST_TEXT_AFTER_CARET 0x10u  /* sau caret còn chữ trên dòng */
 int32_t      ime_ghost_label(const uint8_t *ghost, size_t len, uint32_t gates,
                              uint8_t *out, size_t cap);
+/* ---- SF-5 (P0-6 §5 assist) — luật quyết định Trợ lý dùng chung (`textvn_session::assist`) ----
+ * `vk` canonical, `ch` ký tự của phím (0 nếu không sinh ký tự), `mods` bit IME_MOD_*.
+ * ime_assist_live_key: phím khi bảng gợi ý SỐNG đang hiện (R2-129/P9) — KEEP = phím đi tiếp như
+ * thường (bảng giữ), DISMISS = đóng rồi đi tiếp, CLOSE = Esc, RECALL = Ctrl+Shift+G (adapter không có
+ * UI gọi lại coi như DISMISS), APPLY_1 + n = Alt+1..3. ime_assist_idle_arms: 1 = hẹn lại timer
+ * idle 1 s (R2-154/155). */
+#define IME_ALIVE_KEEP    0
+#define IME_ALIVE_DISMISS 1
+#define IME_ALIVE_CLOSE   2
+#define IME_ALIVE_RECALL  3
+#define IME_ALIVE_APPLY_1 10
+int32_t      ime_assist_live_key(uint32_t vk, uint32_t ch, uint32_t mods);
+int32_t      ime_assist_idle_arms(uint32_t vk, uint32_t ch, uint32_t mods, int32_t vi_on);
 /* ---- SF-7 (P0-6 §5): bộ chọn Emoji DÙNG CHUNG 3 OS (`textvn_session::emoji::EmojiPicker`) ----
  * Adapter chỉ ánh xạ phím ⇒ IME_EPK_KEY_*, vẽ theo ime_emoji_view_v1, chèn glyph khi nhận
  * IME_EPK_COMMIT. Tìm/MRU qua engine của `inst` (MRU chung với `:shortcode:` + Dream RSI G19).

@@ -16,12 +16,14 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
+pub mod assist_policy_abi;
 pub mod compose_abi;
 pub mod emoji_picker_abi;
 pub mod ghost_abi;
 pub mod imk_abi;
 pub mod session_abi;
 pub mod settings;
+pub use assist_policy_abi::*;
 pub use compose_abi::*;
 pub use emoji_picker_abi::*;
 pub use ghost_abi::*;
@@ -1977,6 +1979,18 @@ pub extern "C" fn ime_ghost_label(
     cap: usize,
 ) -> i32 {
     ghost_abi::ime_ghost_label_impl(ghost, len, gates, out, cap)
+}
+
+// ---- SF-5 (P0-6 §5 assist): luật phím bảng gợi ý sống + idle — thân ở `assist_policy_abi.rs`. ----
+
+#[no_mangle]
+pub extern "C" fn ime_assist_live_key(vk: u32, ch: u32, mods: u32) -> i32 {
+    assist_policy_abi::ime_assist_live_key_impl(vk, ch, mods)
+}
+
+#[no_mangle]
+pub extern "C" fn ime_assist_idle_arms(vk: u32, ch: u32, mods: u32, vi_on: i32) -> i32 {
+    assist_policy_abi::ime_assist_idle_arms_impl(vk, ch, mods, vi_on)
 }
 
 // ---- SF-7 (P0-6 §5): bộ chọn Emoji dùng chung — cài đặt ở `emoji_picker_abi` ----

@@ -695,11 +695,15 @@ static void test_assist_hotkey_explicit_preview(void) {
 /* R2-155: bảng phím hẹn timer idle (khớp panel_idle::idle_arms Windows). */
 static void test_assist_idle_arms(void) {
     assert(LC_ASSIST_IDLE_MS == 1000);
-    assert(lc_assist_idle_arms(1, 0, 1) == 1);  /* chữ/dấu câu */
-    assert(lc_assist_idle_arms(0, 1, 1) == 1);  /* xoá */
-    assert(lc_assist_idle_arms(0, 0, 1) == 0);  /* Enter/Tab/Esc/điều hướng */
-    assert(lc_assist_idle_arms(1, 0, 0) == 0);  /* tiếng Việt tắt */
-    assert(lc_assist_idle_arms(0, 1, 0) == 0);
+    /* SF-5: luật idle do session quyết (ime_assist_idle_arms). */
+    assert(lc_assist_idle_arms_key(0x41, 'a', 0, 1) == 1);         /* chữ */
+    assert(lc_assist_idle_arms_key(0xBE, '.', 0, 1) == 1);         /* dấu câu */
+    assert(lc_assist_idle_arms_key(LC_VK_BACK, 0, 0, 1) == 1);     /* xoá */
+    assert(lc_assist_idle_arms_key(LC_VK_RETURN, 0, 0, 1) == 0);   /* Enter */
+    assert(lc_assist_idle_arms_key(LC_VK_TAB, 0, 0, 1) == 0);      /* Tab */
+    assert(lc_assist_idle_arms_key(0x1B, 0, 0, 1) == 0);           /* Esc */
+    assert(lc_assist_idle_arms_key(0x41, 'a', 0, 0) == 0);         /* tiếng Việt tắt */
+    assert(lc_assist_idle_arms_key(LC_VK_BACK, 0, 0, 0) == 0);
 }
 
 static void test_modifier_ctrl_tap(void) {

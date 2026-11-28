@@ -284,6 +284,12 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             "IME_GHOST_TEXT_AFTER_CARET",
             IME_GHOST_TEXT_AFTER_CARET as i64,
         ),
+        // SF-5: luật phím bảng gợi ý sống.
+        ("IME_ALIVE_KEEP", IME_ALIVE_KEEP as i64),
+        ("IME_ALIVE_DISMISS", IME_ALIVE_DISMISS as i64),
+        ("IME_ALIVE_CLOSE", IME_ALIVE_CLOSE as i64),
+        ("IME_ALIVE_RECALL", IME_ALIVE_RECALL as i64),
+        ("IME_ALIVE_APPLY_1", IME_ALIVE_APPLY_1 as i64),
         // SF-7: bộ chọn Emoji dùng chung.
         (
             "IME_EMOJI_PICKER_ABI_VERSION",
@@ -365,6 +371,9 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_compose_plan",
         "ime_imk_plan",
         "ime_ghost_label",
+        // SF-5: luật quyết định Trợ lý dùng chung.
+        "ime_assist_live_key",
+        "ime_assist_idle_arms",
         // SF-7: bộ chọn Emoji dùng chung 3 OS.
         "ime_emoji_picker_new",
         "ime_emoji_picker_free",

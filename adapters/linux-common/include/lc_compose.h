@@ -262,7 +262,9 @@ int lc_assist_should_display(int assist_mode, int is_sentence_trigger);
 
 /* Phím nào hẹn lại timer idle (khớp `panel_idle::idle_arms` của Windows): chữ in được, dấu
  * câu, xoá. `is_char`/`is_backspace` do adapter phân loại (lc_key_kind). */
-int lc_assist_idle_arms(int is_char, int is_backspace, int vi_enabled);
+int lc_assist_idle_arms_key(uint32_t vk, uint32_t ch, uint32_t mods, int vi_enabled);
+/* Keysym X11 → (vk canonical, ch) cho luật phím dùng chung (SF-5). */
+void lc_keysym_to_vk_ch(uint32_t keysym, uint32_t *vk, uint32_t *ch);
 
 /* R2-129: phím khi danh sách gợi ý SỐNG đang hiện (parity Windows `PopupKind::Live`)
  * — danh sách không chiếm phím gõ: chữ/số/cách/dấu câu/Backspace giữ danh sách
