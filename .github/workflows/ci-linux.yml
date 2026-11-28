@@ -50,6 +50,15 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           cmake --build build-asan -j
           ctest --test-dir build-asan --output-on-failure
+      # ARM-L2: `char` KHÔNG DẤU là mặc định trên aarch64 (có dấu trên x86_64). Lượt thứ hai biên dịch
+      # với -funsigned-char -Wsign-compare (+ -Werror sẵn trong CMakeLists) để bắt code giả định dấu của
+      # `char` NGAY trên x86 — lượt mặc định ở trên giữ hành vi có dấu; hai lượt cùng xanh mới qua.
+      - name: cmake -funsigned-char -Wsign-compare → ctest (char như aarch64)
+        run: |
+          cmake -S adapters/linux-common -B build-uchar -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-funsigned-char -Wsign-compare"
+          cmake --build build-uchar -j
+          ctest --test-dir build-uchar --output-on-failure
 
   linux-adapters:
     timeout-minutes: 90
@@ -152,6 +161,59 @@ jobs:
           name: linux-e2e-helpers
           path: target/e2e-helpers/*
           if-no-files-found: error
+
+  # ARM-L1 (P0-7 Luồng A, P0-5 §9b): CÙNG bộ kiểm thử chạy NATIVE trên Linux aarch64 (Raspberry Pi 5,
+  # NVIDIA Jetson/DGX Spark = Ubuntu 24.04 arm64, máy chủ Graviton/Ampere) — không cross-compile, không
+  # đụng job x86_64 ở trên. Hai LTS còn hỗ trợ: 24.04 (glibc 2.39, GTK 4.14) + 22.04 (glibc 2.35, GTK 4.6).
+  linux-arm64:
+    name: Linux aarch64 native (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, ubuntu-22.04-arm]
+    runs-on: ${{ matrix.os }}
+    # Runner ARM chậm hơn x86_64 khi build lạnh (không có cache lần đầu) — timeout riêng.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Kiến trúc phải là aarch64 (chặn runner bị đổi âm thầm sang x86_64)
+        run: |
+          uname -m
+          test "$(uname -m)" = aarch64
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # Cache tách theo kiến trúc + bản Ubuntu (glibc khác nhau) — không lẫn với job x86_64.
+          shared-key: arm64-${{ matrix.os }}-v1
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus libdbus-1-dev
+      - name: cargo test --workspace (native aarch64)
+        run: cargo test --workspace --locked
+      - name: verify header C + ABI 20/532 (khác kiến trúc = cùng kích thước)
+        run: |
+          cargo run -q -p textvn-cli -- verify
+          cargo run -q -p textvn-cli -- sizes
+      - name: replay corpus 4 adapter (headless/tsf/mac/linux)
+        run: |
+          cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
+          cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+          cargo run -q -p textvn-cli -- replay corpus/shared corpus/mac --adapter mac
+          cargo run -q -p textvn-cli -- replay corpus/shared --adapter linux
+      - name: linux-common ctest (ASan + UBSan) trên aarch64
+        run: |
+          cargo build --release -p textvn-ffi
+          cmake -S adapters/linux-common -B build-asan -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-asan -j
+          ctest --test-dir build-asan --output-on-failure
+      - name: Build adapter IBus/Fcitx5/settings + ctest + e2e ibus-daemon/fcitx5 thật
+        run: scripts/e2e-linux.sh
 
   # E67/E68: kiểm thử ĐÚNG gói tarball phát hành song song trên 6 distro doanh nghiệp & phổ thông hàng đầu
   # (cộng thêm Ubuntu 24.04 ở job trên và Arch Linux ở ci-aur = 8/8 họ distro Linux chính).
