@@ -148,6 +148,20 @@ jobs:
           if exist e2e-editor-x64.exe set "EXTRA=%CD%\e2e-editor-x64.exe"
           if exist e2e-editor-x86.exe set "EXTRA=%EXTRA%;%CD%\e2e-editor-x86.exe"
           echo TEXTVN_E2E_EXTRA_EDITORS=%EXTRA%>>"%GITHUB_ENV%"
+      # ARM-W5b: probe COM nap TIP theo kien truc (thay go phim khi runner khong route input - E89).
+      # arm64 + x64 bat buoc; x86 khi runner co toolset x86 (ghi ro neu thieu).
+      - name: ARM-W5b build TIP load probes (arm64 + x64 + x86 best-effort)
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do set "VS=%%i"
+          if not defined VS (echo no VS via vswhere & exit /b 1)
+          (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" arm64 && cl /nologo /W4 /WX /Fe:tip-load-probe-arm64.exe tools\win\tip-load-probe.c ole32.lib) || exit /b 1
+          (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x64 && cl /nologo /W4 /WX /Fe:tip-load-probe-x64.exe tools\win\tip-load-probe.c ole32.lib) || exit /b 1
+          (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x86 && cl /nologo /W4 /WX /Fe:tip-load-probe-x86.exe tools\win\tip-load-probe.c ole32.lib) || echo ::warning::ARM-W5b x86 toolset khong co tren runner - bo qua probe x86
+          set "P=%CD%\tip-load-probe-arm64.exe|textvn-tsf-arm64.dll;%CD%\tip-load-probe-x64.exe|textvn-tsf-x64.dll"
+          if exist tip-load-probe-x86.exe set "P=%P%;%CD%\tip-load-probe-x86.exe|textvn-tsf-x86.dll"
+          echo TEXTVN_TIP_PROBES=%P%>>"%GITHUB_ENV%"
+          echo TEXTVN_TIP_PROBE_MUTATION=1>>"%GITHUB_ENV%"
       - name: ARM-W4 portable E2E (test-portable.ps1)
         shell: powershell
         run: |

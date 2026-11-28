@@ -152,6 +152,39 @@ if (-not $wowInproc -or $wowInproc -notlike '*textvn-tsf-x86.dll') { throw "WOW6
 Write-Host 'PASS WOW6432Node COM registered to textvn-tsf-x86.dll (Zalo/Office 32-bit)'
 Write-Host 'PASS silent machine install + user TSF activation (files, TSF, autostart, Ctrl+Shift for TextVN)'
 
+# ARM-W5b: TIP DA CAI nap DUNG kien truc trong tien trinh that (CoCreateInstance qua InprocServer32
+# cua bo cai) - khong can route input (E89). Chi job ARM64 dat TEXTVN_TIP_PROBES = "exe|dll;exe|dll".
+if ($env:TEXTVN_TIP_PROBES) {
+    $probes = @($env:TEXTVN_TIP_PROBES -split ';' | Where-Object { $_ })
+    foreach ($pair in $probes) {
+        $exe, $dll = $pair -split '\|', 2
+        & $exe $dll
+        if ($LASTEXITCODE -ne 0) { throw "ARM-W5b: $exe khong nap dung $dll (exit $LASTEXITCODE)" }
+    }
+    Write-Host "PASS ARM-W5b TIP nap dung kien truc trong $($probes.Count) tien trinh (CoCreateInstance qua registry that)"
+    if ($env:TEXTVN_TIP_PROBE_MUTATION -eq '1') {
+        # Dot bien: forwarder ARM64X bi thay bang DLL ARM64 thuong => tien trinh x64 KHONG duoc nap TIP.
+        $x64 = $probes | Where-Object { $_ -like '*|textvn-tsf-x64.dll' } | Select-Object -First 1
+        if (-not $x64) { throw 'ARM-W5b mutation: thieu probe x64' }
+        $exe, $dll = $x64 -split '\|', 2
+        $fwd = Join-Path $app 'textvn-tsf.dll'
+        $bakName = 'textvn-tsf.dll.w5b-bak'
+        Rename-Item -LiteralPath $fwd -NewName $bakName
+        try {
+            Copy-Item -LiteralPath (Join-Path $app 'textvn-tsf-arm64.dll') -Destination $fwd
+            & $exe $dll
+            $mut = $LASTEXITCODE
+        } finally {
+            Remove-Item -LiteralPath $fwd -Force -ErrorAction SilentlyContinue
+            Rename-Item -LiteralPath (Join-Path $app $bakName) -NewName 'textvn-tsf.dll'
+        }
+        if ($mut -eq 0) { throw 'ARM-W5b mutation: x64 van nap TIP khi forwarder bi thay bang DLL ARM64 - probe vo gia tri' }
+        Write-Host "PASS ARM-W5b dot bien: thay forwarder bang DLL ARM64 => probe x64 do (exit $mut)"
+        & $exe $dll
+        if ($LASTEXITCODE -ne 0) { throw 'ARM-W5b: khoi phuc forwarder that bai (probe x64 khong con nap duoc)' }
+    }
+}
+
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $app
 
 # R2-100: bang chung kich ban co nghia - cai xong thi ngon ngu TextVN them phai CO MAT.
