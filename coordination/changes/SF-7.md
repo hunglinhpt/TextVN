@@ -20,6 +20,9 @@
   sẽ làm Linux/macOS (phần 2) mất cả hai ⇒ MRU nay là nguồn truyền vào mỗi lời gọi: `impl EmojiSource for
   textvn_core::Engine` (tiến trình có engine) và `for EmojiMru` (tray Windows, không có engine — giữ nguyên
   hành vi cũ). Test `sf7_nguon_engine_dem_dream_rsi_va_mru_chung`; đột biến bỏ `emoji_record_use` ⇒ ĐỎ.
+- **Phần 1c — danh sách Linux phân trang**: `PickerLayout::paged` (LIST = `true`): cửa sổ nhảy theo trang 9 mục
+  (`selected / 9 * 9`) như danh sách ứng viên native IBus/Fcitx5 đang hiển thị, nên chọn nhanh `1..9` khớp trang
+  người dùng thấy; lưới (`GRID`) vẫn trượt từng hàng. Test `sf7_danh_sach_phan_trang_va_chon_nhanh_theo_trang`.
 - **Ghi nhận (có từ trước, không do SF-7)**: chọn emoji ở tray Windows KHÔNG được đếm Dream RSI vì tray không
   có engine (MRU chỉ trong RAM của tray). Phần 2 nên gửi bộ đếm qua IPC `StyleUpdate` (đường `RsiOnly` đã có).
 - **Phần 2 (sau khi SF-3 nhả `ffi/`)**: C ABI `ime_emoji_picker_*` + Linux (`emoji_picker.c`) và macOS
@@ -48,6 +51,9 @@
   would make Linux/macOS (part 2) lose both ⇒ the MRU is now a source passed into every call: `impl EmojiSource for
   textvn_core::Engine` (processes with an engine) and `for EmojiMru` (the Windows tray, no engine — behaviour
   unchanged). Test `sf7_nguon_engine_dem_dream_rsi_va_mru_chung`; mutation dropping `emoji_record_use` ⇒ RED.
+- **Part 1c — paged Linux list**: `PickerLayout::paged` (LIST = `true`): the window jumps by 9-item pages
+  (`selected / 9 * 9`) like the native IBus/Fcitx5 candidate list shows, so `1..9` quick-pick matches the page the user
+  sees; the grid (`GRID`) still slides row by row. Test `sf7_danh_sach_phan_trang_va_chon_nhanh_theo_trang`.
 - **Noted (pre-existing, not caused by SF-7)**: emoji picked in the Windows tray are NOT counted in Dream RSI because
   the tray has no engine (its MRU lives only in tray RAM). Part 2 should send the counters over IPC `StyleUpdate`
   (the `RsiOnly` path already exists).
@@ -56,7 +62,7 @@
   the tray's `CATEGORY_TABS`, Linux `CATEGORY_NAMES`, macOS `tabs`) into `data/ui/strings.toml` (SF-9).
 
 ## Kiểm thử / Testing
-- `cargo test -p textvn-session` = 71 passed, gồm 13 test `sf7_*` (đóng không xử lý phím; mở nhóm Gần đây; Esc
+- `cargo test -p textvn-session` = 72 passed, gồm 14 test `sf7_*` (đóng không xử lý phím; mở nhóm Gần đây; Esc
   xoá ô tìm; Tab/Shift+Tab xoay vòng 8 nhóm + xoá ô tìm; tìm `rocket` ⇒ Enter chèn 🚀 + MRU lên đầu; Enter không
   kết quả ⇒ đóng; chọn nhanh chỉ khi ô rỗng; `0` là chữ tìm; mũi tên lưới và danh sách; Xuống kẹp ở mục cuối +
   cuộn theo chọn + chọn nhanh theo phần đang hiện; cuộn chuột kẹp biên; ô tìm 32 ký tự + bỏ ký tự điều khiển;

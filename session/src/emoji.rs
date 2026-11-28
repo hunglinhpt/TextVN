@@ -65,6 +65,9 @@ pub struct PickerLayout {
     pub visible_rows: usize,
     /// Số kết quả tối đa nạp từ `search_emojis`.
     pub max_items: usize,
+    /// Cửa sổ nhảy theo TRANG (`visible_rows` hàng) thay vì trượt từng hàng — danh sách ứng viên
+    /// native IBus/Fcitx5 hiện trang `selected / page * page`; chọn nhanh `1..9` phải khớp trang đó.
+    pub paged: bool,
 }
 
 impl PickerLayout {
@@ -73,12 +76,14 @@ impl PickerLayout {
         cols: 8,
         visible_rows: 5,
         max_items: 120,
+        paged: false,
     };
     /// Danh sách ứng viên native IBus/Fcitx5 (9 mục/trang, 36 mục — `LC_EMOJI_MAX_ITEMS`).
     pub const LIST: Self = Self {
         cols: 1,
         visible_rows: 9,
         max_items: 36,
+        paged: true,
     };
 
     fn sane(self) -> Self {
@@ -86,6 +91,7 @@ impl PickerLayout {
             cols: self.cols.max(1),
             visible_rows: self.visible_rows.max(1),
             max_items: self.max_items.max(1),
+            paged: self.paged,
         }
     }
 }
@@ -343,6 +349,10 @@ impl EmojiPicker {
 
     fn ensure_visible(&mut self) {
         let row = self.selected / self.layout.cols;
+        if self.layout.paged {
+            self.scroll_row = row / self.layout.visible_rows * self.layout.visible_rows;
+            return;
+        }
         if row < self.scroll_row {
             self.scroll_row = row;
         } else if row >= self.scroll_row + self.layout.visible_rows {
@@ -572,6 +582,7 @@ mod tests {
                 cols: 0,
                 visible_rows: 0,
                 max_items: 0,
+                paged: false,
             },
             &m,
         );
@@ -579,6 +590,36 @@ mod tests {
         p.scroll_by(3);
         assert_eq!(p.layout().cols, 1);
         assert!(p.visible_items().len() <= 1);
+    }
+
+    /// Danh sách Linux phân trang 9: cửa sổ = trang chứa mục chọn; chọn nhanh theo trang đó
+    /// (khớp `page_start = selected / 9 * 9` của IBus/Fcitx5 cũ).
+    #[test]
+    fn sf7_danh_sach_phan_trang_va_chon_nhanh_theo_trang() {
+        let mut m = EmojiMru::default();
+        let mut l = opened(PickerLayout::LIST, &m);
+        l.switch_category(&m, 1);
+        assert!(l.items().len() > 20);
+        for _ in 0..9 {
+            l.handle_key(&mut m, PickerKey::Down);
+        }
+        assert_eq!((l.selected(), l.first_visible()), (9, 9), "sang trang 2");
+        l.handle_key(&mut m, PickerKey::Down);
+        assert_eq!(
+            (l.selected(), l.first_visible()),
+            (10, 9),
+            "vẫn trang 2 (không trượt)"
+        );
+        l.handle_key(&mut m, PickerKey::Up);
+        l.handle_key(&mut m, PickerKey::Up);
+        assert_eq!((l.selected(), l.first_visible()), (8, 0), "về trang 1");
+        l.handle_key(&mut m, PickerKey::Down);
+        assert_eq!(l.first_visible(), 9);
+        let want = l.items()[9 + 2].glyph;
+        assert_eq!(
+            l.handle_key(&mut m, PickerKey::Char('3')),
+            PickerOutcome::Commit(want)
+        );
     }
 
     /// G19: chèn emoji qua bộ chọn trong tiến trình có engine phải đếm Dream RSI (accepts +
