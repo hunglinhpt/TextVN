@@ -31,6 +31,7 @@ mod linux_tools;
 mod mac_corpus_cases;
 mod png;
 mod preflight;
+mod quality_score;
 mod regression_index;
 mod toml;
 mod win_corpus_cases;
@@ -123,6 +124,7 @@ fn main() -> ExitCode {
         // nằm ở crate `textvn-board` độc lập với build sản phẩm, `cargo xtask board` chỉ mượn lib.
         "board" => textvn_board::cli(&args[1..]),
         "regression-index" => regression_index::cli(&args[1..]),
+        "quality-score" => quality_score::cli(&args[1..]),
         "eval-leak" => eval_leak::cli(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
@@ -170,6 +172,7 @@ fn usage() -> &'static str {
      cargo xtask verify-msix <file.msix> [flags] # luật Partner Center + payload (R2-09)\n  \
      cargo xtask assist-kappa <a.tsv> <b.tsv>     # Cohen's kappa 2 người gán nhãn (E59)\n  \
      cargo xtask assist-score [--verify] [--json] # recall/FPR corpus assist (E59)\n  \
+     cargo xtask quality-score [--write]        # BIZ-1: bảng KPI chung, so bản trước gate G19/G23\n  \
      cargo xtask assist-tone-inject               # lỗi tổng hợp đo luật dấu thanh (E59)\n  \
      cargo xtask assist-build-candidates          # sinh ứng viên corpus assist (E59)\n  \
      cargo xtask assist-gen-vi-tatoeba            # sinh corpus VI từ Tatoeba (E59)\n  \

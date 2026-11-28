@@ -70,8 +70,20 @@ pub fn leaks<'a>(
     out
 }
 
-pub fn cli() -> Result<(), String> {
-    let root = repo_root();
+/// Kết quả quét rò rỉ của cả cây repo — một nguồn cho CLI lẫn KPI `eval_leak` của
+/// `quality-score` (BIZ-1, G22: không đo lại theo cách khác).
+pub struct LeakScan {
+    /// Số câu đánh giá đã quét (mọi tệp `corpus/eval/*.txt`).
+    pub total_sentences: usize,
+    /// Số tệp dữ liệu dự đoán đã đối chiếu.
+    pub data_files: usize,
+    /// Mỗi câu rò rỉ: `(tệp đánh giá, câu, chuỗi trùng, tệp dữ liệu)`.
+    pub leaks: Vec<(String, String, String, String)>,
+}
+
+/// Quét toàn bộ repo: mọi câu trong `corpus/eval/*.txt` đối chiếu n-gram của
+/// `data/*phrases*.tsv`. Lỗi nếu thư mục đánh giá rỗng (tập held-out bị xoá).
+pub fn scan(root: &Path) -> Result<LeakScan, String> {
     let read_dir =
         |dir: &str, pred: &dyn Fn(&str) -> bool| -> Result<Vec<(String, String)>, String> {
             let mut v = Vec::new();
@@ -93,25 +105,37 @@ pub fn cli() -> Result<(), String> {
         return Err("corpus/eval/*.txt không có — tập đánh giá RSI-2 bị xoá?".into());
     }
     let grams = data_ngrams(&data, LEAK_N);
-    let mut bad = 0;
-    let mut total = 0;
+    let mut out = LeakScan {
+        total_sentences: 0,
+        data_files: data.len(),
+        leaks: Vec::new(),
+    };
     for (name, text) in &evals {
-        total += content_lines(text).count();
+        out.total_sentences += content_lines(text).count();
         for (s, g, src) in leaks(text, &grams, LEAK_N) {
-            bad += 1;
-            eprintln!("  {name}: \"{s}\" — trùng \"{g}\" ({src})");
+            out.leaks.push((name.clone(), s.to_string(), g, src));
         }
     }
+    Ok(out)
+}
+
+pub fn cli() -> Result<(), String> {
+    let scan = scan(&repo_root())?;
+    for (name, s, g, src) in &scan.leaks {
+        eprintln!("  {name}: \"{s}\" — trùng \"{g}\" ({src})");
+    }
     println!(
-        "eval-leak: {total} câu đánh giá ({} tệp) · {} tệp dữ liệu · rò rỉ ≥ {LEAK_N} token: {bad}",
-        evals.len(),
-        data.len()
+        "eval-leak: {} câu đánh giá · {} tệp dữ liệu · rò rỉ ≥ {LEAK_N} token: {}",
+        scan.total_sentences,
+        scan.data_files,
+        scan.leaks.len()
     );
-    if bad == 0 {
+    if scan.leaks.is_empty() {
         Ok(())
     } else {
         Err(format!(
-            "eval-leak: {bad} câu đánh giá trùng dữ liệu dự đoán — viết lại câu trong corpus/eval/ hoặc loại câu đó khỏi nguồn sinh data"
+            "eval-leak: {} câu đánh giá trùng dữ liệu dự đoán — viết lại câu trong corpus/eval/ hoặc loại câu đó khỏi nguồn sinh data",
+            scan.leaks.len()
         ))
     }
 }
@@ -139,5 +163,34 @@ mod tests {
             leaks("The Client Asked For A Revised deal\n", &g, LEAK_N).len(),
             1
         );
+    }
+
+    /// BIZ-1: `scan()` — nguồn KPI `eval_leak` của quality-score — phải đếm đúng trên
+    /// cây mẫu và fail-closed khi tập đánh giá bị xoá (E88 spirit: thiếu dữ liệu ⇒ đỏ).
+    #[test]
+    fn biz_1_scan_quet_cay_dem_dung_ro_ri_va_loi_khi_mat_tap_danh_gia() {
+        let base = std::env::temp_dir().join(format!("textvn-eval-scan-{}", std::process::id()));
+        let d = base.join("data");
+        let e = base.join("corpus").join("eval");
+        fs::create_dir_all(&d).unwrap();
+        fs::create_dir_all(&e).unwrap();
+        fs::write(
+            d.join("x_phrases.tsv"),
+            "the client\tasked for a revised contract\t9\n",
+        )
+        .unwrap();
+        fs::write(e.join("a.txt"), "the client asked for a revised quote\n").unwrap();
+        let found = scan(&base).expect("quét cây mẫu");
+        assert_eq!(found.total_sentences, 1);
+        assert_eq!(found.data_files, 1);
+        assert_eq!(found.leaks.len(), 1);
+        assert_eq!(found.leaks[0].0, "corpus/eval/a.txt");
+        assert_eq!(found.leaks[0].2, "the client asked for a revised");
+        assert_eq!(found.leaks[0].3, "data/x_phrases.tsv");
+
+        // Tập đánh giá bị xoá ⇒ lỗi (không bao giờ báo "0 rò rỉ" khi không quét được gì).
+        fs::remove_file(e.join("a.txt")).unwrap();
+        assert!(scan(&base).is_err());
+        fs::remove_dir_all(&base).unwrap();
     }
 }
