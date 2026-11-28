@@ -58,3 +58,4 @@
 {"agent":"zcode-glm-sf1a0a01","epoch":"1795830457","kind":"claim","msg":"khung crate textvn-session theo P0-6 §3","task":"SF-1a","ts":"2026-11-28T01:47:37Z"}
 {"agent":"zcode-glm-sf1a0a01","epoch":"1795830477","kind":"reserve","paths":"session/","task":"SF-1a","ts":"2026-11-28T01:47:57Z"}
 {"agent":"claude-opus-c4c5a567","epoch":"1795830535","kind":"unreserve","paths":"adapters/linux-common/CMakeLists.txt","ts":"2026-11-28T01:48:55Z"}
+{"agent":"zcode-glm-armm1c03","epoch":"1795830542","kind":"claim","msg":"gate universal arm64+x86_64 cho moi Mach-O trong .app/.pkg: ham dung chung trong build-macos.sh (source tu package-macos-pkg.sh, G22) + test fixture chay duoc tren Git Bash Windows","task":"ARM-M1","ts":"2026-11-28T01:49:02Z"}
