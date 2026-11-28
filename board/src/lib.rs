@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `cargo xtask board` — bảng điều phối nhiều agent (G21, `coordination/README.md`).
+//! `cargo board` / `cargo xtask board` — bảng điều phối nhiều agent (G21, `coordination/README.md`).
+//!
+//! Crate **độc lập với build sản phẩm** (BOARD-1, E83): KHÔNG phụ thuộc `textvn-core` hay crate
+//! nào khác — chỉ `std` — nên WIP dở của một agent không chặn điều phối của mọi agent nữa
+//! (`cargo run -p textvn-board -- status`, hoặc `cargo install --path board` một lần rồi gọi
+//! `cargo board status`). `cargo xtask board` vẫn dùng chung thư viện này (G22 — một nguồn).
 //!
 //! Một tệp DUY NHẤT `coordination/board.jsonl`, **append-only**, mỗi dòng một sự kiện JSON phẳng
 //! (mọi giá trị là chuỗi). Được git theo dõi với `merge=union` (`.gitattributes`) ⇒ agent trên
@@ -8,7 +13,7 @@
 //! đọc-kiểm-ghi ⇒ hai agent không thể cùng nhận một task.
 //!
 //! Trạng thái (ai giữ task, tệp nào đang được giữ chỗ, thư chưa đọc, ai giữ khoá phát hành) được
-//! TÍNH từ chuỗi sự kiện — không sửa dòng cũ. Không crate ngoài (chính sách xtask).
+//! TÍNH từ chuỗi sự kiện — không sửa dòng cũ. Không crate ngoài (chính sách crate này: chỉ `std`).
 
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
@@ -753,7 +758,8 @@ pub fn cli(args: &[String]) -> Result<(), String> {
 }
 
 pub fn usage() -> &'static str {
-    "cargo xtask board <lệnh> [--agent <id>]   (hoặc đặt TEXTVN_AGENT) — G21, coordination/README.md\n  \
+    "cargo board <lệnh> [--agent <id>]   (hoặc đặt TEXTVN_AGENT) — G21, coordination/README.md\n  \
+     (= `cargo xtask board …` khi workspace build được; = `cargo run -p textvn-board -- …` khi WIP hỏng)\n  \
      status                       khoá phát hành · task đang nhận · tệp giữ chỗ · số thư chưa đọc\n  \
      inbox | ack                  xem thư gửi mình/`*` chưa đọc | đánh dấu đã đọc tới giờ\n  \
      claim <TASK> [--lease 8] [--msg ..]      nhận task (từ chối nếu agent khác giữ, lease còn hạn)\n  \

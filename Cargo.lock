@@ -124,6 +124,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "textvn-board"
+version = "0.2.96"
+
+[[package]]
 name = "textvn-cli"
 version = "0.2.96"
 dependencies = [
@@ -369,6 +373,7 @@ name = "xtask"
 version = "0.2.96"
 dependencies = [
  "textvn-assist",
+ "textvn-board",
  "textvn-core",
  "textvn-dict",
 ]

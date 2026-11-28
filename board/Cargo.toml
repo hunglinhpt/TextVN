@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "textvn-board"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Board dieu phoi nhieu agent (G21) — doc lap voi build san pham (BOARD-1/E83), chi std."
+
+# BOARD-1 (E83): crate này KHÔNG được thêm dependency nào (kể cả serde/serde_json) —
+# mục tiêu là `cargo run -p textvn-board` / `cargo board` phải build được cả khi
+# workspace sản phẩm đang hỏng vì WIP dở của agent khác.
+[dependencies]
+
+# Tên binary `cargo-board` ⇒ `cargo install --path board` một lần là có lệnh
+# `cargo board …` trên PATH, chạy được ngay cả khi workspace không build được.
+[[bin]]
+name = "cargo-board"
+path = "src/main.rs"

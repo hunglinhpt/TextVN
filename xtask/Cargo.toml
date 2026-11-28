@@ -18,6 +18,10 @@ publish = false
 textvn-core = { path = "../core" }
 textvn-assist = { path = "../assist" }
 textvn-dict = { path = "../dict" }
+# BOARD-1 (E83): `board` tách thành crate độc lập (chỉ std) — `cargo xtask board` mượn
+# lib; khi workspace sản phẩm hỏng vì WIP, điều phối vẫn chạy qua `cargo run -p textvn-board`
+# hoặc `cargo board` (cargo install --path board).
+textvn-board = { path = "../board" }
 
 [[bin]]
 name = "xtask"

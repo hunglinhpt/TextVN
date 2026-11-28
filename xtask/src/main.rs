@@ -16,7 +16,6 @@
 
 mod art_icons;
 mod assist_tools;
-mod board;
 mod check_mac_targets;
 mod check_version_sync;
 mod en_office;
@@ -117,8 +116,9 @@ fn main() -> ExitCode {
         | "assist-gen-vi-tatoeba"
         | "assist-gen-en-tatoeba" => assist_tools::cli(&args),
         "preflight" => preflight::run(),
-        // G21: bảng điều phối nhiều agent (coordination/board.jsonl).
-        "board" => board::cli(&args[1..]),
+        // G21: bảng điều phối nhiều agent (coordination/board.jsonl) — BOARD-1/E83: logic
+        // nằm ở crate `textvn-board` độc lập với build sản phẩm, `cargo xtask board` chỉ mượn lib.
+        "board" => textvn_board::cli(&args[1..]),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())

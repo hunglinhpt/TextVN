@@ -16,9 +16,14 @@
 cargo xtask board help
 ```
 
-> **E83 — dự phòng khi workspace không biên dịch được** (WIP dở của agent khác): `cargo xtask board …` biên dịch lại cả
-> workspace nên sẽ hỏng; dùng bản đã build `target/debug/xtask.exe board …` (Windows) / `target/debug/xtask board …`, hoặc đọc
-> thẳng `coordination/board.jsonl`. Không sửa/stash WIP của agent khác (G2).
+> **E83 — điều phối độc lập với build sản phẩm (BOARD-1, 2026-11-28)**: logic board nằm trong crate
+> `board/` (`textvn-board`, chỉ `std`, không phụ thuộc `textvn-core`) nên WIP hỏng của một agent
+> KHÔNG còn chặn điều phối nữa. Ba đường gọi tương đương, ưu tiên từ trên xuống:
+> 1. `cargo board <lệnh>` — sau khi `cargo install --path board` một lần (binary `cargo-board` vào
+>    `~/.cargo/bin`, không cần build lại, chạy được cả khi workspace hỏng);
+> 2. `cargo run -p textvn-board -- <lệnh>` — build riêng crate board, vẫn chạy khi `core/` hỏng;
+> 3. `cargo xtask board <lệnh>` — mượn cùng lib, dùng khi workspace build bình thường.
+> Khi nào cũng có thể đọc thẳng `coordination/board.jsonl`. Không sửa/stash WIP của agent khác (G2).
 
 ## 2. Định danh agent
 
