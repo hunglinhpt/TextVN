@@ -458,8 +458,29 @@ pub fn parse_index(text: &str) -> Result<Index, String> {
     Ok(Index { todo_max, rows })
 }
 
-/// Lỗi của một tham chiếu (None = hợp lệ).
-fn check_ref(root: &Path, code: &str, r: &Ref) -> Option<String> {
+/// Lỗi của một tham chiếu (None = hợp lệ). `tracked` = tệp trong git index: E88 lớp 2 — tệp chỉ
+/// có trên máy (WIP untracked của agent khác) KHÔNG phải bằng chứng; trước đây preflight local xanh
+/// còn CI (checkout commit) đỏ. `None` = không lọc (chỉ dùng trong test đơn vị).
+fn check_ref(
+    root: &Path,
+    code: &str,
+    r: &Ref,
+    tracked: Option<&HashSet<String>>,
+) -> Option<String> {
+    let file_of = |r: &Ref| -> Option<String> {
+        match r {
+            Ref::Test { file, .. } => Some(file.clone()),
+            Ref::File(f) | Ref::Gate(f) | Ref::Lesson(f) => Some(f.clone()),
+            _ => None,
+        }
+    };
+    if let (Some(set), Some(f)) = (tracked, file_of(r)) {
+        if !set.contains(&f) {
+            return Some(format!(
+                "{code}: `{f}` chưa có trong git (untracked/WIP) — không được làm bằng chứng (E88)"
+            ));
+        }
+    }
     let read = |f: &str| fs::read_to_string(root.join(f)).ok();
     match r {
         Ref::Test { file, func } => match read(file) {
@@ -664,6 +685,7 @@ fn check(root: &Path, codes: &BTreeMap<String, &'static str>, path: &Path) -> Re
     let text = fs::read_to_string(path)
         .map_err(|e| format!("{INDEX}: {e} — chạy `cargo xtask regression-index --bootstrap`"))?;
     let idx = parse_index(&text)?;
+    let tracked = tracked_files(root)?;
     let mut errs = Vec::new();
     for code in codes.keys() {
         if !idx.rows.contains_key(code) {
@@ -692,7 +714,7 @@ fn check(root: &Path, codes: &BTreeMap<String, &'static str>, path: &Path) -> Re
                 Ref::Process(_) => procs += 1,
                 Ref::Todo => todo += 1,
             }
-            if let Some(e) = check_ref(root, code, r) {
+            if let Some(e) = check_ref(root, code, r, Some(&tracked)) {
                 errs.push(e);
             }
         }
@@ -778,14 +800,19 @@ mod tests {
         let root = repo_root();
         let (_, e1) = &idx.rows["E1"];
         assert!(
-            check_ref(&root, "E1", &e1[0]).is_none(),
+            check_ref(&root, "E1", &e1[0], None).is_none(),
             "test đang tồn tại phải hợp lệ"
         );
         let (_, e2) = &idx.rows["E2"];
         // Đột biến "xoá test của một mã" ⇒ tham chiếu không còn khai báo ⇒ đỏ.
-        assert!(check_ref(&root, "E2", &e2[0])
+        assert!(check_ref(&root, "E2", &e2[0], None)
             .unwrap()
             .contains("không còn"));
+        // E88 lớp 2: tệp có trên máy nhưng KHÔNG trong git index ⇒ đỏ khi kiểm (không chỉ khi bootstrap).
+        let only_other: HashSet<String> = ["README.md".to_string()].into_iter().collect();
+        assert!(check_ref(&root, "E1", &e1[0], Some(&only_other))
+            .unwrap()
+            .contains("chưa có trong git"));
         assert!(Ref::parse("`foo:bar`").is_err());
         assert!(Ref::parse("`todo:REG-3`").is_err());
     }
