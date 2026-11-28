@@ -151,6 +151,37 @@ jobs:
             dist/TextVN-*.msix
           if-no-files-found: error
 
+  # ARM-W7 (ADR-015: mac dinh tach goi x64/arm64 khi phat hanh) — build setup +
+  # portable arm64 tren runner ARM64 that; tiep cho linux-arm64 o phia Linux.
+  windows-arm64:
+    name: Windows arm64 (setup + portable)
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Runner must be ARM64
+        shell: powershell
+        run: if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw 'runner is not ARM64' }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Inno Setup 6
+        shell: powershell
+        run: |
+          choco install innosetup --version=6.5.1 -y --no-progress
+          $dir = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup 6" -Filter ISCC.exe -Recurse | Select-Object -First 1
+          if (-not $dir) { throw 'ISCC.exe not found after Inno Setup 6 install' }
+      - name: build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-arm64
+          path: |
+            dist/TextVN-portable-*-windows-arm64-*.zip
+            dist/TextVN-setup-*-windows-arm64.exe
+          if-no-files-found: error
+
   # COMPAT-1: kiem E2E goi phat hanh tren windows-2025 song song windows-2022.
   windows-2025-e2e:
     name: Windows E2E (windows-2025)
@@ -594,7 +625,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, windows-2025-e2e, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
+    needs: [windows, windows-arm64, windows-2025-e2e, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
     # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
     # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -648,9 +679,11 @@ jobs:
               exit 1
             fi
           fi
-          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' | wc -l)" -eq 2
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*-windows-arm64-*.zip' | wc -l)" -eq 1
           # Per-user (mac dinh) + machine (Store bien the HKLM) = dung 2 exe.
-          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' ! -name '*-machine.exe' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' ! -name '*-machine.exe' | wc -l)" -eq 2
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*-windows-arm64.exe' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*-machine.exe' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-x86_64.tar.gz' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-aarch64.tar.gz' | wc -l)" -eq 1
