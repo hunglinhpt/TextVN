@@ -16,6 +16,7 @@
      (giá trị mong đợi là output engine đã verify, không bịa), undo ⌘Z, toggle EN/VN Ctrl+Shift+Space.
   4. Kết quả: exit 0 = PASS; exit 3 (runner thiếu quyền Accessibility/GUI) = `::warning::` +
      **GIỚI HẠN** ghi vào job summary kèm lý do, **không pass ngầm**; mã khác = đỏ.
+- **Kết quả đo trên runner `macos-latest`** (run 46121387669): `.pkg` cài thành công, binary có `arm64`, ký ad-hoc, Info.plist đủ khoá TIS; hệ TIS có 318 nguồn và `TISRegisterInputSource = noErr` nhưng **không bao giờ liệt kê** `vn.textvn.im` — kể cả khi cài vào `~/Library` hay `/Library/Input Methods`, chờ 30–60 s, `lsregister`, mở tiến trình IM, nạp lại `TextInputMenuAgent`. `tis-select.swift` tách mã: **exit 3** = môi trường không liệt kê IM bên thứ ba (job ghi `::warning::` + GIỚI HẠN trong job summary, bỏ bước gõ); lỗi TIS thật (register/enable/select) vẫn **exit 1 = đỏ**.
 - Lớp cầu (bridge) IMK vẫn gate ở job `swift` (`IMKLibTests`) và `replay --adapter mac`, như
   acceptance ARM-M2 yêu cầu khi runner không cho quyền.
 - `tools/mac/README.md`: thêm `tis-select.swift` và chỗ chạy CI của `smoke-imk.sh`.
@@ -40,6 +41,7 @@
   4. Outcome: exit 0 = PASS; exit 3 (runner lacks Accessibility/GUI) = `::warning::` plus a
      **LIMITATION** line with the reason in the job summary, **never a silent pass**; any other
      code = red.
+- **Measured on the `macos-latest` runner** (run 46121387669): the `.pkg` installs fine, the binary has `arm64`, it is ad-hoc signed and the Info.plist has every TIS key; TIS lists 318 sources and `TISRegisterInputSource = noErr`, yet `vn.textvn.im` is **never listed**, whether installed in `~/Library` or `/Library/Input Methods`, after waiting 30–60 s, `lsregister`, launching the IM process, or reloading `TextInputMenuAgent`. `tis-select.swift` now separates the codes: **exit 3** = the environment does not list third-party IMs (the job emits `::warning::` plus a LIMITATION line in the job summary and skips typing); real TIS errors (register/enable/select) remain **exit 1 = red**.
 - The IMK bridge layer stays gated by the `swift` job (`IMKLibTests`) and `replay --adapter mac`, as
   the ARM-M2 acceptance requires when the runner does not grant the permission.
 - `tools/mac/README.md`: adds `tis-select.swift` and where CI runs `smoke-imk.sh`.

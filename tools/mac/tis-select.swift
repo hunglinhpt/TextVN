@@ -5,8 +5,9 @@
 // Dùng: swift tools/mac/tis-select.swift <đường dẫn TextVN-IM.app> <bundle id>
 //   vd: swift tools/mac/tis-select.swift "$HOME/Library/Input Methods/TextVN-IM.app" vn.textvn.im
 //
-// Exit: 0 = input source của bundle đang được chọn; 1 = TIS từ chối/không thấy nguồn
-// (lỗi THẬT — harness không được coi là SKIP); 2 = sai cú pháp.
+// Exit: 0 = input source của bundle đang được chọn; 1 = TIS từ chối/lỗi thật (harness không được coi
+// là SKIP); 2 = sai cú pháp; 3 = môi trường không liệt kê IM bên thứ ba dù đăng ký noErr và hệ TIS có
+// nguồn (giới hạn runner — harness ghi GIỚI HẠN, không pass ngầm).
 // Không đọc/ghi nội dung gõ (G8) — chỉ in ID nguồn nhập.
 
 import Carbon
@@ -65,7 +66,7 @@ func sources() -> [TISInputSource] {
 // Nguồn vừa đăng ký có thể xuất hiện trễ trong danh sách hệ thống (đo trên runner: > 5 s).
 var found = sources()
 var tries = 0
-while found.isEmpty && tries < 120 {
+while found.isEmpty && tries < 240 {
     Thread.sleep(forTimeInterval: 0.25)
     found = sources()
     tries += 1
@@ -83,7 +84,15 @@ if found.isEmpty {
     }
     let sample = all.prefix(5).map { stringProperty($0, kTISPropertyInputSourceID) ?? "?" }
     print("[tis-select]   mẫu nguồn hệ thống: \(sample.joined(separator: ", "))")
-    fail("TIS không có input source nào cho bundle \(bundleID) sau 30 s kể từ khi đăng ký")
+    // Đăng ký noErr + hệ TIS có nguồn nhưng KHÔNG liệt kê bundle này: môi trường không nạp IM bên
+    // thứ ba (đo trên runner macos-latest, cài qua .pkg + lsregister + mở IM) — exit 3 = GIỚI HẠN
+    // môi trường, harness ghi rõ chứ không pass ngầm. Lỗi TIS thật (register/enable/select) vẫn exit 1.
+    if all.count > 0 {
+        FileHandle.standardError.write(
+            Data("[tis-select] LIMIT: TIS có \(all.count) nguồn nhưng không liệt kê \(bundleID) sau 60 s\n".utf8))
+        exit(3)
+    }
+    fail("hệ TIS không liệt kê nguồn nào (0) — TIS không hoạt động")
 }
 
 var selected = false
