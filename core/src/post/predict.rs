@@ -462,17 +462,69 @@ pub fn predict_prefix_candidates_with_personal(
 const HEAVY_PREFIX_THRESHOLD: usize = 24;
 /// Số ứng viên dựng sẵn tối đa cho mỗi tiền tố nặng (đủ phủ mọi `limit <= 24`).
 const HEAVY_TOP_K: usize = 24;
-/// Độ dài tiền tố (tính theo ký tự) được đánh chỉ mục top-K sẵn.
-const HEAVY_MAX_PREFIX_CHARS: usize = 5;
+/// Độ dài tiền tố (tính theo ký tự) được đánh chỉ mục top-K sẵn. LOOP-2b: 2..=3 —
+/// độ dài 4–5 chỉ có ~10 nhóm > 24 mục nhưng tốn ~0,7 ms dựng lúc khởi động lạnh;
+/// dải `partition_point` của tiền tố ≥ 4 ký tự đủ ngắn để quét trực tiếp (< 1 µs).
+const HEAVY_MAX_PREFIX_CHARS: usize = 3;
 
+/// LOOP-2b — băm FNV-1a 64-bit cho các bảng tra tĩnh (khoá là dữ liệu nhúng hoặc
+/// tiền tố người dùng đang gõ, không có bề mặt tấn công HashDoS: bảng chỉ đọc,
+/// dựng một lần). Nhanh hơn SipHash mặc định ~3× trên khoá ngắn — cắt thời gian
+/// dựng lexicon lúc khởi động lạnh và lượt tra `get(v)` mỗi phím.
+#[derive(Default, Clone, Copy)]
+struct Fnv1a(u64);
+
+impl std::hash::Hasher for Fnv1a {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        let mut h = if self.0 == 0 {
+            0xcbf2_9ce4_8422_2325
+        } else {
+            self.0
+        };
+        for &b in bytes {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        self.0 = h;
+    }
+}
+
+type FnvBuild = std::hash::BuildHasherDefault<Fnv1a>;
+type FnvMap<K, V> = std::collections::HashMap<K, V, FnvBuild>;
+type FnvSet<K> = std::collections::HashSet<K, FnvBuild>;
+
+const ENTRY_FROM_VN: u8 = 1;
+const ENTRY_COMPOUND_SRC: u8 = 2;
+/// Mục EN mà từ đã có trong tập Việt (first-writer-wins của pool VN+EN cũ).
+const ENTRY_SHADOWED_BY_VN: u8 = 4;
+
+/// 40 byte/mục (2 `&str` + weight + char_count + cờ) — mỗi từ lưu MỘT lần trong
+/// lexicon dùng chung (LOOP-2b), chế độ ngôn ngữ chỉ là bộ lọc [`PoolMode::admits`].
 #[derive(Debug, Clone, Copy)]
 struct StaticEntry {
     word: &'static str,
     key: &'static str,
-    char_count: u16,
     weight: u32,
-    from_vn: bool,
-    is_compound_src: bool,
+    char_count: u16,
+    flags: u8,
+}
+
+impl StaticEntry {
+    #[inline]
+    fn is_vn(&self) -> bool {
+        self.flags & ENTRY_FROM_VN != 0
+    }
+    #[inline]
+    fn is_compound_src(&self) -> bool {
+        self.flags & ENTRY_COMPOUND_SRC != 0
+    }
+    #[inline]
+    fn shadowed_by_vn(&self) -> bool {
+        self.flags & ENTRY_SHADOWED_BY_VN != 0
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -500,11 +552,187 @@ fn rank_weight_first(a: &StaticEntry, b: &StaticEntry) -> std::cmp::Ordering {
         .then_with(|| a.word.cmp(b.word))
 }
 
-/// Bảng tra cứu tiền tố đã sắp theo `(key ASC, rank_cmp)` kèm chỉ mục top-K
-/// dựng sẵn một lần cho mọi tiền tố ngắn nặng (`len > 24`, độ dài 2..=5).
-struct PrefixTable {
-    by_key: Vec<StaticEntry>,
-    heavy_top_k: std::collections::HashMap<&'static str, &'static [StaticEntry]>,
+/// Ba chế độ nguồn tĩnh (trước LOOP-2b là ba pool nhân bản mục — ~2× bộ nhớ và
+/// ~2× thời gian dựng lúc khởi động lạnh). Ngữ nghĩa giữ nguyên từng mục:
+/// - `EnOnly` (mode EN): mọi mục EN (khử trùng first-writer-wins giữa các nguồn EN).
+/// - `VnOnly` (mode VI + cổng RSI-7 chặn EN): mọi mục Việt.
+/// - `VnPlusEn` (mode VI cho phép EN): mục Việt + mục EN có từ CHƯA có trong tập Việt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PoolMode {
+    EnOnly,
+    VnOnly,
+    VnPlusEn,
+}
+
+impl PoolMode {
+    #[inline]
+    fn admits(self, e: &StaticEntry) -> bool {
+        match self {
+            PoolMode::EnOnly => !e.is_vn(),
+            PoolMode::VnOnly => e.is_vn(),
+            PoolMode::VnPlusEn => e.is_vn() || !e.shadowed_by_vn(),
+        }
+    }
+
+    /// Thứ tự xếp từ đơn của chế độ (VI: ngắn trước; EN: weight trước).
+    fn single_rank(self) -> StaticRankCmp {
+        match self {
+            PoolMode::EnOnly => rank_weight_first,
+            PoolMode::VnOnly | PoolMode::VnPlusEn => rank_single_vi,
+        }
+    }
+}
+
+/// Lexicon tĩnh dùng chung cho cả ba chế độ — dựng MỘT lần (OnceLock).
+struct Lexicon {
+    /// Từ đơn, sắp theo `(key, word, flags)` để `partition_point` theo tiền tố.
+    singles: Vec<StaticEntry>,
+    /// Từ ghép (có dấu cách), cùng cách sắp.
+    compounds: Vec<StaticEntry>,
+    /// Từ ghép nguồn compound nhóm theo âm/từ đầu — chỉ số vào `compounds`, sắp
+    /// `rank_weight_first`; lọc theo chế độ lúc tra (thứ tự con giữ nguyên).
+    ext_by_first_word: FnvMap<&'static str, Box<[u32]>>,
+}
+
+/// 8 byte đầu của khoá dạng big-endian (đệm 0) — giữ đúng thứ tự từ điển của
+/// byte UTF-8 (dữ liệu không chứa NUL), so một phép `u64` thay vì so chuỗi.
+fn key_prefix8(key: &str) -> u64 {
+    let mut buf = [0u8; 8];
+    let n = key.len().min(8);
+    buf[..n].copy_from_slice(&key.as_bytes()[..n]);
+    u64::from_be_bytes(buf)
+}
+
+/// Sắp mục theo `(key, word, flags)` — khoá `u64` tiền tố giải quyết gần hết các
+/// phép so (LOOP-2b: sort lexicon là phần lớn chi phí dựng lúc khởi động lạnh).
+fn sort_by_key_prefix(entries: Vec<StaticEntry>) -> Vec<StaticEntry> {
+    let mut keyed: Vec<(u64, StaticEntry)> = entries
+        .into_iter()
+        .map(|e| (key_prefix8(e.key), e))
+        .collect();
+    keyed.sort_by(|(pa, a), (pb, b)| {
+        pa.cmp(pb)
+            .then_with(|| a.key.cmp(b.key))
+            .then_with(|| a.word.cmp(b.word))
+            .then_with(|| a.flags.cmp(&b.flags))
+    });
+    // Vec mới đúng `len` — `collect()` tại chỗ sẽ giữ vùng nhớ 48 B/mục của `keyed`.
+    let mut sorted = Vec::with_capacity(keyed.len());
+    sorted.extend(keyed.into_iter().map(|(_, e)| e));
+    sorted
+}
+
+fn lexicon() -> &'static Lexicon {
+    static CACHE: OnceLock<Lexicon> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let vn_syll = vn_syllables_sorted();
+        let vn_comp = vn_compounds();
+        let tech = tech_terms_lower();
+        let en_common = en_common_lines();
+        let en_freq = en_freq_sorted();
+        let en_10k = en_words10k_sorted();
+        let en_comp = en_compounds();
+
+        let mut singles: Vec<StaticEntry> = Vec::with_capacity(
+            vn_syll.len() + tech.len() + en_common.len() + en_freq.len() + en_10k.len(),
+        );
+        let mut compounds: Vec<StaticEntry> = Vec::with_capacity(vn_comp.len() + en_comp.len());
+        let mut push = |word: &'static str, key: &'static str, weight: u32, flags: u8| {
+            let entry = StaticEntry {
+                word,
+                key,
+                weight,
+                char_count: word.chars().count() as u16,
+                flags,
+            };
+            if word.contains(' ') {
+                compounds.push(entry);
+            } else {
+                singles.push(entry);
+            }
+        };
+
+        // Nguồn Việt: first-writer-wins trong tập Việt.
+        let mut vn_seen: FnvSet<&'static str> =
+            FnvSet::with_capacity_and_hasher(vn_syll.len() + vn_comp.len(), FnvBuild::default());
+        for &syll in vn_syll {
+            if vn_seen.insert(syll) {
+                push(syll, syll, 90, ENTRY_FROM_VN);
+            }
+        }
+        for &(word, _, weight) in vn_comp {
+            if vn_seen.insert(word) {
+                push(word, word, weight, ENTRY_FROM_VN | ENTRY_COMPOUND_SRC);
+            }
+        }
+
+        // Nguồn EN: first-writer-wins trong tập EN; mục trùng từ Việt bị che ở VnPlusEn.
+        let mut en_seen: FnvSet<&'static str> = FnvSet::with_capacity_and_hasher(
+            tech.len() + en_common.len() + en_freq.len() + en_10k.len() + en_comp.len(),
+            FnvBuild::default(),
+        );
+        let mut push_en = |word: &'static str, key: &'static str, weight: u32, compound: bool| {
+            if !en_seen.insert(word) {
+                return;
+            }
+            let mut flags = if compound { ENTRY_COMPOUND_SRC } else { 0 };
+            if vn_seen.contains(word) {
+                flags |= ENTRY_SHADOWED_BY_VN;
+            }
+            push(word, key, weight, flags);
+        };
+        for &(term, tl) in tech {
+            push_en(term, tl, 85, false);
+        }
+        for &word in en_common {
+            push_en(word, word, 70, false);
+        }
+        for &word in en_freq {
+            push_en(word, word, 60, false);
+        }
+        for &word in en_10k {
+            push_en(word, word, 55, false);
+        }
+        for &(word, weight) in en_comp {
+            push_en(word, word, weight, true);
+        }
+
+        let singles = sort_by_key_prefix(singles);
+        let compounds = sort_by_key_prefix(compounds);
+
+        let mut ext_groups: FnvMap<&'static str, Vec<u32>> = FnvMap::default();
+        for (i, e) in compounds.iter().enumerate() {
+            if e.is_compound_src() {
+                if let Some(first) = e.word.split(' ').next() {
+                    ext_groups.entry(first).or_default().push(i as u32);
+                }
+            }
+        }
+        let ext_by_first_word = ext_groups
+            .into_iter()
+            .map(|(k, mut v)| {
+                v.sort_unstable_by(|&a, &b| {
+                    rank_weight_first(&compounds[a as usize], &compounds[b as usize])
+                });
+                (k, v.into_boxed_slice())
+            })
+            .collect();
+
+        Lexicon {
+            singles,
+            compounds,
+            ext_by_first_word,
+        }
+    })
+}
+
+/// Chỉ mục top-K dựng sẵn cho tiền tố nặng (2..=3 ký tự, > 24 mục của chế độ) —
+/// lưu CHỈ SỐ `u32` vào bảng lexicon (không sao chép mục), xếp theo thứ tự của chế độ.
+type HeavyIndex = FnvMap<&'static str, Box<[u32]>>;
+
+struct ModeIndex {
+    singles: HeavyIndex,
+    compounds: HeavyIndex,
 }
 
 fn char_prefix(s: &str, n_chars: usize) -> Option<&str> {
@@ -522,148 +750,78 @@ fn char_prefix(s: &str, n_chars: usize) -> Option<&str> {
     Some(&s[..end])
 }
 
-impl PrefixTable {
-    fn build(mut entries: Vec<StaticEntry>, rank_cmp: StaticRankCmp) -> Self {
-        entries.sort_unstable_by(|a, b| a.key.cmp(b.key).then_with(|| rank_cmp(a, b)));
-        let mut heavy_top_k: std::collections::HashMap<&'static str, &'static [StaticEntry]> =
-            std::collections::HashMap::new();
-
-        for n_chars in 2..=HEAVY_MAX_PREFIX_CHARS {
-            let mut i = 0;
-            while i < entries.len() {
-                let Some(prefix) = char_prefix(entries[i].key, n_chars) else {
-                    i += 1;
-                    continue;
-                };
-                let mut j = i + 1;
-                while j < entries.len() && entries[j].key.starts_with(prefix) {
-                    j += 1;
-                }
-                if j - i > HEAVY_PREFIX_THRESHOLD {
-                    let mut top: Vec<StaticEntry> = entries[i..j].to_vec();
-                    top.select_nth_unstable_by(HEAVY_TOP_K, rank_cmp);
-                    top.truncate(HEAVY_TOP_K);
-                    top.sort_unstable_by(rank_cmp);
-                    let slice: &'static [StaticEntry] = Box::leak(top.into_boxed_slice());
-                    heavy_top_k.insert(prefix, slice);
-                }
-                i = j;
-            }
-        }
-
-        Self {
-            by_key: entries,
-            heavy_top_k,
-        }
-    }
-}
-
-/// Chỉ mục hợp nhất cho một chế độ ngôn ngữ (`!is_vi`, `is_vi && !en`, `is_vi && en`).
-/// Lưu trữ tĩnh trong `OnceLock` (0 alloc khi đọc, giữ 100% ngữ nghĩa gốc).
-struct StaticPool {
-    ext_by_first_word: std::collections::HashMap<&'static str, &'static [StaticEntry]>,
-    singles: PrefixTable,
-    compounds: PrefixTable,
-}
-
-impl StaticPool {
-    fn build(include_vn: bool, include_en: bool, is_vi_rank: bool) -> Self {
-        let mut seen: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
-        let mut singles: Vec<StaticEntry> = Vec::new();
-        let mut compounds: Vec<StaticEntry> = Vec::new();
-        let mut ext_groups: std::collections::HashMap<&'static str, Vec<StaticEntry>> =
-            std::collections::HashMap::new();
-
-        let mut push_entry = |word: &'static str,
-                              key: &'static str,
-                              weight: u32,
-                              from_vn: bool,
-                              is_compound_src: bool| {
-            if !seen.insert(word) {
-                return;
-            }
-            let entry = StaticEntry {
-                word,
-                key,
-                char_count: word.chars().count() as u16,
-                weight,
-                from_vn,
-                is_compound_src,
+fn build_heavy_index(
+    table: &'static [StaticEntry],
+    mode: PoolMode,
+    rank_cmp: StaticRankCmp,
+) -> HeavyIndex {
+    let admitted: Vec<u32> = (0..table.len() as u32)
+        .filter(|&i| mode.admits(&table[i as usize]))
+        .collect();
+    let cmp = |a: &u32, b: &u32| rank_cmp(&table[*a as usize], &table[*b as usize]);
+    let mut heavy = HeavyIndex::default();
+    for n_chars in 2..=HEAVY_MAX_PREFIX_CHARS {
+        let mut i = 0;
+        while i < admitted.len() {
+            let Some(prefix) = char_prefix(table[admitted[i] as usize].key, n_chars) else {
+                i += 1;
+                continue;
             };
-            if !word.contains(' ') {
-                singles.push(entry);
-            } else {
-                compounds.push(entry);
-                if is_compound_src {
-                    if let Some(first) = word.split(' ').next() {
-                        ext_groups.entry(first).or_default().push(entry);
-                    }
-                }
+            let mut j = i + 1;
+            while j < admitted.len() && table[admitted[j] as usize].key.starts_with(prefix) {
+                j += 1;
             }
-        };
-
-        if include_vn {
-            for &syll in vn_syllables_sorted() {
-                push_entry(syll, syll, 90, true, false);
+            if j - i > HEAVY_PREFIX_THRESHOLD {
+                let mut top: Vec<u32> = admitted[i..j].to_vec();
+                top.select_nth_unstable_by(HEAVY_TOP_K, cmp);
+                top.truncate(HEAVY_TOP_K);
+                top.sort_unstable_by(cmp);
+                heavy.insert(prefix, top.into_boxed_slice());
             }
-            for &(word, _, weight) in vn_compounds() {
-                push_entry(word, word, weight, true, true);
-            }
-        }
-
-        if include_en {
-            for &(term, tl) in tech_terms_lower() {
-                push_entry(term, tl, 85, false, false);
-            }
-            for &word in en_common_lines() {
-                push_entry(word, word, 70, false, false);
-            }
-            for &word in en_freq_sorted() {
-                push_entry(word, word, 60, false, false);
-            }
-            for &word in en_words10k_sorted() {
-                push_entry(word, word, 55, false, false);
-            }
-            for &(word, weight) in en_compounds() {
-                push_entry(word, word, weight, false, true);
-            }
-        }
-
-        let single_cmp: StaticRankCmp = if is_vi_rank {
-            rank_single_vi
-        } else {
-            rank_weight_first
-        };
-        let ext_by_first_word = ext_groups
-            .into_iter()
-            .map(|(k, mut v)| {
-                v.sort_unstable_by(rank_weight_first);
-                let slice: &'static [StaticEntry] = Box::leak(v.into_boxed_slice());
-                (k, slice)
-            })
-            .collect();
-
-        Self {
-            ext_by_first_word,
-            singles: PrefixTable::build(singles, single_cmp),
-            compounds: PrefixTable::build(compounds, rank_weight_first),
+            i = j;
         }
     }
+    heavy
 }
 
-fn pool_en_only() -> &'static StaticPool {
-    static CACHE: OnceLock<StaticPool> = OnceLock::new();
-    CACHE.get_or_init(|| StaticPool::build(false, true, false))
+/// Chỉ mục top-K của một chế độ — dựng LƯỜI khi chế độ được dùng lần đầu
+/// (người chỉ gõ EN không trả phí dựng chỉ mục VI và ngược lại).
+fn mode_index(mode: PoolMode) -> &'static ModeIndex {
+    static EN: OnceLock<ModeIndex> = OnceLock::new();
+    static VN: OnceLock<ModeIndex> = OnceLock::new();
+    static VN_EN: OnceLock<ModeIndex> = OnceLock::new();
+    let cell = match mode {
+        PoolMode::EnOnly => &EN,
+        PoolMode::VnOnly => &VN,
+        PoolMode::VnPlusEn => &VN_EN,
+    };
+    cell.get_or_init(|| {
+        let lex = lexicon();
+        ModeIndex {
+            singles: build_heavy_index(&lex.singles, mode, mode.single_rank()),
+            compounds: build_heavy_index(&lex.compounds, mode, rank_weight_first),
+        }
+    })
 }
 
-fn pool_vn_only() -> &'static StaticPool {
-    static CACHE: OnceLock<StaticPool> = OnceLock::new();
-    CACHE.get_or_init(|| StaticPool::build(true, false, true))
-}
-
-fn pool_vn_plus_en() -> &'static StaticPool {
-    static CACHE: OnceLock<StaticPool> = OnceLock::new();
-    CACHE.get_or_init(|| StaticPool::build(true, true, true))
+/// LOOP-2b — số byte heap mà chỉ mục dự đoán tiền tố giữ (lexicon + chỉ mục top-K
+/// của các chế độ ĐÃ dựng). Tất định cho cùng dữ liệu nhúng — dùng làm gate bộ nhớ
+/// trong test (DLL TSF nạp vào MỌI tiến trình gõ chữ: mỗi MB nhân theo số app).
+#[doc(hidden)]
+pub fn prefix_index_heap_bytes() -> usize {
+    fn map_bytes(m: &FnvMap<&'static str, Box<[u32]>>) -> usize {
+        m.capacity() * (std::mem::size_of::<(&str, Box<[u32]>)>() + 1)
+            + m.values().map(|v| v.len() * 4).sum::<usize>()
+    }
+    let lex = lexicon();
+    let mut total = (lex.singles.capacity() + lex.compounds.capacity())
+        * std::mem::size_of::<StaticEntry>()
+        + map_bytes(&lex.ext_by_first_word);
+    for mode in [PoolMode::EnOnly, PoolMode::VnOnly, PoolMode::VnPlusEn] {
+        let idx = mode_index(mode);
+        total += map_bytes(&idx.singles) + map_bytes(&idx.compounds);
+    }
+    total
 }
 
 /// Từ ghép Việt sắp theo `(deaccented ASC, weight DESC, word ASC)` phục vụ nhánh không dấu.
@@ -743,7 +901,7 @@ fn compare_prefix_candidates(
 }
 
 fn is_ext_of(entry: &StaticEntry, variant: &str) -> bool {
-    entry.is_compound_src
+    entry.is_compound_src()
         && entry.word.as_bytes().get(variant.len()) == Some(&b' ')
         && entry.word.starts_with(variant)
 }
@@ -838,23 +996,40 @@ fn predict_impl(
         }
     }
 
-    // 1. Chọn chỉ mục tĩnh phù hợp chế độ ngôn ngữ + cổng RSI-7.
+    // 1. Chọn chế độ nguồn tĩnh theo ngôn ngữ + cổng RSI-7 (LOOP-2b: một lexicon
+    //    dùng chung, chế độ chỉ là bộ lọc `PoolMode::admits`).
     let en_allowed =
         !is_vi || en_context || !vn_prefix_possible_unaccented(typed_unaccented.as_ref());
-    let pool = match (is_vi, en_allowed) {
-        (false, _) => pool_en_only(),
-        (true, false) => pool_vn_only(),
-        (true, true) => pool_vn_plus_en(),
+    let mode = match (is_vi, en_allowed) {
+        (false, _) => PoolMode::EnOnly,
+        (true, false) => PoolMode::VnOnly,
+        (true, true) => PoolMode::VnPlusEn,
     };
+    let lex = lexicon();
+    let index = mode_index(mode);
 
     // Tính `ext_slices` và `has_ext` trước khi xuất personal (personal xếp theo `has_ext`).
-    let mut ext_slices: [Option<&'static [StaticEntry]>; 3] = [None; 3];
+    // Nhóm ext hợp lệ khi chế độ có ≥ 1 mục trong nhóm và (biến thể là chính chuỗi gõ
+    // hoặc nhóm có mục Việt) — đúng ngữ nghĩa pool riêng trước LOOP-2b.
+    let mut ext_slices: [Option<&'static [u32]>; 3] = [None; 3];
     let mut static_has_ext = false;
     for (idx, &v) in active_variants.iter().enumerate() {
-        if let Some(&slice) = pool.ext_by_first_word.get(v) {
-            let valid = v == typed_lower || slice.iter().any(|e| e.from_vn);
+        if let Some(slice) = lex.ext_by_first_word.get(v) {
+            let mut any_admitted = false;
+            let mut any_vn = false;
+            for &i in slice.iter() {
+                let e = &lex.compounds[i as usize];
+                if mode.admits(e) {
+                    any_admitted = true;
+                    if e.is_vn() {
+                        any_vn = true;
+                        break;
+                    }
+                }
+            }
+            let valid = any_admitted && (v == typed_lower || any_vn);
             if valid {
-                ext_slices[idx] = Some(slice);
+                ext_slices[idx] = Some(&slice[..]);
                 static_has_ext = true;
             }
         }
@@ -876,14 +1051,57 @@ fn predict_impl(
         !personal_hits.is_empty() && personal_hits.iter().any(|p| p.word.as_ref() == word)
     };
     let entry_excluded = |e: &StaticEntry, v: &str, skip_ext: bool| -> bool {
-        (v != typed_lower && !e.from_vn)
+        !mode.admits(e)
+            || (v != typed_lower && !e.is_vn())
             || e.key == typed_lower
             || same(e.word)
             || (skip_ext && is_ext_of(e, v))
             || is_shadowed_by_personal(e.word)
     };
 
-    let take_table = |table: &'static PrefixTable,
+    // Ứng viên bảng cho MỘT biến thể: thử top-K dựng sẵn; đủ `need` (hoặc nhóm
+    // chỉ có < K mục) thì xong, ngược lại quét dải `partition_point` của bảng.
+    let collect_variant = |table: &'static [StaticEntry],
+                           heavy: &'static HeavyIndex,
+                           v: &str,
+                           skip_ext: bool,
+                           need: usize,
+                           rank_cmp: StaticRankCmp,
+                           sink: &mut Vec<&'static StaticEntry>| {
+        if let Some(top) = heavy.get(v) {
+            let before = sink.len();
+            for &i in top.iter() {
+                let e = &table[i as usize];
+                if !entry_excluded(e, v, skip_ext) {
+                    sink.push(e);
+                    if sink.len() - before == need {
+                        return;
+                    }
+                }
+            }
+            if top.len() < HEAVY_TOP_K {
+                return;
+            }
+            // Dự phòng khi `need + excluded > HEAVY_TOP_K`: bỏ phần đã lấy, quét cả dải.
+            sink.truncate(before);
+        }
+        let start = table.partition_point(|e| e.key < v);
+        let before = sink.len();
+        sink.extend(
+            table[start..]
+                .iter()
+                .take_while(|e| e.key.starts_with(v))
+                .filter(|e| !entry_excluded(e, v, skip_ext)),
+        );
+        let local = &mut sink[before..];
+        if local.len() > need {
+            local.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
+            sink.truncate(before + need);
+        }
+    };
+
+    let take_table = |table: &'static [StaticEntry],
+                      heavy: &'static HeavyIndex,
                       skip_ext: bool,
                       rank_cmp: StaticRankCmp,
                       out: &mut Vec<String>| {
@@ -891,83 +1109,17 @@ fn predict_impl(
         if need == 0 {
             return;
         }
-        if n_variants == 1 {
-            let v = active_variants[0];
-            if let Some(&top) = table.heavy_top_k.get(v) {
-                let mut picked = 0usize;
-                for e in top {
-                    if !entry_excluded(e, v, skip_ext) {
-                        out.push(e.word.to_string());
-                        picked += 1;
-                        if picked == need {
-                            return;
-                        }
-                    }
-                }
-                if top.len() < HEAVY_TOP_K {
-                    return;
-                }
-                // Dự phòng khi `need + excluded > HEAVY_TOP_K`: xoá phần đã push và quét `by_key`.
-                out.truncate(out.len() - picked);
-            }
-            let start = table.by_key.partition_point(|e| e.key < v);
-            let mut candidates: Vec<&'static StaticEntry> = table.by_key[start..]
-                .iter()
-                .take_while(|e| e.key.starts_with(v))
-                .filter(|e| !entry_excluded(e, v, skip_ext))
-                .collect();
-            if candidates.len() > need {
-                candidates.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
-                candidates.truncate(need);
-            }
-            candidates.sort_unstable_by(|a, b| rank_cmp(a, b));
-            for e in candidates {
-                out.push(e.word.to_string());
-            }
-        } else {
-            let mut merged: Vec<&'static StaticEntry> = Vec::new();
-            for &v in active_variants {
-                let mut used_top = false;
-                if let Some(&top) = table.heavy_top_k.get(v) {
-                    let before = merged.len();
-                    for e in top {
-                        if !entry_excluded(e, v, skip_ext) {
-                            merged.push(e);
-                            if merged.len() - before == need {
-                                used_top = true;
-                                break;
-                            }
-                        }
-                    }
-                    if !used_top && top.len() < HEAVY_TOP_K {
-                        used_top = true;
-                    }
-                    if !used_top {
-                        merged.truncate(before);
-                    }
-                }
-                if !used_top {
-                    let start = table.by_key.partition_point(|e| e.key < v);
-                    let mut local: Vec<&'static StaticEntry> = table.by_key[start..]
-                        .iter()
-                        .take_while(|e| e.key.starts_with(v))
-                        .filter(|e| !entry_excluded(e, v, skip_ext))
-                        .collect();
-                    if local.len() > need {
-                        local.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
-                        local.truncate(need);
-                    }
-                    merged.extend(local);
-                }
-            }
-            if merged.len() > need {
-                merged.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
-                merged.truncate(need);
-            }
-            merged.sort_unstable_by(|a, b| rank_cmp(a, b));
-            for e in merged {
-                out.push(e.word.to_string());
-            }
+        let mut merged: Vec<&'static StaticEntry> = Vec::with_capacity(need.min(64));
+        for &v in active_variants {
+            collect_variant(table, heavy, v, skip_ext, need, rank_cmp, &mut merged);
+        }
+        if merged.len() > need {
+            merged.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
+            merged.truncate(need);
+        }
+        merged.sort_unstable_by(|a, b| rank_cmp(a, b));
+        for e in merged {
+            out.push(e.word.to_string());
         }
     };
 
@@ -976,62 +1128,69 @@ fn predict_impl(
         if need == 0 || !static_has_ext {
             return;
         }
-        if n_variants == 1 {
-            if let Some(slice) = ext_slices[0] {
-                let v = active_variants[0];
-                for e in slice {
+        let mut merged: Vec<&'static StaticEntry> = Vec::with_capacity(need.min(64));
+        for (idx, &v) in active_variants.iter().enumerate() {
+            if let Some(slice) = ext_slices[idx] {
+                let before = merged.len();
+                for &i in slice {
+                    let e = &lex.compounds[i as usize];
                     if !entry_excluded(e, v, false) {
-                        out.push(e.word.to_string());
-                        if out.len() >= limit {
-                            return;
+                        merged.push(e);
+                        if merged.len() - before == need {
+                            break;
                         }
                     }
                 }
             }
-        } else {
-            let mut merged: Vec<&'static StaticEntry> = Vec::new();
-            for (idx, &v) in active_variants.iter().enumerate() {
-                if let Some(slice) = ext_slices[idx] {
-                    let before = merged.len();
-                    for e in slice {
-                        if !entry_excluded(e, v, false) {
-                            merged.push(e);
-                            if merged.len() - before == need {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if merged.len() > need {
-                merged.select_nth_unstable_by(need, |a, b| rank_weight_first(a, b));
-                merged.truncate(need);
-            }
-            merged.sort_unstable_by(|a, b| rank_weight_first(a, b));
-            for e in merged {
-                out.push(e.word.to_string());
-            }
+        }
+        if merged.len() > need {
+            merged.select_nth_unstable_by(need, |a, b| rank_weight_first(a, b));
+            merged.truncate(need);
+        }
+        merged.sort_unstable_by(|a, b| rank_weight_first(a, b));
+        for e in merged {
+            out.push(e.word.to_string());
         }
     };
 
-    let single_rank_cmp: StaticRankCmp = if is_vi {
-        rank_single_vi
-    } else {
-        rank_weight_first
-    };
+    let single_rank_cmp = mode.single_rank();
 
     if has_ext {
         take_ext(&mut out);
         if out.len() < limit {
-            take_table(&pool.compounds, true, rank_weight_first, &mut out);
+            take_table(
+                &lex.compounds,
+                &index.compounds,
+                true,
+                rank_weight_first,
+                &mut out,
+            );
         }
         if out.len() < limit {
-            take_table(&pool.singles, false, single_rank_cmp, &mut out);
+            take_table(
+                &lex.singles,
+                &index.singles,
+                false,
+                single_rank_cmp,
+                &mut out,
+            );
         }
     } else {
-        take_table(&pool.singles, false, single_rank_cmp, &mut out);
+        take_table(
+            &lex.singles,
+            &index.singles,
+            false,
+            single_rank_cmp,
+            &mut out,
+        );
         if out.len() < limit {
-            take_table(&pool.compounds, false, rank_weight_first, &mut out);
+            take_table(
+                &lex.compounds,
+                &index.compounds,
+                false,
+                rank_weight_first,
+                &mut out,
+            );
         }
     }
 
@@ -1878,5 +2037,90 @@ mod tests {
 
         let m5 = predict_next_phrase_matches_with_personal("một hai ba bốn", 5, &personal);
         assert!(!m5.iter().any(|m| m.prediction == "năm"));
+    }
+
+    /// LOOP-2b — parity quét rộng: MỌI tiền tố 2 ký tự có trong lexicon + 1/7 tiền tố
+    /// 3 ký tự, đủ 3 chế độ nguồn (EN / VN / VN+EN qua `is_vi` × `en_ctx`), so bản
+    /// tham chiếu brute-force trước LOOP-2. Bắt lỗi lọc chế độ (`PoolMode::admits`),
+    /// che mục EN trùng Việt (`shadowed_by_vn`) và top-K theo chế độ.
+    #[test]
+    fn loop2b_lexicon_mode_parity_sweep() {
+        let lex = lexicon();
+        let mut prefixes: Vec<&'static str> = Vec::new();
+        for table in [&lex.singles, &lex.compounds] {
+            for n_chars in [2usize, 3] {
+                let mut last: Option<&'static str> = None;
+                let mut k = 0usize;
+                for e in table.iter() {
+                    if let Some(p) = char_prefix(e.key, n_chars) {
+                        if last != Some(p) {
+                            last = Some(p);
+                            k += 1;
+                            if n_chars == 2 || k.is_multiple_of(7) {
+                                prefixes.push(p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        prefixes.sort_unstable();
+        prefixes.dedup();
+        assert!(
+            prefixes.len() > 300,
+            "quét quá ít tiền tố: {}",
+            prefixes.len()
+        );
+        let mut modes_seen = [false; 3];
+        for &p in &prefixes {
+            for (is_vi, en_ctx) in [(false, false), (true, true), (true, false)] {
+                if is_vi && !en_ctx {
+                    let de: String = strip_diacritics(&p.chars().collect::<Vec<_>>())
+                        .into_iter()
+                        .collect();
+                    modes_seen[if vn_prefix_possible_unaccented(&de) {
+                        1
+                    } else {
+                        2
+                    }] = true;
+                } else {
+                    modes_seen[if is_vi { 2 } else { 0 }] = true;
+                }
+                for limit in [1, 25] {
+                    let got =
+                        predict_prefix_candidates_with_personal(p, is_vi, limit, &[], 0, en_ctx);
+                    let exp = predict_impl_reference(p, is_vi, limit, &[], 0, en_ctx);
+                    assert_eq!(
+                        got, exp,
+                        "LOOP-2b parity: prefix={p:?}, is_vi={is_vi}, en_ctx={en_ctx}, limit={limit}"
+                    );
+                }
+            }
+        }
+        assert_eq!(modes_seen, [true; 3], "phải phủ đủ EnOnly/VnOnly/VnPlusEn");
+    }
+
+    /// LOOP-2b / E90 — gate bộ nhớ TẤT ĐỊNH của chỉ mục tiền tố (lexicon + top-K cả 3 chế độ).
+    /// DLL TSF nạp vào mọi tiến trình gõ chữ ⇒ mỗi MB nhân theo số app. LOOP-2 (3 pool
+    /// nhân bản mục 40 B + bản sao top-K) đo ~2,1 MB cấu trúc; LOOP-2b ~0,95 MB. Đột biến
+    /// quay lại pool nhân bản / sao chép mục vào top-K ⇒ vượt ngân sách ⇒ đỏ.
+    #[test]
+    fn loop2b_prefix_index_footprint_budget() {
+        const BUDGET_BYTES: usize = 1_150_000;
+        assert_eq!(std::mem::size_of::<StaticEntry>(), 40, "StaticEntry phình");
+        let bytes = prefix_index_heap_bytes();
+        println!("prefix index heap = {bytes} B");
+        assert!(
+            bytes <= BUDGET_BYTES,
+            "chỉ mục tiền tố {bytes} B > ngân sách {BUDGET_BYTES} B (LOOP-2b)"
+        );
+        let lex = lexicon();
+        let shadowed = lex
+            .singles
+            .iter()
+            .chain(lex.compounds.iter())
+            .filter(|e| e.shadowed_by_vn())
+            .count();
+        assert!(shadowed > 0, "phải có mục EN trùng từ Việt bị che ở VN+EN");
     }
 }
