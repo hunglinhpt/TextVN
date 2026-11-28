@@ -354,3 +354,67 @@ jobs:
             dist/macos/*.pkg
             dist/macos/SHA256SUMS*.txt
           if-no-files-found: error
+
+  # ARM-M2: E2E IMK gõ THẬT trên runner macOS arm64 — cài TextVN-IM từ chính gói candidate,
+  # đăng ký/bật/chọn input source qua TIS (tools/mac/tis-select.swift), gõ 6 case corpus/mac +
+  # undo + toggle EN/VN vào TextEdit (tools/mac/smoke-imk.sh). Runner thiếu quyền Accessibility/GUI
+  # ⇒ smoke exit 3: ghi GIỚI HẠN rõ ràng (::warning:: + job summary), KHÔNG pass ngầm; TIS lỗi
+  # hoặc gõ sai = ĐỎ. Lớp cầu (bridge) IMK vẫn được gate ở job `swift` (IMKLibTests).
+  imk-e2e:
+    name: IMK E2E gõ thật (TextEdit, arm64)
+    runs-on: macos-latest
+    needs: package-candidate
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Runner phải là Apple Silicon (arm64)
+        run: test "$(uname -m)" = arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: TextVN-macos-candidate-${{ github.sha }}
+          path: candidate
+      - name: Cài TextVN-IM.app từ gói candidate vào ~/Library/Input Methods
+        run: |
+          set -euo pipefail
+          zip="$(ls candidate/*.zip | head -n1)"
+          mkdir -p stage
+          ditto -x -k "$zip" stage
+          im="$(find stage -maxdepth 3 -type d -name TextVN-IM.app | head -n1)"
+          test -n "$im"
+          mkdir -p "$HOME/Library/Input Methods"
+          rm -rf "$HOME/Library/Input Methods/TextVN-IM.app"
+          ditto "$im" "$HOME/Library/Input Methods/TextVN-IM.app"
+          xattr -dr com.apple.quarantine "$HOME/Library/Input Methods/TextVN-IM.app" 2>/dev/null || true
+          app="$HOME/Library/Input Methods/TextVN-IM.app"
+          exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+          archs="$(lipo -archs "$app/Contents/MacOS/$exe")"
+          echo "TextVN-IM archs: $archs"
+          grep -qw arm64 <<<"$archs"
+      - name: Đăng ký + bật + chọn input source (TIS)
+        run: swift tools/mac/tis-select.swift "$HOME/Library/Input Methods/TextVN-IM.app" vn.textvn.im
+      - name: Gõ thật vào TextEdit qua IMK (smoke-imk.sh)
+        run: |
+          set +e
+          open -a TextEdit
+          for _ in $(seq 1 20); do pgrep -x TextVN-IM >/dev/null && break; sleep 0.5; done
+          pgrep -lx TextVN-IM || echo "(TextVN-IM chưa chạy — smoke sẽ báo lý do)"
+          bash tools/mac/smoke-imk.sh 2>&1 | tee smoke.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo "### ARM-M2 — IMK E2E gõ thật (TextEdit, arm64)"
+            echo
+            echo '```'
+            cat smoke.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$rc" in
+            0) echo "IMK E2E PASS" ;;
+            3)
+              reason="$(grep -m1 'SKIP' smoke.log || echo 'SKIP không rõ lý do')"
+              echo "::warning title=ARM-M2 giới hạn runner::IMK E2E không chạy được trên runner này — $reason. Gate còn lại: IMKLibTests (job swift) + replay --adapter mac."
+              echo "**GIỚI HẠN**: $reason" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *) echo "::error::IMK E2E đỏ (exit $rc) — xem smoke.log"; exit "$rc" ;;
+          esac
