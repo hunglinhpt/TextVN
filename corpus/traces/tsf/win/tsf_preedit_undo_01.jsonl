@@ -1,0 +1,6 @@
+{"case":"win/tsf_preedit_undo_01","step":0,"cmd":"set_preedit","text":"a","n":1}
+{"case":"win/tsf_preedit_undo_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_undo_01","step":1,"cmd":"set_preedit","text":"á","n":1}
+{"case":"win/tsf_preedit_undo_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_undo_01","step":2,"cmd":"set_preedit","text":"as","n":2}
+{"case":"win/tsf_preedit_undo_01","step":2,"cmd":"eat_key","text":"","n":0}

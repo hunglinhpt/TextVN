@@ -1,0 +1,4 @@
+{"case":"win/tsf_preedit_double_vowel_01","step":0,"cmd":"set_preedit","text":"e","n":1}
+{"case":"win/tsf_preedit_double_vowel_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_double_vowel_01","step":1,"cmd":"set_preedit","text":"ê","n":1}
+{"case":"win/tsf_preedit_double_vowel_01","step":1,"cmd":"eat_key","text":"","n":0}

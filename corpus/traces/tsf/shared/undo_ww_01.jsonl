@@ -1,0 +1,4 @@
+{"case":"shared/undo_ww_01","step":0,"cmd":"set_preedit","text":"ư","n":1}
+{"case":"shared/undo_ww_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/undo_ww_01","step":1,"cmd":"set_preedit","text":"w","n":1}
+{"case":"shared/undo_ww_01","step":1,"cmd":"eat_key","text":"","n":0}

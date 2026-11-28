@@ -1,0 +1,8 @@
+{"case":"win/bug_B8_conhost_clear_01","step":0,"cmd":"set_preedit","text":"c","n":1}
+{"case":"win/bug_B8_conhost_clear_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_conhost_clear_01","step":1,"cmd":"set_preedit","text":"cl","n":2}
+{"case":"win/bug_B8_conhost_clear_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_conhost_clear_01","step":2,"cmd":"set_preedit","text":"cls","n":3}
+{"case":"win/bug_B8_conhost_clear_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B8_conhost_clear_01","step":3,"cmd":"set_preedit","text":"","n":0}
+{"case":"win/bug_B8_conhost_clear_01","step":3,"cmd":"forward_key","text":"","n":0}

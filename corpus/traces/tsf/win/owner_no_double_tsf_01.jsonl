@@ -1,0 +1,16 @@
+{"case":"win/owner_no_double_tsf_01","step":0,"cmd":"set_preedit","text":"n","n":1}
+{"case":"win/owner_no_double_tsf_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":1,"cmd":"set_preedit","text":"ng","n":2}
+{"case":"win/owner_no_double_tsf_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":2,"cmd":"set_preedit","text":"ngu","n":3}
+{"case":"win/owner_no_double_tsf_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":3,"cmd":"set_preedit","text":"ngư","n":3}
+{"case":"win/owner_no_double_tsf_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":4,"cmd":"set_preedit","text":"ngưo","n":4}
+{"case":"win/owner_no_double_tsf_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":5,"cmd":"set_preedit","text":"nguơ","n":4}
+{"case":"win/owner_no_double_tsf_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":6,"cmd":"set_preedit","text":"ngươi","n":5}
+{"case":"win/owner_no_double_tsf_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"win/owner_no_double_tsf_01","step":7,"cmd":"set_preedit","text":"người","n":5}
+{"case":"win/owner_no_double_tsf_01","step":7,"cmd":"eat_key","text":"","n":0}

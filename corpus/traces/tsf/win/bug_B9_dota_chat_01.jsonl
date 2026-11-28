@@ -1,0 +1,6 @@
+{"case":"win/bug_B9_dota_chat_01","step":0,"cmd":"set_preedit","text":"d","n":1}
+{"case":"win/bug_B9_dota_chat_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_dota_chat_01","step":1,"cmd":"set_preedit","text":"đ","n":1}
+{"case":"win/bug_B9_dota_chat_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_dota_chat_01","step":2,"cmd":"set_preedit","text":"đi","n":2}
+{"case":"win/bug_B9_dota_chat_01","step":2,"cmd":"eat_key","text":"","n":0}

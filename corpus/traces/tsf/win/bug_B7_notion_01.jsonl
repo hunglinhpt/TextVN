@@ -1,0 +1,16 @@
+{"case":"win/bug_B7_notion_01","step":0,"cmd":"set_preedit","text":"g","n":1}
+{"case":"win/bug_B7_notion_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":1,"cmd":"set_preedit","text":"gh","n":2}
+{"case":"win/bug_B7_notion_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":2,"cmd":"set_preedit","text":"ghi","n":3}
+{"case":"win/bug_B7_notion_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":3,"cmd":"set_preedit","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":4,"cmd":"set_preedit","text":"c","n":1}
+{"case":"win/bug_B7_notion_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":5,"cmd":"set_preedit","text":"ch","n":2}
+{"case":"win/bug_B7_notion_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":6,"cmd":"set_preedit","text":"chu","n":3}
+{"case":"win/bug_B7_notion_01","step":6,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B7_notion_01","step":7,"cmd":"set_preedit","text":"chú","n":3}
+{"case":"win/bug_B7_notion_01","step":7,"cmd":"eat_key","text":"","n":0}

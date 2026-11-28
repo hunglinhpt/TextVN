@@ -1,0 +1,12 @@
+{"case":"win/bug_B9_league_chat_01","step":0,"cmd":"set_preedit","text":"d","n":1}
+{"case":"win/bug_B9_league_chat_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_league_chat_01","step":1,"cmd":"set_preedit","text":"đ","n":1}
+{"case":"win/bug_B9_league_chat_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_league_chat_01","step":2,"cmd":"set_preedit","text":"đa","n":2}
+{"case":"win/bug_B9_league_chat_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_league_chat_01","step":3,"cmd":"set_preedit","text":"đan","n":3}
+{"case":"win/bug_B9_league_chat_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_league_chat_01","step":4,"cmd":"set_preedit","text":"đanh","n":4}
+{"case":"win/bug_B9_league_chat_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/bug_B9_league_chat_01","step":5,"cmd":"set_preedit","text":"đánh","n":4}
+{"case":"win/bug_B9_league_chat_01","step":5,"cmd":"eat_key","text":"","n":0}

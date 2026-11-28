@@ -648,6 +648,54 @@ fn printable_of(vk: u32, ch: u32) -> Option<char> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TraceEntry {
+    step: usize,
+    cmd: &'static str,
+    text: String,
+    n: u32,
+}
+
+fn canonical_case_rel(id: &str) -> String {
+    let mut s = id.replace('\\', "/");
+    while let Some(rest) = s.strip_prefix("./") {
+        s = rest.to_string();
+    }
+    let is_abs = s.starts_with('/') || (s.len() >= 2 && s.as_bytes()[1] == b':');
+    let rel = if is_abs {
+        if let Some(pos) = s.find("/corpus/") {
+            &s[pos + "/corpus/".len()..]
+        } else {
+            Path::new(id)
+                .file_stem()
+                .and_then(|x| x.to_str())
+                .unwrap_or("case")
+        }
+    } else if let Some(rest) = s.strip_prefix("corpus/") {
+        rest
+    } else {
+        s.as_str()
+    };
+    rel.strip_suffix(".keys").unwrap_or(rel).to_string()
+}
+
+fn format_trace_jsonl(case_rel: &str, entries: &[TraceEntry]) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let escaped_case = json_str(case_rel);
+    for e in entries {
+        let _ = writeln!(
+            out,
+            "{{\"case\":{escaped_case},\"step\":{},\"cmd\":{},\"text\":{},\"n\":{}}}",
+            e.step,
+            json_str(e.cmd),
+            json_str(&e.text),
+            e.n
+        );
+    }
+    out
+}
+
 struct Sim {
     inst: *mut ime_instance,
     settings: Vec<(String, String)>,
@@ -665,6 +713,10 @@ struct Sim {
     /// `Some` khi mô phỏng TSF: text composition đang mở (nằm trong `buf` tại
     /// `comp_start`, caret ở cuối composition).
     tsf: Option<TsfComposition>,
+    /// SF-1c: ghi vết chuẩn hoá các lệnh adapter áp khi `--trace` bật.
+    trace: Option<Vec<TraceEntry>>,
+    /// Chỉ số phím hiện tại (0-based theo từng sự kiện `send_event`).
+    key_step: usize,
 }
 
 #[derive(Default)]
@@ -673,6 +725,7 @@ struct TsfComposition {
     text: Vec<char>,
 }
 
+#[derive(Debug)]
 struct SimFailure {
     line: usize,
     msg: String,
@@ -681,7 +734,7 @@ struct SimFailure {
 }
 
 impl Sim {
-    fn new(profile: AdapterProfile) -> Sim {
+    fn new(profile: AdapterProfile, record_trace: bool) -> Sim {
         let mut inst: *mut ime_instance = std::ptr::null_mut();
         let rc = ime_instance_new(std::ptr::null(), 0, &mut inst);
         assert_eq!(rc, IME_OK, "ime_instance_new default phải OK");
@@ -700,11 +753,24 @@ impl Sim {
             last_action: "PASS".into(),
             failures: Vec::new(),
             tsf: profile.tsf_composition.then(TsfComposition::default),
+            trace: record_trace.then(Vec::new),
+            key_step: 0,
         };
         // Context mặc định cũng phải mang capability profile: corpus không có
         // `:app`/`:caps` vẫn cần mô phỏng adapter đã chọn.
         sim.push_ctx(0);
         sim
+    }
+
+    fn emit_trace(&mut self, cmd: &'static str, text: String, n: u32) {
+        if let Some(t) = self.trace.as_mut() {
+            t.push(TraceEntry {
+                step: self.key_step,
+                cmd,
+                text,
+                n,
+            });
+        }
     }
 
     fn fail(&mut self, line: usize, msg: String) {
@@ -782,6 +848,7 @@ impl Sim {
             let rc = ime_key(self.inst, &k, &mut out);
             if rc != IME_OK {
                 self.fail(line, format!("ime_key rc={rc}"));
+                self.key_step += 1;
                 return;
             }
             self.preedit = decode_utf32(&out.preedit, out.preedit_len);
@@ -789,7 +856,7 @@ impl Sim {
                 // Ctrl tap trả RESTORE ngay ở key-up (`sort` → `sỏt` → `sort`).
                 if out.action != 0 {
                     if self.tsf.is_some() {
-                        self.apply_tsf(vk, ch, mods, injected, &out, line);
+                        self.apply_tsf(vk, ch, mods, injected, &out, line, down);
                     } else {
                         self.apply_action(&out, line);
                     }
@@ -799,7 +866,7 @@ impl Sim {
                 continue;
             }
             if self.tsf.is_some() {
-                self.apply_tsf(vk, ch, mods, injected, &out, line);
+                self.apply_tsf(vk, ch, mods, injected, &out, line, down);
             } else if !injected {
                 if out.action == 0 {
                     self.apply_pass(vk, ch);
@@ -819,6 +886,7 @@ impl Sim {
                 }
             }
         }
+        self.key_step += 1;
     }
 
     fn setting_is_true(&self, key: &str) -> bool {
@@ -827,13 +895,25 @@ impl Sim {
 
     /// Đóng composition TSF (text giữ nguyên trong buffer).
     fn tsf_end(&mut self) {
-        if let Some(comp) = self.tsf.as_mut() {
-            comp.text.clear();
+        let committed: Option<String> = self.tsf.as_mut().and_then(|comp| {
+            if comp.text.is_empty() {
+                None
+            } else {
+                let s: String = comp.text.iter().collect();
+                comp.text.clear();
+                Some(s)
+            }
+        });
+        if let Some(s) = committed {
+            // P0-6 §3: commit TRƯỚC khi ẩn preedit.
+            self.emit_trace("commit", s, 0);
+            self.emit_trace("set_preedit", String::new(), 0);
         }
     }
 
     /// Mô phỏng TSF adapter: cùng thứ tự quyết định như `key_event.rs` và cùng
     /// kế hoạch `plan_key` như `edit_session.rs`.
+    #[allow(clippy::too_many_arguments)]
     fn apply_tsf(
         &mut self,
         vk: u32,
@@ -842,8 +922,12 @@ impl Sim {
         injected: bool,
         out: &ime_result_v1,
         line: usize,
+        down: u8,
     ) {
         if is_modifier_vk(vk) && out.action == 0 {
+            if down == 1 {
+                self.emit_trace("forward_key", String::new(), 0);
+            }
             return;
         }
         // Chord / phím bơm (VK_PACKET) / field bị gate / tắt VN (trừ khi còn gõ tắt —
@@ -851,7 +935,10 @@ impl Sim {
         let macro_only = !self.enabled && self.setting_is_true("allow_macro_when_vi_off");
         if injected || mods & 0xE != 0 || self.secure || !(self.enabled || macro_only) {
             self.tsf_end();
-            if !injected {
+            if down == 1 {
+                self.emit_trace("forward_key", String::new(), 0);
+            }
+            if !injected && down == 1 {
                 self.apply_pass(vk, ch);
             }
             return;
@@ -885,9 +972,35 @@ impl Sim {
             self.cursor = start + text.len();
         }
         let next = text_after(&current, &plan);
+        let next_str: String = next.iter().collect();
         if let Some(comp) = self.tsf.as_mut() {
             comp.start = start;
-            comp.text = if plan.end { Vec::new() } else { next };
+            comp.text = if plan.end { Vec::new() } else { next.clone() };
+        }
+        if plan.delete_before > 0 {
+            self.emit_trace(
+                "delete_before",
+                String::new(),
+                u32::from(plan.delete_before),
+            );
+        }
+        if plan.end {
+            // P0-6 §3: commit TRƯỚC khi ẩn preedit.
+            if !next_str.is_empty() {
+                self.emit_trace("commit", next_str, 0);
+            }
+            if !current.is_empty() {
+                self.emit_trace("set_preedit", String::new(), 0);
+            }
+        } else if plan.text.is_some() && !(current.is_empty() && next_str.is_empty()) {
+            self.emit_trace("set_preedit", next_str, next.len() as u32);
+        }
+        if down == 1 {
+            self.emit_trace(
+                if plan.eaten { "eat_key" } else { "forward_key" },
+                String::new(),
+                0,
+            );
         }
         if !plan.eaten {
             self.apply_pass(vk, ch);
@@ -1077,10 +1190,292 @@ fn mod_bit(name: &str) -> u32 {
     }
 }
 
-/// Chạy 1 case → (pass?, failures, ms).
-fn run_case(case: &Case, profile: AdapterProfile) -> (bool, Vec<SimFailure>, u128) {
+struct CaseKeySpec<'a> {
+    vk: u32,
+    ch: u32,
+    mods: u32,
+    injected: bool,
+    step: usize,
+    bundle: &'a str,
+}
+
+fn push_key_json(keys: &mut Vec<String>, events: &mut Vec<String>, spec: &CaseKeySpec<'_>) {
+    let _ = spec.bundle;
+    for down in [1u8, 0u8] {
+        let obj = format!(
+            "{{\"step\":{},\"vk\":{},\"ch\":{},\"mods\":{},\"down\":{},\"injected\":{}}}",
+            spec.step, spec.vk, spec.ch, spec.mods, down, spec.injected
+        );
+        keys.push(obj);
+        events.push(format!(
+            "{{\"kind\":\"key\",\"step\":{},\"vk\":{},\"ch\":{},\"mods\":{},\"down\":{},\"injected\":{}}}",
+            spec.step, spec.vk, spec.ch, spec.mods, down, spec.injected
+        ));
+    }
+}
+
+/// SF-1c / G22 (`--emit-keys <dir>`): xuất cấu hình, ngữ cảnh và chuỗi phím đã phân giải
+/// thành JSON để adapter macOS (SF-1e Swift) / Linux (SF-1d C) dùng lại thay vì viết lại
+/// parser `.keys`.
+fn emit_case_keys_json(case: &Case, case_rel: &str, profile: AdapterProfile) -> String {
+    let mut settings: Vec<(String, String)> = Vec::new();
+    let mut bundle = String::new();
+    let mut field_role = 0u32;
+    let mut caps = profile.default_caps;
+    let mut enabled = true;
+    let mut secure = false;
+    let mut held_mods = 0u32;
+    let mut step = 0usize;
+    let mut started = false;
+
+    let mut init_config_json = String::from("{\"config_version\":1}");
+    let mut init_app = (bundle.clone(), field_role, caps, secure, enabled);
+    let mut keys: Vec<String> = Vec::new();
+    let mut resets: Vec<String> = Vec::new();
+    let mut events: Vec<String> = Vec::new();
+
+    for (_, cmd) in &case.cmds {
+        match cmd {
+            Cmd::Config(pairs) => {
+                for (k, v) in pairs {
+                    if k == "macro" || k == "emoji" {
+                        settings.push((k.clone(), v.clone()));
+                        continue;
+                    }
+                    match settings.iter_mut().find(|(ek, _)| ek == k) {
+                        Some(slot) => slot.1 = v.clone(),
+                        None => settings.push((k.clone(), v.clone())),
+                    }
+                }
+                let cfg = build_json(&settings);
+                if !started {
+                    init_config_json = cfg.clone();
+                } else {
+                    events.push(format!(
+                        "{{\"kind\":\"config\",\"step\":{},\"config_json\":{}}}",
+                        step,
+                        json_str(&cfg)
+                    ));
+                }
+            }
+            Cmd::App { app_id, field } => {
+                bundle = app_id.clone();
+                field_role = field_role_id(field).unwrap_or(0);
+                if !started {
+                    init_app = (bundle.clone(), field_role, caps, secure, enabled);
+                } else {
+                    events.push(format!(
+                        "{{\"kind\":\"context\",\"step\":{},\"bundle\":{},\"field_role\":{},\"caps\":{},\"secure\":{},\"enabled\":{}}}",
+                        step,
+                        json_str(&bundle),
+                        field_role,
+                        caps,
+                        secure,
+                        enabled
+                    ));
+                }
+            }
+            Cmd::Caps(flags) => {
+                caps = caps_bits(flags);
+                if !started {
+                    init_app = (bundle.clone(), field_role, caps, secure, enabled);
+                } else {
+                    events.push(format!(
+                        "{{\"kind\":\"context\",\"step\":{},\"bundle\":{},\"field_role\":{},\"caps\":{},\"secure\":{},\"enabled\":{}}}",
+                        step,
+                        json_str(&bundle),
+                        field_role,
+                        caps,
+                        secure,
+                        enabled
+                    ));
+                }
+            }
+            Cmd::Enabled(b) => {
+                enabled = *b;
+                if !started {
+                    init_app = (bundle.clone(), field_role, caps, secure, enabled);
+                } else {
+                    events.push(format!(
+                        "{{\"kind\":\"context\",\"step\":{},\"bundle\":{},\"field_role\":{},\"caps\":{},\"secure\":{},\"enabled\":{}}}",
+                        step,
+                        json_str(&bundle),
+                        field_role,
+                        caps,
+                        secure,
+                        enabled
+                    ));
+                }
+            }
+            Cmd::Secure(b) => {
+                secure = *b;
+                if !started {
+                    init_app = (bundle.clone(), field_role, caps, secure, enabled);
+                } else {
+                    events.push(format!(
+                        "{{\"kind\":\"context\",\"step\":{},\"bundle\":{},\"field_role\":{},\"caps\":{},\"secure\":{},\"enabled\":{}}}",
+                        step,
+                        json_str(&bundle),
+                        field_role,
+                        caps,
+                        secure,
+                        enabled
+                    ));
+                }
+            }
+            Cmd::Mods { add, name } => {
+                let bit = mod_bit(name);
+                if *add {
+                    held_mods |= bit;
+                } else {
+                    held_mods &= !bit;
+                }
+            }
+            Cmd::Type(chars) => {
+                started = true;
+                for &c in chars {
+                    push_key_json(
+                        &mut keys,
+                        &mut events,
+                        &CaseKeySpec {
+                            vk: 0,
+                            ch: c as u32,
+                            mods: held_mods,
+                            injected: false,
+                            step,
+                            bundle: &bundle,
+                        },
+                    );
+                    step += 1;
+                }
+            }
+            Cmd::Injected(chars) => {
+                started = true;
+                for &c in chars {
+                    push_key_json(
+                        &mut keys,
+                        &mut events,
+                        &CaseKeySpec {
+                            vk: 0,
+                            ch: c as u32,
+                            mods: held_mods,
+                            injected: true,
+                            step,
+                            bundle: &bundle,
+                        },
+                    );
+                    step += 1;
+                }
+            }
+            Cmd::Key(name) => {
+                started = true;
+                let (vk, ch) = key_by_name(name).expect("đã validate ở parse");
+                push_key_json(
+                    &mut keys,
+                    &mut events,
+                    &CaseKeySpec {
+                        vk,
+                        ch,
+                        mods: held_mods,
+                        injected: false,
+                        step,
+                        bundle: &bundle,
+                    },
+                );
+                step += 1;
+            }
+            Cmd::Combo(s) => {
+                started = true;
+                let (mods, vk, ch) = parse_combo(s).expect("đã validate ở parse");
+                push_key_json(
+                    &mut keys,
+                    &mut events,
+                    &CaseKeySpec {
+                        vk,
+                        ch,
+                        mods,
+                        injected: false,
+                        step,
+                        bundle: &bundle,
+                    },
+                );
+                step += 1;
+            }
+            Cmd::Reset => {
+                started = true;
+                resets.push(step.to_string());
+                events.push(format!("{{\"kind\":\"reset\",\"step\":{step}}}"));
+            }
+            Cmd::EngineNew => {
+                started = true;
+                events.push(format!("{{\"kind\":\"engine_new\",\"step\":{step}}}"));
+            }
+            Cmd::Expect(s) => {
+                started = true;
+                events.push(format!(
+                    "{{\"kind\":\"expect\",\"step\":{},\"text\":{}}}",
+                    step,
+                    json_str(s)
+                ));
+            }
+            Cmd::ExpectPreedit(s) => {
+                started = true;
+                events.push(format!(
+                    "{{\"kind\":\"expect_preedit\",\"step\":{},\"text\":{}}}",
+                    step,
+                    json_str(s)
+                ));
+            }
+            Cmd::ExpectCursor(n) => {
+                started = true;
+                events.push(format!(
+                    "{{\"kind\":\"expect_cursor\",\"step\":{},\"n\":{n}}}",
+                    step
+                ));
+            }
+            Cmd::ExpectAction(_) | Cmd::Note(_) => {}
+        }
+    }
+
+    format!(
+        "{{\"case\":{},\"config_json\":{},\"app\":{{\"bundle\":{},\"field_role\":{},\"caps\":{},\"secure\":{},\"enabled\":{}}},\"keys\":[{}],\"resets\":[{}],\"events\":[{}]}}\n",
+        json_str(case_rel),
+        json_str(&init_config_json),
+        json_str(&init_app.0),
+        init_app.1,
+        init_app.2,
+        init_app.3,
+        init_app.4,
+        keys.join(","),
+        resets.join(","),
+        events.join(",")
+    )
+}
+
+fn write_case_artifact(dir: &str, case_rel: &str, ext: &str, content: &str) -> Result<(), String> {
+    let mut parts: Vec<&str> = case_rel.split('/').filter(|s| !s.is_empty()).collect();
+    let Some(last) = parts.pop() else {
+        return Err(format!("tên case rỗng: `{case_rel}`"));
+    };
+    let mut path = PathBuf::from(dir);
+    for seg in parts {
+        path.push(seg);
+    }
+    if let Err(e) = fs::create_dir_all(&path) {
+        return Err(format!("tạo thư mục `{}` lỗi: {e}", path.display()));
+    }
+    path.push(format!("{last}.{ext}"));
+    fs::write(&path, content).map_err(|e| format!("ghi `{}` lỗi: {e}", path.display()))
+}
+
+/// Chạy 1 case → (pass?, failures, ms, trace).
+fn run_case(
+    case: &Case,
+    profile: AdapterProfile,
+    record_trace: bool,
+) -> (bool, Vec<SimFailure>, u128, Option<Vec<TraceEntry>>) {
     let start = Instant::now();
-    let mut sim = Sim::new(profile);
+    let mut sim = Sim::new(profile, record_trace);
     for &(line, ref cmd) in &case.cmds {
         match cmd {
             Cmd::Config(pairs) => sim.apply_config(pairs, line),
@@ -1198,7 +1593,8 @@ fn run_case(case: &Case, profile: AdapterProfile) -> (bool, Vec<SimFailure>, u12
     }
     let failures = std::mem::take(&mut sim.failures);
     let ok = failures.is_empty();
-    (ok, failures, start.elapsed().as_millis())
+    let trace = sim.trace.take();
+    (ok, failures, start.elapsed().as_millis(), trace)
 }
 
 // ---- báo cáo ----
@@ -1239,8 +1635,15 @@ fn print_failures(case: &Case, failures: &[SimFailure]) {
     }
 }
 
-/// Entrypoint replay (P0-4 §4). Exit: 0/1/2.
-pub fn run(paths: &[String], adapter: &str, json: bool, filter: Option<&str>) -> i32 {
+/// Entrypoint replay (P0-4 §4) + ghi vết SF-1c (`--trace`, `--emit-keys`). Exit: 0/1/2.
+pub fn run(
+    paths: &[String],
+    adapter: &str,
+    json: bool,
+    filter: Option<&str>,
+    trace_dir: Option<&str>,
+    emit_keys_dir: Option<&str>,
+) -> i32 {
     let profile = adapter_profile(adapter);
 
     let (cases, errors) = load_cases(paths, filter);
@@ -1258,7 +1661,22 @@ pub fn run(paths: &[String], adapter: &str, json: bool, filter: Option<&str>) ->
     let mut failed = 0usize;
     let mut json_items: Vec<String> = Vec::new();
     for case in &cases {
-        let (ok, failures, ms) = run_case(case, profile);
+        let case_rel = canonical_case_rel(&case.id);
+        let (ok, failures, ms, trace) = run_case(case, profile, trace_dir.is_some());
+        if let (Some(dir), Some(entries)) = (trace_dir, trace.as_deref()) {
+            let body = format_trace_jsonl(&case_rel, entries);
+            if let Err(e) = write_case_artifact(dir, &case_rel, "jsonl", &body) {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        }
+        if let Some(dir) = emit_keys_dir {
+            let body = emit_case_keys_json(case, &case_rel, profile);
+            if let Err(e) = write_case_artifact(dir, &case_rel, "json", &body) {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        }
         let (first_exp, first_act) = failures
             .first()
             .map(|f| {
@@ -1535,5 +1953,147 @@ mod tests {
         assert!(parse_line(":config macro=thiếu-nháy").is_err());
         // `=` cuối → text rỗng → schema config từ chối.
         assert!(parse_line(":config macro=\"khongcoadau=\"").is_err());
+    }
+
+    fn parse_test_case(id: &str, lines: &[&str]) -> Case {
+        let mut cmds = Vec::new();
+        for (i, line) in lines.iter().enumerate() {
+            if let Some(cmd) = parse_line(line).unwrap() {
+                cmds.push((i + 1, cmd));
+            }
+        }
+        Case {
+            id: id.into(),
+            cmds,
+            source: lines.iter().map(|s| (*s).to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn sf_1c_canonical_case_rel_chuan_hoa_moi_he_dieu_hanh() {
+        assert_eq!(
+            canonical_case_rel("corpus\\shared\\telex_basic_01.keys"),
+            "shared/telex_basic_01"
+        );
+        assert_eq!(
+            canonical_case_rel("./corpus/win/bug_B1_edge.keys"),
+            "win/bug_B1_edge"
+        );
+        assert_eq!(
+            canonical_case_rel("C:\\work\\TextVN\\corpus\\mac\\b11.keys"),
+            "mac/b11"
+        );
+        assert_eq!(canonical_case_rel("/tmp/my_case.keys"), "my_case");
+    }
+
+    #[test]
+    fn sf_1c_trace_tsf_tat_dinh_va_bat_bien_lenh() {
+        let case = parse_test_case(
+            "corpus/shared/sample.keys",
+            &[
+                ":config method=telex",
+                ":type \"dduocj\"",
+                ":key Space",
+                ":type \"a\"",
+                ":reset",
+                ":type \"tunx\"",
+                ":key Ctrl",
+                ":secure on",
+                ":type \"b\"",
+                ":expect \"được atũnb\"",
+            ],
+        );
+        let profile = adapter_profile("tsf");
+        let (ok1, f1, _, t1) = run_case(&case, profile, true);
+        let (ok2, f2, _, t2) = run_case(&case, profile, true);
+        assert!(ok1 && f1.is_empty(), "{f1:?}");
+        assert!(ok2 && f2.is_empty(), "{f2:?}");
+        let j1 = format_trace_jsonl("shared/sample", t1.as_deref().unwrap());
+        let j2 = format_trace_jsonl("shared/sample", t2.as_deref().unwrap());
+        assert_eq!(j1, j2, "vết SF-1c phải tất định");
+        assert!(!j1.is_empty());
+
+        let mut per_step: std::collections::BTreeMap<u64, Vec<(String, String, u64)>> =
+            std::collections::BTreeMap::new();
+        for line in j1.lines() {
+            let v: serde_json::Value = serde_json::from_str(line).expect("mỗi dòng là JSON hợp lệ");
+            assert_eq!(v["case"], "shared/sample");
+            let cmd = v["cmd"].as_str().unwrap().to_string();
+            assert!(
+                matches!(
+                    cmd.as_str(),
+                    "delete_before" | "commit" | "set_preedit" | "forward_key" | "eat_key"
+                ),
+                "lệnh ngoài từ vựng SF-1c: {cmd}"
+            );
+            let step = v["step"].as_u64().unwrap();
+            let text = v["text"].as_str().unwrap().to_string();
+            let n = v["n"].as_u64().unwrap();
+            per_step.entry(step).or_default().push((cmd, text, n));
+        }
+
+        // Bất biến P0-6 §3 trên từng step phím (0..14: dduocj + Space + a + tunx + Ctrl + b).
+        let mut saw_commit_then_hide = false;
+        for step in 0..14u64 {
+            let cmds = &per_step[&step];
+            let dels = cmds.iter().filter(|(c, _, _)| c == "delete_before").count();
+            let commits = cmds.iter().filter(|(c, _, _)| c == "commit").count();
+            let key_disp = cmds
+                .iter()
+                .filter(|(c, _, _)| c == "forward_key" || c == "eat_key")
+                .count();
+            assert!(dels <= 1, "step {step}: quá 1 delete_before: {cmds:?}");
+            assert!(commits <= 1, "step {step}: quá 1 commit: {cmds:?}");
+            assert_eq!(key_disp, 1, "step {step}: cần đúng 1 eat/forward: {cmds:?}");
+            if let (Some(c_idx), Some(h_idx)) = (
+                cmds.iter().position(|(c, _, _)| c == "commit"),
+                cmds.iter()
+                    .position(|(c, t, _)| c == "set_preedit" && t.is_empty()),
+            ) {
+                assert!(
+                    c_idx < h_idx,
+                    "step {step}: commit phải đứng TRƯỚC ẩn preedit: {cmds:?}"
+                );
+                saw_commit_then_hide = true;
+            }
+        }
+        assert!(
+            saw_commit_then_hide,
+            "test phải chạm nhánh commit -> ẩn preedit trên cùng step"
+        );
+    }
+
+    #[test]
+    fn sf_1c_emit_keys_xuat_json_hop_le_va_tat_dinh() {
+        let case = parse_test_case(
+            "corpus/shared/sample.keys",
+            &[
+                ":config method=vni",
+                ":app TextEdit field=body",
+                ":caps preedit,selection",
+                ":type \"tooi\"",
+                ":reset",
+                ":enabled off",
+                ":type \"ab\"",
+                ":expect \"tôiab\"",
+            ],
+        );
+        let j1 = emit_case_keys_json(&case, "shared/sample", adapter_profile("mac"));
+        let j2 = emit_case_keys_json(&case, "shared/sample", adapter_profile("mac"));
+        assert_eq!(j1, j2);
+        let v: serde_json::Value = serde_json::from_str(&j1).expect("emit-keys JSON phải hợp lệ");
+        assert_eq!(v["case"], "shared/sample");
+        let cfg_str = v["config_json"].as_str().unwrap();
+        let cfg_v: serde_json::Value = serde_json::from_str(cfg_str).unwrap();
+        assert_eq!(cfg_v["method"], "vni");
+        assert_eq!(v["app"]["bundle"], "TextEdit");
+        assert_eq!(v["app"]["field_role"], 1);
+        assert_eq!(v["app"]["caps"], 3);
+        assert_eq!(v["resets"], serde_json::json!([4]));
+        assert_eq!(v["keys"].as_array().unwrap().len(), 12);
+        let events = v["events"].as_array().unwrap();
+        assert!(events
+            .iter()
+            .any(|e| e["kind"] == "context" && e["enabled"] == false));
     }
 }

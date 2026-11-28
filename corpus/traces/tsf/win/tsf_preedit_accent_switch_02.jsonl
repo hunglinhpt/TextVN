@@ -1,0 +1,12 @@
+{"case":"win/tsf_preedit_accent_switch_02","step":0,"cmd":"set_preedit","text":"t","n":1}
+{"case":"win/tsf_preedit_accent_switch_02","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_accent_switch_02","step":1,"cmd":"set_preedit","text":"to","n":2}
+{"case":"win/tsf_preedit_accent_switch_02","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_accent_switch_02","step":2,"cmd":"set_preedit","text":"tô","n":2}
+{"case":"win/tsf_preedit_accent_switch_02","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_accent_switch_02","step":3,"cmd":"set_preedit","text":"tôn","n":3}
+{"case":"win/tsf_preedit_accent_switch_02","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_accent_switch_02","step":4,"cmd":"set_preedit","text":"tốn","n":3}
+{"case":"win/tsf_preedit_accent_switch_02","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"win/tsf_preedit_accent_switch_02","step":5,"cmd":"set_preedit","text":"tồn","n":3}
+{"case":"win/tsf_preedit_accent_switch_02","step":5,"cmd":"eat_key","text":"","n":0}

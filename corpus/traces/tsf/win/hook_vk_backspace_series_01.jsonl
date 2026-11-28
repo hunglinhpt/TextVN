@@ -1,0 +1,10 @@
+{"case":"win/hook_vk_backspace_series_01","step":0,"cmd":"set_preedit","text":"a","n":1}
+{"case":"win/hook_vk_backspace_series_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"win/hook_vk_backspace_series_01","step":1,"cmd":"set_preedit","text":"ab","n":2}
+{"case":"win/hook_vk_backspace_series_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"win/hook_vk_backspace_series_01","step":2,"cmd":"set_preedit","text":"abc","n":3}
+{"case":"win/hook_vk_backspace_series_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"win/hook_vk_backspace_series_01","step":3,"cmd":"set_preedit","text":"ab","n":2}
+{"case":"win/hook_vk_backspace_series_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"win/hook_vk_backspace_series_01","step":4,"cmd":"set_preedit","text":"a","n":1}
+{"case":"win/hook_vk_backspace_series_01","step":4,"cmd":"eat_key","text":"","n":0}

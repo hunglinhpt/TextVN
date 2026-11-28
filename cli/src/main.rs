@@ -17,7 +17,7 @@ use std::process::exit;
 const USAGE: &str = r#"textvn-cli — TextVN CLI
 
 Usage:
-  textvn-cli replay <dir-or-file...> [--adapter headless|win|tsf|mac|linux] [--json] [--filter <substring>]
+  textvn-cli replay <dir-or-file...> [--adapter headless|win|tsf|mac|linux] [--json] [--filter <substring>] [--trace <dir>] [--emit-keys <dir>]
   textvn-cli verify [--header <path>] [--json]  # header C khớp code Rust? (P0-2 §6) + sizeof/offset
   textvn-cli sizes [--json]                  # verify struct ABI (P0-2 §6): ime_key_v1=20 · ime_result_v1=532
   textvn-cli config default                  # in config mặc định ra stdout
@@ -82,12 +82,14 @@ fn main() {
     }
 }
 
-/// `replay` — golden corpus (P0-4). Exit: 0 pass hết · 1 có fail · 2 lỗi dùng/parse.
+/// `replay` — golden corpus (P0-4) + ghi vết SF-1c (`--trace`, `--emit-keys`). Exit: 0/1/2.
 fn cmd_replay(rest: &[String]) -> i32 {
     let mut paths: Vec<String> = Vec::new();
     let mut adapter = "headless".to_string();
     let mut json = false;
     let mut filter: Option<String> = None;
+    let mut trace: Option<String> = None;
+    let mut emit_keys: Option<String> = None;
     let mut i = 0;
     while i < rest.len() {
         match rest[i].as_str() {
@@ -101,6 +103,22 @@ fn cmd_replay(rest: &[String]) -> i32 {
                 filter = rest.get(i).cloned();
                 if filter.is_none() {
                     eprintln!("error: --filter cần giá trị");
+                    return 2;
+                }
+            }
+            "--trace" => {
+                i += 1;
+                trace = rest.get(i).cloned();
+                if trace.is_none() {
+                    eprintln!("error: --trace cần đường dẫn thư mục");
+                    return 2;
+                }
+            }
+            "--emit-keys" => {
+                i += 1;
+                emit_keys = rest.get(i).cloned();
+                if emit_keys.is_none() {
+                    eprintln!("error: --emit-keys cần đường dẫn thư mục");
                     return 2;
                 }
             }
@@ -125,7 +143,18 @@ fn cmd_replay(rest: &[String]) -> i32 {
         eprintln!("error: --adapter phải là headless|win|tsf|mac|linux (nhận `{adapter}`)");
         return 2;
     }
-    replay::run(&paths, &adapter, json, filter.as_deref())
+    if trace.is_some() && adapter != "tsf" {
+        eprintln!("error: --trace chỉ hỗ trợ --adapter tsf (nhận `{adapter}`)");
+        return 2;
+    }
+    replay::run(
+        &paths,
+        &adapter,
+        json,
+        filter.as_deref(),
+        trace.as_deref(),
+        emit_keys.as_deref(),
+    )
 }
 
 /// `verify` — header C (`ffi/include/textvn_ffi.h`) khớp code Rust? (P0-2 §6).
@@ -642,5 +671,21 @@ mod tests {
         for flag in ["--diagnose", "--export-log", "--check-env"] {
             assert!(USAGE.contains(flag), "USAGE thiếu {flag}");
         }
+    }
+
+    #[test]
+    fn sf_1c_replay_flags_validate_trace_and_emit_keys() {
+        assert_eq!(cmd_replay(&v(&["corpus/shared", "--trace"])), 2);
+        assert_eq!(cmd_replay(&v(&["corpus/shared", "--emit-keys"])), 2);
+        assert_eq!(
+            cmd_replay(&v(&[
+                "corpus/shared",
+                "--adapter",
+                "linux",
+                "--trace",
+                "/tmp/x"
+            ])),
+            2
+        );
     }
 }
