@@ -35,8 +35,8 @@ thread_local! {
 /// khi tiếng Việt bật. Enter/Tab/Esc/Ctrl+Space/điều hướng KHÔNG đổi câu nên không đếm lại.
 /// Hàm thuần: bộ test `idle_popup_routing` khoá bảng này (R2-154).
 pub fn idle_arms(key: crate::compose::KeyKind, vi_enabled: bool) -> bool {
-    use crate::compose::KeyKind;
-    vi_enabled && matches!(key, KeyKind::Char(_) | KeyKind::Backspace)
+    // SF-5: luật dùng chung 3 OS (`textvn_session::assist::idle_arms`).
+    textvn_session::assist::idle_arms(key, vi_enabled)
 }
 
 /// Ghi hwnd dùng cho timer (gọi khi overlay tạo hwnd — như selection_check).

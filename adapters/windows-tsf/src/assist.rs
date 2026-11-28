@@ -36,17 +36,15 @@
 //!   `config.auto_capitalize=true` — xem
 //!   [`remove_auto_capitalize_conflicts`] (lọc **sau** khi engine đã check).
 
+#[cfg(test)]
 use crate::compose::KeyKind;
-
-/// Loại trigger điểm kiểm tra assist (D11 · P4-0 §4.1).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AssistTrigger {
-    None,
-    /// Ranh giới từ/vế: `space` `,` `;` `:` — điểm kiểm tra silent.
-    Word,
-    /// Kết thúc câu: `.` `!` `?` — điểm kiểm tra + điểm hiển thị.
-    Sentence,
-}
+// SF-5 (P0-6 §5 assist, G22): luật QUYẾT ĐỊNH của trợ lý là MỘT nguồn trong `textvn-session`;
+// TSF dùng lại đúng tên cũ (bộ test TSF bên dưới tiếp tục khoá hành vi).
+pub use textvn_session::assist::{
+    assist_trigger, is_typing_key, mode1_display_enabled, mode2_auto_fix_enabled, overlay_action,
+    overlay_action_for, should_auto_fix_sentence, should_show_overlay, AssistTrigger,
+    OverlayAction, PopupKind,
+};
 
 /// Cap câu (D31): buffer câu của core tối đa **256 ký tự Unicode**.
 pub const SENTENCE_MAX_CHARS: usize = 256;
@@ -315,126 +313,6 @@ impl OverlayView {
         }
     }
 }
-
-/// Kết quả quyết định **có hiện overlay không** (thuần): chỉ điểm hiển thị
-/// (kết thúc câu — D11), assist đang bật (D20) và có lỗi.
-pub fn should_show_overlay(
-    trigger: AssistTrigger,
-    assist_enabled: bool,
-    issue_count: usize,
-) -> bool {
-    assist_enabled && trigger == AssistTrigger::Sentence && issue_count > 0
-}
-
-/// Phím tác động lên overlay đang hiện (P4-0 §4.2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OverlayAction {
-    /// `↑` — lỗi trước.
-    Previous,
-    /// `↓` — lỗi kế.
-    Next,
-    /// `Enter` — áp dụng gợi ý của lỗi đang chọn.
-    Apply,
-    /// `Alt+1..3` — chọn + áp dụng gợi ý thứ `n` (0-based).
-    Suggestion(usize),
-    /// `Esc` — đóng, không sửa.
-    Close,
-    /// `Ctrl+Shift+G` — gọi lại (kiểm tra + hiện overlay nếu còn lỗi).
-    Recall,
-    /// Phím khác: đóng overlay rồi để phím đi tiếp (gõ tiếp = tự tắt).
-    Dismiss,
-    /// Popup sống (R2-129): phím gõ đi thẳng vào văn bản, popup GIỮ NGUYÊN
-    /// (cập nhật/ẩn ở lần kiểm tra kế tiếp theo câu đúng sai).
-    Keep,
-}
-
-/// Bản đồ phím của overlay — **hàm thuần**, test không cần dựng TSF.
-///
-/// `mods` dùng bit `textvn_ffi::MOD_*` (khớp `key_event::active_modifiers`).
-/// Caps Lock (`MOD_CAPS`) không tính là modifier của overlay.
-pub fn overlay_action(vk: u32, mods: u32) -> OverlayAction {
-    use textvn_ffi::{MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
-    let mods = mods & !MOD_CAPS;
-    let alt = mods & MOD_ALT != 0;
-    let ctrl = mods & MOD_CTRL != 0;
-    let sup = mods & MOD_SUPER != 0;
-    let shift = mods & MOD_SHIFT != 0;
-
-    // Ctrl+Shift+G: gọi lại (không phụ thuộc overlay đang hiện hay không).
-    if ctrl && shift && !alt && !sup && vk == VK_G {
-        return OverlayAction::Recall;
-    }
-    // Alt+1..3 (hàng số + numpad).
-    if alt && !ctrl && !sup && !shift {
-        return match vk {
-            0x31..=0x33 => OverlayAction::Suggestion(vk as usize - 0x31),
-            0x61..=0x63 => OverlayAction::Suggestion(vk as usize - 0x61),
-            _ => OverlayAction::Dismiss,
-        };
-    }
-    // Chord khác (Ctrl/Alt/Win) không phải phím của overlay.
-    if ctrl || alt || sup {
-        return OverlayAction::Dismiss;
-    }
-    match vk {
-        VK_UP => OverlayAction::Previous,
-        VK_TAB if shift => OverlayAction::Previous,
-        VK_DOWN | VK_TAB => OverlayAction::Next,
-        VK_RETURN if !shift => OverlayAction::Apply,
-        VK_ESCAPE => OverlayAction::Close,
-        _ => OverlayAction::Dismiss,
-    }
-}
-
-/// Nguồn/chế độ của popup đang hiện — quyết định phím nào thuộc panel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PopupKind {
-    /// Tự hiện khi câu đang sai (R2-129) — KHÔNG chiếm phím gõ.
-    Live,
-    /// Bôi đen (selection-check vòng 30) — Enter = sửa tất cả vùng chọn.
-    Selection,
-    /// Người dùng chủ động gọi (Ctrl+Space) — ↑/↓/Tab/Enter thuộc panel.
-    OnDemand,
-}
-
-/// Phím gõ chữ (không Ctrl/Alt/Win): chữ, số, dấu cách, dấu câu OEM, numpad,
-/// Backspace — popup sống để nguyên, phím đi thẳng vào văn bản.
-pub fn is_typing_key(vk: u32, mods: u32) -> bool {
-    use textvn_ffi::{MOD_ALT, MOD_CTRL, MOD_SUPER};
-    if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 {
-        return false;
-    }
-    matches!(
-        vk,
-        0x08 | 0x20 | 0x30..=0x39 | 0x41..=0x5A | 0x60..=0x6F | 0xBA..=0xC0 | 0xDB..=0xDF | 0xE2
-    )
-}
-
-/// Bản đồ phím theo **nguồn** popup.
-///
-/// - R2-122: Tab/Shift+Tab chuyển lỗi CHỈ ở popup gọi bằng Ctrl+Space; popup
-///   khác để Tab tới app (chuyển ô form/Excel, thụt lề).
-/// - R2-129 (chủ repo 2026-10-26: popup hiện/ẩn nhanh theo câu đúng sai):
-///   popup **sống** không chiếm phím — gõ chữ giữ popup (`Keep`), Enter/Tab/
-///   mũi tên/… tới app và đóng popup; chỉ Esc, Alt+1…3, Ctrl+Shift+G thuộc
-///   panel. Trước đây popup tự hiện nuốt Enter để "sửa" — người dùng xuống
-///   dòng thì bị sửa câu thay vì xuống dòng.
-pub fn overlay_action_for(vk: u32, mods: u32, kind: PopupKind) -> OverlayAction {
-    match kind {
-        PopupKind::OnDemand => overlay_action(vk, mods),
-        PopupKind::Selection if vk == VK_TAB => OverlayAction::Dismiss,
-        PopupKind::Selection => overlay_action(vk, mods),
-        PopupKind::Live => match overlay_action(vk, mods) {
-            a @ (OverlayAction::Recall | OverlayAction::Close | OverlayAction::Suggestion(_)) => a,
-            _ if is_typing_key(vk, mods) => OverlayAction::Keep,
-            _ => OverlayAction::Dismiss,
-        },
-    }
-}
-
-// ---------------------------------------------------------------------------
-// A2 — sửa 1 từ bằng Backspace+Type (D12/D22/D27)
-// ---------------------------------------------------------------------------
 
 /// Ứng viên sửa cho **một** lỗi — `(delete_from, delete_end, replacement)`.
 ///
@@ -742,37 +620,6 @@ impl AssistUndoState {
     }
 }
 
-/// **Ngữ nghĩa Mode 2 duy nhất cho 3 OS** (R-5 · P4-0 §4.3, đổi ở 0.2.75): tự sửa cả câu bật khi
-/// `assist.mode == "autocorrect"` — luôn ở mức **an toàn** (chỉ luật objective — D7). Khoá
-/// `assist.auto_fix` còn trong config cho tương thích nhưng KHÔNG còn quyết định gì (chủ repo:
-/// chọn hai lần "Tự sửa lỗi" rồi "An toàn" gây rối; UI chỉ còn một lựa chọn Chế độ).
-///
-/// Hàm thuần — test được không cần TSF. macOS/Linux dùng cùng quy tắc (viết
-/// lại theo ngôn ngữ của từng adapter, cùng test).
-pub fn mode2_auto_fix_enabled(mode: textvn_config::AssistMode) -> bool {
-    mode == textvn_config::AssistMode::Autocorrect
-}
-
-/// **Điểm hiển thị (Mode 1) bật khi `assist.mode != "off"`** (R-6 · P4-0 §4.3):
-/// ở Mode 2, lỗi **mơ hồ** vẫn phải hiện candidate (chỉ lỗi objective mới tự
-/// sửa) ⇒ Mode 1 không độc lập với Mode 2.
-pub fn mode1_display_enabled(mode: textvn_config::AssistMode) -> bool {
-    mode != textvn_config::AssistMode::Off
-}
-
-/// Quyết định xem có nên tự sửa cả câu (A3 / Mode 2) tại thời điểm trigger hay không.
-///
-/// R-5: `auto_fix_enabled` phải là cờ **Mode 2 đầy đủ** (`mode == "autocorrect"`
-/// **và** `auto_fix == "safe"` — xem [`mode2_auto_fix_enabled`]) và trigger phải là
-/// **kết thúc câu** (`.` `!` `?`); space/,/: chỉ là điểm kiểm tra silent (D11).
-pub fn should_auto_fix_sentence(
-    trigger: AssistTrigger,
-    assist_enabled: bool,
-    auto_fix_enabled: bool,
-) -> bool {
-    assist_enabled && auto_fix_enabled && trigger == AssistTrigger::Sentence
-}
-
 // ---------------------------------------------------------------------------
 // Tiện ích thuần
 // ---------------------------------------------------------------------------
@@ -794,19 +641,6 @@ fn truncate_chars(text: &str, max: usize) -> String {
     let mut out: String = text.chars().take(max.saturating_sub(1)).collect();
     out.push('…');
     out
-}
-
-/// Phân loại phím trigger — **hàm thuần**, test được không cần dựng TSF.
-///
-/// Bao gồm mọi trigger D11 (`space , . ! ? ; :`); dấu câu khác (`<>\"'`…) và
-/// phím không sinh ký tự → `None`. Chỉ nhận phím **sinh ký tự thật**
-/// (`KeyKind::Char`) — Enter/Tab/Backspace gây reset buffer, không phải check.
-pub fn assist_trigger(key: KeyKind) -> AssistTrigger {
-    match key {
-        KeyKind::Char('.' | '!' | '?') => AssistTrigger::Sentence,
-        KeyKind::Char(' ' | ',' | ';' | ':') => AssistTrigger::Word,
-        _ => AssistTrigger::None,
-    }
 }
 
 /// Đếm từ trong câu (chuỗi trắng tách từ) — đủ cho gate "câu < 3 từ" (D11).

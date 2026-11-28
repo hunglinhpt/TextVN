@@ -211,6 +211,7 @@ dependencies = [
 name = "textvn-session"
 version = "0.2.96"
 dependencies = [
+ "textvn-config",
  "textvn-core",
  "textvn-ipc",
 ]

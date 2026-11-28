@@ -36,6 +36,7 @@
 //! - Ô `secure` ⇒ không `Ghost`, không `AssistShow`, không IPC chứa chữ (S3).
 #![forbid(unsafe_code)]
 
+pub mod assist;
 pub mod batch;
 pub mod compose;
 pub mod emoji;
