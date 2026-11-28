@@ -65,6 +65,32 @@ jobs:
             -DCMAKE_C_FLAGS="-funsigned-char -Wsign-compare"
           cmake --build build-uchar -j
           ctest --test-dir build-uchar --output-on-failure
+      # SF-1d: vết vàng Linux C (`lc_plan_key` + `lc_edit_batch`, P0-6 §6.1). Luồng phím do
+      # Rust xuất (`--emit-keys`, MỘT bộ đọc `.keys` — G22); trace_compose chạy dưới ASan+UBSan,
+      # xuất `corpus/traces/linux/*.jsonl` (cùng 5 lệnh với SF-1c/SF-1e) cho SF-1f.
+      - name: SF-1d vết Linux (ctest -R trace_compose, ASan+UBSan)
+        run: |
+          cargo run -q -p textvn-cli -- replay corpus/shared --adapter linux --emit-keys "$RUNNER_TEMP/emit-keys"
+          TEXTVN_EMIT_KEYS="$RUNNER_TEMP/emit-keys" \
+            TEXTVN_TRACE_OUT="$GITHUB_WORKSPACE/corpus/traces/linux" \
+            ctest --test-dir build-asan -R '^trace_compose$' --output-on-failure
+          n="$(find corpus/traces/linux -name '*.jsonl' | wc -l | tr -d ' ')"
+          echo "SF-1d: $n vết Linux"
+          test "$n" -ge 50
+          if git ls-files corpus/traces/linux | grep -q .; then
+            drift="$(git status --porcelain -- corpus/traces/linux)"
+            if [ -n "$drift" ]; then
+              echo "$drift" | head -20
+              echo "::error::vết Linux lệch bản đã commit (corpus/traces/linux) — sinh lại và commit"
+              exit 1
+            fi
+          fi
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: sf1d-traces-linux
+          path: corpus/traces/linux/
+          if-no-files-found: error
 
   linux-adapters:
     timeout-minutes: 90
