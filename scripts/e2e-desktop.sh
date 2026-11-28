@@ -121,19 +121,20 @@ toggle_case() {
 export -f toggle_case
 
 # SF-2: shadow `textvn-session` (TEXTVN_SESSION_SHADOW=1) phải 0 lệch với mã cũ. Engine ghi
-# stderr (G8: chỉ loại phím + số đếm) vào log của daemon IM.
+# TEXTVN_SESSION_SHADOW_LOG (G8: chỉ loại phím + số đếm) — stderr của engine IBus KHÔNG tới
+# log của ibus-daemon (run 46146474393), nên dùng tệp riêng và kiểm chặt: thiếu dòng "on" = đỏ.
 shadow_check() {
     local log="$1"
+    if [[ ! -s "$log" ]] || ! grep -q 'SF2 shadow on' "$log"; then
+        echo "FAIL SF-2 shadow không chạy (không có 'SF2 shadow on' trong $log)" >&2
+        return 1
+    fi
     if grep -q 'SF2 shadow mismatch' "$log"; then
         grep 'SF2 shadow' "$log" | head -n 20
         echo "FAIL SF-2 shadow lệch mã cũ" >&2
         return 1
     fi
-    if grep -q 'SF2 shadow on' "$log"; then
-        echo "[e2e-desktop:$DE] SF-2 shadow: bật, 0 lệch"
-    else
-        echo "[e2e-desktop:$DE] SF-2 shadow: không thấy stderr của engine trong log — không kiểm được"
-    fi
+    echo "[e2e-desktop:$DE] SF-2 shadow: bật, 0 lệch"
 }
 export -f shadow_check
 
@@ -182,7 +183,7 @@ case "$DE" in
             # Như im-config/phiên Xfce chọn IBus.
             export GTK_IM_MODULE=ibus XMODIFIERS=@im=ibus QT_IM_MODULE=ibus
             # SF-2: engine (con của ibus-daemon) chạy shadow textvn-session song song mã cũ.
-            export TEXTVN_SESSION_SHADOW=1
+            export TEXTVN_SESSION_SHADOW=1 TEXTVN_SESSION_SHADOW_LOG="$T/shadow.log"
             ibus-daemon --xim --panel=disable --config=default --cache=refresh --replace --single >"$T/ibus.log" 2>&1 &
             for _ in $(seq 1 50); do ibus list-engine >/dev/null 2>&1 && break; sleep 0.2; done
             ibus list-engine 2>/dev/null | grep -qw textvn || {
@@ -217,7 +218,7 @@ case "$DE" in
             local rc=0
             run_cases "$win" || rc=$?
             if [[ $rc -eq 0 ]]; then toggle_case "$win" || rc=$?; fi
-            shadow_check "$T/ibus.log" || rc=$?
+            shadow_check "$T/shadow.log" || rc=$?
             if [[ $rc -ne 0 ]]; then
                 echo "--- ibus engine: $(ibus engine 2>&1) ---"
                 tail -n 20 "$T/ibus.log" || true

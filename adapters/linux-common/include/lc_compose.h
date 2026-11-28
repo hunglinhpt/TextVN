@@ -145,7 +145,7 @@ int  lc_engine_ctrl_tap(ime_instance *inst, ime_result_v1 *out);
  * Chạy máy toggle của `textvn-session` (qua C ABI `ime_session_*`) song song với
  * `lc_modifier_toggle`: chỉ mã cũ được áp, shadow chỉ ĐẾM lệch "có bật/tắt Việt–Anh hay không"
  * và ghi stderr. Đầu vào của shadow lấy đúng các cờ mà mã cũ dùng (ctrl/shift/alt_or_super) để
- * lệch chỉ có thể đến từ logic. G8: log chỉ ghi loại phím (ctrl/shift/other/space/non-modifier)
+ * lệch chỉ có thể đến từ logic. Log ra stderr hoặc tệp `TEXTVN_SESSION_SHADOW_LOG`. G8: log chỉ ghi loại phím (ctrl/shift/other/space/non-modifier)
  * và số đếm, không bao giờ ghi ký tự. Tắt (mặc định) ⇒ mọi hàm là no-op. */
 typedef struct lc_session_shadow {
     ime_session *session;     /* NULL = tắt */

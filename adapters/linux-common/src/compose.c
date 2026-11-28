@@ -277,6 +277,22 @@ static const char *shadow_key_kind(lc_modifier which, int is_space) {
     }
 }
 
+/* Đích log shadow: TEXTVN_SESSION_SHADOW_LOG=<tệp> (CI/dev — stderr của engine IBus không tới
+ * log của ibus-daemon), mặc định stderr. Chỉ dòng đếm, không chữ (G8). */
+static FILE *shadow_log(void) {
+    static FILE *fp;
+    static int init;
+    if (!init) {
+        init = 1;
+        const char *path = getenv("TEXTVN_SESSION_SHADOW_LOG");
+        if (path && *path) {
+            fp = fopen(path, "a");
+            if (fp) setvbuf(fp, NULL, _IOLBF, 0);
+        }
+    }
+    return fp ? fp : stderr;
+}
+
 static uint64_t shadow_now_ms(const lc_session_shadow *s) {
     if (s->now_override_ms) return s->now_override_ms;
     return (uint64_t)(monotonic_us() / 1000);
@@ -314,7 +330,7 @@ static void shadow_compare(lc_session_shadow *s, const char *phase, lc_modifier 
     if (session) s->session_toggles++;
     if ((legacy != 0) == (session != 0)) return;
     s->mismatches++;
-    fprintf(stderr, "textvn: SF2 shadow mismatch %s key=%s legacy=%d session=%d (total %u)\n",
+    fprintf(shadow_log(), "textvn: SF2 shadow mismatch %s key=%s legacy=%d session=%d (total %u)\n",
             phase, shadow_key_kind(which, is_space), legacy != 0, session != 0,
             (unsigned)s->mismatches);
 }
@@ -324,7 +340,7 @@ void lc_session_shadow_init(lc_session_shadow *s) {
     memset(s, 0, sizeof(*s));
     const char *v = getenv("TEXTVN_SESSION_SHADOW");
     if (v && strcmp(v, "1") == 0 && lc_session_shadow_init_force(s) == 0) {
-        fprintf(stderr, "textvn: SF2 shadow on (textvn-session toggle)\n");
+        fprintf(shadow_log(), "textvn: SF2 shadow on (textvn-session toggle)\n");
     }
 }
 
