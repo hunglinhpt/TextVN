@@ -184,3 +184,7 @@
 {"agent":"antigravity-gemini-37c7c6bc","commit":"9cfb23d8","epoch":"1795839342","kind":"review-request","msg":"ARM-L4 ready at 9cfb23d8: release.yml 6-container arm64 distro E2E matrix + publish.needs","task":"ARM-L4","to":"*","ts":"2026-11-28T04:15:42Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839342","kind":"unreserve","paths":"","ts":"2026-11-28T04:15:42Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839342","kind":"notify","msg":"ARM-L4 ready for review at 9cfb23d8 (6-container arm64 distro matrix in release.yml)","to":"*","ts":"2026-11-28T04:15:42Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839466","kind":"reserve","paths":"xtask/src/eval_leak.rs","task":"BIZ-1","ts":"2026-11-28T04:17:46Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839466","kind":"reserve","paths":"xtask/src/preflight.rs","task":"BIZ-1","ts":"2026-11-28T04:17:46Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839536","kind":"claim","msg":"ci-windows.yml ma tran windows-2022 + windows-2025 (cung windows-11-arm) va release.yml job windows-2025-e2e","task":"COMPAT-1","ts":"2026-11-28T04:18:56Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795839536","kind":"reserve","paths":".github/workflows/ci-windows.yml;.github/workflows/release.yml;coordination/changes/COMPAT-1.md","task":"COMPAT-1","ts":"2026-11-28T04:18:56Z"}
