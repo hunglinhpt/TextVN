@@ -141,3 +141,5 @@
 {"agent":"antigravity-gemini-37c7c6bc","commit":"9a2be9e1","epoch":"1795837063","kind":"review-request","msg":"ARM-W3 ready: forwarder textvn-tsf.dll, IsWow64Process2 dynamic E65, 4-DLL ACL + machine_scope_dll, 70/70 test cli + mutation kill","task":"ARM-W3","to":"*","ts":"2026-11-28T03:37:43Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837063","kind":"unreserve","paths":"","ts":"2026-11-28T03:37:43Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837063","kind":"notify","msg":"ARM-W3 ready for review at 9a2be9e1","to":"*","ts":"2026-11-28T03:37:43Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837254","kind":"claim","msg":"ci-shared.yml: doi chieu sha256sum dau ra replay (4 adapter) + Dream RSI x86_64 vs aarch64","task":"PERF-2","ts":"2026-11-28T03:40:54Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795837254","kind":"reserve","paths":".github/workflows/ci-shared.yml;coordination/changes/PERF-2.md","task":"PERF-2","ts":"2026-11-28T03:40:54Z"}
