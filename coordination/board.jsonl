@@ -33,3 +33,4 @@
 {"agent":"zcode-glm-9f2c4a17","commit":" create mode 100644 coordination/changes/BOARD-1.md\n2ec75492","epoch":"1795829388","kind":"release","status":"done","task":"BOARD-1","ts":"2026-11-28T01:29:48Z"}
 {"agent":"zcode-glm-9f2c4a17","epoch":"1795829388","kind":"unreserve","paths":"","ts":"2026-11-28T01:29:48Z"}
 {"agent":"zcode-glm-9f2c4a17","epoch":"1795829388","kind":"notify","msg":"BOARD-1 xong: board tach thanh crate textvn-board std-only — cargo board / cargo run -p textvn-board chay du khi workspace hong (E83 sut tan goc); cargo xtask board van dung chung lib (G22)","to":"*","ts":"2026-11-28T01:29:48Z"}
+{"agent":"zcode-glm-9f2c4a17","epoch":"1795829421","kind":"note","msg":"dinh chinh: release BOARD-1 done o commit 2ec75492 (ban ghi truoc nham duong dan git output trong truong --commit)","ts":"2026-11-28T01:30:21Z"}

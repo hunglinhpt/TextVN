@@ -1,4 +1,4 @@
-<!-- TASK: BOARD-1 · commit: (điền khi commit) · agent: zcode-glm-9f2c4a17 -->
+<!-- TASK: BOARD-1 · commit: 2ec75492 · agent: zcode-glm-9f2c4a17 -->
 ## VI
 - **BOARD-1 — Điều phối độc lập với build sản phẩm (E83)**: tách `board` khỏi `xtask` thành crate
   mới `board/` (`textvn-board`) chỉ phụ thuộc `std` — KHÔNG `textvn-core`, KHÔNG serde. WIP hỏng
