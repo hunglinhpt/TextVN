@@ -83,6 +83,12 @@ textvn_uni_scan_dir() {
             bad=1
         fi
     done < <(find "$root" -type f -print0)
+    # E94: 0 Mach-O = KHÔNG kiểm được gì (sai thư mục, bộ nhận diện magic hỏng…) — fail-closed,
+    # không được in "đủ universal" cho một lần quét rỗng.
+    if [ "$count" -eq 0 ]; then
+        echo "❌ ARM-M1 gate: $root — 0 Mach-O (không có gì để kiểm — sai thư mục hoặc nhận diện magic hỏng)" >&2
+        return 1
+    fi
     if [ "$bad" -eq 1 ]; then
         echo "❌ ARM-M1 gate: $root — $count Mach-O, có tệp không universal" >&2
         return 1

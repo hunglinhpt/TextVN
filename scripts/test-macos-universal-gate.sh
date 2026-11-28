@@ -156,6 +156,16 @@ else
     ng "thư mục quét không tồn tại ⇒ exit $rc (phải 1)"
 fi
 
+# ĐỎ #5 (E94): thư mục KHÔNG có Mach-O nào (chỉ ELF) ⇒ không được "đủ universal".
+red5="$work/red5"; mkdir "$red5"
+cp "$work/notmacho.so" "$red5/"
+rc=0; textvn_uni_scan_dir "$red5" > "$work/red5.log" 2>&1 || rc=$?
+if [ "$rc" -eq 1 ] && grep -q "0 Mach-O" "$work/red5.log"; then
+    ok "ĐỎ (E94): thư mục 0 Mach-O ⇒ exit 1 (không pass rỗng)"
+else
+    ng "thư mục 0 Mach-O ⇒ exit $rc (phải 1, E94). Log:"; cat "$work/red5.log" >&2
+fi
+
 # ---- 3. Nhánh `file` (không có lipo) — RED portability ----
 echo "== Nhánh \`file\` fallback (TEXTVN_UNI_LIPO trỏ tên không tồn tại) =="
 filered="$work/filered"; mkdir "$filered"

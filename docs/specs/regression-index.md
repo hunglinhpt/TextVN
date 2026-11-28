@@ -104,6 +104,7 @@
 | E91 | project-common-errors | `process:máy dev đo micro-benchmark lệch dài hạn sau nhiều giờ build — kiểm chứng bằng worktree commit cũ (1ff8a113 đo ~1950 ns cũng lúc máy "nóng") trước khi kết luận hồi quy; gate perf so baseline-win chỉ có ý nghĩa trên runner CI (PERF-1/R2-176)` |
 | E92 | project-common-errors | `process:commit luôn kèm pathspec git commit -- <tệp…>; không git rm/git mv trước commit thật — coordination/README.md (E92)` · `gate:coordination/README.md` |
 | E93 | project-common-errors | `test:xtask/src/hygiene.rs::e93_workflow_khong_co_echo_chuyen_huong_handle_so` · `test:xtask/src/hygiene.rs::e93_cmd_digit_redirect_bat_dung_dang_loi` · `gate:installer/windows/tests/test-installer.ps1` |
+| E94 | project-common-errors | `gate:scripts/test-macos-universal-gate.sh` · `gate:scripts/build-macos.sh` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |
