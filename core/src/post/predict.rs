@@ -177,11 +177,7 @@ fn en_common_lines() -> &'static [&'static str] {
     })
 }
 
-/// Vòng 53 (perf): từ ghép bucket theo **byte đầu** — 1.9k mục quét tuyến
-/// tính từng ~60µs trên prefix ngắn; bucket chỉ quét nhóm đầu-vòng (giảm ~10×).
-/// Kết hợp không-dấu và có-dấu cùng lưu (khớp qua 2 đường).
-/// Nhóm từ ghép theo byte đầu: (từ, dạng-không-dấu, weight).
-type CompoundRow = (&'static str, &'static str, u32);
+/// Vòng 53 (perf): từ ghép bucket theo **byte đầu** — giữ cho `restore_en` dùng chung.
 /// Nhóm từ ghép tiếng Anh theo byte đầu: (từ, weight).
 pub(crate) type EnCompoundRow = (&'static str, u32);
 
@@ -232,31 +228,6 @@ pub(crate) fn en_compounds_buckets(
     })
 }
 
-fn vn_compounds_buckets() -> &'static std::collections::HashMap<u8, &'static [CompoundRow]> {
-    static CACHE: OnceLock<std::collections::HashMap<u8, &'static [CompoundRow]>> = OnceLock::new();
-    CACHE.get_or_init(|| {
-        let mut groups: std::collections::HashMap<u8, Vec<CompoundRow>> =
-            std::collections::HashMap::new();
-        for &(word, de, weight) in vn_compounds() {
-            if let Some(&b0) = word.as_bytes().first() {
-                groups.entry(b0).or_default().push((word, de, weight));
-            }
-            if let Some(&b0) = de.as_bytes().first() {
-                groups.entry(b0).or_default().push((word, de, weight));
-            }
-        }
-        groups
-            .into_iter()
-            .map(|(k, v)| {
-                let slice: &'static [CompoundRow] = Box::leak(v.into_boxed_slice());
-                (k, slice)
-            })
-            .collect()
-    })
-}
-
-/// Thuật ngữ tech/business kèm dạng lowercase (build 1 lần — `seen` dedup
-/// theo dạng chuẩn giữ case, comparator char_count vẫn đếm từ dạng gốc).
 fn tech_terms_lower() -> &'static [(&'static str, &'static str)] {
     static CACHE: OnceLock<Vec<(&'static str, &'static str)>> = OnceLock::new();
     CACHE.get_or_init(|| {
@@ -389,6 +360,9 @@ fn phrase_buckets(
 /// gõ ra là `hoà` — phải đưa về cùng kiểu mới so khớp được, và ứng viên chèn
 /// vào phải theo kiểu người dùng (không trộn hai kiểu trong một văn bản).
 pub fn restyle(text: &str, style: DiacriticStyle) -> String {
+    if text.is_ascii() {
+        return text.to_string();
+    }
     fn flush(word: &mut Vec<char>, out: &mut String, style: DiacriticStyle) {
         if !word.is_empty() {
             normalize_tone(word, style);
@@ -484,6 +458,296 @@ pub fn predict_prefix_candidates_with_personal(
     )
 }
 
+/// Ngưỡng số ứng viên tối thiểu trong cùng tiền tố để dựng sẵn bảng top-K.
+const HEAVY_PREFIX_THRESHOLD: usize = 24;
+/// Số ứng viên dựng sẵn tối đa cho mỗi tiền tố nặng (đủ phủ mọi `limit <= 24`).
+const HEAVY_TOP_K: usize = 24;
+/// Độ dài tiền tố (tính theo ký tự) được đánh chỉ mục top-K sẵn.
+const HEAVY_MAX_PREFIX_CHARS: usize = 5;
+
+#[derive(Debug, Clone, Copy)]
+struct StaticEntry {
+    word: &'static str,
+    key: &'static str,
+    char_count: u16,
+    weight: u32,
+    from_vn: bool,
+    is_compound_src: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct UnaccCompoundEntry {
+    word: &'static str,
+    deaccented: &'static str,
+    char_count: u16,
+    weight: u32,
+    is_single: bool,
+}
+
+type StaticRankCmp = fn(&StaticEntry, &StaticEntry) -> std::cmp::Ordering;
+
+fn rank_single_vi(a: &StaticEntry, b: &StaticEntry) -> std::cmp::Ordering {
+    a.char_count
+        .cmp(&b.char_count)
+        .then_with(|| b.weight.cmp(&a.weight))
+        .then_with(|| a.word.cmp(b.word))
+}
+
+fn rank_weight_first(a: &StaticEntry, b: &StaticEntry) -> std::cmp::Ordering {
+    b.weight
+        .cmp(&a.weight)
+        .then_with(|| a.char_count.cmp(&b.char_count))
+        .then_with(|| a.word.cmp(b.word))
+}
+
+/// Bảng tra cứu tiền tố đã sắp theo `(key ASC, rank_cmp)` kèm chỉ mục top-K
+/// dựng sẵn một lần cho mọi tiền tố ngắn nặng (`len > 24`, độ dài 2..=5).
+struct PrefixTable {
+    by_key: Vec<StaticEntry>,
+    heavy_top_k: std::collections::HashMap<&'static str, &'static [StaticEntry]>,
+}
+
+fn char_prefix(s: &str, n_chars: usize) -> Option<&str> {
+    if n_chars == 0 {
+        return Some("");
+    }
+    let mut indices = s.char_indices();
+    for _ in 0..n_chars {
+        indices.next()?;
+    }
+    let end = match indices.next() {
+        Some((idx, _)) => idx,
+        None => s.len(),
+    };
+    Some(&s[..end])
+}
+
+impl PrefixTable {
+    fn build(mut entries: Vec<StaticEntry>, rank_cmp: StaticRankCmp) -> Self {
+        entries.sort_unstable_by(|a, b| a.key.cmp(b.key).then_with(|| rank_cmp(a, b)));
+        let mut heavy_top_k: std::collections::HashMap<&'static str, &'static [StaticEntry]> =
+            std::collections::HashMap::new();
+
+        for n_chars in 2..=HEAVY_MAX_PREFIX_CHARS {
+            let mut i = 0;
+            while i < entries.len() {
+                let Some(prefix) = char_prefix(entries[i].key, n_chars) else {
+                    i += 1;
+                    continue;
+                };
+                let mut j = i + 1;
+                while j < entries.len() && entries[j].key.starts_with(prefix) {
+                    j += 1;
+                }
+                if j - i > HEAVY_PREFIX_THRESHOLD {
+                    let mut top: Vec<StaticEntry> = entries[i..j].to_vec();
+                    top.select_nth_unstable_by(HEAVY_TOP_K, rank_cmp);
+                    top.truncate(HEAVY_TOP_K);
+                    top.sort_unstable_by(rank_cmp);
+                    let slice: &'static [StaticEntry] = Box::leak(top.into_boxed_slice());
+                    heavy_top_k.insert(prefix, slice);
+                }
+                i = j;
+            }
+        }
+
+        Self {
+            by_key: entries,
+            heavy_top_k,
+        }
+    }
+}
+
+/// Chỉ mục hợp nhất cho một chế độ ngôn ngữ (`!is_vi`, `is_vi && !en`, `is_vi && en`).
+/// Lưu trữ tĩnh trong `OnceLock` (0 alloc khi đọc, giữ 100% ngữ nghĩa gốc).
+struct StaticPool {
+    ext_by_first_word: std::collections::HashMap<&'static str, &'static [StaticEntry]>,
+    singles: PrefixTable,
+    compounds: PrefixTable,
+}
+
+impl StaticPool {
+    fn build(include_vn: bool, include_en: bool, is_vi_rank: bool) -> Self {
+        let mut seen: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
+        let mut singles: Vec<StaticEntry> = Vec::new();
+        let mut compounds: Vec<StaticEntry> = Vec::new();
+        let mut ext_groups: std::collections::HashMap<&'static str, Vec<StaticEntry>> =
+            std::collections::HashMap::new();
+
+        let mut push_entry = |word: &'static str,
+                              key: &'static str,
+                              weight: u32,
+                              from_vn: bool,
+                              is_compound_src: bool| {
+            if !seen.insert(word) {
+                return;
+            }
+            let entry = StaticEntry {
+                word,
+                key,
+                char_count: word.chars().count() as u16,
+                weight,
+                from_vn,
+                is_compound_src,
+            };
+            if !word.contains(' ') {
+                singles.push(entry);
+            } else {
+                compounds.push(entry);
+                if is_compound_src {
+                    if let Some(first) = word.split(' ').next() {
+                        ext_groups.entry(first).or_default().push(entry);
+                    }
+                }
+            }
+        };
+
+        if include_vn {
+            for &syll in vn_syllables_sorted() {
+                push_entry(syll, syll, 90, true, false);
+            }
+            for &(word, _, weight) in vn_compounds() {
+                push_entry(word, word, weight, true, true);
+            }
+        }
+
+        if include_en {
+            for &(term, tl) in tech_terms_lower() {
+                push_entry(term, tl, 85, false, false);
+            }
+            for &word in en_common_lines() {
+                push_entry(word, word, 70, false, false);
+            }
+            for &word in en_freq_sorted() {
+                push_entry(word, word, 60, false, false);
+            }
+            for &word in en_words10k_sorted() {
+                push_entry(word, word, 55, false, false);
+            }
+            for &(word, weight) in en_compounds() {
+                push_entry(word, word, weight, false, true);
+            }
+        }
+
+        let single_cmp: StaticRankCmp = if is_vi_rank {
+            rank_single_vi
+        } else {
+            rank_weight_first
+        };
+        let ext_by_first_word = ext_groups
+            .into_iter()
+            .map(|(k, mut v)| {
+                v.sort_unstable_by(rank_weight_first);
+                let slice: &'static [StaticEntry] = Box::leak(v.into_boxed_slice());
+                (k, slice)
+            })
+            .collect();
+
+        Self {
+            ext_by_first_word,
+            singles: PrefixTable::build(singles, single_cmp),
+            compounds: PrefixTable::build(compounds, rank_weight_first),
+        }
+    }
+}
+
+fn pool_en_only() -> &'static StaticPool {
+    static CACHE: OnceLock<StaticPool> = OnceLock::new();
+    CACHE.get_or_init(|| StaticPool::build(false, true, false))
+}
+
+fn pool_vn_only() -> &'static StaticPool {
+    static CACHE: OnceLock<StaticPool> = OnceLock::new();
+    CACHE.get_or_init(|| StaticPool::build(true, false, true))
+}
+
+fn pool_vn_plus_en() -> &'static StaticPool {
+    static CACHE: OnceLock<StaticPool> = OnceLock::new();
+    CACHE.get_or_init(|| StaticPool::build(true, true, true))
+}
+
+/// Từ ghép Việt sắp theo `(deaccented ASC, weight DESC, word ASC)` phục vụ nhánh không dấu.
+fn vn_compounds_deacc_sorted() -> &'static [UnaccCompoundEntry] {
+    static CACHE: OnceLock<Vec<UnaccCompoundEntry>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut seen: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
+        let mut v: Vec<UnaccCompoundEntry> = vn_compounds()
+            .iter()
+            .filter_map(|&(word, deaccented, weight)| {
+                if !seen.insert(word) {
+                    return None;
+                }
+                Some(UnaccCompoundEntry {
+                    word,
+                    deaccented,
+                    char_count: word.chars().count() as u16,
+                    weight,
+                    is_single: !word.contains(' '),
+                })
+            })
+            .collect();
+        v.sort_unstable_by(|a, b| {
+            a.deaccented
+                .cmp(b.deaccented)
+                .then_with(|| b.weight.cmp(&a.weight))
+                .then_with(|| a.word.cmp(b.word))
+        });
+        v
+    })
+}
+
+fn compare_prefix_candidates(
+    a: &PrefixCandidate,
+    b: &PrefixCandidate,
+    has_ext: bool,
+    is_vi: bool,
+) -> std::cmp::Ordering {
+    let a_single = !a.word.contains(' ');
+    let b_single = !b.word.contains(' ');
+    b.exact_match
+        .cmp(&a.exact_match)
+        .then_with(|| b.personal.cmp(&a.personal))
+        .then_with(|| {
+            if a.personal && b.personal {
+                b.weight
+                    .cmp(&a.weight)
+                    .then_with(|| a.char_count.cmp(&b.char_count))
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        })
+        .then_with(|| b.ext.cmp(&a.ext))
+        .then_with(|| {
+            let a_pri = if has_ext { !a_single } else { a_single };
+            let b_pri = if has_ext { !b_single } else { b_single };
+            b_pri.cmp(&a_pri)
+        })
+        .then_with(|| {
+            if a_single && b_single {
+                if !is_vi {
+                    b.weight
+                        .cmp(&a.weight)
+                        .then_with(|| a.char_count.cmp(&b.char_count))
+                } else {
+                    a.char_count
+                        .cmp(&b.char_count)
+                        .then_with(|| b.weight.cmp(&a.weight))
+                }
+            } else {
+                b.weight
+                    .cmp(&a.weight)
+                    .then_with(|| a.char_count.cmp(&b.char_count))
+            }
+        })
+        .then_with(|| a.word.cmp(&b.word))
+}
+
+fn is_ext_of(entry: &StaticEntry, variant: &str) -> bool {
+    entry.is_compound_src
+        && entry.word.as_bytes().get(variant.len()) == Some(&b' ')
+        && entry.word.starts_with(variant)
+}
+
 fn predict_impl(
     typed_lower: &str,
     is_vi: bool,
@@ -492,340 +756,324 @@ fn predict_impl(
     style_touches: usize,
     en_context: bool,
 ) -> Vec<String> {
-    if typed_lower.chars().count() < 2 || limit == 0 {
+    if limit == 0 || typed_lower.len() < 2 {
+        return Vec::new();
+    }
+    let is_ascii = typed_lower.is_ascii();
+    if !is_ascii && typed_lower.chars().nth(1).is_none() {
         return Vec::new();
     }
 
-    // Vòng 52: dedup qua HashSet O(1) thay `ranked.iter().any()` O(n) mỗi push
-    // (prefix ngắn như "t" từng thu hàng nghìn ứng viên → O(n²) so String).
-    let mut ranked: Vec<PrefixCandidate> = Vec::new();
-    let mut seen: std::collections::HashSet<std::borrow::Cow<'static, str>> =
-        std::collections::HashSet::new();
-    let typed_unaccented: String = strip_diacritics(&typed_lower.chars().collect::<Vec<_>>())
-        .into_iter()
-        .collect();
-    let typed_has_diacritics = typed_lower != typed_unaccented;
-    // Dữ liệu viết kiểu dấu cũ: "hoà" (kiểu mới) phải khớp "hòa bình".
-    // Tiền tố gõ dở đặt dấu khác vị trí với từ đầy đủ ("hòa" kiểu cũ là tiền
-    // tố "hoài" chỉ khi đặt kiểu mới "hoà") → so cả hai kiểu.
-    let typed_old = restyle(typed_lower, DiacriticStyle::Old);
-    let typed_new = restyle(typed_lower, DiacriticStyle::New);
-    let starts = |w: &str| {
-        w.starts_with(typed_lower)
-            || w.starts_with(typed_old.as_str())
-            || w.starts_with(typed_new.as_str())
+    let typed_unaccented: std::borrow::Cow<'_, str> = if is_ascii {
+        std::borrow::Cow::Borrowed(typed_lower)
+    } else {
+        std::borrow::Cow::Owned(
+            strip_diacritics(&typed_lower.chars().collect::<Vec<_>>())
+                .into_iter()
+                .collect::<String>(),
+        )
     };
-    let same = |w: &str| w == typed_lower || w == typed_old || w == typed_new;
-    // Vòng 52 (probe): từ ghép là mở rộng đúng nghĩa khi ÂM ĐẦU == tiền tố
-    // ("tiến độ" của "tiến" — người gõ đã gõ xong âm tiết, muốn thành từ
-    // ghép); compound chỉ prefix-match byte ("người yêu" của "ngư") thì KHÔNG
-    // — "ngư" đang gõ dở âm tiết dài hơn, giữ luật hoàn-tất-âm-tiết-trước.
+    let typed_has_diacritics = !is_ascii && typed_lower != typed_unaccented.as_ref();
+
+    let (typed_old, typed_new) = if is_ascii {
+        (String::new(), String::new())
+    } else {
+        (
+            restyle(typed_lower, DiacriticStyle::Old),
+            restyle(typed_lower, DiacriticStyle::New),
+        )
+    };
+    let mut variants: [&str; 3] = [typed_lower, "", ""];
+    let mut n_variants: usize = 1;
+    if !is_ascii {
+        if typed_old != typed_lower {
+            variants[n_variants] = typed_old.as_str();
+            n_variants += 1;
+        }
+        if typed_new != typed_lower && typed_new != typed_old {
+            variants[n_variants] = typed_new.as_str();
+            n_variants += 1;
+        }
+    }
+    let active_variants = &variants[..n_variants];
+
+    let starts = |w: &str| active_variants.iter().any(|v| w.starts_with(v));
+    let same = |w: &str| active_variants.contains(&w);
     let compound_ext = |word: &str| word.split(' ').next().is_some_and(same);
 
-    // 0. P7 (vòng 54) / Dream RSI evolution: Ứng viên CÁ NHÂN — push TRƯỚC HẾT
-    // với personal=true, sort TOP.
-    // Đủ cả VI lẫn EN (từ/cụm cá nhân học từ chính user gõ). Phải duyệt TRƯỚC
-    // các bộ từ điển tĩnh (vn_syllables, vn_compounds, en_freq...) để từ người
-    // dùng đã học không bị 'seen' chặn mất trạng thái personal=true.
-    // F-P10-1 (recency boost — vòng 59): `personal` giữ thứ tự **dùng gần nhất**
-    // (mới nhất cuối — engine recency touch mỗi lần gõ lại). Từ gõ lại gần đây
-    // nổi trên từ count cao nhưng lâu không dùng (EMA-recency thời gian thực,
-    // không cần trường giờ trong config — G8: chỉ từ + count).
-    // F-A1-2 (audit vòng 59): chỉ từ đã touch KỂ TỪ LẦN NẠP OPTIONS cuối được
-    // boost (`from_end < style_touches`) — sau ConfigReload thứ tự là count-desc
-    // (sanitize sort), không phải recency: boost đống count-thấp nhất = sai.
-    let recency_boost = |from_end: usize, touches: usize| -> u32 {
-        if from_end >= touches {
-            0
-        } else if from_end < 12 {
-            12
-        } else if from_end < 24 {
-            6
-        } else {
-            0
-        }
-    };
-    for (i, (pword, pcount)) in personal.iter().enumerate() {
-        if pword.chars().count() < 2 || same(pword) {
-            continue;
-        }
-        if starts(pword) {
-            // Cow::Owned — danh sách cá nhân sống trong EngineOptions (per-instance).
-            let word: std::borrow::Cow<str> = std::borrow::Cow::Owned(pword.clone());
-            if seen.insert(word.clone()) {
-                ranked.push(PrefixCandidate {
-                    word,
-                    exact_match: true,
-                    char_count: pword.chars().count(),
-                    // Boost theo count: 100 + min(count,30) — nổi trên mọi
-                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng;
-                    // cộng thêm recency: từ vừa gõ lại (12 mục cuối) +12,
-                    // 24 mục cuối +6 (F-P10-1).
-                    weight: 100u32
-                        .saturating_add((*pcount).min(30))
-                        .saturating_add(recency_boost(personal.len() - 1 - i, style_touches)),
-                    ext: compound_ext(pword),
-                    personal: true,
-                });
-            }
-        }
-    }
-
-    // 1. Nếu đang ở mode tiếng Việt hoặc chuỗi gõ có dấu tiếng Việt
-    if is_vi {
-        // 1a. Âm tiết đơn (vn_syllables.txt) — binary search theo từng biến thể
-        // (giữ nguyên ngữ nghĩa `starts() && !same()` của vòng trước).
-        let push_syll =
-            |syll: &'static str,
-             ranked: &mut Vec<PrefixCandidate>,
-             seen: &mut std::collections::HashSet<std::borrow::Cow<'static, str>>| {
-                if same(syll) || !seen.insert(std::borrow::Cow::Borrowed(syll)) {
-                    return;
-                }
-                ranked.push(PrefixCandidate {
-                    word: std::borrow::Cow::Borrowed(syll),
-                    exact_match: true,
-                    char_count: syll.chars().count(),
-                    weight: 90,
-                    ext: false,
-                    personal: false,
-                });
-            };
-        for variant in [typed_lower, typed_old.as_str(), typed_new.as_str()] {
-            let sorted = vn_syllables_sorted();
-            let start = sorted.partition_point(|w| *w < variant);
-            for &syll in &sorted[start..] {
-                if !syll.starts_with(variant) {
-                    break;
-                }
-                if starts(syll) {
-                    push_syll(syll, &mut ranked, &mut seen);
-                }
-            }
-        }
-
-        // 1b. Từ ghép tiếng Việt (vn_compounds.txt) — ~1200 mục, quét tuyến
-        // tính nhưng deaccent đã build sẵn trong cache (không alloc per-call).
-        // Vòng 53 (perf): quét bucket byte-đầu (có-dấu + không-dấu) thay toàn bảng.
-        let buckets = vn_compounds_buckets();
-        let mut scan = |key: u8| {
-            for &(word, word_unaccented, weight) in buckets.get(&key).copied().into_iter().flatten()
-            {
-                if same(word) {
-                    continue;
-                }
-
-                let matches_accented = starts(word);
-                // Chỉ khớp không dấu nếu người dùng chưa gõ dấu
-                let matches_unaccented =
-                    if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
-                        word_unaccented.starts_with(&typed_unaccented)
-                    } else {
-                        false
-                    };
-
-                if (matches_accented || matches_unaccented)
-                    && seen.insert(std::borrow::Cow::Borrowed(word))
-                {
-                    ranked.push(PrefixCandidate {
-                        word: std::borrow::Cow::Borrowed(word),
-                        exact_match: matches_accented,
-                        char_count: word.chars().count(),
-                        weight,
-                        ext: compound_ext(word),
-                        personal: false,
-                    });
-                }
+    // 0. Ứng viên CÁ NHÂN (khớp `starts(pword) && !same(pword)`).
+    let mut personal_hits: Vec<PrefixCandidate> = Vec::new();
+    if !personal.is_empty() {
+        let recency_boost = |from_end: usize, touches: usize| -> u32 {
+            if from_end >= touches {
+                0
+            } else if from_end < 12 {
+                12
+            } else if from_end < 24 {
+                6
+            } else {
+                0
             }
         };
-        if let Some(&b0) = typed_lower.as_bytes().first() {
-            scan(b0);
-        }
-        if let Some(&b0) = typed_unaccented.as_bytes().first() {
-            scan(b0);
-        }
-        if let Some(&b0) = typed_old.as_bytes().first() {
-            scan(b0);
-        }
-        if let Some(&b0) = typed_new.as_bytes().first() {
-            scan(b0);
+        for (i, (pword, pcount)) in personal.iter().enumerate() {
+            if !starts(pword) || same(pword) || pword.chars().count() < 2 {
+                continue;
+            }
+            if personal_hits
+                .iter()
+                .any(|c| c.word.as_ref() == pword.as_str())
+            {
+                continue;
+            }
+            personal_hits.push(PrefixCandidate {
+                word: std::borrow::Cow::Owned(pword.clone()),
+                exact_match: true,
+                char_count: pword.chars().count(),
+                weight: 100u32
+                    .saturating_add((*pcount).min(30))
+                    .saturating_add(recency_boost(personal.len() - 1 - i, style_touches)),
+                ext: compound_ext(pword),
+                personal: true,
+            });
         }
     }
 
-    // 2. Tra cứu từ tiếng Anh (khi gõ từ tiếng Anh hoặc thuật ngữ coder/kinh doanh)
-    // RSI-7 — **cổng ngôn ngữ cho chữ mờ** (P0-7 Luồng R, SPK-RSI): ở mode VI,
-    // tiền tố còn lớn lên được thành âm tiết Việt (tiền tố/âm tiết Việt hợp lệ)
-    // và KHÔNG có ngữ cảnh EN → ngừng MỌI nguồn EN tĩnh — nguồn EN chen vào khi
-    // đang gõ âm tiết Việt (`gu`→`guys`, `ho`→`horse`, `ba`→`bars`). Bench đo
-    // (RSI-1): nguồn EN chiếm ~25% nhiễu VI (45,2→33,7/100 — phần còn lại là
-    // chữ mờ nguồn VN, RSI-4), KSR-oracle VI/EN giữ nguyên. Ngữ cảnh EN (từ
-    // trước là từ EN thật) mở cổng lại — code-switch "gửi report" không vỡ.
-    // Ứng viên CÁ NHÂN (khối 0) giữ nguyên — người dùng đã tự dùng từ đó.
-    let en_allowed = !is_vi || en_context || !vn_prefix_possible_unaccented(&typed_unaccented);
-    if en_allowed {
-        // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
-        // `to_lowercase()` + leak mỗi call (vòng 52: chống rò rỉ bộ nhớ mỗi phím).
-        for &(term, tl) in tech_terms_lower() {
-            if tl.starts_with(typed_lower)
-                && tl != typed_lower
-                && seen.insert(std::borrow::Cow::Borrowed(term))
-            {
-                ranked.push(PrefixCandidate {
-                    word: std::borrow::Cow::Borrowed(term),
-                    exact_match: true,
-                    char_count: term.chars().count(),
-                    weight: 85,
-                    ext: false,
-                    personal: false,
-                });
-            }
-        }
+    // 1. Chọn chỉ mục tĩnh phù hợp chế độ ngôn ngữ + cổng RSI-7.
+    let en_allowed =
+        !is_vi || en_context || !vn_prefix_possible_unaccented(typed_unaccented.as_ref());
+    let pool = match (is_vi, en_allowed) {
+        (false, _) => pool_en_only(),
+        (true, false) => pool_vn_only(),
+        (true, true) => pool_vn_plus_en(),
+    };
 
-        // en_common (danh sách restore-policy, ~150 mục — tuyến tính)
-        for &word in en_common_lines() {
-            if word.starts_with(typed_lower)
-                && word != typed_lower
-                && seen.insert(std::borrow::Cow::Borrowed(word))
-            {
-                ranked.push(PrefixCandidate {
-                    word: std::borrow::Cow::Borrowed(word),
-                    exact_match: true,
-                    char_count: word.chars().count(),
-                    weight: 70,
-                    ext: false,
-                    personal: false,
-                });
-            }
-        }
-
-        // en_freq3000 (vòng 52: binary search)
-        for word in prefix_scan(en_freq_sorted(), typed_lower) {
-            if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
-                ranked.push(PrefixCandidate {
-                    word: std::borrow::Cow::Borrowed(word),
-                    exact_match: true,
-                    char_count: word.chars().count(),
-                    weight: 60,
-                    ext: false,
-                    personal: false,
-                });
-            }
-        }
-
-        // en_words10k — google-10000-english (vòng 52): nguồn mở rộng prediction,
-        // weight 55 dưới freq3000. KHÔNG đụng chính sách restore/assist.
-        for word in prefix_scan(en_words10k_sorted(), typed_lower) {
-            if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
-                ranked.push(PrefixCandidate {
-                    word: std::borrow::Cow::Borrowed(word),
-                    exact_match: true,
-                    char_count: word.chars().count(),
-                    weight: 55,
-                    ext: false,
-                    personal: false,
-                });
-            }
-        }
-
-        // en_compounds — từ ghép & cụm danh từ tiếng Anh (~1957 mục, 16 domain):
-        // Khi từ đầu khớp hoàn toàn (`ext == true`, ví dụ `"machine"` -> `"machine learning"`),
-        // được ưu tiên mở rộng giống từ ghép tiếng Việt (`"tiến"` -> `"tiến độ"`).
-        if let Some(&b0) = typed_lower.as_bytes().first() {
-            for &(word, weight) in en_compounds_buckets()
-                .get(&b0)
-                .copied()
-                .into_iter()
-                .flatten()
-            {
-                if word != typed_lower
-                    && word.starts_with(typed_lower)
-                    && seen.insert(std::borrow::Cow::Borrowed(word))
-                {
-                    ranked.push(PrefixCandidate {
-                        word: std::borrow::Cow::Borrowed(word),
-                        exact_match: true,
-                        char_count: word.chars().count(),
-                        weight,
-                        ext: compound_ext(word),
-                        personal: false,
-                    });
-                }
+    // Tính `ext_slices` và `has_ext` trước khi xuất personal (personal xếp theo `has_ext`).
+    let mut ext_slices: [Option<&'static [StaticEntry]>; 3] = [None; 3];
+    let mut static_has_ext = false;
+    for (idx, &v) in active_variants.iter().enumerate() {
+        if let Some(&slice) = pool.ext_by_first_word.get(v) {
+            let valid = v == typed_lower || slice.iter().any(|e| e.from_vn);
+            if valid {
+                ext_slices[idx] = Some(slice);
+                static_has_ext = true;
             }
         }
     }
+    let has_ext = personal_hits.iter().any(|c| c.ext) || static_has_ext;
 
-    // Xếp theo:
-    // Xếp theo (vòng 52):
-    // 1. exact_match (khớp trực tiếp có dấu)
-    // 2. mở rộng đúng nghĩa — từ ghép có ÂM ĐẦU == tiền tố ("tiến độ" của "tiến")
-    // 3. nhóm: có mở rộng đúng nghĩa ("tiến") → từ ghép trước âm tiết khác;
-    //    không có ("ngư" — đang gõ dở âm tiết dài hơn) → hoàn tất âm tiết trước
-    // 4. từ đơn: ngắn hơn trước; từ ghép: weight cao hơn trước
-    let has_ext = ranked.iter().any(|c| c.ext);
-    ranked.sort_by(|a, b| {
-        let a_single = !a.word.contains(' ');
-        let b_single = !b.word.contains(' ');
-        b.exact_match
-            .cmp(&a.exact_match)
-            .then_with(|| b.personal.cmp(&a.personal))
-            .then_with(|| {
-                if a.personal && b.personal {
-                    // P7 / vòng 54 / frecency: hai từ cá nhân → ưu tiên tần suất dùng
-                    // (weight = 100 + count) trước độ dài ký tự (tránh từ 4 chữ ít dùng
-                    // đè từ 5 chữ dùng 50 lần).
-                    b.weight
-                        .cmp(&a.weight)
-                        .then_with(|| a.char_count.cmp(&b.char_count))
-                } else {
-                    std::cmp::Ordering::Equal
+    let mut out: Vec<String> = Vec::with_capacity(limit.min(64));
+    if !personal_hits.is_empty() {
+        personal_hits.sort_by(|a, b| compare_prefix_candidates(a, b, has_ext, is_vi));
+        for c in personal_hits.iter().take(limit) {
+            out.push(c.word.to_string());
+        }
+        if out.len() >= limit {
+            return out;
+        }
+    }
+
+    let is_shadowed_by_personal = |word: &str| {
+        !personal_hits.is_empty() && personal_hits.iter().any(|p| p.word.as_ref() == word)
+    };
+    let entry_excluded = |e: &StaticEntry, v: &str, skip_ext: bool| -> bool {
+        (v != typed_lower && !e.from_vn)
+            || e.key == typed_lower
+            || same(e.word)
+            || (skip_ext && is_ext_of(e, v))
+            || is_shadowed_by_personal(e.word)
+    };
+
+    let take_table = |table: &'static PrefixTable,
+                      skip_ext: bool,
+                      rank_cmp: StaticRankCmp,
+                      out: &mut Vec<String>| {
+        let need = limit - out.len();
+        if need == 0 {
+            return;
+        }
+        if n_variants == 1 {
+            let v = active_variants[0];
+            if let Some(&top) = table.heavy_top_k.get(v) {
+                let mut picked = 0usize;
+                for e in top {
+                    if !entry_excluded(e, v, skip_ext) {
+                        out.push(e.word.to_string());
+                        picked += 1;
+                        if picked == need {
+                            return;
+                        }
+                    }
                 }
-            })
-            .then_with(|| b.ext.cmp(&a.ext))
-            .then_with(|| {
-                let a_pri = if has_ext { !a_single } else { a_single };
-                let b_pri = if has_ext { !b_single } else { b_single };
-                b_pri.cmp(&a_pri)
-            })
-            .then_with(|| {
-                if a_single && b_single {
-                    if !is_vi {
-                        // Tiếng Anh: ưu tiên tầng trọng số (85 tech/business > 70 common > 60 freq > 55 10k)
-                        // trước độ dài ký tự để các từ chuyên ngành/thông dụng không bị từ hiếm ngắn đè
-                        b.weight
-                            .cmp(&a.weight)
-                            .then_with(|| a.char_count.cmp(&b.char_count))
-                    } else {
+                if top.len() < HEAVY_TOP_K {
+                    return;
+                }
+                // Dự phòng khi `need + excluded > HEAVY_TOP_K`: xoá phần đã push và quét `by_key`.
+                out.truncate(out.len() - picked);
+            }
+            let start = table.by_key.partition_point(|e| e.key < v);
+            let mut candidates: Vec<&'static StaticEntry> = table.by_key[start..]
+                .iter()
+                .take_while(|e| e.key.starts_with(v))
+                .filter(|e| !entry_excluded(e, v, skip_ext))
+                .collect();
+            if candidates.len() > need {
+                candidates.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
+                candidates.truncate(need);
+            }
+            candidates.sort_unstable_by(|a, b| rank_cmp(a, b));
+            for e in candidates {
+                out.push(e.word.to_string());
+            }
+        } else {
+            let mut merged: Vec<&'static StaticEntry> = Vec::new();
+            for &v in active_variants {
+                let mut used_top = false;
+                if let Some(&top) = table.heavy_top_k.get(v) {
+                    let before = merged.len();
+                    for e in top {
+                        if !entry_excluded(e, v, skip_ext) {
+                            merged.push(e);
+                            if merged.len() - before == need {
+                                used_top = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !used_top && top.len() < HEAVY_TOP_K {
+                        used_top = true;
+                    }
+                    if !used_top {
+                        merged.truncate(before);
+                    }
+                }
+                if !used_top {
+                    let start = table.by_key.partition_point(|e| e.key < v);
+                    let mut local: Vec<&'static StaticEntry> = table.by_key[start..]
+                        .iter()
+                        .take_while(|e| e.key.starts_with(v))
+                        .filter(|e| !entry_excluded(e, v, skip_ext))
+                        .collect();
+                    if local.len() > need {
+                        local.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
+                        local.truncate(need);
+                    }
+                    merged.extend(local);
+                }
+            }
+            if merged.len() > need {
+                merged.select_nth_unstable_by(need, |a, b| rank_cmp(a, b));
+                merged.truncate(need);
+            }
+            merged.sort_unstable_by(|a, b| rank_cmp(a, b));
+            for e in merged {
+                out.push(e.word.to_string());
+            }
+        }
+    };
+
+    let take_ext = |out: &mut Vec<String>| {
+        let need = limit - out.len();
+        if need == 0 || !static_has_ext {
+            return;
+        }
+        if n_variants == 1 {
+            if let Some(slice) = ext_slices[0] {
+                let v = active_variants[0];
+                for e in slice {
+                    if !entry_excluded(e, v, false) {
+                        out.push(e.word.to_string());
+                        if out.len() >= limit {
+                            return;
+                        }
+                    }
+                }
+            }
+        } else {
+            let mut merged: Vec<&'static StaticEntry> = Vec::new();
+            for (idx, &v) in active_variants.iter().enumerate() {
+                if let Some(slice) = ext_slices[idx] {
+                    let before = merged.len();
+                    for e in slice {
+                        if !entry_excluded(e, v, false) {
+                            merged.push(e);
+                            if merged.len() - before == need {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if merged.len() > need {
+                merged.select_nth_unstable_by(need, |a, b| rank_weight_first(a, b));
+                merged.truncate(need);
+            }
+            merged.sort_unstable_by(|a, b| rank_weight_first(a, b));
+            for e in merged {
+                out.push(e.word.to_string());
+            }
+        }
+    };
+
+    let single_rank_cmp: StaticRankCmp = if is_vi {
+        rank_single_vi
+    } else {
+        rank_weight_first
+    };
+
+    if has_ext {
+        take_ext(&mut out);
+        if out.len() < limit {
+            take_table(&pool.compounds, true, rank_weight_first, &mut out);
+        }
+        if out.len() < limit {
+            take_table(&pool.singles, false, single_rank_cmp, &mut out);
+        }
+    } else {
+        take_table(&pool.singles, false, single_rank_cmp, &mut out);
+        if out.len() < limit {
+            take_table(&pool.compounds, false, rank_weight_first, &mut out);
+        }
+    }
+
+    // 3. Nhánh không dấu của `vn_compounds` (`exact_match = false`) chỉ khi còn slot.
+    if is_vi && !typed_has_diacritics && out.len() < limit && !typed_unaccented.is_empty() {
+        let need = limit - out.len();
+        let table = vn_compounds_deacc_sorted();
+        let start = table.partition_point(|e| e.deaccented < typed_unaccented.as_ref());
+        let mut unacc: Vec<&UnaccCompoundEntry> = table[start..]
+            .iter()
+            .take_while(|e| e.deaccented.starts_with(typed_unaccented.as_ref()))
+            .filter(|e| !starts(e.word) && !same(e.word) && !is_shadowed_by_personal(e.word))
+            .collect();
+        let cmp_unacc = |a: &&UnaccCompoundEntry, b: &&UnaccCompoundEntry| {
+            let a_pri = if has_ext { !a.is_single } else { a.is_single };
+            let b_pri = if has_ext { !b.is_single } else { b.is_single };
+            b_pri
+                .cmp(&a_pri)
+                .then_with(|| {
+                    if a.is_single && b.is_single {
                         a.char_count
                             .cmp(&b.char_count)
                             .then_with(|| b.weight.cmp(&a.weight))
+                    } else {
+                        b.weight
+                            .cmp(&a.weight)
+                            .then_with(|| a.char_count.cmp(&b.char_count))
                     }
-                } else {
-                    b.weight
-                        .cmp(&a.weight)
-                        .then_with(|| a.char_count.cmp(&b.char_count))
-                }
-            })
-            .then_with(|| a.word.cmp(&b.word))
-    });
+                })
+                .then_with(|| a.word.cmp(b.word))
+        };
+        if unacc.len() > need {
+            unacc.select_nth_unstable_by(need, cmp_unacc);
+            unacc.truncate(need);
+        }
+        unacc.sort_unstable_by(cmp_unacc);
+        for e in unacc {
+            out.push(e.word.to_string());
+        }
+    }
 
-    ranked
-        .into_iter()
-        .take(limit)
-        .map(|c| c.word.to_string())
-        .collect()
-}
-
-/// Quét vùng prefix của danh sách đã sắp (vòng 52): binary search điểm bắt đầu
-/// rồi đi đến khi từ không còn khớp prefix.
-fn prefix_scan<'a>(
-    sorted: &'static [&'static str],
-    typed: &'a str,
-) -> impl Iterator<Item = &'static str> + 'a {
-    let start = sorted.partition_point(|w| *w < typed);
-    sorted[start..]
-        .iter()
-        .copied()
-        .take_while(move |w| w.starts_with(typed))
+    out
 }
 
 /// Dự đoán cụm từ tiếp theo theo ngữ cảnh (Next-Word / Phrase Prediction).
@@ -900,8 +1148,18 @@ pub fn predict_next_phrase_matches_with_personal(
         if !pentry.contains(' ') {
             continue;
         }
-        let words: Vec<&str> = pentry.split_whitespace().collect();
-        if words.len() >= 2 && words.len() <= 4 {
+        let mut words: [&str; 4] = [""; 4];
+        let mut nwords = 0usize;
+        for w in pentry.split_whitespace() {
+            if nwords >= 4 {
+                nwords = 5;
+                break;
+            }
+            words[nwords] = w;
+            nwords += 1;
+        }
+        if (2..=4).contains(&nwords) {
+            let words = &words[..nwords];
             for k in (1..words.len()).rev() {
                 if !may_end_context(words[k - 1]) {
                     continue;
@@ -948,18 +1206,32 @@ pub fn predict_next_phrase_matches_with_personal(
     // Xếp theo: key_len lớn hơn (trigram > bigram) -> weight cao hơn
     matches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
 
-    let mut seen = std::collections::HashSet::new();
     // Vòng 53: guard limit độc hại (usize::MAX sẽ abort khi cấp phát —
     // call site cứng 5 nhưng đề phòng API công khai).
-    let mut out = Vec::with_capacity(limit.min(64));
-    for (_, _, pred, key_words) in matches {
-        if seen.insert(pred.to_string()) {
-            out.push(PhraseMatch {
-                prediction: pred,
-                key_words,
-            });
-            if out.len() >= limit {
-                break;
+    let mut out: Vec<PhraseMatch> = Vec::with_capacity(limit.min(64));
+    if limit <= 32 {
+        for (_, _, pred, key_words) in matches {
+            if !out.iter().any(|m| m.prediction.as_ref() == pred.as_ref()) {
+                out.push(PhraseMatch {
+                    prediction: pred,
+                    key_words,
+                });
+                if out.len() >= limit {
+                    break;
+                }
+            }
+        }
+    } else {
+        let mut seen = std::collections::HashSet::new();
+        for (_, _, pred, key_words) in matches {
+            if seen.insert(pred.to_string()) {
+                out.push(PhraseMatch {
+                    prediction: pred,
+                    key_words,
+                });
+                if out.len() >= limit {
+                    break;
+                }
             }
         }
     }
@@ -1281,5 +1553,330 @@ mod tests {
             .is_some_and(|p| p.contains("verify")));
         // Ranh giới trọn từ: không khớp giữa từ ("lại" ≠ khoá "mình sync lại").
         assert!(predict_next_phrase_candidates("sync", 3).is_empty());
+    }
+
+    /// Bản tham chiếu brute-force gốc trước LOOP-2 — CHỈ dùng trong `#[cfg(test)]`
+    /// để chứng minh chỉ mục tiền tố top-K cho kết quả giống hệt 100% mọi nhánh.
+    fn predict_impl_reference(
+        typed_lower: &str,
+        is_vi: bool,
+        limit: usize,
+        personal: &[(String, u32)],
+        style_touches: usize,
+        en_context: bool,
+    ) -> Vec<String> {
+        if typed_lower.chars().count() < 2 || limit == 0 {
+            return Vec::new();
+        }
+        let mut ranked: Vec<PrefixCandidate> = Vec::new();
+        let mut seen: std::collections::HashSet<std::borrow::Cow<'static, str>> =
+            std::collections::HashSet::new();
+        let typed_unaccented: String = strip_diacritics(&typed_lower.chars().collect::<Vec<_>>())
+            .into_iter()
+            .collect();
+        let typed_has_diacritics = typed_lower != typed_unaccented;
+        let typed_old = restyle(typed_lower, DiacriticStyle::Old);
+        let typed_new = restyle(typed_lower, DiacriticStyle::New);
+        let starts = |w: &str| {
+            w.starts_with(typed_lower)
+                || w.starts_with(typed_old.as_str())
+                || w.starts_with(typed_new.as_str())
+        };
+        let same = |w: &str| w == typed_lower || w == typed_old || w == typed_new;
+        let compound_ext = |word: &str| word.split(' ').next().is_some_and(same);
+
+        let recency_boost = |from_end: usize, touches: usize| -> u32 {
+            if from_end >= touches {
+                0
+            } else if from_end < 12 {
+                12
+            } else if from_end < 24 {
+                6
+            } else {
+                0
+            }
+        };
+        for (i, (pword, pcount)) in personal.iter().enumerate() {
+            if pword.chars().count() < 2 || same(pword) {
+                continue;
+            }
+            if starts(pword) {
+                let word: std::borrow::Cow<str> = std::borrow::Cow::Owned(pword.clone());
+                if seen.insert(word.clone()) {
+                    ranked.push(PrefixCandidate {
+                        word,
+                        exact_match: true,
+                        char_count: pword.chars().count(),
+                        weight: 100u32
+                            .saturating_add((*pcount).min(30))
+                            .saturating_add(recency_boost(personal.len() - 1 - i, style_touches)),
+                        ext: compound_ext(pword),
+                        personal: true,
+                    });
+                }
+            }
+        }
+
+        if is_vi {
+            let push_syll = |syll: &'static str,
+                             ranked: &mut Vec<PrefixCandidate>,
+                             seen: &mut std::collections::HashSet<
+                std::borrow::Cow<'static, str>,
+            >| {
+                if same(syll) || !seen.insert(std::borrow::Cow::Borrowed(syll)) {
+                    return;
+                }
+                ranked.push(PrefixCandidate {
+                    word: std::borrow::Cow::Borrowed(syll),
+                    exact_match: true,
+                    char_count: syll.chars().count(),
+                    weight: 90,
+                    ext: false,
+                    personal: false,
+                });
+            };
+            for variant in [typed_lower, typed_old.as_str(), typed_new.as_str()] {
+                let sorted = vn_syllables_sorted();
+                let start = sorted.partition_point(|w| *w < variant);
+                for &syll in &sorted[start..] {
+                    if !syll.starts_with(variant) {
+                        break;
+                    }
+                    if starts(syll) {
+                        push_syll(syll, &mut ranked, &mut seen);
+                    }
+                }
+            }
+
+            for &(word, word_unaccented, weight) in vn_compounds() {
+                if same(word) {
+                    continue;
+                }
+                let matches_accented = starts(word);
+                let matches_unaccented =
+                    if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
+                        word_unaccented.starts_with(&typed_unaccented)
+                    } else {
+                        false
+                    };
+                if (matches_accented || matches_unaccented)
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: matches_accented,
+                        char_count: word.chars().count(),
+                        weight,
+                        ext: compound_ext(word),
+                        personal: false,
+                    });
+                }
+            }
+        }
+
+        let en_allowed = !is_vi || en_context || !vn_prefix_possible_unaccented(&typed_unaccented);
+        if en_allowed {
+            for &(term, tl) in tech_terms_lower() {
+                if tl.starts_with(typed_lower)
+                    && tl != typed_lower
+                    && seen.insert(std::borrow::Cow::Borrowed(term))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(term),
+                        exact_match: true,
+                        char_count: term.chars().count(),
+                        weight: 85,
+                        ext: false,
+                        personal: false,
+                    });
+                }
+            }
+            for &word in en_common_lines() {
+                if word.starts_with(typed_lower)
+                    && word != typed_lower
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: true,
+                        char_count: word.chars().count(),
+                        weight: 70,
+                        ext: false,
+                        personal: false,
+                    });
+                }
+            }
+            for &word in en_freq_sorted() {
+                if word.starts_with(typed_lower)
+                    && word != typed_lower
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: true,
+                        char_count: word.chars().count(),
+                        weight: 60,
+                        ext: false,
+                        personal: false,
+                    });
+                }
+            }
+            for &word in en_words10k_sorted() {
+                if word.starts_with(typed_lower)
+                    && word != typed_lower
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: true,
+                        char_count: word.chars().count(),
+                        weight: 55,
+                        ext: false,
+                        personal: false,
+                    });
+                }
+            }
+            for &(word, weight) in en_compounds() {
+                if word != typed_lower
+                    && word.starts_with(typed_lower)
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
+                    ranked.push(PrefixCandidate {
+                        word: std::borrow::Cow::Borrowed(word),
+                        exact_match: true,
+                        char_count: word.chars().count(),
+                        weight,
+                        ext: compound_ext(word),
+                        personal: false,
+                    });
+                }
+            }
+        }
+
+        let has_ext = ranked.iter().any(|c| c.ext);
+        ranked.sort_by(|a, b| compare_prefix_candidates(a, b, has_ext, is_vi));
+        ranked
+            .into_iter()
+            .take(limit)
+            .map(|c| c.word.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn loop2_prefix_index_exact_parity() {
+        let prefixes = [
+            "a", "t", "đ", "co", "ph", "ng", "th", "tr", "gu", "ho", "ba", "re", "in", "pr", "st",
+            "de", "cô", "đư", "qu", "ca", "ti", "nh", "ch", "kh", "gi", "vi", "ma", "en", "ap",
+            "un", "con", "the", "phá", "pha", "côn", "ngư", "ngu", "hoà", "hòa", "thu", "api",
+            "git", "doc", "mac", "pro", "com", "tra", "trâ", "khô", "đượ", "tiế", "vie", "xay",
+            "ban", "phát", "phat", "công", "cong", "thủy", "thuỷ", "hoà ", "techn", "atmos",
+            "docker", "machin", "machine", "javasc", "typesc", "người", "triển", "không", "khong",
+            "chúng", "trân", "hòa b", "tiến", "tổng", "nhân", "phần", "quản", "khách", "cộng",
+            "hệ th", "zzzz", "xqyz", "đđđ",
+        ];
+        for &p in &prefixes {
+            for is_vi in [true, false] {
+                for en_ctx in [true, false] {
+                    for limit in [0, 1, 2, 3, 5, 10, 30] {
+                        let got = predict_prefix_candidates_with_personal(
+                            p,
+                            is_vi,
+                            limit,
+                            &[],
+                            0,
+                            en_ctx,
+                        );
+                        let exp = predict_impl_reference(p, is_vi, limit, &[], 0, en_ctx);
+                        assert_eq!(
+                            got, exp,
+                            "parity mismatch: prefix={p:?}, is_vi={is_vi}, en_ctx={en_ctx}, limit={limit}"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Personal overlays: trùng tĩnh, đảo `has_ext`, recency touches, và > HEAVY_TOP_K fallback
+        let personal_overlap = vec![
+            ("con người".to_string(), 5),
+            ("control".to_string(), 20),
+            ("phát triển".to_string(), 10),
+            ("techn stack".to_string(), 8),
+            ("hòa hợp".to_string(), 4),
+            ("hoà bình".to_string(), 7),
+        ];
+        for &p in &["con", "phát", "phat", "techn", "hòa", "hoà", "trân"] {
+            for is_vi in [true, false] {
+                for en_ctx in [true, false] {
+                    for touches in [0, 2, 6] {
+                        for limit in [1, 3, 5, 30] {
+                            let got = predict_prefix_candidates_with_personal(
+                                p,
+                                is_vi,
+                                limit,
+                                &personal_overlap,
+                                touches,
+                                en_ctx,
+                            );
+                            let exp = predict_impl_reference(
+                                p,
+                                is_vi,
+                                limit,
+                                &personal_overlap,
+                                touches,
+                                en_ctx,
+                            );
+                            assert_eq!(
+                                got, exp,
+                                "personal parity mismatch: prefix={p:?}, is_vi={is_vi}, en_ctx={en_ctx}, touches={touches}, limit={limit}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // Hồ sơ lớn (30 mục bắt đầu bằng "con") để ép đường fallback > HEAVY_TOP_K (24)
+        let mut heavy_personal: Vec<(String, u32)> = (0..30)
+            .map(|i| (format!("concustom{i:02}"), (i % 25 + 1) as u32))
+            .collect();
+        heavy_personal.push(("con người".to_string(), 15));
+        for touches in [0, 12, 24, 31] {
+            for limit in [5, 25, 40] {
+                let got = predict_prefix_candidates_with_personal(
+                    "con",
+                    true,
+                    limit,
+                    &heavy_personal,
+                    touches,
+                    true,
+                );
+                let exp =
+                    predict_impl_reference("con", true, limit, &heavy_personal, touches, true);
+                assert_eq!(
+                    got, exp,
+                    "heavy personal fallback touches={touches}, limit={limit}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn loop2_next_phrase_personal_stack_words() {
+        let personal = vec![
+            ("trân trọng kính chào".to_string(), 10),
+            ("xin cảm ơn nhiều".to_string(), 5),
+            ("một hai ba bốn năm".to_string(), 99), // 5 từ: phải bị bỏ qua
+        ];
+        let m1 = predict_next_phrase_matches_with_personal("trân trọng", 5, &personal);
+        assert_eq!(m1[0].prediction, "kính chào");
+        assert_eq!(m1[0].key_words, 2);
+
+        let m2 = predict_next_phrase_matches_with_personal("xin cảm ơn", 5, &personal);
+        assert_eq!(m2[0].prediction, "nhiều");
+        assert_eq!(m2[0].key_words, 3);
+
+        let m5 = predict_next_phrase_matches_with_personal("một hai ba bốn", 5, &personal);
+        assert!(!m5.iter().any(|m| m.prediction == "năm"));
     }
 }
