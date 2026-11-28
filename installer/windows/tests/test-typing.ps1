@@ -47,7 +47,7 @@ public static class TvKeys {
     [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr h, bool altTab);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int i);
-    // E89 vong 2: Notepad tren runner co the MO O TRANG THAI MINIMIZED — GetWindowRect
+    // E89 vong 2: Notepad tren runner co the MO O TRANG THAI MINIMIZED - GetWindowRect
     // luc do tra (-32000,-32000) nen click absolute-normalize roi vao goc man hinh,
     // khong bao gio cham cua so (bang chung: ci-windows 9a2dbe64 fg=0x901E8 khong doi).
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
@@ -148,7 +148,7 @@ public static class TvKeys {
         if (SendInput(3, seq, Marshal.SizeOf(typeof(INPUT))) != 3) return false;
         Thread.Sleep(250);
         // Chan doan: con tro phai den dung diem click - neu khong thi bang chung
-        // click bi an (vi du cursor bị khop) chu khong phai loi cua so.
+        // click bi an (vi du cursor bi khop) chu khong phai loi cua so.
         POINT cp;
         GetCursorPos(out cp);
         return GetForegroundWindow() == main
