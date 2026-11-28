@@ -913,6 +913,7 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
      * là OFF trước đây, lệch mặc định 3 nen tang. */
     self->config.assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
     lc_modifier_toggle_reset(&self->toggle);
+    lc_session_shadow_init(&self->shadow);
     self->secure = FALSE;
     self->inst = NULL;
     if (ime_instance_new(NULL, 0, &self->inst) != IME_OK || !self->inst) {
@@ -980,6 +981,7 @@ static void textvn_ibus_engine_finalize(GObject *object) {
         ime_instance_free(self->inst);
         self->inst = NULL;
     }
+    lc_session_shadow_free(&self->shadow);
     g_clear_object(&self->mode_prop);
     g_clear_object(&self->setup_prop);
     g_clear_object(&self->diag_prop);
@@ -1045,6 +1047,7 @@ static void engine_focus_out(IBusEngine *engine) {
     self->enter_at_us = 0; /* R2-171: đổi focus ⇒ ngữ cảnh mới */
     forget_word(self);
     lc_modifier_toggle_reset(&self->toggle);
+    lc_session_shadow_reset(&self->shadow);
     lc_style_persist(self->inst);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->focus_out(engine);
 }
@@ -1144,9 +1147,12 @@ static void handle_ctrl_tap(TextVNIbusEngine *self) {
 
 static gboolean handle_release(TextVNIbusEngine *self, guint keyval) {
     lc_modifier which = textvn_ibus_modifier_kind(keyval);
-    if (lc_modifier_ctrl_tap_up(&self->toggle, which)) {
+    int ctrl_tap = lc_modifier_ctrl_tap_up(&self->toggle, which);
+    int toggled = !ctrl_tap && lc_modifier_toggle_up(&self->toggle, which);
+    lc_session_shadow_key_up(&self->shadow, which, toggled);
+    if (ctrl_tap) {
         handle_ctrl_tap(self);
-    } else if (lc_modifier_toggle_up(&self->toggle, which)) {
+    } else if (toggled) {
         toggle_vietnamese(self);
     }
     return FALSE; /* không bao giờ nuốt phím nhả */
@@ -1160,9 +1166,17 @@ static gboolean process_key_inner(IBusEngine *engine, guint keyval, guint keycod
     if (state & IBUS_RELEASE_MASK) return handle_release(self, keyval);
 
     lc_modifier which = textvn_ibus_modifier_kind(keyval);
-    lc_modifier_toggle_down(&self->toggle, which, (state & IBUS_CONTROL_MASK) != 0,
-                            (state & IBUS_SHIFT_MASK) != 0,
-                            (state & (IBUS_MOD1_MASK | IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0);
+    const int ctrl_down = (state & IBUS_CONTROL_MASK) != 0;
+    const int shift_down = (state & IBUS_SHIFT_MASK) != 0;
+    const int alt_or_super = (state & (IBUS_MOD1_MASK | IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0;
+    lc_modifier_toggle_down(&self->toggle, which, ctrl_down, shift_down, alt_or_super);
+    if (self->shadow.session) {
+        /* Cùng điều kiện nhánh Ctrl+Shift+Space bên dưới (ADR-011). */
+        const int is_space = keyval == IBUS_KEY_space || keyval == IBUS_KEY_KP_Space;
+        lc_session_shadow_key_down(&self->shadow, which, is_space, ctrl_down, shift_down,
+                                   alt_or_super,
+                                   which == LC_MOD_NONE && is_space && ctrl_down && shift_down);
+    }
     if (which != LC_MOD_NONE) return FALSE; /* modifier đứng riêng: không commit */
     /* R2-134: bản xem trước chỉ sống tới phím kế tiếp (vẽ lại sau phím gõ). */
     hide_preview(self);

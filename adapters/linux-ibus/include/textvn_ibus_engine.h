@@ -36,6 +36,7 @@ struct _TextVNIbusEngine {
     lc_comp               comp;        /* preedit đang mở (len == 0: không composing) */
     lc_config_state       config;      /* mtime config.json đã nạp */
     lc_modifier_toggle    toggle;      /* Ctrl+Shift kiểu UniKey */
+    lc_session_shadow     shadow;      /* SF-2: TEXTVN_SESSION_SHADOW=1 (CI/dev) */
     gboolean              secure;      /* input purpose password/PIN */
     int                   ctx_enabled; /* ime_context_v1.enabled đã đẩy vào engine */
     gboolean              terminal;    /* ô terminal (input purpose) — không dự đoán/học */

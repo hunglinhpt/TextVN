@@ -45,6 +45,7 @@ public:
     lc_comp comp{};
     lc_config_state config{};
     lc_modifier_toggle toggle{};
+    lc_session_shadow shadow{}; /* SF-2: TEXTVN_SESSION_SHADOW=1 (CI/dev) */
     int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
     bool ctxTerminal = false; /* field_role terminal đã đẩy vào engine */
     int terminalApp = -1;     /* -1 = chưa tra ic->program() (không đổi trong đời input context) */

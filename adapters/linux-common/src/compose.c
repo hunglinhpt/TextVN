@@ -256,6 +256,118 @@ void lc_modifier_toggle_reset(lc_modifier_toggle *t) {
     t->ctrl_armed = 0;
 }
 
+/* ---- SF-2 shadow: lc_modifier_toggle vs textvn-session ---- */
+
+static uint32_t shadow_vk(lc_modifier which, int is_space) {
+    switch (which) {
+    case LC_MOD_KEY_CTRL: return LC_VK_CONTROL;
+    case LC_MOD_KEY_SHIFT: return LC_VK_SHIFT;
+    case LC_MOD_KEY_OTHER_MODIFIER: return LC_VK_MENU; /* Alt/Super/Lock: đều huỷ */
+    default: return is_space ? LC_VK_SPACE : 0u; /* phím thường: không cần mã thật */
+    }
+}
+
+/* G8: chỉ loại phím, không bao giờ ký tự. */
+static const char *shadow_key_kind(lc_modifier which, int is_space) {
+    switch (which) {
+    case LC_MOD_KEY_CTRL: return "ctrl";
+    case LC_MOD_KEY_SHIFT: return "shift";
+    case LC_MOD_KEY_OTHER_MODIFIER: return "other-modifier";
+    default: return is_space ? "space" : "non-modifier";
+    }
+}
+
+static uint64_t shadow_now_ms(const lc_session_shadow *s) {
+    if (s->now_override_ms) return s->now_override_ms;
+    return (uint64_t)(monotonic_us() / 1000);
+}
+
+/* Đẩy 1 sự kiện vào session; trả 1 nếu session phát MODE_INDICATOR (bật/tắt), 0 nếu không,
+ * -1 nếu lỗi ABI (khi đó shadow tự tắt — không bao giờ ảnh hưởng mã cũ). */
+static int shadow_feed(lc_session_shadow *s, uint32_t kind, uint32_t vk, uint32_t mods,
+                       uint32_t arg) {
+    ime_session_event_v1 ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.abi_version = IME_SESSION_ABI_VERSION;
+    ev.kind = kind;
+    ev.vk = vk;
+    ev.mods = mods;
+    ev.arg = arg;
+    ev.now_ms = shadow_now_ms(s);
+    ime_session_out_v1 out;
+    memset(&out, 0, sizeof(out));
+    out.abi_version = IME_SESSION_ABI_VERSION;
+    if (ime_session_event(s->session, &ev, &out) != IME_OK) {
+        lc_session_shadow_free(s);
+        return -1;
+    }
+    for (uint32_t i = 0; i < out.count && i < IME_SESSION_MAX_CMDS; i++) {
+        if (out.cmds[i].kind == IME_SCMD_MODE_INDICATOR) return 1;
+    }
+    return 0;
+}
+
+static void shadow_compare(lc_session_shadow *s, const char *phase, lc_modifier which,
+                           int is_space, int legacy, int session) {
+    if (session < 0) return;
+    if (legacy) s->toggles++;
+    if ((legacy != 0) == (session != 0)) return;
+    s->mismatches++;
+    fprintf(stderr, "textvn: SF2 shadow mismatch %s key=%s legacy=%d session=%d (total %u)\n",
+            phase, shadow_key_kind(which, is_space), legacy != 0, session != 0,
+            (unsigned)s->mismatches);
+}
+
+void lc_session_shadow_init(lc_session_shadow *s) {
+    if (!s) return;
+    memset(s, 0, sizeof(*s));
+    const char *v = getenv("TEXTVN_SESSION_SHADOW");
+    if (v && strcmp(v, "1") == 0) (void)lc_session_shadow_init_force(s);
+}
+
+int lc_session_shadow_init_force(lc_session_shadow *s) {
+    if (!s) return -1;
+    if (s->session) return 0;
+    ime_session_config_v1 cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.abi_version = IME_SESSION_ABI_VERSION;
+    cfg.caps = IME_SCAP_PREEDIT | IME_SCAP_SURROUNDING_TEXT | IME_SCAP_DELETE_SURROUNDING |
+               IME_SCAP_KEY_UP_EVENTS | IME_SCAP_FORWARD_KEY;
+    ime_session *ss = NULL;
+    if (ime_session_new(&cfg, &ss) != IME_OK || !ss) return -1;
+    s->session = ss;
+    return 0;
+}
+
+void lc_session_shadow_free(lc_session_shadow *s) {
+    if (!s || !s->session) return;
+    ime_session_free(s->session);
+    s->session = NULL;
+}
+
+void lc_session_shadow_reset(lc_session_shadow *s) {
+    if (!s || !s->session) return;
+    (void)shadow_feed(s, IME_SEV_RESET, 0, 0, IME_SRESET_FOCUS);
+}
+
+void lc_session_shadow_key_down(lc_session_shadow *s, lc_modifier which, int is_space,
+                                int ctrl_down, int shift_down, int alt_or_super,
+                                int legacy_toggled) {
+    if (!s || !s->session) return;
+    uint32_t mods = 0;
+    if (ctrl_down) mods |= IME_MOD_CTRL;
+    if (shift_down) mods |= IME_MOD_SHIFT;
+    if (alt_or_super) mods |= IME_MOD_ALT;
+    int got = shadow_feed(s, IME_SEV_KEYDOWN, shadow_vk(which, is_space), mods, 0);
+    shadow_compare(s, "keydown", which, is_space, legacy_toggled, got);
+}
+
+void lc_session_shadow_key_up(lc_session_shadow *s, lc_modifier which, int legacy_toggled) {
+    if (!s || !s->session) return;
+    int got = shadow_feed(s, IME_SEV_KEYUP, shadow_vk(which, 0), 0, 0);
+    shadow_compare(s, "keyup", which, 0, legacy_toggled, got);
+}
+
 /* R2-152: lưu dữ liệu học vào config.json (Linux không có tray; gọi lúc mất focus). */
 void lc_style_persist(ime_instance *inst) {
     char path[1024];

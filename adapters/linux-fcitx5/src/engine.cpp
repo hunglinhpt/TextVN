@@ -456,6 +456,7 @@ private:
 /* ---- State per IC ---- */
 
 TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
+    lc_session_shadow_init(&shadow);
     if (ime_instance_new(nullptr, 0, &inst) != IME_OK) {
         inst = nullptr;
     }
@@ -480,6 +481,7 @@ TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
 TextVNState::~TextVNState() {
     assistIdle.reset();
     if (inst) ime_instance_free(inst);
+    lc_session_shadow_free(&shadow);
 }
 
 /* ---- Engine ---- */
@@ -1186,6 +1188,7 @@ void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &even
         finishWord(st);
     }
     lc_modifier_toggle_reset(&st->toggle);
+    lc_session_shadow_reset(&st->shadow);
 }
 
 void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
@@ -1229,7 +1232,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const lc_modifier which = fcitxModifierKind(key.sym());
 
     if (isRelease) {
-        if (lc_modifier_ctrl_tap_up(&st->toggle, which)) {
+        const int ctrlTap = lc_modifier_ctrl_tap_up(&st->toggle, which);
+        const int toggled = !ctrlTap && lc_modifier_toggle_up(&st->toggle, which);
+        lc_session_shadow_key_up(&st->shadow, which, toggled);
+        if (ctrlTap) {
             if (st->comp.len > 0 && st->inst) {
                 ime_result_v1 r;
                 if (lc_engine_ctrl_tap(st->inst, &r) == IME_OK) {
@@ -1247,15 +1253,22 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
                     updatePreview(st);
                 }
             }
-        } else if (lc_modifier_toggle_up(&st->toggle, which)) {
+        } else if (toggled) {
             toggleVietnamese(st);
         }
         return false;
     }
-    lc_modifier_toggle_down(&st->toggle, which, states.test(fcitx::KeyState::Ctrl),
-                            states.test(fcitx::KeyState::Shift),
-                            states.test(fcitx::KeyState::Alt) ||
-                                states.test(fcitx::KeyState::Super));
+    const int ctrlDown = states.test(fcitx::KeyState::Ctrl);
+    const int shiftDown = states.test(fcitx::KeyState::Shift);
+    const int altOrSuper =
+        states.test(fcitx::KeyState::Alt) || states.test(fcitx::KeyState::Super);
+    lc_modifier_toggle_down(&st->toggle, which, ctrlDown, shiftDown, altOrSuper);
+    if (st->shadow.session) {
+        /* Cùng điều kiện nhánh Ctrl+Shift+Space bên dưới (ADR-011). */
+        const int isSpace = key.sym() == FcitxKey_space || key.sym() == FcitxKey_KP_Space;
+        lc_session_shadow_key_down(&st->shadow, which, isSpace, ctrlDown, shiftDown, altOrSuper,
+                                   which == LC_MOD_NONE && isSpace && ctrlDown && shiftDown);
+    }
     if (which != LC_MOD_NONE) return false;
     /* R2-134: bản xem trước chỉ sống tới phím kế tiếp (vẽ lại sau phím gõ). */
     hidePreview(st);

@@ -42,10 +42,33 @@
   struct `Pair`.
 - Kết quả: TSF 130/130 · session 14 + 8 · clippy `-D warnings` (Windows + target Linux) · rustfmt sạch.
 
-### Còn lại (pha 2/3, task tiếp tục)
-- **Shadow Linux** (`compose.c` + IBus/Fcitx5): WIP của antigravity mới có khai báo `lc_session_shadow_*`
-  trong `lc_compose.h`, chưa có cài đặt. Bản này không commit nửa API; patch được lưu để làm tiếp qua
-  C ABI `ime_session_*` (SF-1b).
+### Pha 2 — shadow Linux (IBus + Fcitx5) — XONG
+- **`lc_session_shadow`** (`lc_compose.h`/`compose.c`): chạy máy toggle của session qua C ABI
+  `ime_session_*` (SF-1b) song song `lc_modifier_toggle`. Bật bằng `TEXTVN_SESSION_SHADOW=1`; mặc định
+  tắt, mọi hàm là no-op. Shadow:
+  - nhận đúng các cờ mã cũ dùng (`ctrl_down`/`shift_down`/`alt_or_super`), nên lệch chỉ có thể đến
+    từ logic;
+  - so "có bật/tắt Việt–Anh hay không" (`IME_SCMD_MODE_INDICATOR`) ở key-down (chord ADR-011) và
+    key-up (Ctrl+Shift nhấn-thả);
+  - lỗi ABI ⇒ shadow tự tắt, không bao giờ ảnh hưởng mã cũ.
+- **G8**: log stderr chỉ ghi loại phím (`ctrl`/`shift`/`other-modifier`/`space`/`non-modifier`) và số
+  đếm; shadow không nhận ký tự (`ch` luôn 0).
+- **G22**: mã VK dùng khối `LC_VK_*` sẵn có (thêm `LC_VK_SHIFT/CONTROL/MENU`), không định nghĩa riêng.
+- **Hook** IBus (`engine.c`) và Fcitx5 (`engine.cpp`): tạo/huỷ cùng engine/input context; reset ở mất
+  focus; key-down ngay sau `lc_modifier_toggle_down`; key-up tách `ctrl_tap`/`toggled` rồi báo shadow
+  (hành vi cũ giữ nguyên).
+- **Test** `test_compose.c::test_session_shadow_parity` (chạy cùng engine Rust thật, ASan/UBSan trên
+  ci-linux):
+  - 9 kịch bản (Ctrl→Shift, Shift→Ctrl, phím thứ ba, Alt/Super, Alt chen giữa, phím giữ lặp,
+    Ctrl+Shift+Space, mất focus, Ctrl tap) ⇒ **4 lần bật/tắt, 0 lệch**;
+  - shadow tắt mặc định là no-op.
+- **Khác biệt ĐÃ BIẾT** (shadow bắt được, test khẳng định; quyết định ở pha bật mặc định):
+  - (a) Linux cũ bật/tắt cả `Ctrl+Shift+Alt+Space`, còn session (= TSF preserved key
+    `TF_MOD_CONTROL|TF_MOD_SHIFT`) thì không;
+  - (b) Linux cũ không có debounce 250 ms, nên 2 lần bật/tắt cách nhau < 250 ms bị session chặn lần
+    thứ hai.
+
+### Còn lại (pha 3, task tiếp tục)
 - **Shadow macOS** (`TextVNInputController.swift`, `otherKeyPressed`).
 - **Đưa batch vào đường áp lệnh** của 3 adapter, kiểm SF-G1/G2 cho corpus toggle, đo shadow 0 lệch trên
   e2e, rồi bật mặc định ở bản kế tiếp.
@@ -91,10 +114,35 @@
   was rewritten around a `Pair` struct.
 - Results: TSF 130/130 · session 14 + 8 · clippy `-D warnings` (Windows + Linux target) · rustfmt clean.
 
-### Remaining (phases 2/3, task continues)
-- **Linux shadow** (`compose.c` + IBus/Fcitx5): antigravity's WIP only had the `lc_session_shadow_*`
-  declarations in `lc_compose.h`, with no implementation. This change does not commit a half API; the
-  patch is kept so the work can continue through the `ime_session_*` C ABI (SF-1b).
+### Phase 2 — Linux shadow (IBus + Fcitx5) — DONE
+- **`lc_session_shadow`** (`lc_compose.h`/`compose.c`): runs the session's toggle machine through the
+  `ime_session_*` C ABI (SF-1b) alongside `lc_modifier_toggle`. Enabled with `TEXTVN_SESSION_SHADOW=1`;
+  off by default, where every function is a no-op. The shadow:
+  - receives exactly the flags the old code uses (`ctrl_down`/`shift_down`/`alt_or_super`), so a
+    mismatch can only come from logic;
+  - compares "did Vietnamese/English toggle or not" (`IME_SCMD_MODE_INDICATOR`) on key-down (ADR-011
+    chord) and key-up (Ctrl+Shift press-release);
+  - an ABI error ⇒ the shadow turns itself off and never affects the old code.
+- **G8**: the stderr log only records the key kind (`ctrl`/`shift`/`other-modifier`/`space`/
+  `non-modifier`) and counters; the shadow never receives characters (`ch` is always 0).
+- **G22**: VK codes use the existing `LC_VK_*` block (`LC_VK_SHIFT/CONTROL/MENU` added), no private
+  definitions.
+- **Hooks** in IBus (`engine.c`) and Fcitx5 (`engine.cpp`): created/freed with the engine/input
+  context; reset on focus loss; key-down right after `lc_modifier_toggle_down`; key-up splits
+  `ctrl_tap`/`toggled` then reports to the shadow (old behaviour unchanged).
+- **Test** `test_compose.c::test_session_shadow_parity` (runs with the real Rust engine, ASan/UBSan on
+  ci-linux):
+  - 9 scenarios (Ctrl→Shift, Shift→Ctrl, third key, Alt/Super, Alt in between, key repeat,
+    Ctrl+Shift+Space, focus loss, Ctrl tap) ⇒ **4 toggles, 0 mismatches**;
+  - the shadow is a no-op when off (default).
+- **KNOWN differences** (caught by the shadow and asserted by the test; to be decided when the session
+  becomes the default):
+  - (a) old Linux also toggles on `Ctrl+Shift+Alt+Space`, while the session (= TSF preserved key
+    `TF_MOD_CONTROL|TF_MOD_SHIFT`) does not;
+  - (b) old Linux has no 250 ms debounce, so of two toggles < 250 ms apart the session blocks the
+    second.
+
+### Remaining (phase 3, task continues)
 - **macOS shadow** (`TextVNInputController.swift`, `otherKeyPressed`).
 - **Route the batch into the apply path** of all 3 adapters, check SF-G1/G2 on the toggle corpus,
   measure 0 shadow mismatches on e2e, then turn it on by default in the next release.

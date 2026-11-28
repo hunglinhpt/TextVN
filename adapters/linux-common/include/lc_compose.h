@@ -38,6 +38,9 @@ extern "C" {
 #define LC_VK_RETURN 0x0Du
 #define LC_VK_ESCAPE 0x1Bu
 #define LC_VK_SPACE  0x20u
+#define LC_VK_SHIFT   0x10u /* SF-2 shadow */
+#define LC_VK_CONTROL 0x11u
+#define LC_VK_MENU    0x12u
 
 /* R2-166: keycode thật của phím Left khi bộ gõ gửi lại phím (Math `cursor_left`).
  * IBus dùng mã evdev (`KEY_LEFT` = 105); Fcitx5 `Key::code()` dùng mã XKB = evdev + 8. */
@@ -137,6 +140,35 @@ int  lc_modifier_ctrl_tap_up(lc_modifier_toggle *t, lc_modifier which);
 void lc_modifier_toggle_reset(lc_modifier_toggle *t);
 /* Gửi cặp sự kiện Ctrl key-down + Ctrl key-up vào engine và nhận kết quả ở `out` (IME_OK = 0). */
 int  lc_engine_ctrl_tap(ime_instance *inst, ime_result_v1 *out);
+
+/* ---- SF-2 (P0-6 §5): shadow mode `TEXTVN_SESSION_SHADOW=1` (chỉ CI/dev) ----
+ * Chạy máy toggle của `textvn-session` (qua C ABI `ime_session_*`) song song với
+ * `lc_modifier_toggle`: chỉ mã cũ được áp, shadow chỉ ĐẾM lệch "có bật/tắt Việt–Anh hay không"
+ * và ghi stderr. Đầu vào của shadow lấy đúng các cờ mà mã cũ dùng (ctrl/shift/alt_or_super) để
+ * lệch chỉ có thể đến từ logic. G8: log chỉ ghi loại phím (ctrl/shift/other/space/non-modifier)
+ * và số đếm, không bao giờ ghi ký tự. Tắt (mặc định) ⇒ mọi hàm là no-op. */
+typedef struct lc_session_shadow {
+    ime_session *session;     /* NULL = tắt */
+    uint32_t     mismatches;
+    uint32_t     toggles;     /* số lần mã cũ bật/tắt khi shadow bật (mẫu số) */
+    uint64_t     now_override_ms; /* test: != 0 thay đồng hồ đơn điệu */
+} lc_session_shadow;
+
+/* Bật nếu env TEXTVN_SESSION_SHADOW=1. */
+void lc_session_shadow_init(lc_session_shadow *s);
+/* Bật bất kể env (test). Trả 0 khi tạo được session. */
+int  lc_session_shadow_init_force(lc_session_shadow *s);
+void lc_session_shadow_free(lc_session_shadow *s);
+/* Mất focus / reset input context (cùng chỗ gọi lc_modifier_toggle_reset). */
+void lc_session_shadow_reset(lc_session_shadow *s);
+/* Gọi ngay sau lc_modifier_toggle_down, cùng tham số; `is_space` = phím Space;
+ * `legacy_toggled` = mã cũ sẽ bật/tắt ở phím này (Ctrl+Shift+Space). */
+void lc_session_shadow_key_down(lc_session_shadow *s, lc_modifier which, int is_space,
+                                int ctrl_down, int shift_down, int alt_or_super,
+                                int legacy_toggled);
+/* Gọi ở key-up sau lc_modifier_ctrl_tap_up/lc_modifier_toggle_up; `legacy_toggled` = mã cũ
+ * vừa bật/tắt. */
+void lc_session_shadow_key_up(lc_session_shadow *s, lc_modifier which, int legacy_toggled);
 
 /* ---- Trợ lý ngữ pháp (AS-060 / P4-0 §7) ---- */
 typedef enum lc_assist_mode {

@@ -730,6 +730,128 @@ static void test_modifier_ctrl_tap(void) {
     assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
 }
 
+/* ---- SF-2: shadow lc_modifier_toggle ↔ textvn-session (qua C ABI ime_session_*) ----
+ * Lái cả hai giống hệt adapter IBus/Fcitx5: key-down ⇒ toggle_down + shadow_key_down;
+ * key-up ⇒ ctrl_tap_up, rồi toggle_up nếu không phải tap, rồi shadow_key_up. */
+typedef struct shadow_pair {
+    lc_modifier_toggle t;
+    lc_session_shadow s;
+    uint64_t step_ms; /* thời gian giữa 2 sự kiện */
+} shadow_pair;
+
+static void sp_down(shadow_pair *p, lc_modifier which, int is_space, int ctrl, int shift,
+                    int alt) {
+    lc_modifier_toggle_down(&p->t, which, ctrl, shift, alt);
+    int legacy = which == LC_MOD_NONE && is_space && ctrl && shift; /* nhánh ADR-011 */
+    if (legacy) lc_modifier_toggle_reset(&p->t);
+    lc_session_shadow_key_down(&p->s, which, is_space, ctrl, shift, alt, legacy);
+    p->s.now_override_ms += p->step_ms;
+}
+
+static void sp_up(shadow_pair *p, lc_modifier which) {
+    int tap = lc_modifier_ctrl_tap_up(&p->t, which);
+    int toggled = !tap && lc_modifier_toggle_up(&p->t, which);
+    lc_session_shadow_key_up(&p->s, which, toggled);
+    p->s.now_override_ms += p->step_ms;
+}
+
+static void test_session_shadow_parity(void) {
+    /* Mặc định (không env) shadow tắt: mọi hàm là no-op. */
+    lc_session_shadow off;
+    unsetenv("TEXTVN_SESSION_SHADOW");
+    lc_session_shadow_init(&off);
+    assert(off.session == NULL);
+    lc_session_shadow_key_down(&off, LC_MOD_KEY_CTRL, 0, 0, 0, 0, 0);
+    lc_session_shadow_key_up(&off, LC_MOD_KEY_CTRL, 1);
+    lc_session_shadow_reset(&off);
+    assert(off.mismatches == 0 && off.toggles == 0);
+    lc_session_shadow_free(&off);
+
+    shadow_pair p;
+    memset(&p, 0, sizeof(p));
+    assert(lc_session_shadow_init_force(&p.s) == 0);
+    assert(p.s.session != NULL);
+    p.s.now_override_ms = 1000;
+    p.step_ms = 300; /* > debounce 250 ms của session */
+
+    /* 1. Ctrl → Shift, nhả Shift trước: bật/tắt đúng 1 lần. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 2. Shift → Ctrl, nhả Ctrl trước. */
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 1, 0);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    /* 3. Phím thứ ba (Ctrl+Shift+Z) huỷ. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    sp_down(&p, LC_MOD_NONE, 0, 1, 1, 0);
+    sp_up(&p, LC_MOD_NONE);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    /* 4. Kèm Alt/Super huỷ. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 1);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 1);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 5. Alt chen giữa rồi nhả. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_OTHER_MODIFIER, 0, 1, 0, 0);
+    sp_up(&p, LC_MOD_KEY_OTHER_MODIFIER);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 6. Phím giữ lặp không đổi kết quả. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 1, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 1, 0);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 7. Ctrl+Shift+Space (ADR-011) bật/tắt ở key-down; nhả sau đó không bật lại. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    sp_down(&p, LC_MOD_NONE, 1, 1, 1, 0);
+    sp_up(&p, LC_MOD_NONE);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 8. Mất focus giữa chừng huỷ lần nhấn. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    lc_modifier_toggle_reset(&p.t);
+    lc_session_shadow_reset(&p.s);
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    /* 9. Ctrl tap riêng không bật/tắt. */
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    assert(p.s.toggles == 4);
+    assert(p.s.mismatches == 0);
+
+    /* Khác biệt ĐÃ BIẾT (shadow phải bắt được, ghi ALLOWED trong changes/SF-2.md):
+     * (a) Linux cũ bật/tắt cả Ctrl+Shift+Alt+Space; session (= TSF preserved key
+     *     TF_MOD_CONTROL|TF_MOD_SHIFT) thì không. */
+    sp_down(&p, LC_MOD_NONE, 1, 1, 1, 1);
+    sp_up(&p, LC_MOD_NONE);
+    assert(p.s.mismatches == 1);
+    /* (b) Linux cũ không debounce; session chặn lần bật/tắt thứ hai trong < 250 ms. */
+    p.step_ms = 1;
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 1, 0, 0);
+    sp_up(&p, LC_MOD_KEY_SHIFT); /* bật/tắt — khớp */
+    sp_up(&p, LC_MOD_KEY_CTRL);
+    assert(p.s.mismatches == 1);
+    sp_down(&p, LC_MOD_KEY_SHIFT, 0, 0, 0, 0);
+    sp_down(&p, LC_MOD_KEY_CTRL, 0, 0, 1, 0);
+    sp_up(&p, LC_MOD_KEY_CTRL); /* mã cũ bật/tắt lần nữa sau 4 ms; session chặn */
+    sp_up(&p, LC_MOD_KEY_SHIFT);
+    assert(p.s.mismatches == 2);
+
+    lc_session_shadow_free(&p.s);
+    assert(p.s.session == NULL);
+    lc_session_shadow_free(&p.s); /* lần hai vô hại */
+}
+
 static void test_engine_ctrl_tap(void) {
     ime_instance *inst = engine_with(NO_CAPS);
     doc d;
@@ -882,6 +1004,7 @@ int main(void) {
     test_modifier_toggle();
     test_assist_idle_arms();
     test_modifier_ctrl_tap();
+    test_session_shadow_parity();
     test_engine_ctrl_tap();
     test_mode_en_prediction_passthrough();
     test_config_sync();
