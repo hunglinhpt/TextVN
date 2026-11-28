@@ -322,7 +322,19 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends ${{ matrix.pkgs }} >/dev/null
       - name: Gõ thật (${{ matrix.de }})
-        run: bash scripts/e2e-desktop.sh "${{ matrix.de }}" "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)"
+        run: |
+          set +e
+          bash scripts/e2e-desktop.sh "${{ matrix.de }}" "$(ls dist/TextVN-*-linux-*.tar.gz | head -n1)"
+          rc=$?
+          if [ "$rc" = 3 ]; then
+            # Mã 3 = GIỚI HẠN MÔI TRƯỜNG đo được TRƯỚC khi có IM (không phải lỗi TextVN) — ghi rõ,
+            # không pass ngầm; lỗi sau khi TextVN tham gia vẫn là đỏ (mã khác 0).
+            msg="${{ matrix.de }}: compositor headless + phím ảo không đưa phím tới app ngay cả khi CHƯA có IM (COMPAT-3)"
+            echo "::warning title=COMPAT-3 giới hạn môi trường::$msg"
+            { echo "### COMPAT-3 — ${{ matrix.de }}"; echo; echo "**GIỚI HẠN**: $msg."; } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          exit "$rc"
 
   # E70: smoke gói phát hành trên LTS cũ ngoài ma trận E2E đầy đủ (glibc 2.31) —
   # ldd sạch cho 3 ELF baseline EL8, CLI chẩn đoán (--check-env/--diagnose/--export-log

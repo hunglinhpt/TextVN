@@ -266,8 +266,9 @@ P
                 echo "--- sway seats: $(swaymsg -t get_seats 2>&1 | tr -d ' 
 ' | head -c 400)"
                 echo "--- sway.log (virtual/keyboard/seat):"; grep -iE 'virtual|keyboard|seat' "$T/sway.log" | tail -n 15 || true
-                echo "FAIL môi trường: phím wtype không tới Mousepad trong Sway headless (chưa có IM; tệp sau Ctrl+S: $(wc -c <"$T/doc.txt" 2>/dev/null) byte)" >&2
-                return 1
+                echo "LIMIT môi trường: phím wtype không tới Mousepad trong Sway headless (chưa có IM; tệp sau Ctrl+S: $(wc -c <"$T/doc.txt" 2>/dev/null) byte)" >&2
+                kill "$kb_keeper" 2>/dev/null || true
+                return 3
             fi
             kill "$mp_sanity" 2>/dev/null || true
             sleep 1
@@ -298,7 +299,16 @@ P
         }
         export -f sway_session
         export ROOT
-        dbus-run-session -- bash -c sway_session || fail "gõ thật trong Sway/Wayland không đạt"
+        # Mã 3 = GIỚI HẠN MÔI TRƯỜNG: bước kiểm TRƯỚC khi có IM (wtype thô → Mousepad) đã hỏng —
+        # không liên quan TextVN (đo ở COMPAT-3: seat có bàn phím ảo, focus đúng, vẫn 0 byte).
+        # Lỗi SAU bước đó (TextVN tham gia) vẫn là đỏ thật.
+        local_rc=0
+        dbus-run-session -- bash -c sway_session || local_rc=$?
+        if [[ $local_rc == 3 ]]; then
+            say "GIỚI HẠN: Sway headless + wtype không đưa phím tới app (trước khi có IM)"
+            exit 3
+        fi
+        [[ $local_rc == 0 ]] || fail "gõ thật trong Sway/Wayland không đạt"
         say "✅ PASS (Sway headless + Fcitx5 input-method-v2 + Mousepad Wayland)"
         ;;
     *)
