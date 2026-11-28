@@ -105,7 +105,7 @@ jobs:
           cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
       - name: PERF-1 — check perf baseline (aarch64-pc-windows-msvc)
         run: cargo run -q --release --locked -p textvn-bench -- check --auto
-      - name: PERF-1 — ghi số thật của runner + artifact (R2-176: baseline phải từ CI)
+      - name: "PERF-1 — ghi số thật của runner + artifact (R2-176 baseline phải từ CI)"
         run: |
           cargo run -q --release --locked -p textvn-bench -- write --auto
           Get-Content perf\baseline-aarch64-pc-windows-msvc.json
