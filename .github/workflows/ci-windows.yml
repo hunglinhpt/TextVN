@@ -132,6 +132,22 @@ jobs:
       - name: ARM-W4 build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
+      # ARM-W5: ma tran tien trinh - bien dich bo sua Win32 toi gian (tools/win/
+      # e2e-editor.c) cho x64 (gia lap tren ARM64) va x86 (best-effort, runner co
+      # the thieu toolset x86) roi truyen qua env cho test-typing; chung minh duong
+      # TIP dung kien truc (forwarder ARM64X -> DLL x64/x86) trong tien trinh thuc.
+      - name: ARM-W5 build e2e editors (x64 + x86 best-effort)
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do set "VS=%%i"
+          if not defined VS (echo WARN: no VS via vswhere & exit /b 1)
+          call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x64 || exit /b 1
+          cl /nologo /W3 /O1 /Fe:e2e-editor-x64.exe tools\win\e2e-editor.c user32.lib || exit /b 1
+          (call "%VS%\VC\Auxiliary\Build\vcvarsall.bat" x86 && cl /nologo /W3 /O1 /Fe:e2e-editor-x86.exe tools\win\e2e-editor.c user32.lib) || echo WARN: x86 toolset khong co tren runner nay - bo qua cot x86
+          set "EXTRA="
+          if exist e2e-editor-x64.exe set "EXTRA=%CD%\e2e-editor-x64.exe"
+          if exist e2e-editor-x86.exe set "EXTRA=%EXTRA%;%CD%\e2e-editor-x86.exe"
+          echo TEXTVN_E2E_EXTRA_EDITORS=%EXTRA%>>"%GITHUB_ENV%"
       - name: ARM-W4 portable E2E (test-portable.ps1)
         shell: powershell
         run: |

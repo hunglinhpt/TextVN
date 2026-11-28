@@ -7,7 +7,11 @@
 # Chi ghi ket qua dung/sai + ma ky tu (S2: khong ghi text nguoi dung that).
 
 param(
-    [Parameter(Mandatory = $true)][string]$Dir
+    [Parameter(Mandatory = $true)][string]$Dir,
+    # ARM-W5: cac app bo sung cung kien truc khac (duong dan exe, phan cach ';')
+    # de E2E ma tran tien trinh. Env TEXTVN_E2E_EXTRA_EDITORS cung gia tri nay -
+    # test-portable khong can doi.
+    [string]$ExtraApps = $env:TEXTVN_E2E_EXTRA_EDITORS
 )
 $ErrorActionPreference = 'Stop'
 
@@ -380,6 +384,15 @@ function Open-App([string]$name, [string]$exe) {
 $apps = @(@{ Name = 'notepad'; Exe = 'notepad.exe' })
 $wordpad = Join-Path $env:ProgramFiles 'Windows NT\Accessories\wordpad.exe'
 if (Test-Path $wordpad) { $apps += @{ Name = 'wordpad'; Exe = $wordpad } }
+
+# ARM-W5: app bo sung cung kien truc khac (x64 gia lap / x86 tren may ARM64) -
+# chung minh duong TIP dung kien truc (forwarder ARM64X -> DLL x64/x86) hoat dong
+# trong tien trinh cua kien truc do, khong phai chi DLL ARM64.
+foreach ($raw in ($ExtraApps -split ';' | Where-Object { $_ -and $_.Trim() })) {
+    $exe = $raw.Trim()
+    if (-not (Test-Path $exe)) { throw "extra e2e app missing: $exe" }
+    $apps += @{ Name = [System.IO.Path]::GetFileNameWithoutExtension($exe); Exe = (Resolve-Path $exe).Path }
+}
 
 # Nhat ky chan doan cua key sink (khong chua noi dung go) - app ke thua bien moi truong.
 $trace = Join-Path $env:TEMP 'textvn-tsf-trace.log'
