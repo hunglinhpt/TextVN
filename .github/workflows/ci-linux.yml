@@ -204,6 +204,8 @@ jobs:
         run: |
           cargo run -q -p textvn-cli -- verify
           cargo run -q -p textvn-cli -- sizes
+      - name: PERF-1 — so baseline hiệu năng ARM64 Linux (aarch64-unknown-linux-gnu)
+        run: cargo run -q --release --locked -p textvn-bench -- check --auto
       - name: replay corpus 4 adapter (headless/tsf/mac/linux)
         run: |
           cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless

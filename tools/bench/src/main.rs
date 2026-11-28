@@ -226,10 +226,39 @@ fn platform() -> &'static str {
     }
 }
 
+/// Ánh xạ `(std::env::consts::ARCH, std::env::consts::OS)` sang Rust target triple chuẩn.
+fn target_triple_for(arch: &str, os: &str) -> &'static str {
+    match (arch, os) {
+        ("x86_64", "windows") => "x86_64-pc-windows-msvc",
+        ("aarch64", "windows") => "aarch64-pc-windows-msvc",
+        ("x86", "windows") => "i686-pc-windows-msvc",
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        _ => "unknown",
+    }
+}
+
+fn host_target_triple() -> &'static str {
+    target_triple_for(std::env::consts::ARCH, std::env::consts::OS)
+}
+
+/// Chọn `perf/baseline-<triple>.json` nếu tồn tại, fallback về `perf/baseline-win.json`.
+fn resolve_baseline_path(dir: &std::path::Path, triple: &str) -> std::path::PathBuf {
+    let specific = dir.join(format!("baseline-{triple}.json"));
+    if specific.is_file() {
+        specific
+    } else {
+        dir.join("baseline-win.json")
+    }
+}
+
 fn render(all: &[Measurement], with_platform: bool, dream: &DreamRsiStat) -> String {
     let mut s = String::from("{\n  \"schema\": \"textvn-bench.v1\",\n");
     if with_platform {
         let _ = writeln!(s, "  \"platform\": \"{}\",", platform());
+        let _ = writeln!(s, "  \"target\": \"{}\",", host_target_triple());
     }
     let _ = writeln!(
         s,
@@ -1087,9 +1116,11 @@ fn main() -> std::process::ExitCode {
             println!("{}", output.trim_end());
         }
         "write" => {
-            let Some(p) = path else {
-                eprintln!("usage: textvn-bench write <file.json>");
-                return ExitCode::FAILURE;
+            let p = match path.as_deref() {
+                None | Some("--auto") => {
+                    format!("perf/baseline-{}.json", host_target_triple())
+                }
+                Some(explicit) => explicit.to_string(),
             };
             if let Some(dir) = std::path::Path::new(&p).parent() {
                 if !dir.as_os_str().is_empty() {
@@ -1103,14 +1134,18 @@ fn main() -> std::process::ExitCode {
             println!("đã ghi baseline: {p}");
         }
         "check" => {
-            let Some(p) = path else {
-                eprintln!("usage: textvn-bench check <file.json>");
-                return ExitCode::FAILURE;
+            let resolved = match path.as_deref() {
+                None | Some("--auto") => {
+                    resolve_baseline_path(std::path::Path::new("perf"), host_target_triple())
+                }
+                Some(explicit) => std::path::PathBuf::from(explicit),
             };
-            let Ok(old) = std::fs::read_to_string(&p) else {
+            let p = resolved.to_string_lossy().into_owned();
+            let Ok(old) = std::fs::read_to_string(&resolved) else {
                 eprintln!("không đọc được baseline `{p}` — chạy `write` trước");
                 return ExitCode::FAILURE;
             };
+            println!("baseline: {p}");
             match compare(&old, &all, &dream) {
                 Ok(text) => println!("{text}"),
                 Err(fails) => {
@@ -1123,7 +1158,7 @@ fn main() -> std::process::ExitCode {
             }
         }
         other => {
-            eprintln!("lệnh lạ `{other}` — dùng: run | write <file> | check <file> | dream-rsi [--iters N]");
+            eprintln!("lệnh lạ `{other}` — dùng: run | write [<file>|--auto] | check [<file>|--auto] | dream-rsi [--iters N]");
             return ExitCode::FAILURE;
         }
     }
@@ -1419,5 +1454,45 @@ mod tests {
         assert!(s.contains("\"ghosts_shown\":100"));
         assert!(s.contains("\"invariant_breaks\":0"));
         assert!(s.ends_with('}'));
+    }
+
+    #[test]
+    fn perf1_target_triple_map_du_6_target_va_chon_baseline() {
+        assert_eq!(
+            target_triple_for("x86_64", "windows"),
+            "x86_64-pc-windows-msvc"
+        );
+        assert_eq!(
+            target_triple_for("aarch64", "windows"),
+            "aarch64-pc-windows-msvc"
+        );
+        assert_eq!(
+            target_triple_for("x86_64", "linux"),
+            "x86_64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            target_triple_for("aarch64", "linux"),
+            "aarch64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            target_triple_for("aarch64", "macos"),
+            "aarch64-apple-darwin"
+        );
+        assert_eq!(target_triple_for("x86_64", "macos"), "x86_64-apple-darwin");
+
+        let dir = std::env::temp_dir().join(format!("textvn-perf1-bench-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let arm_file = dir.join("baseline-aarch64-unknown-linux-gnu.json");
+        std::fs::write(&arm_file, "{}").unwrap();
+        assert_eq!(
+            resolve_baseline_path(&dir, "aarch64-unknown-linux-gnu"),
+            arm_file
+        );
+        assert_eq!(
+            resolve_baseline_path(&dir, "riscv64gc-unknown-linux-gnu"),
+            dir.join("baseline-win.json")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

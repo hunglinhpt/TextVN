@@ -103,6 +103,8 @@ jobs:
           cargo run -q -p textvn-cli -- verify
           cargo run -q -p textvn-cli -- sizes
           cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+      - name: PERF-1 — check perf baseline (aarch64-pc-windows-msvc)
+        run: cargo run -q --release --locked -p textvn-bench -- check --auto
       - name: Inno Setup 6 (ARM-W4)
         shell: powershell
         run: |

@@ -282,10 +282,44 @@ const STEPS: &[Step] = &[
     },
 ];
 
+/// PERF-1: ánh xạ `(arch, os)` sang Rust target triple chuẩn.
+pub fn target_triple_for(arch: &str, os: &str) -> &'static str {
+    match (arch, os) {
+        ("x86_64", "windows") => "x86_64-pc-windows-msvc",
+        ("aarch64", "windows") => "aarch64-pc-windows-msvc",
+        ("x86", "windows") => "i686-pc-windows-msvc",
+        ("x86_64", "linux") => "x86_64-unknown-linux-gnu",
+        ("aarch64", "linux") => "aarch64-unknown-linux-gnu",
+        ("aarch64", "macos") => "aarch64-apple-darwin",
+        ("x86_64", "macos") => "x86_64-apple-darwin",
+        _ => "unknown",
+    }
+}
+
+/// Chọn `perf/baseline-<triple>.json` theo máy đang chạy; fallback `perf/baseline-win.json`.
+pub fn baseline_path_for(root: &std::path::Path, arch: &str, os: &str) -> String {
+    let triple = target_triple_for(arch, os);
+    let rel = format!("perf/baseline-{triple}.json");
+    if root
+        .join("perf")
+        .join(format!("baseline-{triple}.json"))
+        .is_file()
+    {
+        rel
+    } else {
+        "perf/baseline-win.json".to_string()
+    }
+}
+
 pub fn run() -> Result<(), String> {
     println!("preflight — mirror các gate CI, chạy trước khi commit/tag");
     println!("(không pipe, fail-fast; working tree = những gì CI sẽ thấy)\n");
 
+    let perf_baseline = baseline_path_for(
+        std::path::Path::new("."),
+        std::env::consts::ARCH,
+        std::env::consts::OS,
+    );
     let mut failed: Vec<String> = Vec::new();
     for (i, step) in STEPS.iter().enumerate() {
         print!(
@@ -296,7 +330,15 @@ pub fn run() -> Result<(), String> {
             step.guards
         );
         let mut cmd = Command::new(step.argv[0]);
-        cmd.args(&step.argv[1..]);
+        if step.name == "perf" {
+            let mut argv: Vec<&str> = step.argv[1..].to_vec();
+            if let Some(last) = argv.last_mut() {
+                *last = perf_baseline.as_str();
+            }
+            cmd.args(&argv);
+        } else {
+            cmd.args(&step.argv[1..]);
+        }
         let status = cmd.status();
         match status {
             Ok(s) if s.success() => println!("PASS"),
@@ -327,5 +369,36 @@ pub fn run() -> Result<(), String> {
             "\nFAIL tại: {}. Sửa xong chạy lại `cargo xtask preflight` trước khi commit.",
             failed.join(", ")
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn perf1_preflight_chon_dung_baseline_theo_may() {
+        let dir =
+            std::env::temp_dir().join(format!("textvn-perf1-preflight-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("perf")).unwrap();
+
+        for (arch, os, triple) in [
+            ("x86_64", "windows", "x86_64-pc-windows-msvc"),
+            ("aarch64", "windows", "aarch64-pc-windows-msvc"),
+            ("aarch64", "linux", "aarch64-unknown-linux-gnu"),
+            ("x86_64", "linux", "x86_64-unknown-linux-gnu"),
+            ("aarch64", "macos", "aarch64-apple-darwin"),
+        ] {
+            let name = format!("baseline-{triple}.json");
+            std::fs::write(dir.join("perf").join(&name), "{}").unwrap();
+            assert_eq!(baseline_path_for(&dir, arch, os), format!("perf/{name}"));
+        }
+
+        assert_eq!(
+            baseline_path_for(&dir, "riscv64", "linux"),
+            "perf/baseline-win.json"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
