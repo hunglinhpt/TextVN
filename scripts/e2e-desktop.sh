@@ -129,10 +129,18 @@ case "$DE" in
             xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
             local ok=0
             for _ in $(seq 1 10); do
-                if ibus engine textvn 2>"$T/engine.err"; then ok=1; break; fi
+                if ibus engine textvn >"$T/engine.err" 2>&1; then ok=1; break; fi
                 sleep 0.5
             done
-            [[ $ok == 1 ]] || { echo "--- ibus engine textvn: $(cat "$T/engine.err")"; echo "FAIL không đặt được engine textvn" >&2; return 1; }
+            if [[ $ok != 1 ]]; then
+                # Chẩn đoán (run 46123336889: từ chối, stderr rỗng) — rồi VẪN gõ để thấy chữ đi đâu.
+                echo "--- ibus engine textvn: $(cat "$T/engine.err")"
+                echo "--- ibus engine (hiện hành): $(ibus engine 2>&1)"
+                echo "--- preload-engines: $(gsettings get org.freedesktop.ibus.general preload-engines 2>&1)"
+                local mp; mp="$(pgrep -n mousepad || true)"
+                echo "--- mousepad pid=$mp nạp im-ibus: $(grep -c im-ibus "/proc/$mp/maps" 2>/dev/null || echo 0) · GTK_IM_MODULE=$GTK_IM_MODULE"
+                echo "--- immodules: $(ls /usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/immodules 2>&1 | tr '\n' ' ')"
+            fi
             echo "[e2e-desktop:$DE] engine hiện hành: $(ibus engine)"
             local rc=0
             run_cases "$win" || rc=$?
@@ -200,8 +208,18 @@ P
             # Wayland gốc: app dùng text-input-v3, Fcitx5 nối compositor qua input-method-v2.
             unset GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
             export GDK_BACKEND=wayland
+            # Run 46123336889: fcitx5-remote kích hoạt qua D-Bus một Fcitx5 THỨ HAI không có
+            # WAYLAND_DISPLAY ("Failed to open wayland connection") tranh tên với bản của ta ⇒ đưa
+            # môi trường phiên vào môi trường kích hoạt D-Bus, và chờ tên bus mà KHÔNG kích hoạt.
+            dbus-update-activation-environment WAYLAND_DISPLAY XDG_RUNTIME_DIR FCITX_ADDON_DIRS \
+                XDG_CONFIG_HOME XDG_DATA_HOME HOME GDK_BACKEND
             fcitx5 --replace >"$T/fcitx5.log" 2>&1 &
-            for _ in $(seq 1 50); do fcitx5-remote >/dev/null 2>&1 && break; sleep 0.2; done
+            for _ in $(seq 1 50); do
+                dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus \
+                    org.freedesktop.DBus.NameHasOwner string:org.fcitx.Fcitx5 2>/dev/null |
+                    grep -q 'boolean true' && break
+                sleep 0.2
+            done
             : > "$T/doc.txt"
             mousepad "$T/doc.txt" >"$T/editor.log" 2>&1 &
             sleep 3
@@ -211,6 +229,9 @@ P
             run_cases "-" || rc=$?
             if [[ $rc -ne 0 ]]; then
                 echo "--- fcitx5 IM: $(fcitx5-remote -n 2>&1) · sway:"; tail -n 15 "$T/sway.log" || true
+                echo "--- sway app_ids: $(swaymsg -t get_tree 2>&1 | grep -o '"app_id": "[^"]*"' | tr '\n' ' ')"
+                echo "--- sway focused: $(swaymsg -t get_tree 2>&1 | tr -d ' \n' | grep -o '"focused":true' | wc -l) nút"
+                echo "--- wtype: $(wtype -k space 2>&1; echo rc=$?) · wl-paste: $(wl-paste -n 2>&1 | head -c 80; echo " rc=$?")"
                 echo "--- fcitx5.log:"; tail -n 25 "$T/fcitx5.log" || true
             fi
             return $rc
