@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# RSI-2 — English EVALUATION set (held-out) for the Dream RSI KSR-oracle bench (`tools/bench`).
+# Sentences written FRESH for the project (TextVN, GPL-3.0-or-later), not copied from outside sources, never used
+# to generate prediction data. Gate `cargo xtask eval-leak`: no sentence shares a run of ≥ 6 consecutive words with
+# `data/*phrases*.tsv` (leak guard). Lowercase, no punctuation, one sentence per line.
+please review the attached report before the meeting
+the buyer wants an updated quote before friday
+our team will present the project plan next week
+thank you for your quick response
+could you confirm the schedule for the interview
+we need more information about the new requirements
+let me know when you have time to talk
+the customer support team resolved the problem today
+please share the meeting notes with everyone
+the finance department approved the payment request
+we are looking forward to working with your company
+i have updated the document on the shared drive
+our sales increased compared to the previous quarter
+please sign the agreement and send it back
+the developers are testing the new version
+the printer on the second floor needs new toner
+could we push our call back by one hour
+the warehouse will ship the order tomorrow morning
+my flight was delayed so i will join remotely
+the new accountant starts working on monday
+please book a room for the training session
+the vendor sent new prices for the tools
+we should finish the slides before lunch
+the server will be down for maintenance tonight
+i forwarded your question to the legal team
+the budget review is scheduled for next tuesday
+could you send me the invoice number
+the marketing campaign reached more people than expected
+please remember to submit your timesheet
+our office will be closed on the national holiday
+the survey results are attached to the email
+i will be away from work until thursday
+the project deadline moved to late june
+we hired two new engineers for the mobile team
+please update the password for the shared account
+the board approved the new hiring plan
+the delivery truck arrived earlier than planned
+please tell me what you think about the first draft
+the conference room projector is not working
+we will celebrate the team anniversary on friday evening
+please check the numbers in the second table
+the support ticket was closed after the fix
+our partner wants to extend the contract for another year
+the training video is available on the internal portal
+i booked a table for eight people at lunch
+the security team will run a fire drill tomorrow
+we received positive comments from the pilot users
+please do not share the draft outside the company
+the shipment is stuck at customs for two more days
+the new policy takes effect in january
+can you help me set up the video call
+the quarterly review went better than we hoped
+i will send the final version by tonight
+our customers asked for a dark mode in the app
+please keep the kitchen clean for everyone

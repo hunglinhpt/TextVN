@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# RSI-2 — tập ĐÁNH GIÁ tiếng Việt (held-out) cho bench Dream RSI KSR-oracle (`tools/bench`).
+# Câu viết MỚI cho dự án (TextVN, GPL-3.0-or-later), không lấy từ nguồn ngoài, không dùng để sinh dữ liệu dự đoán.
+# Gate `cargo xtask eval-leak`: không câu nào trùng chuỗi ≥ 6 âm tiết liên tiếp với `data/*phrases*.tsv` (chống rò rỉ).
+# Chữ thường, không dấu câu; một câu một dòng; mọi từ gõ Telex tái lập đúng chữ.
+em gửi anh bản báo cáo tuần này để anh xem trước buổi họp
+chị kiểm tra giúp em hợp đồng với khách hàng mới nhé
+cuộc họp sáng mai được dời sang chiều thứ năm
+phòng kế toán cần bảng lương trước ngày hai mươi
+anh ấy đang đi công tác ở đà nẵng đến cuối tuần
+dự án phát triển phần mềm đã hoàn thành giai đoạn một
+vui lòng xác nhận lịch phỏng vấn ứng viên vào thứ hai
+bộ phận kinh doanh sẽ trình bày kế hoạch quý tới
+em đã sửa lại sổ tay vận hành trên trang nội bộ
+nhờ anh chuyển tiếp thư này cho trưởng phòng nhân sự
+khách hàng phản ánh sản phẩm giao chậm hai ngày
+tôi sẽ gọi lại cho anh sau khi họp xong
+báo giá mới đã được gửi qua thư điện tử lúc chín giờ
+đội kỹ thuật đang xử lý sự cố mạng ở tầng ba
+công ty tổ chức tiệc cuối năm vào tối thứ sáu
+hồ sơ dự thầu phải nộp trước mười giờ sáng mai
+em xin phép nghỉ một ngày để giải quyết việc gia đình
+kết quả kinh doanh tháng này tăng so với cùng kỳ
+anh vui lòng ký duyệt đề nghị thanh toán giúp em
+lịch làm việc tuần sau có thay đổi mọi người chú ý
+trưởng nhóm đề nghị mỗi người viết báo cáo ngắn gọn
+phần mềm mới giúp tiết kiệm nhiều thời gian nhập liệu
+khách hàng muốn xem bản thiết kế trước khi thanh toán
+em đã đặt phòng họp lớn cho buổi gặp đối tác
+chi phí vận chuyển tăng nên giá bán cũng điều chỉnh
+anh chị nhớ sao lưu dữ liệu trước khi cài đặt
+tôi đồng ý với phương án thứ hai của nhóm
+hạn chót nộp báo cáo tài chính là cuối tháng
+nhân viên mới sẽ bắt đầu làm việc từ đầu tháng sau
+buổi thuyết trình diễn ra tốt đẹp ngoài mong đợi
+em gửi kèm danh sách người tham dự hội nghị
+máy in ở tầng hai lại bị kẹt giấy rồi
+anh nhớ mang theo laptop khi đi gặp khách nhé
+bên vận chuyển hẹn giao hàng vào sáng thứ bảy
+chị ơi cho em mượn sạc điện thoại một lát
+phòng nhân sự vừa gửi thông báo về chế độ nghỉ phép
+em chưa nhận được hóa đơn đỏ của đơn hàng tháng trước
+nhóm mình cần chốt nội dung slide trước tối nay
+anh có thể dời cuộc gọi sang ba giờ chiều được không
+bản hợp đồng có vài điều khoản cần luật sư xem lại
+kho hàng ở bình dương còn đủ hàng cho đợt khuyến mãi
+khách sạn đã xác nhận đặt hai phòng đôi cho đoàn
+em sẽ tổng hợp ý kiến góp ý rồi gửi lại cả nhóm
+lớp tập huấn an toàn lao động bắt đầu lúc tám giờ
+chúng ta cần thêm người hỗ trợ cho dự án mới
+bạn kiểm tra lại số tài khoản trước khi chuyển tiền nhé
+em đã sửa lỗi hiển thị trên trang đăng nhập
+máy chủ sẽ bảo trì từ mười một giờ đêm nay
+mật khẩu wifi mới đã dán ở cửa phòng họp
+anh trưởng phòng muốn nghe báo cáo tiến độ hàng ngày
+chi nhánh hà nội đạt doanh số cao nhất quý này
+vui lòng không để đồ ăn trong tủ lạnh quá ba ngày
+em đang trên đường tới văn phòng do kẹt xe
+cô giáo dặn các con mang theo áo mưa ngày mai
+bệnh viện yêu cầu bệnh nhân đến sớm mười lăm phút
+ngân hàng nhắn tin báo tiền vay vừa về tài khoản
+siêu thị gần nhà mở cửa đến mười giờ tối
+mẹ nhắc con nhớ uống thuốc sau bữa trưa
+cả nhà mình đi về quê ăn tết vào hai mươi tám
+bạn đã đọc bản tin nội bộ số mới chưa
+em gửi bảng chấm công của bộ phận để chị đối chiếu
+đơn vị tư vấn sẽ khảo sát nhà máy vào tuần sau
+anh chị điền phiếu đánh giá trước khi ra về
+phòng kỹ thuật đề xuất nâng cấp toàn bộ máy tính
+khách hàng đã đồng ý ký phụ lục gia hạn hợp đồng
+em xin gửi lại tài liệu đã chỉnh sửa theo góp ý
+đoàn kiểm tra sẽ làm việc với ban giám đốc chiều nay
+mọi người nhớ tắt điện điều hòa trước khi về
+quỹ công đoàn hỗ trợ mỗi người năm trăm nghìn
+nhà cung cấp xin lùi thời hạn giao linh kiện
+em cần thêm thời gian để hoàn thiện bản phân tích
+anh gửi giúp em số điện thoại của bên đối tác
+hệ thống chấm công sẽ chuyển sang nhận diện khuôn mặt
+chương trình đào tạo kỹ năng mềm kéo dài hai tuần
+bạn có muốn đi ăn trưa cùng nhóm không
+em vừa nộp hồ sơ xin học bổng du học
+thư viện thành phố mở thêm khu đọc sách thiếu nhi
+tài xế sẽ đón đoàn ở sân bay lúc sáu giờ
+trung tâm bảo hành hẹn trả máy vào thứ tư
+chị nhớ lưu lại biên bản cuộc họp vào thư mục chung
+nhóm thiết kế đang hoàn thiện logo cho thương hiệu mới
+em đã liên hệ nhưng khách hàng chưa phản hồi
+công trình phải dừng thi công vì trời mưa lớn
+sinh viên năm cuối được ưu tiên đăng ký thực tập
+bác sĩ khuyên nên nghỉ ngơi và uống nhiều nước
+đội bóng công ty thi đấu giao hữu vào chủ nhật
+anh xem giúp em lỗi phần mềm kế toán với
+cửa hàng giảm giá mười phần trăm cho thành viên
+công ty giữ kín mọi dữ liệu cá nhân của người mua
+em đề nghị mua thêm hai màn hình cho phòng thiết kế
+ban tổ chức đã gửi thư mời tới các diễn giả
+tổng đài hỗ trợ vẫn trực máy vào thứ bảy và chủ nhật
+kế toán trưởng yêu cầu nộp chứng từ gốc
+mình hẹn nhau ở quán cà phê đầu ngõ nhé
+lịch tiêm phòng cho bé là ngày mười hai tháng sau
+anh gửi em đường dẫn tải phần mềm mới nhất
+đơn xin nghỉ việc cần báo trước ba mươi ngày
+bên mình đang tuyển hai lập trình viên có kinh nghiệm
+vé máy bay đã được đặt cho chuyến công tác
+chủ nhà đồng ý giảm tiền thuê từ tháng sau
+em sẽ cập nhật tình hình dự án vào cuối ngày
+cuộc khảo sát cho thấy khách hàng rất hài lòng
+xe đưa đón nhân viên khởi hành lúc bảy giờ kém mười lăm
+phòng hành chính phát đồng phục mới vào thứ hai
+cả lớp góp tiền mua quà sinh nhật cho cô
+hội đồng quản trị họp thường niên vào tháng tư

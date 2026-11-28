@@ -250,6 +250,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "eval-leak",
+        guards: "RSI-2: tập đánh giá Dream RSI (corpus/eval) không trùng ≥6 token với data/*phrases* — chống KSR thổi phồng (bài học số 22%)",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "eval-leak"],
+        optional: false,
+    },
+    Step {
         name: "regression-index",
         guards: "REG-1: mã lỗi đã sửa (E/R/R2/win) ↔ test/gate còn tồn tại — xoá test chặn lỗi cũ hoặc thêm mã không bằng chứng = đỏ (P0-5 §9b)",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "regression-index"],

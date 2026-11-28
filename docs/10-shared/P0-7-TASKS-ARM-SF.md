@@ -31,7 +31,7 @@
 Gồm **DoD 8 mục** của `../01-AGENT-HANDBOOK.md §4`, cộng:
 
 - [ ] D1 Acceptance của thẻ task tick đủ, kèm bằng chứng (lệnh + kết quả rút gọn) trong mục *Ghi chú*.
-- [ ] D2 `cargo xtask preflight` 26/26 (homebrew được SKIP local; gồm `regression-index` từ REG-1) trên commit của task.
+- [ ] D2 `cargo xtask preflight` 27/27 (homebrew được SKIP local; gồm `regression-index` REG-1 + `eval-leak` RSI-2) trên commit của task.
 - [ ] D3 Test hồi quy MỚI cho hành vi mới/đổi (không chỉ sửa test cũ); test đỏ khi đột biến luật chính
       (ghi đột biến đã thử trong *Ghi chú*).
 - [ ] D4 Khối `textvn-session`: vết vàng khớp (SF-G1) và một vết cho 3 OS (SF-G2) hoặc khác biệt đã

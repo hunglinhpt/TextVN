@@ -19,6 +19,7 @@ mod assist_tools;
 mod check_mac_targets;
 mod check_version_sync;
 mod en_office;
+mod eval_leak;
 mod gen_en_office_data;
 mod gen_en_phrases;
 mod gen_mac_corpus;
@@ -121,6 +122,7 @@ fn main() -> ExitCode {
         // nằm ở crate `textvn-board` độc lập với build sản phẩm, `cargo xtask board` chỉ mượn lib.
         "board" => textvn_board::cli(&args[1..]),
         "regression-index" => regression_index::cli(&args[1..]),
+        "eval-leak" => eval_leak::cli(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -154,6 +156,7 @@ fn usage() -> &'static str {
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
      cargo xtask board <lệnh>       # G21: nhận/giao task, giữ chỗ tệp, thông báo (board help)\n  \
      cargo xtask regression-index   # REG-1: mã lỗi đã sửa ↔ test/gate (--bootstrap [--merge])\n  \
+     cargo xtask eval-leak          # RSI-2: corpus/eval không trùng ≥6 token với data/*phrases*\n  \
      cargo xtask check-ibus-component <xml> <base> # kiểm tra component IBus (E59)\n  \
      cargo xtask hygiene-docs       # link markdown nội bộ không hỏng\n  \
      cargo xtask hygiene-secrets    # secret/token/private key không được commit\n  \

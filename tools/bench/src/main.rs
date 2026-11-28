@@ -352,8 +352,8 @@ const RSI_WORDS: [&str; 16] = [
 /// `data/*phrases*` (trigram overlap = 0 — kiểm chứng ở spike; RSI-2 sẽ chuyển
 /// sang `corpus/eval/` + REUSE.toml). `xtask gen-*` KHÔNG được nạp corpus này
 /// vào dữ liệu dự đoán — tệp đó đã sai thì gate KSR tự trắng.
-const HELDOUT_VI: &str = include_str!("../eval/heldout_vi.txt");
-const HELDOUT_EN: &str = include_str!("../eval/heldout_en.txt");
+const HELDOUT_VI: &str = include_str!("../../../corpus/eval/vi_office.txt");
+const HELDOUT_EN: &str = include_str!("../../../corpus/eval/en_office.txt");
 
 // ---------------------------------------------------------------------------------------
 // Bộ mô phỏng văn bản (bản sao thứ 13 của `apply` trong repo — SIM-1 sẽ hợp nhất, G22)
@@ -689,6 +689,12 @@ fn sim_run_oracle(e: &mut Engine, s: &Sentence, wrong_ghost: bool) -> OracleStat
     }
     if d != s.target {
         st.diverged += 1;
+        // Chẩn đoán (chỉ chữ của corpus eval — không phải phím người dùng, G8).
+        if std::env::var_os("TEXTVN_BENCH_DEBUG").is_some() {
+            let want: String = s.target.iter().collect();
+            let got: String = d.iter().collect();
+            eprintln!("dream-rsi lệch đích: muốn {want:?} được {got:?}");
+        }
     }
     st
 }

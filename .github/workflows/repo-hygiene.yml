@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   hygiene:
-    name: repo hygiene (12 checks)
+    name: repo hygiene (13 checks)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -71,6 +71,9 @@ jobs:
 
       - name: "5b. Sổ hồi quy: mã lỗi đã sửa ↔ test/gate (REG-1)"
         run: cargo run -q -p xtask -- regression-index
+
+      - name: "5c. Tập đánh giá Dream RSI không rò rỉ vào dữ liệu dự đoán (RSI-2)"
+        run: cargo run -q -p xtask -- eval-leak
 
       - name: 6. file quy trình bắt buộc tồn tại
         run: |

@@ -100,21 +100,24 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   -- dream-rsi` — mô phỏng **người dùng oracle** (Trnka & McCoy 2008): tại MỌI
   phím đọc `peek_completion()`, chỉ nhận Tab khi `văn bản + chữ mờ` là tiền tố
   đúng của văn bản đích và hết ở ranh giới từ; chữ mờ hiện mà sai = +1 nhiễu.
-  Corpus: bench 16 từ ×3 + câu văn phòng held-out VI 40 câu (`tools/bench/eval/
-  heldout_vi.txt`) + EN 20 câu (không trùng `data/*phrases*`). **Deterministic**
-  (không timing, JSON nguyên — 2 lần chạy cùng số, `dream_rsi_sim_deterministic`).
-  Số 0.2.96 (0.2.95 ghi 22% là thổi phồng — 92% Tab chèn sai từ):
+  Corpus: bench 16 từ ×3 + tập đánh giá văn phòng tách riêng (RSI-2) `corpus/eval/
+  vi_office.txt` 106 câu + `en_office.txt` 55 câu (giấy phép trong REUSE.toml +
+  header SPDX; gate `cargo xtask eval-leak` bảo đảm không trùng ≥ 6 token với
+  `data/*phrases*` — gen `vn_phrases`/`en_phrases` tự kiểm lại ngay khi sinh).
+  **Deterministic** (không timing, JSON nguyên — 2 lần chạy cùng số,
+  `dream_rsi_sim_deterministic`). Số sau RSI-2 (0.2.96 ghi 22% là thổi phồng —
+  92% Tab chèn sai từ; corpus 0.2.96 40+15 câu nhỏ hơn nên KSR 8,6%):
 
-  | Chỉ số | Giá trị 0.2.96 |
+  | Chỉ số | Giá trị (RSI-2) |
   |---|---|
-  | KSR-oracle tổng | **8,6%** (317/3676 phím) |
+  | KSR-oracle tổng | **7,3%** (687/9469 phím) |
   | KSR-oracle bench 16 từ ×3 | 5,7% (18/315) |
-  | KSR-oracle VI văn phòng | **10,1%** (267/2636) |
-  | KSR-oracle EN văn phòng | 4,4% (32/725) |
-  | precision@ghost | 13,4% (xét được 16,7%) |
-  | nhiễu (chữ mờ sai) | 33,0/100 phím (VI 33,7 — cổng RSI-7 chặn hết EN-chèn-vào-Việt) |
-  | chuỗi Tab nối tiếp (R2-173) | sâu nhất 2 |
-  | engine counters | accepts 147 · chars_saved 392 |
+  | KSR-oracle VI văn phòng | **7,9%** (524/6598) |
+  | KSR-oracle EN văn phòng | **5,7%** (145/2556) |
+  | precision@ghost | 15,1% (xét được 18,7%) |
+  | nhiễu (chữ mờ sai) | 30,8/100 phím (VI 31,2 · EN 30,2) |
+  | chuỗi Tab nối tiếp (R2-173) | sâu nhất 2 (6 nhận nối tiếp) |
+  | engine counters | accepts 395 · chars_saved 944 |
 
   Khối `"dream_rsi"` trong `perf/baseline-win.json` (re-record khi phát hành).
   Gate `check` (G19c) fail khi: KSR-oracle (tổng/VI/EN) **giảm**, **nhiễu tăng**
@@ -125,6 +128,10 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
 
 ### Bẫy đã ghi nhận (đừng lặp)
 
+- **Câu eval không được chứa từ là tiền tố ĐÚNG của từ dài hơn trong dict**
+  ("intern" → engine hiện ghost `al` hoàn tất "internal"; gõ dấu cách chèn
+  "al" ⇒ câu lệch đích, gate G19c đỏ vĩnh viễn). RSI-2 đã đổi thành
+  "accountant"; từ mới cho corpus phải thoả `diverged == 0`.
 - **Path VN cần Telex-transform:** tiền tố ASCII thuần ("kha") không làm
   word active → `try_vn_complete` bỏ qua → Tab đi `try_english_complete`
   (không mở cycle). Muốn test cycle thật: dùng transform ("ddk" → "đk").

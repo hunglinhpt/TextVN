@@ -2479,6 +2479,9 @@ pub fn run() -> Result<(), String> {
         set.len(),
         target_path.display()
     );
+    // RSI-2 — kiểm chồng lấn ngay sau khi sinh: dữ liệu dự đoán không được chứa
+    // ≥ 6 token liên tiếp của câu đánh giá `corpus/eval/` (KSR không bị thổi phồng).
+    crate::eval_leak::cli()?;
     Ok(())
 }
 

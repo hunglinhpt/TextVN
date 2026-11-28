@@ -752,6 +752,9 @@ pub fn run() -> Result<(), String> {
         set.len(),
         target_path.display()
     );
+    // RSI-2 — kiểm chồng lấn ngay sau khi sinh: dữ liệu dự đoán không được chứa
+    // ≥ 6 token liên tiếp của câu đánh giá `corpus/eval/` (KSR không bị thổi phồng).
+    crate::eval_leak::cli()?;
     Ok(())
 }
 
@@ -1448,6 +1451,18 @@ fn add_curated(add: &mut impl FnMut(&str, &str, u32)) {
         ("chúc", "bạn một ngày tốt lành", 100),
         ("chúc", "mừng sinh nhật vui vẻ", 98),
         ("chúc", "mừng năm mới an khang thịnh vượng", 95),
+        // 10 cặp từng được sửa tay thẳng vào data/vn_phrases.tsv ở 0.2.93 (b7784cae) —
+        // đưa về generator để regen không mất cặp (G22: generator = nguồn sự thật).
+        ("chào bạn", "rất vui được làm quen", 95),
+        ("chúc bạn", "một ngày tốt lành", 100),
+        ("chúc bạn", "thành công", 98),
+        ("chúc bạn", "sức khỏe", 95),
+        ("phát sinh", "chi phí", 100),
+        ("phát sinh", "trong quá trình triển khai", 95),
+        ("phát sinh", "lỗi", 90),
+        ("xin chào", "các bạn", 100),
+        ("xin chào", "mọi người", 98),
+        ("xin chào", "quý khách", 95),
         ("hẹn", "gặp lại vào dịp khác", 100),
         ("rất", "vui được làm quen với bạn", 95),
         ("thiệt", "tình luôn á trời", 86),
