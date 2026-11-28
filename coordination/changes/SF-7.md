@@ -1,4 +1,4 @@
-<!-- TASK: SF-7 · commit: c10330cc · agent: claude-opus-7e41b2d9 -->
+<!-- TASK: SF-7 · commit: c10330cc + 2978883d + 4d0f83c6 + c043ed5e · agent: claude-opus-7e41b2d9 -->
 ## VI
 - **SF-7 phần 1 — MỘT máy trạng thái bộ chọn Emoji dùng chung (P0-6 §5, G22)**: `session/src/emoji.rs`
   (`textvn_session::emoji::EmojiPicker`) thay 3 bản lệch nhau (`tray/src/emoji_popup.rs`,
