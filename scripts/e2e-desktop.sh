@@ -41,8 +41,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Gõ một chuỗi phím vào cửa sổ đang focus rồi đọc lại toàn bộ văn bản qua clipboard.
-# X11: xdotool (XTest) + xclip. Wayland: wtype (virtual-keyboard-v1) + wl-paste.
+# Gõ một chuỗi phím vào cửa sổ đang focus rồi đọc lại toàn bộ văn bản.
+# X11: xdotool (XTest) + clipboard (xclip). Wayland: wtype (virtual-keyboard-v1) + LƯU tệp (Ctrl+S)
+# rồi đọc `$T/doc.txt` — run 46126*: wl-paste trong Sway headless báo "Nothing is copied" kể cả khi
+# chưa có IM ⇒ không dựa vào clipboard trên Wayland.
 # Dấu cách cuối cam kết từ đang soạn (preedit không có trong buffer của app).
 type_and_read() {
     local win="$1" keys="$2"
@@ -52,9 +54,9 @@ type_and_read() {
         wtype -d 90 -- "$keys"
         wtype -k space
         sleep 0.6
-        wtype -M ctrl a -m ctrl -M ctrl c -m ctrl
-        sleep 0.4
-        wl-paste -n 2>/dev/null | sed 's/[[:space:]]*$//'
+        wtype -M ctrl s -m ctrl
+        sleep 0.8
+        sed 's/[[:space:]]*$//' "$T/doc.txt" 2>/dev/null | tr -d '\n' || true
     else
         xdotool windowactivate --sync "$win" >/dev/null 2>&1 || true
         xdotool key --clearmodifiers ctrl+a Delete
@@ -249,7 +251,7 @@ P
             if [[ "$sanity" != abc ]]; then
                 echo "--- sway app_ids: $(swaymsg -t get_tree 2>&1 | grep -o '"app_id": "[^"]*"' | tr '\n' ' ')"
                 echo "--- editor-sanity.log:"; tail -n 20 "$T/editor-sanity.log" || true
-                echo "FAIL môi trường: wtype/wl-paste không đi tới Mousepad trong Sway headless (chưa có IM)" >&2
+                echo "FAIL môi trường: phím wtype không tới Mousepad trong Sway headless (chưa có IM; tệp sau Ctrl+S: $(wc -c <"$T/doc.txt" 2>/dev/null) byte)" >&2
                 return 1
             fi
             kill "$mp_sanity" 2>/dev/null || true
