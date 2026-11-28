@@ -110,3 +110,33 @@
   verifies BOTH foreground and cursor position ±4 px (an swallowed click means this
   channel is not trustworthy); (5) the final error dump now includes `iconic=`.
 - Evidence: Parser::ParseFile OK; ascii-ps1 OK (G7). Next CI run confirms.
+
+## VI — E89 vòng 3 (2026-11-28, CI run 46113896660)
+
+- **Dữ liệu mới**: `iconic=False` — không phải minimized; fg tồn tại (0x10202) mà cả
+  4 mức thang (kể click thật) đều không đổi. Nghi vấn còn lại: session runner không
+  route input (desktop nhập khác desktop thread) hoặc DPI/multi-monitor làm
+  normalize sai (đã tính theo man hình chính thay vì màn hình ảo).
+- **Fix vòng 3**: (1) normalize click theo **virtual screen** (SM_X/Y/CX/CYVIRTUALSCREEN
+  76–79, có origin); (2) probe `SetCursorPos`+`GetCursorPos` ±4px TRƯỚC khi click —
+  session không nhận input thì dừng sớm, không click mù; (3) dump chẩn đoán quyết
+  định: tên desktop thread vs desktop input (`OpenInputDesktop` + `UOI_NAME`) + vị
+  trí con trỏ (`cursor=x,y`).
+- Nếu desktop nhập ≠ desktop thread ⇒ kết luận: ảnh runner windows-11-arm không hỗ
+  trợ GUI input ⇒ bước typing trên runner này chuyển best-effort có cảnh báo (E89
+  để mở), giá trị chính của ARM-W4 giữ nguyên (build/verify/ACL/installer).
+
+## English — E89 round 3 (2026-11-28, CI run 46113896660)
+
+- **New data**: `iconic=False`; a foreground window exists yet none of the 4 rungs
+  (including a real click) changed it. Remaining suspects: the runner session does not
+  route input (input desktop differs from the thread desktop), or DPI/multi-monitor
+  broke normalization (primary-monitor maths instead of the virtual screen).
+- **Round-3 fix**: (1) click normalisation over the **virtual screen** (SM 76-79 with
+  origin); (2) `SetCursorPos`+`GetCursorPos` ±4px probe BEFORE clicking — an
+  input-dead session stops early instead of blind-clicking; (3) decisive diagnostics
+  in the dump: thread desktop vs input desktop names (`OpenInputDesktop` + `UOI_NAME`)
+  and `cursor=x,y`.
+- If the input desktop differs ⇒ conclusion: the windows-11-arm runner image does not
+  support GUI input ⇒ the typing step becomes best-effort with a warning (E89 stays
+  open); ARM-W4's core validations (build/verify/ACL/installer) stand.

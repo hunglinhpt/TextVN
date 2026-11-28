@@ -56,11 +56,57 @@ public static class TvKeys {
     // khong bao gio cham cua so (bang chung: ci-windows 9a2dbe64 fg=0x901E8 khong doi).
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
+    // E89 vong 3: chan doan quyet dinh - click phai tinh theo VI MAN HINH AO (goc
+    // SM_XVIRTUALSCREEN/Y origin, kich thuoc CX/CYVIRTUALSCREEN); tren session DPI-scale
+    // hoac multi-monitor, normalize theo man hinh chinh lam con tro roi sai cho. Neu
+    // SetCursorPos + GetCursorPos khong ket xuyen thi session khong route input.
+    [DllImport("user32.dll", SetLastError = true)] static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool GetUserObjectInformationW(IntPtr h, int idx, System.Text.StringBuilder buf, int len, out int needed);
+    [DllImport("user32.dll")] static extern bool CloseDesktop(IntPtr h);
+    [DllImport("kernel32.dll")] static extern IntPtr GetThreadDesktop(uint tid);
     [StructLayout(LayoutKind.Sequential)]
     struct POINT { public int X; public int Y; }
 
     // Chan doan cho PS: cua so co dang minimized khong (E89v2).
     public static bool IsWindowMinimized(IntPtr h) { return IsIconic(h); }
+
+    // E89v3: ten desktop cua thread goi va desktop NHAP LUAU (neu khac nhau hoac
+    // OpenInputDesktop that bai = session khong nhan input = khong the E2E go chu).
+    public static string InputDesktopDiag() {
+        var sb = new StringBuilder(256);
+        int need;
+        string cur = "?";
+        IntPtr td = GetThreadDesktop(GetCurrentThreadId());
+        if (td != IntPtr.Zero && GetUserObjectInformationW(td, 2 /*UOI_NAME*/, sb, 256, out need)) cur = sb.ToString();
+        string inp = "?";
+        IntPtr id = OpenInputDesktop(0, false, 0x0200 /*DESKTOP_READOBJECTS*/);
+        if (id != IntPtr.Zero) {
+            sb.Clear();
+            if (GetUserObjectInformationW(id, 2, sb, 256, out need)) inp = sb.ToString();
+            CloseDesktop(id);
+            return "thread-desktop=" + cur + " input-desktop=" + inp;
+        }
+        return "thread-desktop=" + cur + " input-desktop=KHONG MO DUOC (session khong route input)";
+    }
+
+    // E89v3: kiem chung duong con tro - di chuyen toi (x,y) roi doc lai; sai >4px
+    // nghia la session khong nhan input (khong cam click nua - vo ich).
+    public static bool CursorMovesTo(int x, int y) {
+        if (!SetCursorPos(x, y)) return false;
+        Thread.Sleep(120);
+        POINT p;
+        if (!GetCursorPos(out p)) return false;
+        return Math.Abs(p.X - x) <= 4 && Math.Abs(p.Y - y) <= 4;
+    }
+
+    // E89v3: dong bo chan doan con tro cho PS dump.
+    public static string CursorWhere() {
+        POINT p;
+        if (!GetCursorPos(out p)) return "?";
+        return p.X + "," + p.Y;
+    }
+
 
     const uint INPUT_KEYBOARD = 1, KEYEVENTF_KEYUP = 2, KEYEVENTF_EXTENDEDKEY = 1;
 
@@ -134,15 +180,18 @@ public static class TvKeys {
         }
         RECT r;
         if (!GetWindowRect(main, out r)) return false;
-        int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
-        if (sw <= 0 || sh <= 0) return false;
-        int vw = GetSystemMetrics(76), vh = GetSystemMetrics(77);
-        if (r.Left < 0 || r.Top < 0 || r.Left >= (vw > 0 ? vw : sw) || r.Top >= (vh > 0 ? vh : sh)) {
-            return false; /*rect ngoai man hinh - khong gui click muu*/
-        }
+        int vx = GetSystemMetrics(76), vy = GetSystemMetrics(77);
+        int vw = GetSystemMetrics(78), vh = GetSystemMetrics(79);
+        if (vw <= 0 || vh <= 0) { vx = 0; vy = 0; vw = GetSystemMetrics(0); vh = GetSystemMetrics(1); }
         int cx = (r.Left + r.Right) / 2, cy = (r.Top + r.Bottom) / 2;
-        int ax = (int)((long)cx * 65535 / (sw - 1));
-        int ay = (int)((long)cy * 65535 / (sh - 1));
+        if (cx < vx || cx >= vx + vw || cy < vy || cy >= vy + vh) {
+            return false; /*tam cua so ngoai man hinh ao - khong gui click muu*/
+        }
+        // E89v3: kiem chung duong con truoc - SetCursorPos den tam roi doc lai;
+        // khong ket xuyen = session khong nhan input, click se vo ich.
+        if (!CursorMovesTo(cx, cy)) return false;
+        int ax = (int)((long)(cx - vx) * 65535 / (vw - 1));
+        int ay = (int)((long)(cy - vy) * 65535 / (vh - 1));
         const uint MOVE = 0x0001 | 0x4000 /*ABSOLUTE*/, DOWN = 0x0002, UP = 0x0004;
         var seq = new[] {
             new INPUT { type = 0 }, new INPUT { type = 0 }, new INPUT { type = 0 } };
@@ -229,7 +278,7 @@ function Ensure-Focus($app) {
         Start-Sleep -Milliseconds 300
     }
     $fg = [TvKeys]::GetForegroundWindow()
-    throw "could not focus $($app.Name) main window (E89v2: fg=0x$($fg.ToString('X')), main=0x$($app.Main.ToString('X')), iconic=$([TvKeys]::IsWindowMinimized($app.Main)))"
+    throw "could not focus $($app.Name) main window (E89v3: fg=0x$($fg.ToString('X')), main=0x$($app.Main.ToString('X')), iconic=$([TvKeys]::IsWindowMinimized($app.Main)), cursor=$([TvKeys]::CursorWhere()), $([TvKeys]::InputDesktopDiag()))"
 }
 
 # Clear must be VERIFIED before typing the next case: keys landing after a lost
