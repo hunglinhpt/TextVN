@@ -51,6 +51,9 @@ mỗi phiên (hoặc truyền `--agent`). Không dùng chung định danh giữa
 | R13 | CI `main` đỏ (G13) | ai thấy trước: `board notify --to '*' --msg "CI đỏ <workflow> <run> — <agent> xử lý"` rồi claim việc sửa; không ai push thêm thay đổi không liên quan tới khi xanh |
 | R14 | Nội dung thông báo | KHÔNG ghi chữ người dùng gõ, mật khẩu, token, đường dẫn có tên người dùng (G8) — repo public |
 
+> **E92 — commit luôn kèm pathspec**: `git commit -- <tệp…>` (cả commit board: `git commit -m … -- coordination/board.jsonl`).
+> Commit không pathspec gói MỌI thay đổi đang stage — kể cả `git rm` dở dang của chính mình hay của agent khác trong cùng checkout.
+
 ## 4. Mảnh ghi chú phát hành `coordination/changes/<TASK>.md`
 
 Mỗi task đổi hành vi/tính năng viết một mảnh (người phát hành gộp — tránh xung đột CHANGELOG):

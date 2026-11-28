@@ -98,8 +98,11 @@
 | E86 | project-common-errors | `gate:.github/workflows/ci-linux.yml` · `gate:.github/workflows/ci-shared.yml` |
 | E87 | project-common-errors | `process:script .sh commit từ Windows phải git update-index --chmod=+x; ci-macos chạy trực tiếp script nên đỏ khi thiếu bit x` |
 | E88 | project-common-errors | `test:xtask/src/regression_index.rs::e88_bootstrap_chi_dem_file_git_tracked` |
+| E89 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `gate:installer/windows/tests/test-typing.ps1` |
 | E9 | project-common-errors | `gate:xtask/src/preflight.rs` |
 | E90 | project-common-errors | `test:core/src/post/predict.rs::loop2b_prefix_index_footprint_budget` · `test:core/src/post/predict.rs::loop2b_lexicon_mode_parity_sweep` |
+| E91 | project-common-errors | `process:máy dev đo micro-benchmark lệch dài hạn sau nhiều giờ build — kiểm chứng bằng worktree commit cũ (1ff8a113 đo ~1950 ns cũng lúc máy "nóng") trước khi kết luận hồi quy; gate perf so baseline-win chỉ có ý nghĩa trên runner CI (PERF-1/R2-176)` |
+| E92 | project-common-errors | `process:commit luôn kèm pathspec git commit -- <tệp…>; không git rm/git mv trước commit thật — coordination/README.md (E92)` · `gate:coordination/README.md` |
 | R1 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2 | release-process | `process:sự cố phát hành — xử lý theo bảng R ở docs/release/release-process.md` |
 | R2-100 | CHANGELOG | `test:cli/src/register.rs::languages_added_by_textvn_are_tracked_and_removed_only_when_unused` |
@@ -174,9 +177,7 @@
 | R2-173 | CHANGELOG | `test:adapters/windows-tsf/src/edit_session.rs::r2_173_ghost_waits_for_key_up_only_for_passed_char_keys` · `test:core/tests/r2_173_prediction_chain.rs::tab_accept_then_ghost_shows_continuation_and_tab_inserts_it` · `test:core/tests/r2_173_prediction_chain.rs::greeting_and_office_contexts_chain` |
 | R2-174 | CHANGELOG | `test:core/tests/dream_rsi_100.rs::d_space_accept_savings` · `test:core/tests/rca_v57_adversarial.rs::adv5_drain_2_lan_chi_pending_moi` · `test:core/tests/text_prediction.rs::r2_174_space_complete_khong_viet_lai_tu_da_dung` |
 | R2-176 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `test:tools/bench/src/main.rs::r2_176_baseline_khong_provenance_hoac_sai_arch_bi_tu_choi` · `test:xtask/src/preflight.rs::perf1_preflight_chon_dung_baseline_theo_may` |
-| E89 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `gate:installer/windows/tests/test-typing.ps1` |
 | R2-177 | board-note (chưa vào CHANGELOG — gộp ở v0.2.97) | `test:assist/tests/office_mixed_work_v53.rs::v53_nfr_check_câu_văn_phòng_dưới_1ms` · `test:assist/tests/office_mixed_work_v53.rs::v53_abnormal_mo_rong_khong_panic_khong_treo` |
-| E91 | project-common-errors | `process:máy dev đo micro-benchmark lệch dài hạn sau nhiều giờ build — kiểm chứng bằng worktree commit cũ (1ff8a113 đo ~1950 ns cũng lúc máy "nóng") trước khi kết luận hồi quy; gate perf so baseline-win chỉ có ý nghĩa trên runner CI (PERF-1/R2-176)` |
 | R2-26 | CHANGELOG | `test:cli/src/doctor.rs::r2_26_sandbox_mirror_verdict` · `test:config/src/sandbox.rs::sandbox_keys_cover_schema_and_code` · `test:tray/src/ipc_server.rs::sandbox_policy_allows_only_minimal_commands` |
 | R2-28 | CHANGELOG | `test:adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift::testViStateSnapshotAndPerAppOverrides` · `test:tray/src/svc.rs::effective_enabled_matches_tip_rule` |
 | R2-55 | CHANGELOG | `test:adapters/linux-common/tests/test_compose.c::test_typing` · `test:adapters/windows-tsf/src/compose.rs::backspace_inside_word_refolds_and_empty_word_ends_composition` · `test:adapters/windows-tsf/src/compose.rs::backspace_in_composition_matrix` · `file:corpus/mac/imk_preedit_telex_backspace_fold_21.keys` · `file:corpus/mac/mac_bs_type_telex_backspace_19.keys` · `gate:xtask/src/mac_corpus_cases.rs` |
