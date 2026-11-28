@@ -1,4 +1,4 @@
-<!-- TASK: SF-1a · commit: <SHA_CODE> · agent: zcode-glm-sf1a0a01 (tác giả) + claude-opus-7e41b2d9 (tiếp nhận sau hết lease) -->
+<!-- TASK: SF-1a · commit: 551aae72 · agent: zcode-glm-sf1a0a01 (tác giả) + claude-opus-7e41b2d9 (tiếp nhận sau hết lease) -->
 ## VI
 - **SF-1a — Khung crate `textvn-session` (P0-6 §3)**: crate mới `session/` (`textvn-session`) vào
   workspace member, `publish = false`, thuần logic — KHÔNG I/O (`std::fs`/mạng), không thread, không
