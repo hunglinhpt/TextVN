@@ -242,6 +242,104 @@ jobs:
           path: target/e2e-helpers/*
           if-no-files-found: error
 
+  linux-arm64:
+    name: Linux aarch64 (Ubuntu 24.04 ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Kiến trúc runner phải là aarch64
+        run: |
+          uname -m
+          test "$(uname -m)" = aarch64
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Install adapter dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus libdbus-1-dev file
+      - name: Build and test host adapters (Ubuntu 24.04 ARM64)
+        run: |
+          cargo run -q -p xtask -- check-version-sync
+          scripts/e2e-linux.sh
+      - name: Build EL8 baseline (RHEL 8.10 glibc 2.28 + GTK3, aarch64)
+        run: |
+          cargo fetch --locked
+          RUSTUP_DIR="$(rustup show home)"
+          CARGO_DIR="${CARGO_HOME:-$HOME/.cargo}"
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          docker run --rm \
+            -v "$PWD:/src" \
+            -v "$RUSTUP_DIR:/rustup:ro" \
+            -v "$CARGO_DIR:/cargo" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            almalinux:8 bash -euo pipefail -c '
+              dnf --enablerepo=powertools install -y --setopt=install_weak_deps=False \
+                gcc make cmake pkgconf-pkg-config ibus-devel gtk3-devel ibus dbus-daemon dbus-tools procps-ng gawk dconf xkeyboard-config >/dev/null
+              groupadd -f -g "$HOST_GID" builder || true
+              useradd -m -u "$HOST_UID" -g "$HOST_GID" -o builder
+              mkdir -p /tmp/target-el8 && chown -R "$HOST_UID:$HOST_GID" /tmp/target-el8
+              su -s /bin/bash builder -c "
+                export PATH=/cargo/bin:\$PATH
+                export RUSTUP_HOME=/rustup CARGO_HOME=/cargo CARGO_TARGET_DIR=/tmp/target-el8
+                export LC_ALL=C.UTF-8 LANG=C.UTF-8
+                bash /src/scripts/build-linux-el8.sh /src/target/linux-el8
+              "
+            '
+      - name: Build compat baseline (Ubuntu 22.04 glibc 2.35 + GTK4 + Fcitx5, aarch64)
+        run: |
+          RUSTUP_DIR="$(rustup show home)"
+          CARGO_DIR="${CARGO_HOME:-$HOME/.cargo}"
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
+          docker run --rm \
+            -v "$PWD:/src" \
+            -v "$RUSTUP_DIR:/rustup:ro" \
+            -v "$CARGO_DIR:/cargo" \
+            -e HOST_UID="$HOST_UID" \
+            -e HOST_GID="$HOST_GID" \
+            ubuntu:22.04 bash -euo pipefail -c '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update -qq
+              apt-get install -y -qq --no-install-recommends \
+                build-essential cmake pkg-config libgtk-4-dev \
+                libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev libdbus-1-dev >/dev/null
+              groupadd -f -g "$HOST_GID" builder || true
+              useradd -m -u "$HOST_UID" -g "$HOST_GID" -o builder
+              mkdir -p /tmp/target-compat && chown -R "$HOST_UID:$HOST_GID" /tmp/target-compat
+              su -s /bin/bash builder -c "
+                export PATH=/cargo/bin:\$PATH
+                export RUSTUP_HOME=/rustup CARGO_HOME=/cargo CARGO_TARGET_DIR=/tmp/target-compat
+                export LC_ALL=C.UTF-8 LANG=C.UTF-8
+                bash /src/scripts/build-linux-compat.sh /src/target/linux-compat
+              "
+            '
+      - name: Package and test Linux aarch64 candidate
+        run: |
+          scripts/build-linux.sh --skip-tests --el8-dir target/linux-el8 --compat-dir target/linux-compat
+          ls -la dist/TextVN-*-linux-aarch64.tar.gz
+          file target/linux-el8/bin/textvn-cli | grep -q 'ARM aarch64'
+          scripts/test-linux-package.sh dist/TextVN-*-linux-aarch64.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-arm64
+          path: dist/TextVN-*-linux-aarch64.tar.gz
+          if-no-files-found: error
+      - run: |
+          mkdir -p target/e2e-helpers
+          cp -f target/linux-el8/ibus/e2e_ibus target/e2e-helpers/e2e_ibus
+          cp -f target/linux-compat/fcitx5/e2e_fcitx5 target/e2e-helpers/e2e_fcitx5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-e2e-helpers
+          path: target/e2e-helpers/*
+          if-no-files-found: error
+
   linux-distro-matrix:
     name: Linux E2E (${{ matrix.label }})
     needs: linux
@@ -373,7 +471,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, linux, linux-distro-matrix, macos]
+    needs: [windows, linux, linux-arm64, linux-distro-matrix, macos]
     # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
     # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -431,7 +529,8 @@ jobs:
           # Per-user (mac dinh) + machine (Store bien the HKLM) = dung 2 exe.
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' ! -name '*-machine.exe' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*-machine.exe' | wc -l)" -eq 1
-          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-*.tar.gz' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-x86_64.tar.gz' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-aarch64.tar.gz' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.pkg' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l)" -ge 2
           # MSIX la asset BAT BUOC tu 0.2.17 (yeu cau chu repo: moi release kem msix)
