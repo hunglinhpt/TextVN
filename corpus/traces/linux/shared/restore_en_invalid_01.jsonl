@@ -1,0 +1,11 @@
+{"case":"shared/restore_en_invalid_01","step":0,"cmd":"set_preedit","text":"a","n":1}
+{"case":"shared/restore_en_invalid_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_invalid_01","step":1,"cmd":"set_preedit","text":"á","n":1}
+{"case":"shared/restore_en_invalid_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_invalid_01","step":2,"cmd":"set_preedit","text":"ád","n":2}
+{"case":"shared/restore_en_invalid_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_invalid_01","step":3,"cmd":"set_preedit","text":"àd","n":2}
+{"case":"shared/restore_en_invalid_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_invalid_01","step":4,"cmd":"commit","text":"asdf","n":0}
+{"case":"shared/restore_en_invalid_01","step":4,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/restore_en_invalid_01","step":4,"cmd":"forward_key","text":"","n":0}

@@ -1,0 +1,15 @@
+{"case":"shared/emoji_expand_smile_01","step":0,"cmd":"forward_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":1,"cmd":"set_preedit","text":"s","n":1}
+{"case":"shared/emoji_expand_smile_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":2,"cmd":"set_preedit","text":"sm","n":2}
+{"case":"shared/emoji_expand_smile_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":3,"cmd":"set_preedit","text":"smi","n":3}
+{"case":"shared/emoji_expand_smile_01","step":3,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":4,"cmd":"set_preedit","text":"smil","n":4}
+{"case":"shared/emoji_expand_smile_01","step":4,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":5,"cmd":"set_preedit","text":"smile","n":5}
+{"case":"shared/emoji_expand_smile_01","step":5,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"delete_before","text":"","n":1}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"commit","text":"😀","n":0}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/emoji_expand_smile_01","step":6,"cmd":"eat_key","text":"","n":0}

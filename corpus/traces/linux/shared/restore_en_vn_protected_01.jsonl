@@ -1,0 +1,9 @@
+{"case":"shared/restore_en_vn_protected_01","step":0,"cmd":"set_preedit","text":"c","n":1}
+{"case":"shared/restore_en_vn_protected_01","step":0,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_vn_protected_01","step":1,"cmd":"set_preedit","text":"co","n":2}
+{"case":"shared/restore_en_vn_protected_01","step":1,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_vn_protected_01","step":2,"cmd":"set_preedit","text":"cơ","n":2}
+{"case":"shared/restore_en_vn_protected_01","step":2,"cmd":"eat_key","text":"","n":0}
+{"case":"shared/restore_en_vn_protected_01","step":3,"cmd":"commit","text":"cơ","n":0}
+{"case":"shared/restore_en_vn_protected_01","step":3,"cmd":"set_preedit","text":"","n":0}
+{"case":"shared/restore_en_vn_protected_01","step":3,"cmd":"forward_key","text":"","n":0}
