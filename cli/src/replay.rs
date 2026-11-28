@@ -6,7 +6,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
-use textvn_win_tsf::compose::{is_modifier_vk, plan_key, text_after, EngineStep, KeyKind};
+use textvn_session::compose::{ComposePolicy, Composer, EngineStep, KeyKind};
+use textvn_session::{Commands, SessionCommand};
+use textvn_win_tsf::compose::is_modifier_vk;
 
 use textvn_ffi::{
     ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
@@ -713,16 +715,28 @@ struct Sim {
     /// `Some` khi mô phỏng TSF: text composition đang mở (nằm trong `buf` tại
     /// `comp_start`, caret ở cuối composition).
     tsf: Option<TsfComposition>,
+    /// Số ký tự composition TSF đang nằm trong `buf` tại `TsfComposition::start`.
+    comp_len: usize,
     /// SF-1c: ghi vết chuẩn hoá các lệnh adapter áp khi `--trace` bật.
     trace: Option<Vec<TraceEntry>>,
     /// Chỉ số phím hiện tại (0-based theo từng sự kiện `send_event`).
     key_step: usize,
 }
 
-#[derive(Default)]
+/// Composition TSF mô phỏng: chữ đang soạn nằm trong `buf` tại `start`; model + lệnh do
+/// `textvn_session::compose::Composer` (SF-3) — vết TSF là CHÍNH lệnh của session.
 struct TsfComposition {
     start: usize,
-    text: Vec<char>,
+    composer: Composer,
+}
+
+impl Default for TsfComposition {
+    fn default() -> Self {
+        Self {
+            start: 0,
+            composer: Composer::new(ComposePolicy::TSF),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -753,6 +767,7 @@ impl Sim {
             last_action: "PASS".into(),
             failures: Vec::new(),
             tsf: profile.tsf_composition.then(TsfComposition::default),
+            comp_len: 0,
             trace: record_trace.then(Vec::new),
             key_step: 0,
         };
@@ -893,21 +908,59 @@ impl Sim {
         self.settings.iter().any(|(k, v)| k == key && v == "true")
     }
 
-    /// Đóng composition TSF (text giữ nguyên trong buffer).
+    /// Đóng composition TSF (text giữ nguyên trong buffer): `Composer::end` commit TRƯỚC khi ẩn.
     fn tsf_end(&mut self) {
-        let committed: Option<String> = self.tsf.as_mut().and_then(|comp| {
-            if comp.text.is_empty() {
-                None
-            } else {
-                let s: String = comp.text.iter().collect();
-                comp.text.clear();
-                Some(s)
+        let mut cmds = Commands::new();
+        if let Some(comp) = self.tsf.as_mut() {
+            comp.composer.end(&mut cmds);
+        }
+        self.apply_session_cmds(cmds, 0);
+    }
+
+    /// Áp lệnh session vào tài liệu mô phỏng (composition ở `start`) và ghi vết chuẩn hoá.
+    /// `DeleteBefore` xoá trước composition; `SetPreedit`/`Commit` thay vùng composition.
+    fn apply_session_cmds(&mut self, cmds: Commands, line: usize) {
+        for cmd in cmds.into_vec() {
+            let Some(comp) = self.tsf.as_mut() else {
+                return;
+            };
+            match cmd {
+                SessionCommand::DeleteBefore { chars } => {
+                    let n = usize::from(chars);
+                    if n > comp.start {
+                        self.fail(
+                            line,
+                            format!("TSF delete_before({n}) vượt text trước composition"),
+                        );
+                        return;
+                    }
+                    self.buf.drain(comp.start - n..comp.start);
+                    comp.start -= n;
+                    self.emit_trace("delete_before", String::new(), u32::from(chars));
+                }
+                SessionCommand::SetPreedit { text, .. } => {
+                    let new: Vec<char> = text.chars().collect();
+                    let end = (comp.start + self.comp_len).min(self.buf.len());
+                    self.buf.splice(comp.start..end, new.iter().copied());
+                    self.comp_len = new.len();
+                    if !new.is_empty() || end > comp.start {
+                        self.cursor = comp.start + new.len();
+                    }
+                    self.emit_trace("set_preedit", text, new.len() as u32);
+                }
+                SessionCommand::Commit { text } => {
+                    let new: Vec<char> = text.chars().collect();
+                    let end = (comp.start + self.comp_len).min(self.buf.len());
+                    self.buf.splice(comp.start..end, new.iter().copied());
+                    self.cursor = comp.start + new.len();
+                    comp.start = self.cursor;
+                    self.comp_len = 0;
+                    self.emit_trace("commit", text, 0);
+                }
+                SessionCommand::EatKey => self.emit_trace("eat_key", String::new(), 0),
+                SessionCommand::ForwardKey => self.emit_trace("forward_key", String::new(), 0),
+                _ => {}
             }
-        });
-        if let Some(s) = committed {
-            // P0-6 §3: commit TRƯỚC khi ẩn preedit.
-            self.emit_trace("commit", s, 0);
-            self.emit_trace("set_preedit", String::new(), 0);
         }
     }
 
@@ -947,63 +1000,15 @@ impl Sim {
             return;
         };
         let key = KeyKind::classify(vk, ch);
-        let current = comp.text.clone();
-        let mut start = if current.is_empty() {
-            self.cursor
-        } else {
-            comp.start
-        };
-        let plan = plan_key(&current, key, &EngineStep::from_result(out));
-        if plan.delete_before > 0 {
-            let n = usize::from(plan.delete_before);
-            if n > start {
-                self.fail(
-                    line,
-                    format!("TSF delete_before({n}) vượt text trước composition"),
-                );
-                return;
-            }
-            self.buf.drain(start - n..start);
-            start -= n;
+        if !comp.composer.is_composing() {
+            comp.start = self.cursor;
+            self.comp_len = 0;
         }
-        if let Some(text) = &plan.text {
-            let end = start + current.len();
-            self.buf.splice(start..end, text.iter().copied());
-            self.cursor = start + text.len();
-        }
-        let next = text_after(&current, &plan);
-        let next_str: String = next.iter().collect();
-        if let Some(comp) = self.tsf.as_mut() {
-            comp.start = start;
-            comp.text = if plan.end { Vec::new() } else { next.clone() };
-        }
-        if plan.delete_before > 0 {
-            self.emit_trace(
-                "delete_before",
-                String::new(),
-                u32::from(plan.delete_before),
-            );
-        }
-        if plan.end {
-            // P0-6 §3: commit TRƯỚC khi ẩn preedit. `text_after` trả rỗng khi `plan.end`,
-            // nên chuỗi commit lấy từ `plan.text` (hoặc `current` nếu giữ nguyên).
-            let commit_str: String = plan.text.as_deref().unwrap_or(&current).iter().collect();
-            if !commit_str.is_empty() {
-                self.emit_trace("commit", commit_str, 0);
-            }
-            if !current.is_empty() {
-                self.emit_trace("set_preedit", String::new(), 0);
-            }
-        } else if plan.text.is_some() && !(current.is_empty() && next_str.is_empty()) {
-            self.emit_trace("set_preedit", next_str, next.len() as u32);
-        }
-        if down == 1 {
-            self.emit_trace(
-                if plan.eaten { "eat_key" } else { "forward_key" },
-                String::new(),
-                0,
-            );
-        }
+        let mut cmds = Commands::new();
+        let plan = comp
+            .composer
+            .key(key, &EngineStep::from_result(out), down == 1, &mut cmds);
+        self.apply_session_cmds(cmds, line);
         if !plan.eaten {
             self.apply_pass(vk, ch);
         }

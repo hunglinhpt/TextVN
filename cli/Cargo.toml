@@ -19,6 +19,8 @@ textvn-dict = { path = "../dict" }
 serde_json = { workspace = true }
 # Chỉ phần thuần (`compose`) — mô phỏng TSF composition trong `replay --adapter tsf`.
 textvn-win-tsf = { path = "../adapters/windows-tsf" }
+# SF-3 (P0-6 §6): replay sinh vết TSF bằng CHÍNH `textvn_session::compose::Composer`.
+textvn-session = { path = "../session" }
 
 [target.'cfg(windows)'.dependencies]
 # R2-162: textvn-ipc chỉ dùng trong khối cfg(windows) của doctor.rs (pipe check)

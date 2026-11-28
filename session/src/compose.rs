@@ -424,3 +424,97 @@ pub fn text_after(current: &[char], plan: &CompositionPlan) -> Vec<char> {
     }
     plan.text.clone().unwrap_or_else(|| current.to_vec())
 }
+
+/// Mô hình chữ đang soạn + phát lệnh (SF-3 pha 3c): adapter đưa kết quả engine của mỗi phím
+/// vào, nhận [`crate::Commands`] để áp. Thay `comp_text` của TSF, `lc_comp` của Linux.
+///
+/// Thứ tự lệnh mỗi phím (P0-6 §3, R2-165/R2-167): ≤ 1 `DeleteBefore` → `Commit` (nếu đóng) →
+/// `SetPreedit` (ẩn khi đóng, hoặc text mới) → đúng một `EatKey`/`ForwardKey` ở key-down.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Composer {
+    policy: ComposePolicy,
+    current: Vec<char>,
+}
+
+impl Composer {
+    /// Composer rỗng theo chính sách OS.
+    #[must_use]
+    pub const fn new(policy: ComposePolicy) -> Self {
+        Self {
+            policy,
+            current: Vec::new(),
+        }
+    }
+
+    /// Chữ đang soạn (rỗng = không composing).
+    #[must_use]
+    pub fn current(&self) -> &[char] {
+        &self.current
+    }
+
+    /// Đang soạn?
+    #[must_use]
+    pub fn is_composing(&self) -> bool {
+        !self.current.is_empty()
+    }
+
+    /// Đóng composition nguyên văn (chord, ô secure, tắt tiếng Việt, mất focus…): commit chữ
+    /// đang soạn TRƯỚC khi ẩn preedit (R2-167).
+    pub fn end(&mut self, out: &mut crate::Commands) {
+        if self.current.is_empty() {
+            return;
+        }
+        let text: String = self.current.iter().collect();
+        self.current.clear();
+        out.push(crate::SessionCommand::Commit { text });
+        out.push(crate::SessionCommand::SetPreedit {
+            text: String::new(),
+            cursor: 0,
+        });
+    }
+
+    /// Một phím đã qua engine. `key_down = false` (vd. Ctrl tap RESTORE ở key-up) ⇒ không phát
+    /// `EatKey`/`ForwardKey`. Trả kế hoạch để adapter còn áp `cursor_left`/`reset_engine`.
+    pub fn key(
+        &mut self,
+        key: KeyKind,
+        step: &EngineStep,
+        key_down: bool,
+        out: &mut crate::Commands,
+    ) -> CompositionPlan {
+        use crate::SessionCommand as C;
+        let plan = plan_key_with(self.policy, &self.current, key, step);
+        if plan.delete_before > 0 {
+            out.push(C::DeleteBefore {
+                chars: plan.delete_before,
+            });
+        }
+        let next = text_after(&self.current, &plan);
+        if plan.end || plan.reset_engine {
+            let commit: String = plan
+                .text
+                .as_deref()
+                .unwrap_or(&self.current)
+                .iter()
+                .collect();
+            if !commit.is_empty() {
+                out.push(C::Commit { text: commit });
+            }
+            if !self.current.is_empty() {
+                out.push(C::SetPreedit {
+                    text: String::new(),
+                    cursor: 0,
+                });
+            }
+        } else if plan.text.is_some() && !(self.current.is_empty() && next.is_empty()) {
+            let text: String = next.iter().collect();
+            let cursor = u16::try_from(text.encode_utf16().count()).unwrap_or(u16::MAX);
+            out.push(C::SetPreedit { text, cursor });
+        }
+        if key_down {
+            out.push(if plan.eaten { C::EatKey } else { C::ForwardKey });
+        }
+        self.current = next;
+        plan
+    }
+}

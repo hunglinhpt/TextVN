@@ -59,6 +59,19 @@
     `onReset`, cùng ném lỗi;
   - `TraceTests` giữ 58 vết mac.
 
+### Pha 3c-1 — mô hình soạn + phát lệnh trong session; vết TSF sinh bằng session — XONG
+- **`Composer`** (`session::compose`): giữ chữ đang soạn và phát lệnh session cho mỗi phím đã qua
+  engine. Thứ tự: ≤ 1 `DeleteBefore` → `Commit` → ẩn/đặt `SetPreedit` → đúng một `EatKey`/
+  `ForwardKey` ở key-down (R2-165/R2-167 do `Commands` kiểm). `end()` đóng nguyên văn (chord, secure,
+  tắt tiếng Việt).
+- **`cli replay --adapter tsf`** sinh vết bằng CHÍNH lệnh của `Composer(TSF)`; mô phỏng tài liệu áp
+  lệnh thay vì tự tính `plan_key`. Kết quả:
+  - `trace-diff` sinh lại **136/136 vết TSF khớp từng byte**: SF-G1 cho TSF chạy qua session;
+  - 136 ca replay pass;
+  - đột biến (ẩn preedit cả khi không soạn) ⇒ gate đỏ ở `telex_horn_w_01`.
+- CI 3a (`932539db`) 7/7 xanh: `test_compose` (phép so 80 nghìn tổ hợp, `assert(bad == 0)`) pass dưới
+  ASan+UBSan.
+
 ### Còn lại
 - **3c — session tự chạy engine + compose** trong `Session::event` (adapter chỉ áp lệnh), có shadow 3 OS,
   luật *reset* R2-171/E78 chuyển vào session, `replay` chạy chính session cho mọi adapter.
@@ -121,6 +134,20 @@
     range × selection × delete success/failure) must give the same `TextTarget` call sequence, the
     same marked, the same `onReset` and the same throw;
   - `TraceTests` keeps the 58 mac traces.
+
+### Phase 3c-1 — compose model + command emission in the session; TSF traces made by the session — DONE
+- **`Composer`** (`session::compose`): keeps the text being composed and emits session commands for
+  each key that went through the engine. Order: ≤ 1 `DeleteBefore` → `Commit` → hide/set
+  `SetPreedit` → exactly one `EatKey`/`ForwardKey` on key-down (R2-165/R2-167 checked by
+  `Commands`). `end()` closes verbatim (chord, secure, Vietnamese off).
+- **`cli replay --adapter tsf`** builds traces from the `Composer(TSF)` commands THEMSELVES; the
+  document simulator applies commands instead of computing `plan_key` itself. Results:
+  - `trace-diff` regenerates **136/136 TSF traces byte-for-byte**: SF-G1 for TSF runs through the
+    session;
+  - all 136 replay cases pass;
+  - a mutation (hiding preedit even when not composing) turns the gate red at `telex_horn_w_01`.
+- Phase 3a CI (`932539db`) 7/7 green: `test_compose` (the 80k-combination comparison,
+  `assert(bad == 0)`) passes under ASan+UBSan.
 
 ### Remaining
 - **3c — the session runs engine + compose itself** in `Session::event` (adapters only apply

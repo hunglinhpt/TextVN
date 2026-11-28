@@ -137,6 +137,7 @@ dependencies = [
  "textvn-dict",
  "textvn-ffi",
  "textvn-ipc",
+ "textvn-session",
  "textvn-win-tsf",
  "windows",
  "windows-core",
