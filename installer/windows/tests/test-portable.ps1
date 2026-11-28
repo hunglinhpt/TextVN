@@ -142,8 +142,23 @@ if (-not (Test-Path -LiteralPath $userFile)) { throw 'uninstall.ps1 deleted a us
 if (-not (Test-Path -LiteralPath (Join-Path $userSub 'anh.txt'))) { throw 'uninstall.ps1 deleted a user folder next to TextVN (R2-16)' }
 if (Test-Path -LiteralPath (Join-Path $dir 'textvn-cli.exe')) { throw 'uninstall.ps1 left textvn-cli.exe behind' }
 if ($isArm64) {
+    $runOnceKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    $runOnceVals = @()
+    if (Test-Path -LiteralPath $runOnceKey) {
+        $roProps = Get-ItemProperty -Path $runOnceKey -ErrorAction SilentlyContinue
+        foreach ($p in $roProps.PSObject.Properties) {
+            if ($p.Name -like 'TextVNCleanup*') { $runOnceVals += [string]$p.Value }
+        }
+    }
     foreach ($armDll in @('textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll')) {
-        if (Test-Path -LiteralPath (Join-Path $dir $armDll)) { throw "uninstall.ps1 left $armDll behind" }
+        $armPath = Join-Path $dir $armDll
+        if (Test-Path -LiteralPath $armPath) {
+            $scheduled = $runOnceVals | Where-Object { $_ -like "*$armPath*" }
+            if (-not $scheduled) {
+                throw "uninstall.ps1 left $armDll behind without scheduling RunOnce cleanup"
+            }
+            Write-Host "NOTE $armDll still loaded in a running host process; verified RunOnce cleanup scheduled"
+        }
     }
 }
 Write-Host 'PASS portable uninstall keeps unrelated user files'
@@ -201,6 +216,18 @@ try {
         Where-Object { $_.Path -and $_.Path.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase) }
     $registeredPath = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
     $registeredHere = $registeredPath -and $registeredPath.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)
+    $runOnceCleanup = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    if (Test-Path -LiteralPath $runOnceCleanup) {
+        $roProps = Get-ItemProperty -Path $runOnceCleanup -ErrorAction SilentlyContinue
+        foreach ($p in $roProps.PSObject.Properties) {
+            if ($p.Name -like 'TextVNCleanup*') {
+                $val = [string]$p.Value
+                if (($dir -and $val -like "*$dir*") -or ($dir2 -and $val -like "*$dir2*")) {
+                    Remove-ItemProperty -Path $runOnceCleanup -Name $p.Name -ErrorAction SilentlyContinue
+                }
+            }
+        }
+    }
     if ((Test-Path -LiteralPath $dir) -and -not $ownedProcess -and -not $registeredHere) {
         $resolvedTemp = [System.IO.Path]::GetFullPath($tempRoot).TrimEnd('\') + '\'
         $resolvedDir = (Resolve-Path -LiteralPath $dir).Path

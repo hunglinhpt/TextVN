@@ -114,6 +114,9 @@ if ($locked.Count -gt 0) {
     # <= 260 ky tu; gop moi file vao mot lenh 'del' vuot nguong khi path dai. Muc thu
     # muc dat ten sau cung (RunOnce chay theo thu tu tao); rmdir khong /s.
     $runOnce = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    if (-not (Test-Path -LiteralPath $runOnce)) {
+        New-Item -Path $runOnce -Force -ErrorAction SilentlyContinue | Out-Null
+    }
     $cmds = @($locked | ForEach-Object { 'cmd.exe /c del /f /q "' + $_ + '"' })
     if ($dirEmpty -eq $false) { $cmds += @(('cmd.exe /c rmdir "' + $res + '"'), ('cmd.exe /c rmdir "' + $dir + '"')) }
     $scheduled = $true
