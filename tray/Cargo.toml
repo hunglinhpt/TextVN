@@ -14,6 +14,7 @@ path = "src/main.rs"
 textvn-config = { path = "../config" }
 textvn-core = { path = "../core" }
 textvn-ipc = { path = "../ipc" }
+textvn-session = { path = "../session" }
 serde.workspace = true
 serde_json = "1"
 

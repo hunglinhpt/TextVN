@@ -228,6 +228,7 @@ dependencies = [
  "textvn-config",
  "textvn-core",
  "textvn-ipc",
+ "textvn-session",
  "windows",
  "windows-core",
 ]

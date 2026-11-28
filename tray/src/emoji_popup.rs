@@ -11,7 +11,9 @@
 //!   kèm `dwExtraInfo = INJECT_TAG` để `textvn-hook` không nuốt ngược (E48).
 //! - G8: không ghi log nội dung tìm kiếm hay emoji người dùng chọn; MRU chỉ lưu trong RAM.
 
-use textvn_core::post::emoji_catalog::{search_emojis, EmojiEntry, EmojiMru};
+// SF-7 (G22): máy trạng thái bộ chọn (nhóm, cuộn, chọn, MRU) là bản dùng chung của
+// `textvn-session`; tray chỉ vẽ + hit-test chuột + bơm glyph.
+use textvn_session::emoji::{EmojiPicker, PickerLayout};
 
 pub const CATEGORY_TABS: &[(u8, &str)] = &[
     (0, "🕒"),
@@ -24,8 +26,8 @@ pub const CATEGORY_TABS: &[(u8, &str)] = &[
     (7, "🎉"),
 ];
 
-pub const GRID_COLS: usize = 8;
-pub const GRID_VISIBLE_ROWS: usize = 5;
+pub const GRID_COLS: usize = PickerLayout::GRID.cols;
+pub const GRID_VISIBLE_ROWS: usize = PickerLayout::GRID.visible_rows;
 pub const POPUP_WIDTH: i32 = 332;
 pub const POPUP_HEIGHT: i32 = 304;
 pub const TABS_TOP: i32 = 8;
@@ -39,53 +41,41 @@ pub const CELL_H: i32 = 42;
 /// Mã đánh dấu `dwExtraInfo` khớp `textvn_win_hook::INJECT_TAG` ("TVNH").
 pub const INJECT_TAG: usize = 0x5456_4E48;
 
-/// Trạng thái thuần của bảng Emoji trên Tray (test được trên mọi OS).
+/// Trạng thái bảng Emoji trên Tray — bọc [`EmojiPicker`] dùng chung (SF-7) + ô đang hover
+/// (hover là chuyện vẽ của Win32, không phải nghiệp vụ).
 #[derive(Debug, Default)]
 pub struct TrayEmojiState {
-    pub visible: bool,
-    pub category: u8,
-    pub mru: EmojiMru,
-    pub items: Vec<&'static EmojiEntry>,
+    pub picker: EmojiPicker,
     pub hovered: Option<usize>,
-    pub scroll_row: usize,
 }
 
 impl TrayEmojiState {
+    pub fn is_open(&self) -> bool {
+        self.picker.is_open()
+    }
+
     pub fn open(&mut self) {
-        self.visible = true;
-        self.category = 0;
+        self.picker.open();
         self.hovered = None;
-        self.scroll_row = 0;
-        self.reload();
     }
 
     pub fn close(&mut self) {
-        self.visible = false;
-        self.hovered = None;
-    }
-
-    pub fn reload(&mut self) {
-        self.items = search_emojis("", self.category, &self.mru, 120);
-        self.scroll_row = 0;
+        self.picker.close();
         self.hovered = None;
     }
 
     pub fn switch_category(&mut self, cat: u8) {
-        self.category = cat;
-        self.reload();
+        self.picker.switch_category(cat);
+        self.hovered = None;
     }
 
     pub fn record_pick(&mut self, idx: usize) -> Option<&'static str> {
-        let glyph = self.items.get(idx)?.glyph;
-        self.mru.record(glyph);
-        self.close();
-        Some(glyph)
+        self.hovered = None;
+        self.picker.pick(idx)
     }
 
     pub fn scroll_by(&mut self, delta: i32) {
-        let total_rows = self.items.len().div_ceil(GRID_COLS);
-        let max_row = total_rows.saturating_sub(GRID_VISIBLE_ROWS) as i32;
-        self.scroll_row = (self.scroll_row as i32 + delta).clamp(0, max_row) as usize;
+        self.picker.scroll_by(i64::from(delta));
     }
 
     /// Hit-test tọa độ client logic 96 DPI: `Some(Ok(cell_idx))`, `Some(Err(tab_idx))`, hoặc `None`.
@@ -107,8 +97,8 @@ impl TrayEmojiState {
         {
             let col = ((x - PAD_X) / CELL_W) as usize;
             let row = ((y - GRID_TOP) / CELL_H) as usize;
-            let idx = (self.scroll_row + row) * GRID_COLS + col;
-            if idx < self.items.len() {
+            let idx = (self.picker.scroll_row() + row) * GRID_COLS + col;
+            if idx < self.picker.items().len() {
                 return Some(Ok(idx));
             }
         }
@@ -372,7 +362,7 @@ mod win {
                 }
             }
             let Some(p) = slot.as_mut() else { return };
-            if p.state.visible {
+            if p.state.is_open() {
                 p.state.close();
                 unsafe {
                     let _ = ShowWindow(p.hwnd, SW_HIDE);
@@ -625,10 +615,10 @@ mod win {
             w!("Segoe UI Emoji"),
         );
         let old = SelectObject(hdc, font.into());
-        let start = p.state.scroll_row * GRID_COLS;
+        let start = p.state.picker.scroll_row() * GRID_COLS;
         for row in 0..GRID_VISIBLE_ROWS {
             for col in 0..GRID_COLS {
-                let Some(it) = p.state.items.get(start + row * GRID_COLS + col) else {
+                let Some(it) = p.state.picker.items().get(start + row * GRID_COLS + col) else {
                     break;
                 };
                 let mut cell = RECT {
@@ -703,7 +693,7 @@ mod win {
                 right: x0 + tab_w,
                 bottom: (TABS_TOP + TABS_HEIGHT) as f32,
             };
-            if state.category == cat_id {
+            if state.picker.category() == cat_id {
                 d2d.rt.FillRoundedRectangle(
                     &D2D1_ROUNDED_RECT {
                         rect: D2D_RECT_F {
@@ -738,11 +728,11 @@ mod win {
             );
         }
 
-        let start = state.scroll_row * GRID_COLS;
+        let start = state.picker.scroll_row() * GRID_COLS;
         for row in 0..GRID_VISIBLE_ROWS {
             for col in 0..GRID_COLS {
                 let idx = start + row * GRID_COLS + col;
-                let Some(it) = state.items.get(idx) else {
+                let Some(it) = state.picker.items().get(idx) else {
                     break;
                 };
                 let cell = D2D_RECT_F {
@@ -783,7 +773,7 @@ mod win {
             },
             &border,
         );
-        let footer = match state.hovered.and_then(|i| state.items.get(i)) {
+        let footer = match state.hovered.and_then(|i| state.picker.items().get(i)) {
             Some(it) => format!(":{}:  ·  Click chèn · Chuột phải đóng", it.shortcode),
             None => "Bảng Emoji TextVN  ·  Click chèn · Chuột phải đóng".to_string(),
         };
@@ -819,22 +809,25 @@ mod tests {
     fn tray_emoji_state_pick_and_surrogate_utf16() {
         let mut st = TrayEmojiState::default();
         st.open();
-        assert!(st.visible);
-        assert!(!st.items.is_empty());
+        assert!(st.is_open());
+        assert!(!st.picker.items().is_empty());
 
         st.switch_category(7);
         let rocket_idx = st
-            .items
+            .picker
+            .items()
             .iter()
             .position(|e| e.glyph == "🚀")
             .expect("rocket in activities");
         assert_eq!(st.record_pick(rocket_idx), Some("🚀"));
-        assert!(!st.visible);
+        assert!(!st.is_open());
 
         // 🚀 (U+1F680) là cặp surrogate 2 code unit UTF-16.
         assert_eq!(encode_emoji_utf16("🚀"), vec![0xD83D, 0xDE80]);
 
         st.open();
-        assert_eq!(st.items[0].glyph, "🚀");
+        assert_eq!(st.picker.items()[0].glyph, "🚀");
+        // Bố cục tray = lưới dùng chung của session (một nguồn số cột/hàng).
+        assert_eq!((GRID_COLS, GRID_VISIBLE_ROWS), (8, 5));
     }
 }
