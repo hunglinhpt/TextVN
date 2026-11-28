@@ -30,13 +30,10 @@ if ! osascript -e 'tell application "System Events" to return UI elements enable
     exit 3
 fi
 
-# keys=expect — mọi dòng đều đã được engine xác nhận (corpus/mac + corpus/shared).
-CASES='dduocj=được
-chaof=chào
-hoaf=hoà
-tieengs=tiếng
-vietj=việt
-nguyen=nguyen'
+# keys=expect — MỘT nguồn dùng chung với Linux scripts/e2e-desktop.sh (G22, COMPAT-3):
+# tools/e2e/typing-cases.txt (mọi dòng đã được engine xác nhận qua corpus/mac + corpus/shared).
+CASES_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../e2e" && pwd)/typing-cases.txt"
+CASES="$(grep -v '^#' "$CASES_FILE" | grep '=')"
 
 SMOKE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/TextVN-smoke-XXXXXXXX")"
 SMOKE_NAME="$(basename "$SMOKE_DIR").txt"

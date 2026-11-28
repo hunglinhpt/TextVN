@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Bộ case gõ thật dùng CHUNG cho mọi harness GUI (G22): macOS `tools/mac/smoke-imk.sh` (IMK +
+# TextEdit) và Linux `scripts/e2e-desktop.sh` (IBus/Fcitx5 + Mousepad/foot trong phiên desktop).
+# Định dạng: <phím Telex>=<chữ mong đợi>. Mọi dòng đã được engine xác nhận (corpus/mac +
+# corpus/shared, replay headless ở CI) — giá trị mong đợi KHÔNG bịa.
+dduocj=được
+chaof=chào
+hoaf=hoà
+tieengs=tiếng
+vietj=việt
+nguyen=nguyen
