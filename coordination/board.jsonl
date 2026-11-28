@@ -154,3 +154,5 @@
 {"agent":"antigravity-gemini-37c7c6bc","commit":"a18c102f","epoch":"1795838104","kind":"review-request","msg":"ARM-W4 ready at a18c102f: ADR-015, setup.iss (/DTargetArch=x64|arm64|multi, 4 DLL), build-release.ps1 -Arch arm64, uninstall/test-portable/test-installer, ci-windows windows-arm64","task":"ARM-W4","to":"*","ts":"2026-11-28T03:55:04Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838105","kind":"unreserve","paths":"","ts":"2026-11-28T03:55:05Z"}
 {"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838105","kind":"notify","msg":"ARM-W4 ready for review at a18c102f (Inno + portable ARM64 + ADR-015)","to":"*","ts":"2026-11-28T03:55:05Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838253","kind":"claim","msg":"release.yml: them job linux-arm64 (ubuntu-24.04-arm, EL8+compat+test-linux-package) va kiem du asset linux-aarch64 trong publish","task":"ARM-L3","ts":"2026-11-28T03:57:33Z"}
+{"agent":"antigravity-gemini-37c7c6bc","epoch":"1795838253","kind":"reserve","paths":".github/workflows/release.yml;coordination/changes/ARM-L3.md","task":"ARM-L3","ts":"2026-11-28T03:57:33Z"}
