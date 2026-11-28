@@ -151,6 +151,52 @@ jobs:
             dist/TextVN-*.msix
           if-no-files-found: error
 
+  # COMPAT-1: kiem E2E goi phat hanh tren windows-2025 song song windows-2022.
+  windows-2025-e2e:
+    name: Windows E2E (windows-2025)
+    needs: windows
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      STORE_APP_NAME: ${{ vars.STORE_APP_NAME }}
+      STORE_PUBLISHER_NAME: ${{ vars.STORE_PUBLISHER_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: dist
+      - name: Portable ZIP E2E (windows-2025)
+        shell: powershell
+        run: |
+          $zip = Get-ChildItem dist\TextVN-portable-*.zip | Select-Object -First 1
+          if (-not $zip) { throw 'portable zip missing' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Installer E2E (windows-2025)
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*-windows-x64.exe | Where-Object { $_.Name -notlike '*-machine.exe' } | Select-Object -First 1
+          if (-not $setup) { throw 'installer exe missing' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Simulate Store validator (windows-2025)
+        shell: powershell
+        timeout-minutes: 15
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*-windows-x64.exe | Where-Object { $_.Name -notlike '*-machine.exe' } | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: MSIX sideload E2E (windows-2025)
+        shell: powershell
+        run: |
+          $msix = Get-ChildItem dist\TextVN-*-windows-x64.msix | Select-Object -First 1
+          if (-not $msix) { throw 'msix package missing' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-msix-sideload.ps1 -Msix $msix.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -573,7 +619,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
+    needs: [windows, windows-2025-e2e, linux, linux-arm64, linux-distro-matrix, linux-arm64-distro-matrix, macos]
     # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
     # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

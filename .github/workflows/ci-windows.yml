@@ -157,8 +157,12 @@ jobs:
     # Hai kịch bản người dùng trên Windows thật (runner GitHub, có desktop session — RW5
     # đã verify): (1) giải nén zip portable rồi chạy, (2) cài bằng Inno Setup im lặng
     # machine + kích hoạt user. Mỗi kịch bản gõ tiếng Việt THẬT qua TSF vào Notepad (SendInput VK) rồi gỡ.
-    name: Windows package (portable + installer, gõ TSF thật)
-    runs-on: windows-2022
+    name: Windows package (${{ matrix.os }}, portable + installer, gõ TSF thật)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
       # STO-03/CI-03: khi chủ repo đặt repo VARIABLES (Settings -> Secrets and
@@ -177,6 +181,8 @@ jobs:
           targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: win-pkg-${{ matrix.os }}-v1
       - name: Inno Setup 6 (bản dịch tiếng Việt cần ≥ 6.5)
         shell: powershell
         run: |
@@ -282,7 +288,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: textvn-windows-x64
+          name: textvn-windows-x64-${{ matrix.os }}
           path: |
             dist/*.zip
             dist/*.exe
