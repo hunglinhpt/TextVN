@@ -25,9 +25,12 @@ Write-Host ('languages before: ' + ($langsBefore -join ', '))
 
 $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $dir = Join-Path $tempRoot ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
+$isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($Zip -match '-windows-arm64-')
+$expectedBins = @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')
+if ($isArm64) { $expectedBins += @('textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll') }
 try {
 Expand-Archive -Path $Zip -DestinationPath $dir
-foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')) {
+foreach ($f in $expectedBins) {
     if (-not (Test-Path (Join-Path $dir $f))) { throw "portable zip is missing $f" }
 }
 Write-Host "PASS zip layout ($dir)"
@@ -138,6 +141,11 @@ if (Test-Path -LiteralPath (Join-Path $dir 'TextVN.exe')) { throw 'uninstall.ps1
 if (-not (Test-Path -LiteralPath $userFile)) { throw 'uninstall.ps1 deleted a user file next to TextVN (R2-16)' }
 if (-not (Test-Path -LiteralPath (Join-Path $userSub 'anh.txt'))) { throw 'uninstall.ps1 deleted a user folder next to TextVN (R2-16)' }
 if (Test-Path -LiteralPath (Join-Path $dir 'textvn-cli.exe')) { throw 'uninstall.ps1 left textvn-cli.exe behind' }
+if ($isArm64) {
+    foreach ($armDll in @('textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll')) {
+        if (Test-Path -LiteralPath (Join-Path $dir $armDll)) { throw "uninstall.ps1 left $armDll behind" }
+    }
+}
 Write-Host 'PASS portable uninstall keeps unrelated user files'
 $layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
 if ($layout -ne '2') { throw "uninstall.ps1 did not give Ctrl+Shift back (Layout Hotkey='$layout', expected '2' as before)" }

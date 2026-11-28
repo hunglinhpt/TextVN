@@ -72,12 +72,25 @@ OutputDir=..\..\dist
 #ifndef OutputSuffix
   #define OutputSuffix ""
 #endif
-OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows-x64{#OutputSuffix}
+#ifndef TargetArch
+  #define TargetArch "x64"
+#endif
+#if TargetArch == "multi"
+OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows{#OutputSuffix}
+ArchitecturesAllowed=x64compatible arm64
+ArchitecturesInstallIn64BitMode=x64compatible arm64
+#elif TargetArch == "arm64"
+OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows-arm64{#OutputSuffix}
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
+OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows-{#TargetArch}{#OutputSuffix}
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
 
 ; MAC DINH = per-user (KHONG elevation): validator cua Store tu dong chay
 ; installer qua CreateProcess — exe co manifest requireAdministrator fail NGAY
@@ -123,7 +136,14 @@ english.FinishedLabel=Setup has finished installing [name]. Reopen the applicati
 english.FinishedLabelNoIcons=Setup has finished installing [name]. Reopen the applications that are already running (Zalo, VS Code, Word…) so they use the new input method.
 
 #ifndef TargetDir
-#define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
+  #if TargetArch == "arm64"
+    #define TargetDir "..\..\target\aarch64-pc-windows-msvc\release"
+  #else
+    #define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
+  #endif
+#endif
+#ifndef TargetDirArm64
+  #define TargetDirArm64 "..\..\target\aarch64-pc-windows-msvc\release"
 #endif
 
 [InstallDelete]
@@ -147,6 +167,8 @@ Type: files; Name: "{app}\textvn-hook.exe"
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
 Type: files; Name: "{app}\textvn-tsf.dll.old-*"
+Type: files; Name: "{app}\textvn-tsf-arm64.dll.old-*"
+Type: files; Name: "{app}\textvn-tsf-x64.dll.old-*"
 Type: files; Name: "{app}\textvn-tsf-x86.dll.old-*"
 Type: files; Name: "{app}\TextVN.exe.old-*"
 
@@ -157,6 +179,26 @@ Name: "autostart"; Description: "Tu dong khoi dong TextVN cung Windows"; GroupDe
 Name: "freectrlshift"; Description: "Danh Ctrl + Shift cho TextVN (tat phim Ctrl + Shift doi ban phim cua Windows)"; GroupDescription: "Phim chuyen tieng Viet:"; Flags: checkedonce
 
 [Files]
+#if TargetArch == "arm64"
+; ARM-W4: Windows ARM64 (TSF-only) — forwarder ARM64X + 3 DLL companion + tray/CLI ARM64 native.
+Source: "{#TargetDir}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"
+Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"
+Source: "{#TargetDir}\textvn-tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
+Source: "{#TargetDir}\textvn-tsf-arm64.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-arm64.dll"
+Source: "{#TargetDir}\textvn-tsf-x64.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x64.dll"
+Source: "{#TargetDir}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"
+#elif TargetArch == "multi"
+Source: "{#TargetDirArm64}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"; Check: IsArm64Arch
+Source: "{#TargetDirArm64}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"; Check: IsArm64Arch
+Source: "{#TargetDirArm64}\textvn-tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"; Check: IsArm64Arch
+Source: "{#TargetDirArm64}\textvn-tsf-arm64.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-arm64.dll"; Check: IsArm64Arch
+Source: "{#TargetDirArm64}\textvn-tsf-x64.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x64.dll"; Check: IsArm64Arch
+Source: "{#TargetDirArm64}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"; Check: IsArm64Arch
+Source: "{#TargetDir}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"; Check: not IsArm64Arch
+Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"; Check: not IsArm64Arch
+Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"; Check: not IsArm64Arch
+Source: "{#TargetDir}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"; Check: not IsArm64Arch
+#else
 Source: "{#TargetDir}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"
 #ifdef IncludeCompatibilityHook
 Source: "{#TargetDir}\textvn-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-hook.exe"
@@ -166,6 +208,7 @@ Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversio
 ; Vong 14 (Zalo 32-bit): TIP DLL x86 cho app WOW64 — build-release copy vao
 ; TargetDir voi ten textvn-tsf-x86.dll; register ghi mirror COM/CTF 32-bit view.
 Source: "{#TargetDir}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"
+#endif
 Source: "..\..\tray\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Tu dien hunspell-vi (data/assist/*.dic) KHONG phat hanh: license nguon "GNU GPL"
 ; khong ro "or later" => GPL-2.0-only se khong tuong thich GPL-3.0 (Fassist-98, ADR-014).
@@ -265,7 +308,14 @@ end;
 procedure RenameLockedTsfDll();
 begin
   RenameLockedFile('textvn-tsf.dll');
+  RenameLockedFile('textvn-tsf-arm64.dll');
+  RenameLockedFile('textvn-tsf-x64.dll');
   RenameLockedFile('textvn-tsf-x86.dll');
+end;
+
+function IsArm64Arch(): Boolean;
+begin
+  Result := (ProcessorArchitecture = paARM64);
 end;
 
 var

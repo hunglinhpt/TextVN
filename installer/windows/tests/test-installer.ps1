@@ -17,6 +17,9 @@ $inproc = "HKLM:\Software\Classes\CLSID\$clsid\InprocServer32"
 $userInproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
 $app = Join-Path $env:ProgramFiles 'TextVN'
 $log = Join-Path $env:TEMP 'textvn-setup.log'
+$isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($Setup -match '-windows-arm64')
+$expectedBins = @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'unins000.exe')
+if ($isArm64) { $expectedBins += @('textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll') }
 
 # Phim tat doi bo cuc cua Windows ve mac dinh (Ctrl+Shift) de kiem tac vu "Danh Ctrl + Shift".
 $toggle = 'HKCU:\Keyboard Layout\Toggle'
@@ -59,7 +62,7 @@ if ($p.ExitCode -eq 10 -and $setupLog -match 'refused elevated TSF registration 
     Show-RegisterLogTail
     throw "per-user setup exit $($p.ExitCode)"
 } else {
-    foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
+    foreach ($f in $expectedBins) {
         if (-not (Test-Path (Join-Path $userApp $f))) { throw "per-user installed file missing: $f" }
     }
     # 0.2.19: silent install = pure file copy (khong dang ky TSF trong installer
@@ -119,7 +122,7 @@ if ($p.ExitCode -ne 0) {
 if ($setupLog -notmatch 'R2-124: per-user TextVN found') { throw 'R2-124: machine install did not detect the per-user install (same AppId, HKCU ARP)' }
 if ($staleRun -and $staleRun -like "*TextVN-fake-peruser*") { throw "R2-124: stale HKCU Run entry of the per-user install left behind ('$staleRun')" }
 Write-Host 'PASS R2-124 machine install detects + removes the per-user install (uninstaller run, stale HKCU Run cleaned)'
-foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
+foreach ($f in $expectedBins) {
     if (-not (Test-Path (Join-Path $app $f))) { throw "installed file missing: $f" }
 }
 # 0.2.19: silent install = pure file copy; TextVN.exe first run tu dang ky TSF

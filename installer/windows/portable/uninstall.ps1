@@ -79,7 +79,7 @@ if ($r.ExitCode -ne 0) {
 # xoa sach ca thu muc cua nguoi dung. Gio chi xoa DUNG cac file TextVN biet ten,
 # roi xoa thu muc con/thu muc goc khi (va chi khi) chung da rong.
 $known = @(
-    'TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'textvn-hook.exe',
+    'TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-arm64.dll', 'textvn-tsf-x64.dll', 'textvn-tsf-x86.dll', 'textvn-hook.exe',
     'install.ps1', 'HUONG_DAN_SU_DUNG.txt', 'README.md', 'CHANGELOG.md', 'LICENSE',
     'RELEASE_REPORT.json', 'resources\textvn.ico', 'resources\textvn_v.ico', 'resources\textvn_e.ico'
 )
@@ -92,7 +92,7 @@ foreach ($rel in $known) {
 }
 # Ban sao luu khi nang cap (TextVN.exe.old-*, textvn-tsf*.dll.old-*).
 Get-ChildItem -LiteralPath $dir -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '^(TextVN\.exe|textvn-tsf(-x86)?\.dll)\.old-' } |
+    Where-Object { $_.Name -match '^(TextVN\.exe|textvn-tsf(-(arm64|x64|x86))?\.dll)\.old-' } |
     ForEach-Object {
         try { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop } catch { $locked += $_.FullName }
     }

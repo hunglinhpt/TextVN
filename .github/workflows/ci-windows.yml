@@ -85,6 +85,8 @@ jobs:
             rustup toolchain install stable --profile minimal
             rustup default stable
           }
+          rustup component add rustfmt clippy
+          rustup target add x86_64-pc-windows-msvc i686-pc-windows-msvc
       - name: rustc host must be aarch64-pc-windows-msvc (no emulated x64 toolchain)
         shell: powershell
         run: |
@@ -101,18 +103,53 @@ jobs:
           cargo run -q -p textvn-cli -- verify
           cargo run -q -p textvn-cli -- sizes
           cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
-      - name: Build TIP + tray + CLI for ARM64 (release)
-        run: cargo build --release --locked -p textvn-win-tsf -p textvn-tray -p textvn-cli
-      - name: PE check — machine ARM64 and no VC++ runtime (R2-18)
-        run: cargo run -q -p xtask -- check-pe-imports --machine arm64 target/release/textvn_win_tsf.dll target/release/TextVN.exe target/release/textvn-cli.exe
+      - name: Inno Setup 6 (ARM-W4)
+        shell: powershell
+        run: |
+          $dir86 = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          $dir64 = "${env:ProgramFiles}\Inno Setup 6"
+          if (-not (Test-Path "$dir86\ISCC.exe") -and -not (Test-Path "$dir64\ISCC.exe")) {
+            choco upgrade innosetup --no-progress -y | Out-Null
+          }
+          if (Test-Path "$dir86\ISCC.exe") {
+            $dir86 | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } elseif (Test-Path "$dir64\ISCC.exe") {
+            $dir64 | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            throw 'ISCC.exe not found after Inno Setup 6 install'
+          }
+      - name: ARM-W4 build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -Arch arm64 -SkipTests -BuildInstaller
+      - name: ARM-W4 portable E2E (test-portable.ps1)
+        shell: powershell
+        run: |
+          $zip = Get-ChildItem dist\TextVN-portable-*-windows-arm64-*.zip | Select-Object -First 1
+          if (-not $zip) { throw 'ARM64 portable zip missing' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: ARM-W4 installer E2E (test-installer.ps1)
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*-windows-arm64.exe | Select-Object -First 1
+          if (-not $setup) { throw 'ARM64 installer missing' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: textvn-windows-arm64-bins
           path: |
-            target/release/textvn_win_tsf.dll
-            target/release/TextVN.exe
-            target/release/textvn-cli.exe
-          if-no-files-found: error
+            target/aarch64-pc-windows-msvc/release/textvn-tsf.dll
+            target/aarch64-pc-windows-msvc/release/textvn-tsf-arm64.dll
+            target/aarch64-pc-windows-msvc/release/textvn-tsf-x64.dll
+            target/aarch64-pc-windows-msvc/release/textvn-tsf-x86.dll
+            target/aarch64-pc-windows-msvc/release/TextVN.exe
+            target/aarch64-pc-windows-msvc/release/textvn-cli.exe
+            dist/*.zip
+            dist/*.exe
+            dist/SHA256SUMS-*.txt
+          if-no-files-found: warn
 
   windows-package:
     # Hai kịch bản người dùng trên Windows thật (runner GitHub, có desktop session — RW5

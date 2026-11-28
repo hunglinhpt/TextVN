@@ -15,10 +15,13 @@ param(
     [switch]$BuildInstaller,
     # Build them BIEN THE MAY (PrivilegesRequired=admin, ARP o HKLM) - goi danh
     # cho Package validation cua Microsoft Store (vong 5: validator khong thay
-    # entry HKCU). File ra: TextVN-setup-<ver>-windows-x64-machine.exe.
+    # entry HKCU). File ra: TextVN-setup-<ver>-windows-<arch>-machine.exe.
     [switch]$MachineInstaller,
     # Hook WH_KEYBOARD_LL legacy chi co trong goi Compatibility duoc yeu cau.
     [switch]$IncludeCompatibilityHook,
+    # Kien truc Windows dich: x64 (mac dinh) hoac arm64 (ARM64 native + ARM64X forwarder).
+    [ValidateSet("x64", "arm64")]
+    [string]$Arch = "x64",
     # SHA-1 thumbprint cua Authenticode code-signing certificate trong CurrentUser\My
     # hoac LocalMachine\My. Khong ghi private key vao repo hay artifact.
     [string]$SigningCertificateThumbprint = "",
@@ -89,9 +92,14 @@ if ($Version -eq "") {
         throw "Cannot read workspace version from Cargo.toml"
     }
 }
-Write-Step "TextVN Release Build v$Version"
+Write-Step "TextVN Release Build v$Version ($Arch)"
 
-$Target = "x86_64-pc-windows-msvc"
+if ($Arch -eq "arm64" -and $IncludeCompatibilityHook) {
+    Write-Fail "Compatibility hook is not supported on Windows ARM64 (TSF-only)"
+}
+
+$Target = if ($Arch -eq "arm64") { "aarch64-pc-windows-msvc" } else { "x86_64-pc-windows-msvc" }
+$TargetX64 = "x86_64-pc-windows-msvc"
 $ReleaseDir = "target\$Target\release"
 $DistDir = "dist"
 $BuildStartedUtc = (Get-Date).ToUniversalTime().ToString("o")
@@ -116,12 +124,13 @@ if (-not $SigningRequested) {
 $ReleaseChecks = [ordered]@{}
 $FeatureProfile = if ($IncludeCompatibilityHook) { "tsf-plus-legacy-hook" } else { "tsf-only" }
 
-# Kiem tra rust target - ca i686 cho TIP DLL x86 (Vong 14): thieu target nay
-# thi buoc build x86 phia duoi moi fail, sau khi da chay het test/clippy.
+# Kiem tra rust target - ca i686 cho TIP DLL x86 (Vong 14) va x86_64 tren ARM64 (ARM-W4):
+# thieu target thi buoc build TIP phu moi fail, sau khi da chay het test/clippy.
 $TargetX86 = "i686-pc-windows-msvc"
-Write-Step "Check Rust targets $Target, $TargetX86"
+$RequiredTargets = if ($Arch -eq "arm64") { @($Target, $TargetX64, $TargetX86) } else { @($Target, $TargetX86) }
+Write-Step "Check Rust targets ($($RequiredTargets -join ', '))"
 $installedTargets = rustup target list --installed 2>&1
-foreach ($t in @($Target, $TargetX86)) {
+foreach ($t in $RequiredTargets) {
     if ($installedTargets -notcontains $t) {
         Write-Warn "Target $t chua cai - dang cai..."
         rustup target add $t
@@ -173,6 +182,30 @@ Write-Step "Build release --workspace --target $Target"
 cargo build --release --locked @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
+function Assert-PeMachine([string]$FilePath, [uint16]$ExpectedMachine, [string]$Label) {
+    $peBytes = [System.IO.File]::ReadAllBytes($FilePath)
+    $peOff = [BitConverter]::ToInt32($peBytes, 0x3C)
+    $machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
+    # Ngoac quanh -f: khong co thi "-f" bi truyen nhu tham so cho Write-Fail.
+    if ($machine -ne $ExpectedMachine) { Write-Fail ("$Label wrong machine: 0x{0:X4}" -f $machine) }
+}
+
+function Copy-DllAllowLocked([string]$SrcPath, [string]$DstPath, [string]$Label) {
+    # DLL dang duoc TSF nap trong app khac -> rename ban cu thanh .old-* roi copy (R2-88).
+    try {
+        Copy-Item $SrcPath $DstPath -Force -ErrorAction Stop
+    } catch {
+        if (Test-Path $DstPath) {
+            $backup = "$DstPath.old-$(Get-Date -Format 'yyyyMMddHHmmss')"
+            Rename-Item -LiteralPath $DstPath -NewName (Split-Path $backup -Leaf) -Force
+            Copy-Item $SrcPath $DstPath -Force
+            Write-Warn "$Label dang bi nap - da rename ban cu thanh .old-*"
+        } else {
+            Write-Fail "$Label copy FAIL: $_"
+        }
+    }
+}
+
 # Vong 14 (Zalo 32-bit): build them TIP DLL x86 - app 32-bit (Zalo, Office x86) khong the nap DLL 64-bit (ERROR_BAD_EXE_FORMAT 193). CRT tinh (khong
 # phu thuoc VC redist x86 tren may nguoi dung).
 Write-Step "Build TIP DLL x86 (WOW64: Zalo/Office 32-bit)"
@@ -182,54 +215,82 @@ if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
 $x86Dll = "target/$TargetX86/release/textvn_win_tsf.dll"
 if (-not (Test-Path $x86Dll)) { Write-Fail "x86 TIP DLL missing: $x86Dll" }
-# Gate: PE machine phai la I386 (0x014C)
-$peBytes = [System.IO.File]::ReadAllBytes($x86Dll)
-$peOff = [BitConverter]::ToInt32($peBytes, 0x3C)
-$machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
-# Ngoac quanh -f: khong co thi "-f" bi truyen nhu tham so cho Write-Fail va
-# thong bao in nguyen chuoi "0x{0:X4}".
-if ($machine -ne 0x014C) { Write-Fail ("x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine) }
+Assert-PeMachine $x86Dll 0x014C "x86 TIP DLL"
 $x86Dst = Join-Path $ReleaseDir "textvn-tsf-x86.dll"
-# DLL x86 dang duoc TSF nap trong app 32-bit (Zalo/Office) - Windows tu choi
-# xoa file image-mapped; doi ten file cu (Windows CHO PHEP rename) roi copy (R2-88).
-# Ban .old-* khong vao goi: $BinFiles liet ke dich danh tung file.
-try {
-    Copy-Item $x86Dll $x86Dst -Force -ErrorAction Stop
-} catch {
-    if (Test-Path $x86Dst) {
-        $backup = "$x86Dst.old-$(Get-Date -Format 'yyyyMMddHHmmss')"
-        Rename-Item -LiteralPath $x86Dst -NewName (Split-Path $backup -Leaf) -Force
-        Copy-Item $x86Dll $x86Dst -Force
-        Write-Warn "x86 TIP DLL dang bi nap (app 32-bit dang mo) - da rename ban cu thanh .old-*"
-    } else {
-        Write-Fail "x86 TIP DLL copy FAIL: $_"
-    }
-}
+Copy-DllAllowLocked $x86Dll $x86Dst "x86 TIP DLL"
 Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
+
+if ($Arch -eq "arm64") {
+    # ARM-W4: copy ARM64 TIP -> textvn-tsf-arm64.dll, build x64 TIP -> textvn-tsf-x64.dll,
+    # va dung ARM64X pure forwarder textvn-tsf.dll.
+    $arm64Dll = Join-Path $ReleaseDir "textvn_win_tsf.dll"
+    if (-not (Test-Path $arm64Dll)) { Write-Fail "ARM64 TIP DLL missing: $arm64Dll" }
+    Assert-PeMachine $arm64Dll 0xAA64 "ARM64 TIP DLL"
+    $arm64Dst = Join-Path $ReleaseDir "textvn-tsf-arm64.dll"
+    Copy-DllAllowLocked $arm64Dll $arm64Dst "ARM64 TIP DLL"
+    Write-Ok "ARM64 TIP DLL: textvn-tsf-arm64.dll (ARM64, CRT static)"
+
+    Write-Step "Build TIP DLL x64 (for x64 processes on Windows ARM64)"
+    $env:RUSTFLAGS = "-C target-feature=+crt-static"
+    cargo build --release --locked --target $TargetX64 -p textvn-win-tsf
+    if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x64 TIP FAIL" }
+    Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
+    $x64Dll = "target/$TargetX64/release/textvn_win_tsf.dll"
+    if (-not (Test-Path $x64Dll)) { Write-Fail "x64 TIP DLL missing: $x64Dll" }
+    Assert-PeMachine $x64Dll 0x8664 "x64 TIP DLL"
+    $x64Dst = Join-Path $ReleaseDir "textvn-tsf-x64.dll"
+    Copy-DllAllowLocked $x64Dll $x64Dst "x64 TIP DLL"
+    Write-Ok "x64 TIP DLL: textvn-tsf-x64.dll (AMD64, CRT static)"
+
+    Write-Step "Build ARM64X pure forwarder (textvn-tsf.dll)"
+    $fwdDst = Join-Path $ReleaseDir "textvn-tsf.dll"
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- build-arm64x --out $fwdDst
+    if ($LASTEXITCODE -ne 0) { Write-Fail "cargo xtask build-arm64x FAIL" }
+    Write-Ok "ARM64X pure forwarder: textvn-tsf.dll"
+}
 
 Write-Ok "Build release DONE"
 
 # R2-18: moi PE phat hanh phai link CRT tinh (.cargo/config.toml +crt-static) -
 # TIP DLL nap vao moi tien trinh, may thieu VC++ redist thi khong nap duoc.
 Write-Step "Check PE imports (khong phu thuoc VC++ runtime)"
-$PeFiles = @("$ReleaseDir\TextVN.exe", "$ReleaseDir\textvn-cli.exe", "$ReleaseDir\textvn_win_tsf.dll", "$ReleaseDir\textvn-tsf-x86.dll")
-if ($IncludeCompatibilityHook) { $PeFiles += "$ReleaseDir\textvn-hook.exe" }
-# E59: check-pe-imports is a Rust tool (`cargo xtask`) - no Python needed.
-cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports @PeFiles
-if ($LASTEXITCODE -ne 0) { Write-Fail "PE con phu thuoc VC++ runtime (xem tren)" }
+if ($Arch -eq "arm64") {
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports --machine arm64 "$ReleaseDir\TextVN.exe" "$ReleaseDir\textvn-cli.exe" "$ReleaseDir\textvn-tsf-arm64.dll"
+    if ($LASTEXITCODE -ne 0) { Write-Fail "ARM64 PE check FAIL (xem tren)" }
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports --machine x64 "$ReleaseDir\textvn-tsf-x64.dll"
+    if ($LASTEXITCODE -ne 0) { Write-Fail "x64 TIP DLL PE check FAIL" }
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports --machine x86 "$ReleaseDir\textvn-tsf-x86.dll"
+    if ($LASTEXITCODE -ne 0) { Write-Fail "x86 TIP DLL PE check FAIL" }
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports --machine arm64x "$ReleaseDir\textvn-tsf.dll"
+    if ($LASTEXITCODE -ne 0) { Write-Fail "ARM64X forwarder PE check FAIL" }
+} else {
+    $PeFiles = @("$ReleaseDir\TextVN.exe", "$ReleaseDir\textvn-cli.exe", "$ReleaseDir\textvn_win_tsf.dll", "$ReleaseDir\textvn-tsf-x86.dll")
+    if ($IncludeCompatibilityHook) { $PeFiles += "$ReleaseDir\textvn-hook.exe" }
+    # E59: check-pe-imports is a Rust tool (`cargo xtask`) - no Python needed.
+    cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports @PeFiles
+    if ($LASTEXITCODE -ne 0) { Write-Fail "PE con phu thuoc VC++ runtime (xem tren)" }
+}
 $ReleaseChecks["pe_static_crt"] = "passed"
 
-# Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
-# cach phat hanh chuan de xay dung reputation; khong co co che che giau binary.
-# Gom ca TIP DLL x86: no duoc nap vao moi tien trinh 32-bit (Zalo, Office x86)
-# nen thieu chu ky la DLL "la" duy nhat trong goi da ky (CR-36).
-$ReleaseSignFiles = @(
-    "$ReleaseDir\TextVN.exe",
-    "$ReleaseDir\textvn-cli.exe",
-    "$ReleaseDir\textvn_win_tsf.dll",
-    "$ReleaseDir\textvn-tsf-x86.dll"
-)
-if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
+# Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi.
+if ($Arch -eq "arm64") {
+    $ReleaseSignFiles = @(
+        "$ReleaseDir\TextVN.exe",
+        "$ReleaseDir\textvn-cli.exe",
+        "$ReleaseDir\textvn-tsf.dll",
+        "$ReleaseDir\textvn-tsf-arm64.dll",
+        "$ReleaseDir\textvn-tsf-x64.dll",
+        "$ReleaseDir\textvn-tsf-x86.dll"
+    )
+} else {
+    $ReleaseSignFiles = @(
+        "$ReleaseDir\TextVN.exe",
+        "$ReleaseDir\textvn-cli.exe",
+        "$ReleaseDir\textvn_win_tsf.dll",
+        "$ReleaseDir\textvn-tsf-x86.dll"
+    )
+    if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
+}
 if ($SigningRequested) {
     Write-Step "Sign release binaries with Authenticode"
     $signTool = Resolve-SignTool
@@ -316,21 +377,32 @@ New-Item -ItemType Directory -Force $DistDir | Out-Null
 
 # Tao portable ZIP
 Write-Step "Package portable ZIP"
-$ZipName = "TextVN-portable-$Version-windows-x64-$BuildId"
+$ZipName = "TextVN-portable-$Version-windows-$Arch-$BuildId"
 $ZipDir  = "$DistDir\$ZipName"
 # Artifact bat bien: khong xoa release cu vi Windows/Explorer co the dang giu
 # mot EXE trong do. Moi build nhan Build ID rieng de co the truy vet va rollback.
 if (Test-Path $ZipDir) { Write-Fail "Artifact directory already exists: $ZipDir" }
 New-Item -ItemType Directory -Force $ZipDir | Out-Null
 
-$BinFiles = @(
-    @{ src = "TextVN.exe";           dst = "TextVN.exe" },
-    @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
-    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
-    @{ src = "textvn-tsf-x86.dll";  dst = "textvn-tsf-x86.dll" }
-)
-if ($IncludeCompatibilityHook) {
-    $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }
+if ($Arch -eq "arm64") {
+    $BinFiles = @(
+        @{ src = "TextVN.exe";           dst = "TextVN.exe" },
+        @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
+        @{ src = "textvn-tsf.dll";       dst = "textvn-tsf.dll" },
+        @{ src = "textvn-tsf-arm64.dll"; dst = "textvn-tsf-arm64.dll" },
+        @{ src = "textvn-tsf-x64.dll";   dst = "textvn-tsf-x64.dll" },
+        @{ src = "textvn-tsf-x86.dll";   dst = "textvn-tsf-x86.dll" }
+    )
+} else {
+    $BinFiles = @(
+        @{ src = "TextVN.exe";           dst = "TextVN.exe" },
+        @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
+        @{ src = "textvn_win_tsf.dll";   dst = "textvn-tsf.dll" },
+        @{ src = "textvn-tsf-x86.dll";   dst = "textvn-tsf-x86.dll" }
+    )
+    if ($IncludeCompatibilityHook) {
+        $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }
+    }
 }
 
 foreach ($entry in $BinFiles) {
@@ -396,6 +468,11 @@ Write-Ok "Created RELEASE_REPORT.json (release-candidate)"
 # Verify PE metadata cho toan bo binary
 Write-Step "Verify PE metadata and VersionInfo"
 foreach ($entry in $BinFiles) {
+    if ($Arch -eq "arm64" -and $entry.dst -eq "textvn-tsf.dll") {
+        # ARM64X pure forwarder link bang /noentry khong co .rsrc VersionInfo
+        Write-Ok "textvn-tsf.dll: ARM64X pure forwarder (no resource table expected)"
+        continue
+    }
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
@@ -455,14 +532,14 @@ if ($BuildInstaller) {
         throw "-BuildInstaller requires iscc.exe (Inno Setup 6: winget install JRSoftware.InnoSetup hoac https://jrsoftware.org/isdl.php); installer was not produced"
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
-        $installerArgs = @("/DMyAppVersion=$Version", $targetDirArg)
+        $installerArgs = @("/DMyAppVersion=$Version", "/DTargetArch=$Arch", $targetDirArg)
         if ($IncludeCompatibilityHook) { $installerArgs += "/DIncludeCompatibilityHook=1" }
         $installerArgs += "installer\windows\TextVN-setup.iss"
         & $isccExe @installerArgs
         # -BuildInstaller la yeu cau ro rang: ISCC loi thi dung, khong WARN roi
         # bao "Build COMPLETE" (loi [Code] cua .iss tung lot qua nhu vay).
         if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
-        $setupExe = "dist\TextVN-setup-$Version-windows-x64.exe"
+        $setupExe = "dist\TextVN-setup-$Version-windows-$Arch.exe"
         if (Test-Path $setupExe) {
             if ($SigningRequested) {
                 Sign-TextVNFile $signTool $SigningCertificateThumbprint $setupExe
@@ -480,12 +557,12 @@ if ($BuildInstaller) {
         # goi nop Store thieu lua chon may. -MachineInstaller bat buoc build CA
         # HAI; file ra co duoi "-machine.exe" (khong ghi de ban thuong).
         if ($MachineInstaller) {
-            $machineArgs = @("/DMyAppVersion=$Version", $targetDirArg, "/DMachineInstall=1", '/DOutputSuffix="-machine"')
+            $machineArgs = @("/DMyAppVersion=$Version", "/DTargetArch=$Arch", $targetDirArg, "/DMachineInstall=1", '/DOutputSuffix="-machine"')
             if ($IncludeCompatibilityHook) { $machineArgs += "/DIncludeCompatibilityHook=1" }
             $machineArgs += "installer\windows\TextVN-setup.iss"
             & $isccExe @machineArgs
             if ($LASTEXITCODE -ne 0) { throw "ISCC (machine) failed with exit code $LASTEXITCODE" }
-            $machineExe = "dist\TextVN-setup-$Version-windows-x64-machine.exe"
+            $machineExe = "dist\TextVN-setup-$Version-windows-$Arch-machine.exe"
             if (-not (Test-Path $machineExe)) { throw "Machine installer output not found: $machineExe" }
             # R2-17: ban -machine.exe la ban NOP STORE - phai ky giong ban per-user.
             if ($SigningRequested) {
@@ -518,12 +595,12 @@ Write-Host ""
 Write-Host "Output:" -ForegroundColor White
 Write-Host "  Portable ZIP : $ZipPath" -ForegroundColor Green
 if ($BuildInstaller) {
-    $installerPath = "$DistDir\TextVN-setup-$Version-windows-x64.exe"
+    $installerPath = "$DistDir\TextVN-setup-$Version-windows-$Arch.exe"
     if (Test-Path $installerPath) {
         Write-Host "  Installer    : $installerPath" -ForegroundColor Green
     }
     if ($MachineInstaller) {
-        $machinePath = "$DistDir\TextVN-setup-$Version-windows-x64-machine.exe"
+        $machinePath = "$DistDir\TextVN-setup-$Version-windows-$Arch-machine.exe"
         if (Test-Path $machinePath) {
             Write-Host "  Machine      : $machinePath" -ForegroundColor Green
         }
